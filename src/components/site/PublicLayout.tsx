@@ -247,6 +247,7 @@ export const SiteHeader = memo(function SiteHeader() {
 
 export const SiteFooter = memo(function SiteFooter() {
   const db = useDb();
+  const socials = db.websiteContent.socials || {};
   const nav = [...db.navigation]
     .filter(
       (n) =>
@@ -263,27 +264,27 @@ export const SiteFooter = memo(function SiteFooter() {
   const socialLinks = [
     {
       label: "Facebook",
-      href: cleanExternalUrl(db.websiteContent.socials.facebook),
+      href: cleanExternalUrl(socials.facebook),
       icon: <Facebook className="h-4 w-4" />,
     },
     {
       label: "Instagram",
-      href: cleanExternalUrl(db.websiteContent.socials.instagram),
+      href: cleanExternalUrl(socials.instagram),
       icon: <Instagram className="h-4 w-4" />,
     },
     {
       label: "YouTube",
-      href: cleanExternalUrl(db.websiteContent.socials.youtube),
+      href: cleanExternalUrl(socials.youtube),
       icon: <Youtube className="h-4 w-4" />,
     },
     {
       label: "LinkedIn",
-      href: cleanExternalUrl(db.websiteContent.socials.linkedin),
+      href: cleanExternalUrl(socials.linkedin),
       icon: <Linkedin className="h-4 w-4" />,
     },
     {
       label: "WhatsApp channel",
-      href: cleanExternalUrl(db.websiteContent.socials.whatsapp),
+      href: cleanExternalUrl(socials.whatsapp),
       icon: <MessageCircle className="h-4 w-4" />,
     },
   ].filter((item) => item.href);

@@ -994,14 +994,13 @@ function applyLoyolaThemeDefaults(db: DB): DB {
 }
 
 function migratePublicWebsiteCopy(db: DB): DB {
+  const currentSocials = db.websiteContent.socials || seed.websiteContent.socials;
   const nextSocials = {
-    facebook: db.websiteContent.socials.facebook === "#" ? "" : db.websiteContent.socials.facebook,
-    instagram:
-      db.websiteContent.socials.instagram === "#" ? "" : db.websiteContent.socials.instagram,
-    youtube: db.websiteContent.socials.youtube === "#" ? "" : db.websiteContent.socials.youtube,
-    linkedin: db.websiteContent.socials.linkedin === "#" ? "" : db.websiteContent.socials.linkedin,
-    whatsapp:
-      db.websiteContent.socials.whatsapp === "#" ? "" : db.websiteContent.socials.whatsapp || "",
+    facebook: currentSocials.facebook === "#" ? "" : currentSocials.facebook || "",
+    instagram: currentSocials.instagram === "#" ? "" : currentSocials.instagram || "",
+    youtube: currentSocials.youtube === "#" ? "" : currentSocials.youtube || "",
+    linkedin: currentSocials.linkedin === "#" ? "" : currentSocials.linkedin || "",
+    whatsapp: currentSocials.whatsapp === "#" ? "" : currentSocials.whatsapp || "",
   };
   const nextHeroText = db.websiteContent.heroText.includes("role-based portals")
     ? "A modern digital home for Loyola College Negombo, bringing admissions, academics, notices, events, galleries, and parent communication into one clear school website."
@@ -1015,11 +1014,11 @@ function migratePublicWebsiteCopy(db: DB): DB {
     nextFooterLegalLine === db.websiteContent.footerLegalLine &&
     nextHeroImage === db.websiteContent.heroImage &&
     nextOgImage === db.websiteContent.seo.ogImage &&
-    nextSocials.facebook === db.websiteContent.socials.facebook &&
-    nextSocials.instagram === db.websiteContent.socials.instagram &&
-    nextSocials.youtube === db.websiteContent.socials.youtube &&
-    nextSocials.linkedin === db.websiteContent.socials.linkedin &&
-    nextSocials.whatsapp === db.websiteContent.socials.whatsapp
+    nextSocials.facebook === currentSocials.facebook &&
+    nextSocials.instagram === currentSocials.instagram &&
+    nextSocials.youtube === currentSocials.youtube &&
+    nextSocials.linkedin === currentSocials.linkedin &&
+    nextSocials.whatsapp === currentSocials.whatsapp
   ) {
     return db;
   }

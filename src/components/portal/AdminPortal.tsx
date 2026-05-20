@@ -2565,6 +2565,7 @@ function BackupPanel({ db }: { db: DB }) {
 }
 
 function SettingsPanel({ db }: { db: DB }) {
+  const socials = db.websiteContent.socials || {};
   const update = (patch: Partial<DB["websiteContent"]>) =>
     setDb((current) => ({ ...current, websiteContent: { ...current.websiteContent, ...patch } }));
   const updateSocial = (key: keyof DB["websiteContent"]["socials"], value: string) =>
@@ -2573,7 +2574,7 @@ function SettingsPanel({ db }: { db: DB }) {
       websiteContent: {
         ...current.websiteContent,
         socials: {
-          ...current.websiteContent.socials,
+          ...(current.websiteContent.socials || {}),
           [key]: value,
         },
       },
@@ -2709,7 +2710,7 @@ function SettingsPanel({ db }: { db: DB }) {
                 {label}
               </span>
               <TextInput
-                value={db.websiteContent.socials[key] || ""}
+                value={socials[key] || ""}
                 onChange={(e) => updateSocial(key, e.target.value)}
                 placeholder={placeholder}
               />
