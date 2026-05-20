@@ -2785,6 +2785,13 @@ export function AdminPortal() {
   }, [auth.loading, auth.user]);
 
   useEffect(() => {
+    if (!auth.user || !adminRoles.includes(auth.user.role)) return;
+    if (window.location.pathname !== "/admin") {
+      window.history.replaceState(null, "", `/admin${window.location.search}${window.location.hash}`);
+    }
+  }, [auth.user]);
+
+  useEffect(() => {
     if (auth.user && !visiblePanelIds.includes(active)) {
       setActive(visiblePanelIds[0] || "dashboard");
     }
