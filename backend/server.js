@@ -3538,6 +3538,25 @@ app.get("/api/me", auth, async (req, res) => {
   }
 });
 
+const frontendRoot = path.join(__dirname, "public");
+const frontendIndex = path.join(frontendRoot, "index.html");
+
+if (fs.existsSync(frontendIndex)) {
+  app.use(
+    express.static(frontendRoot, {
+      maxAge: "1d",
+      setHeaders(res) {
+        res.setHeader("X-Content-Type-Options", "nosniff");
+      },
+    }),
+  );
+
+  app.use((req, res, next) => {
+    if (req.method !== "GET" || req.path.startsWith("/api/")) return next();
+    res.sendFile(frontendIndex);
+  });
+}
+
 app.use((req, res) => {
   res.status(404).json({ error: "API route not found" });
 });
