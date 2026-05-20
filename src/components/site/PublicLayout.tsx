@@ -5,8 +5,10 @@ import {
   ChevronDown,
   Facebook,
   Instagram,
+  Linkedin,
   Lock,
   Mail,
+  MessageCircle,
   MapPin,
   Menu,
   Phone,
@@ -25,6 +27,11 @@ function clampMediaOpacity(value?: number) {
 
 function pageIdFromHref(href: string) {
   return href.split("#")[0].replace(/^\/+/, "") || "home";
+}
+
+function cleanExternalUrl(value?: string) {
+  const url = value?.trim();
+  return url && url !== "#" ? url : "";
 }
 
 export const SiteHeader = memo(function SiteHeader() {
@@ -253,6 +260,33 @@ export const SiteFooter = memo(function SiteFooter() {
     const id = pageIdFromHref(href);
     return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   };
+  const socialLinks = [
+    {
+      label: "Facebook",
+      href: cleanExternalUrl(db.websiteContent.socials.facebook),
+      icon: <Facebook className="h-4 w-4" />,
+    },
+    {
+      label: "Instagram",
+      href: cleanExternalUrl(db.websiteContent.socials.instagram),
+      icon: <Instagram className="h-4 w-4" />,
+    },
+    {
+      label: "YouTube",
+      href: cleanExternalUrl(db.websiteContent.socials.youtube),
+      icon: <Youtube className="h-4 w-4" />,
+    },
+    {
+      label: "LinkedIn",
+      href: cleanExternalUrl(db.websiteContent.socials.linkedin),
+      icon: <Linkedin className="h-4 w-4" />,
+    },
+    {
+      label: "WhatsApp channel",
+      href: cleanExternalUrl(db.websiteContent.socials.whatsapp),
+      icon: <MessageCircle className="h-4 w-4" />,
+    },
+  ].filter((item) => item.href);
 
   return (
     <footer className="bg-navy text-white">
@@ -280,17 +314,22 @@ export const SiteFooter = memo(function SiteFooter() {
           <p className="mt-6 max-w-md text-sm leading-relaxed text-white/65">
             {db.websiteContent.footerText}
           </p>
-          <div className="mt-6 flex gap-3 text-white/70">
-            <span className="grid h-9 w-9 place-items-center rounded-full border border-white/15">
-              <Facebook className="h-4 w-4" />
-            </span>
-            <span className="grid h-9 w-9 place-items-center rounded-full border border-white/15">
-              <Instagram className="h-4 w-4" />
-            </span>
-            <span className="grid h-9 w-9 place-items-center rounded-full border border-white/15">
-              <Youtube className="h-4 w-4" />
-            </span>
-          </div>
+          {socialLinks.length > 0 && (
+            <div className="mt-6 flex flex-wrap gap-3 text-white/70">
+              {socialLinks.map((item) => (
+                <a
+                  key={item.label}
+                  href={item.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={item.label}
+                  className="grid h-9 w-9 place-items-center rounded-full border border-white/15 transition-smooth hover:border-gold hover:bg-gold hover:text-navy"
+                >
+                  {item.icon}
+                </a>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>

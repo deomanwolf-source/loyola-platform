@@ -9,13 +9,17 @@ import {
   ClipboardList,
   Database,
   Download,
+  Facebook,
   FileText,
   GalleryHorizontal,
   Globe,
   Image as ImageIcon,
+  Instagram,
   LayoutDashboard,
+  Linkedin,
   LogOut,
   Menu,
+  MessageCircle,
   MessageSquare,
   MonitorSmartphone,
   Newspaper,
@@ -32,6 +36,7 @@ import {
   User,
   Users,
   Video,
+  Youtube,
   Briefcase,
   GraduationCap,
   Phone,
@@ -2562,9 +2567,57 @@ function BackupPanel({ db }: { db: DB }) {
 function SettingsPanel({ db }: { db: DB }) {
   const update = (patch: Partial<DB["websiteContent"]>) =>
     setDb((current) => ({ ...current, websiteContent: { ...current.websiteContent, ...patch } }));
+  const updateSocial = (key: keyof DB["websiteContent"]["socials"], value: string) =>
+    setDb((current) => ({
+      ...current,
+      websiteContent: {
+        ...current.websiteContent,
+        socials: {
+          ...current.websiteContent.socials,
+          [key]: value,
+        },
+      },
+    }));
 
   const anthemCoverRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const socialFields: {
+    key: keyof DB["websiteContent"]["socials"];
+    label: string;
+    placeholder: string;
+    Icon: React.ComponentType<{ className?: string }>;
+  }[] = [
+    {
+      key: "facebook",
+      label: "Facebook",
+      placeholder: "https://www.facebook.com/your-page",
+      Icon: Facebook,
+    },
+    {
+      key: "instagram",
+      label: "Instagram",
+      placeholder: "https://www.instagram.com/your-profile",
+      Icon: Instagram,
+    },
+    {
+      key: "youtube",
+      label: "YouTube",
+      placeholder: "https://www.youtube.com/@your-channel",
+      Icon: Youtube,
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn",
+      placeholder: "https://www.linkedin.com/school/your-page",
+      Icon: Linkedin,
+    },
+    {
+      key: "whatsapp",
+      label: "WhatsApp channel",
+      placeholder: "https://whatsapp.com/channel/...",
+      Icon: MessageCircle,
+    },
+  ];
 
   const handleAnthemCoverUpload = async (file?: File) => {
     if (!file) return;
@@ -2645,6 +2698,28 @@ function SettingsPanel({ db }: { db: DB }) {
             placeholder="SEO title"
           />
         </div>
+      </PanelShell>
+
+      <PanelShell title="Social media links" kicker="Footer icons">
+        <div className="grid gap-4 lg:grid-cols-2">
+          {socialFields.map(({ key, label, placeholder, Icon }) => (
+            <label key={key} className="block">
+              <span className="mb-2 flex items-center gap-2 text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+                <Icon className="h-4 w-4 text-gold" />
+                {label}
+              </span>
+              <TextInput
+                value={db.websiteContent.socials[key] || ""}
+                onChange={(e) => updateSocial(key, e.target.value)}
+                placeholder={placeholder}
+              />
+            </label>
+          ))}
+        </div>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          Add full links here, then publish. Icons with empty links stay hidden on the public
+          website.
+        </p>
       </PanelShell>
 
       <PanelShell title="College Anthem" kicker="Identity">

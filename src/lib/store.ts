@@ -275,7 +275,13 @@ export interface DB {
     footerText: string;
     footerLegalLine: string;
     customCss: string;
-    socials: { facebook: string; instagram: string; linkedin: string; youtube: string };
+    socials: {
+      facebook: string;
+      instagram: string;
+      youtube: string;
+      linkedin: string;
+      whatsapp: string;
+    };
     seo: { metaTitle: string; metaDescription: string; ogImage: string };
     anthemVideoUrl: string;
     anthemVideoCoverImage: string;
@@ -414,7 +420,7 @@ export const seed: DB = {
     footerText: "",
     footerLegalLine: "",
     customCss: "",
-    socials: { facebook: "#", instagram: "#", linkedin: "#", youtube: "#" },
+    socials: { facebook: "", instagram: "", youtube: "", linkedin: "", whatsapp: "" },
     seo: {
       metaTitle: "Loyola College Negombo",
       metaDescription: "",
@@ -988,6 +994,15 @@ function applyLoyolaThemeDefaults(db: DB): DB {
 }
 
 function migratePublicWebsiteCopy(db: DB): DB {
+  const nextSocials = {
+    facebook: db.websiteContent.socials.facebook === "#" ? "" : db.websiteContent.socials.facebook,
+    instagram:
+      db.websiteContent.socials.instagram === "#" ? "" : db.websiteContent.socials.instagram,
+    youtube: db.websiteContent.socials.youtube === "#" ? "" : db.websiteContent.socials.youtube,
+    linkedin: db.websiteContent.socials.linkedin === "#" ? "" : db.websiteContent.socials.linkedin,
+    whatsapp:
+      db.websiteContent.socials.whatsapp === "#" ? "" : db.websiteContent.socials.whatsapp || "",
+  };
   const nextHeroText = db.websiteContent.heroText.includes("role-based portals")
     ? "A modern digital home for Loyola College Negombo, bringing admissions, academics, notices, events, galleries, and parent communication into one clear school website."
     : db.websiteContent.heroText;
@@ -999,7 +1014,12 @@ function migratePublicWebsiteCopy(db: DB): DB {
     nextHeroText === db.websiteContent.heroText &&
     nextFooterLegalLine === db.websiteContent.footerLegalLine &&
     nextHeroImage === db.websiteContent.heroImage &&
-    nextOgImage === db.websiteContent.seo.ogImage
+    nextOgImage === db.websiteContent.seo.ogImage &&
+    nextSocials.facebook === db.websiteContent.socials.facebook &&
+    nextSocials.instagram === db.websiteContent.socials.instagram &&
+    nextSocials.youtube === db.websiteContent.socials.youtube &&
+    nextSocials.linkedin === db.websiteContent.socials.linkedin &&
+    nextSocials.whatsapp === db.websiteContent.socials.whatsapp
   ) {
     return db;
   }
@@ -1011,6 +1031,7 @@ function migratePublicWebsiteCopy(db: DB): DB {
       heroText: nextHeroText,
       heroImage: nextHeroImage,
       footerLegalLine: nextFooterLegalLine,
+      socials: nextSocials,
       seo: {
         ...db.websiteContent.seo,
         ogImage: nextOgImage,
