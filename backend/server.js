@@ -839,6 +839,7 @@ async function ensureContentTables() {
       file_size INT,
       duration_seconds DECIMAL(8,2),
       folder VARCHAR(100),
+      category VARCHAR(100),
       uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -887,6 +888,8 @@ async function ensureContentTables() {
   await addColumnIfMissing("media_files", "source_id", "VARCHAR(50) UNIQUE");
   await addColumnIfMissing("media_files", "webm_url", "TEXT");
   await addColumnIfMissing("media_files", "duration_seconds", "DECIMAL(8,2)");
+  await addColumnIfMissing("media_files", "category", "VARCHAR(100)");
+  await backfillMediaCategories();
   await addColumnIfMissing("teachers", "account_email", "VARCHAR(190)");
   await addColumnIfMissing("teachers", "account_user_id", "VARCHAR(50)");
   await ensureSiteDatabaseSchema();
@@ -907,6 +910,19 @@ async function tableColumns(table) {
   const safeTable = table.replace(/[^a-z0-9_]/gi, "");
   const [columns] = await db.query(`SHOW COLUMNS FROM ${safeTable}`);
   return columns;
+}
+
+async function backfillMediaCategories() {
+  const [rows] = await db.query(
+    "SELECT id, folder, file_type FROM media_files WHERE category IS NULL OR category = ''",
+  );
+
+  for (const row of rows) {
+    await db.query("UPDATE media_files SET category = ? WHERE id = ?", [
+      mediaCategoryFromFolder(row.folder, row.file_type),
+      row.id,
+    ]);
+  }
 }
 
 async function ensureSiteDatabaseSchema() {
@@ -1164,6 +1180,26 @@ function inferFileType(url) {
   if (/\.(mp4|webm|mov)(\?|#|$)/.test(lower)) return "video";
   if (/\.pdf(\?|#|$)/.test(lower)) return "document";
   return "file";
+}
+
+function mediaCategoryFromFolder(folder = "", fileType = "") {
+  const cleanFolder = String(folder || "").toLowerCase();
+  const cleanType = String(fileType || "").toLowerCase();
+
+  if (cleanFolder.startsWith("pages/") || cleanFolder === "page-images") return "Page images";
+  if (cleanFolder.includes("news")) return "News photos";
+  if (cleanFolder.includes("event")) return "Event photos";
+  if (cleanFolder.includes("gallery-videos") || cleanFolder.includes("video-gallery")) {
+    return "Video gallery";
+  }
+  if (cleanFolder.includes("gallery")) return "Gallery photos";
+  if (cleanFolder.includes("staff")) return "Staff profiles";
+  if (cleanFolder.includes("notice") || cleanFolder.includes("download")) return "Documents";
+  if (cleanFolder.includes("site")) return "Site assets";
+  if (cleanType.includes("video")) return "Videos";
+  if (cleanType.includes("image")) return "Photos";
+  if (cleanType.includes("document") || cleanType.includes("pdf")) return "Documents";
+  return "Other media";
 }
 
 function publicBaseUrl(req) {
@@ -1679,6 +1715,9 @@ function collectMedia(siteDb) {
       file_size: Number(options.fileSize || options.file_size || 0),
       duration_seconds: options.durationSeconds || options.duration_seconds || null,
       folder,
+      category:
+        options.category ||
+        mediaCategoryFromFolder(folder, options.fileType || inferFileType(trimmed)),
     });
   };
 
@@ -1725,8 +1764,8 @@ async function syncMediaFiles(connection, siteDb) {
   for (const item of media) {
     await connection.query(
       `
-        INSERT INTO media_files (source_id, file_name, file_url, webm_url, file_type, file_size, duration_seconds, folder)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO media_files (source_id, file_name, file_url, webm_url, file_type, file_size, duration_seconds, folder, category)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           file_name = VALUES(file_name),
           file_url = VALUES(file_url),
@@ -1734,7 +1773,8 @@ async function syncMediaFiles(connection, siteDb) {
           file_type = VALUES(file_type),
           file_size = VALUES(file_size),
           duration_seconds = VALUES(duration_seconds),
-          folder = VALUES(folder)
+          folder = VALUES(folder),
+          category = VALUES(category)
       `,
       [
         item.source_id,
@@ -1745,6 +1785,7 @@ async function syncMediaFiles(connection, siteDb) {
         item.file_size,
         item.duration_seconds || null,
         item.folder,
+        item.category,
       ],
     );
   }
@@ -2232,7 +2273,7 @@ app.get("/api/media", async (req, res) => {
   try {
     await ensureContentTables();
     const [rows] = await db.query(
-      "SELECT id, source_id, file_name, file_url, webm_url, file_type, file_size, duration_seconds, folder, uploaded_at FROM media_files ORDER BY uploaded_at DESC",
+      "SELECT id, source_id, file_name, file_url, webm_url, file_type, file_size, duration_seconds, folder, category, uploaded_at FROM media_files ORDER BY uploaded_at DESC",
     );
     res.json(rows);
   } catch (error) {
@@ -3359,13 +3400,14 @@ app.post(
       const folder = safePathSegment(req.query.folder || "media");
       const stored = await processUploadedMedia(req, req.file, folder);
       const sourceId = mediaSourceId(folder, stored.fileUrl);
+      const category = mediaCategoryFromFolder(folder, stored.fileType);
 
       await db.query(
         `
         INSERT INTO media_files (
-          source_id, file_name, file_url, webm_url, file_type, file_size, duration_seconds, folder
+          source_id, file_name, file_url, webm_url, file_type, file_size, duration_seconds, folder, category
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           file_name = VALUES(file_name),
           file_url = VALUES(file_url),
@@ -3373,7 +3415,8 @@ app.post(
           file_type = VALUES(file_type),
           file_size = VALUES(file_size),
           duration_seconds = VALUES(duration_seconds),
-          folder = VALUES(folder)
+          folder = VALUES(folder),
+          category = VALUES(category)
       `,
         [
           sourceId,
@@ -3384,6 +3427,7 @@ app.post(
           stored.fileSize,
           stored.durationSeconds,
           folder,
+          category,
         ],
       );
 
@@ -3399,6 +3443,7 @@ app.post(
           size: stored.fileSize,
           durationSeconds: stored.durationSeconds,
           folder,
+          category,
         },
       });
     } catch (error) {

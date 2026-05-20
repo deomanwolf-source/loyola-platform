@@ -258,6 +258,7 @@ CREATE TABLE IF NOT EXISTS media_files (
   file_size INT,
   duration_seconds DECIMAL(8,2),
   folder VARCHAR(100),
+  category VARCHAR(100),
   uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -1139,7 +1139,35 @@ function ContentPanel({ db }: { db: DB }) {
 
 function StorageOverview({ refreshKey = 0 }: { refreshKey?: number }) {
   const db = useDb();
-  const [, setRefreshCount] = useState(refreshKey);
+  const [refreshCount, setRefreshCount] = useState(refreshKey);
+  const [mediaRows, setMediaRows] = useState<
+    {
+      id: number;
+      file_name?: string;
+      file_url?: string;
+      file_type?: string;
+      folder?: string;
+      category?: string;
+      uploaded_at?: string;
+    }[]
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/media?ts=${Date.now()}`, {
+      headers: { Accept: "application/json", ...authHeaders() },
+    })
+      .then((response) => (response.ok ? response.json() : []))
+      .then((payload) => {
+        if (!cancelled) setMediaRows(Array.isArray(payload) ? payload : []);
+      })
+      .catch(() => {
+        if (!cancelled) setMediaRows([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshCount]);
 
   const backendUrls = (() => {
     const values = new Set<string>();
@@ -1191,6 +1219,14 @@ function StorageOverview({ refreshKey = 0 }: { refreshKey?: number }) {
 
     return [...values];
   })();
+
+  const categoryRows = Array.from(
+    mediaRows.reduce((map, row) => {
+      const category = row.category || "Uncategorized";
+      map.set(category, (map.get(category) || 0) + 1);
+      return map;
+    }, new Map<string, number>()),
+  ).sort(([a], [b]) => a.localeCompare(b));
 
   const counts = backendUrls.reduce(
     (acc, url) => {
@@ -1295,6 +1331,21 @@ function StorageOverview({ refreshKey = 0 }: { refreshKey?: number }) {
               </div>
             );
           })}
+          {categoryRows.length ? (
+            <div className="rounded-2xl border border-border bg-white px-4 py-3">
+              <p className="text-sm font-black text-navy">Saved categories</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {categoryRows.map(([category, count]) => (
+                  <span
+                    key={category}
+                    className="rounded-full bg-secondary px-3 py-1 text-[11px] font-black text-navy"
+                  >
+                    {category}: {count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
       {backendUrls.length ? (
