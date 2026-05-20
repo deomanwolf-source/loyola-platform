@@ -4,6 +4,7 @@ import { API_URL, authHeaders, loginUser } from "./api";
 
 export const DEFAULT_ANTHEM_VIDEO_URL = "https://youtu.be/0X2iA064w9k";
 export const DEFAULT_HERO_IMAGE = "/flag1.png";
+const BUNDLED_STATIC_ASSETS = new Set(["/flag1.png", "/loyola-crest.jpg"]);
 
 export type Role =
   | "masteradmin"
@@ -882,6 +883,18 @@ function stripDemoContent(db: DB): DB {
   const bundledDepartmentIds = new Set(["DP001", "DP002", "DP003", "DP004"]);
   const bundledAdmissionStepIds = new Set(["AS001", "AS002", "AS003", "AS004"]);
   const hasUnsplashImage = (value?: string) => /images\.unsplash\.com/i.test(value || "");
+  const isBundledStaticAsset = (value?: string) => {
+    const clean = value?.trim().split("?")[0] || "";
+    if (!clean) return false;
+    try {
+      const parsed = new URL(clean);
+      return BUNDLED_STATIC_ASSETS.has(parsed.pathname);
+    } catch {
+      return BUNDLED_STATIC_ASSETS.has(clean);
+    }
+  };
+  const clearDemoMedia = (value?: string) =>
+    hasUnsplashImage(value) || isBundledStaticAsset(value) ? "" : value || "";
 
   return {
     ...db,
@@ -903,27 +916,27 @@ function stripDemoContent(db: DB): DB {
     admissionsSteps: db.admissionsSteps.filter((row) => !bundledAdmissionStepIds.has(row.id)),
     websiteContent: {
       ...db.websiteContent,
-      heroImage: hasUnsplashImage(db.websiteContent.heroImage) ? "" : db.websiteContent.heroImage,
-      backgroundMediaUrl: hasUnsplashImage(db.websiteContent.backgroundMediaUrl)
-        ? ""
-        : db.websiteContent.backgroundMediaUrl,
+      heroImage: clearDemoMedia(db.websiteContent.heroImage),
+      backgroundMediaUrl: clearDemoMedia(db.websiteContent.backgroundMediaUrl),
+      anthemVideoCoverImage: clearDemoMedia(db.websiteContent.anthemVideoCoverImage),
+      seo: {
+        ...db.websiteContent.seo,
+        ogImage: clearDemoMedia(db.websiteContent.seo.ogImage),
+      },
     },
     media: {
-      campusImage: hasUnsplashImage(db.media.campusImage) ? "" : db.media.campusImage,
-      aboutImage: hasUnsplashImage(db.media.aboutImage) ? "" : db.media.aboutImage,
-      principalImage: hasUnsplashImage(db.media.principalImage) ? "" : db.media.principalImage,
+      campusImage: clearDemoMedia(db.media.campusImage),
+      aboutImage: clearDemoMedia(db.media.aboutImage),
+      principalImage: clearDemoMedia(db.media.principalImage),
     },
     pages: Object.fromEntries(
       Object.entries(db.pages).map(([id, page]) => [
         id,
         {
           ...page,
-          backgroundMediaUrl: hasUnsplashImage(page.backgroundMediaUrl)
-            ? ""
-            : page.backgroundMediaUrl,
-          anthemVideoCoverImage: hasUnsplashImage(page.anthemVideoCoverImage)
-            ? ""
-            : page.anthemVideoCoverImage,
+          image: clearDemoMedia(page.image),
+          backgroundMediaUrl: clearDemoMedia(page.backgroundMediaUrl),
+          anthemVideoCoverImage: clearDemoMedia(page.anthemVideoCoverImage),
         },
       ]),
     ),
@@ -971,8 +984,8 @@ function migratePublicWebsiteCopy(db: DB): DB {
   const nextHeroText = db.websiteContent.heroText.includes("role-based portals")
     ? "A modern digital home for Loyola College Negombo, bringing admissions, academics, notices, events, galleries, and parent communication into one clear school website."
     : db.websiteContent.heroText;
-  const nextHeroImage = db.websiteContent.heroImage?.trim() || DEFAULT_HERO_IMAGE;
-  const nextOgImage = db.websiteContent.seo.ogImage?.trim() || DEFAULT_HERO_IMAGE;
+  const nextHeroImage = db.websiteContent.heroImage?.trim() || "";
+  const nextOgImage = db.websiteContent.seo.ogImage?.trim() || "";
   const nextFooterLegalLine = db.websiteContent.footerLegalLine.replace("·", "|");
 
   if (

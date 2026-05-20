@@ -1143,9 +1143,19 @@ function StorageOverview({ refreshKey = 0 }: { refreshKey?: number }) {
 
   const backendUrls = (() => {
     const values = new Set<string>();
+    const bundledStaticAssets = new Set(["/flag1.png", "/loyola-crest.jpg"]);
+    const isBundledStaticAsset = (url: string) => {
+      const clean = url.split("?")[0];
+      try {
+        return bundledStaticAssets.has(new URL(clean).pathname);
+      } catch {
+        return bundledStaticAssets.has(clean);
+      }
+    };
     const add = (value?: string) => {
       const url = value?.trim();
       if (!url) return;
+      if (isBundledStaticAsset(url)) return;
       if (!url.startsWith("data:")) {
         values.add(url);
       }
