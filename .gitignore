@@ -34,6 +34,7 @@ dist-ssr
 .vercel
 .env*.local
 backend/.env
+hostinger.env
 
 # Local uploads: keep folder, not uploaded files
 backend/uploads/*
