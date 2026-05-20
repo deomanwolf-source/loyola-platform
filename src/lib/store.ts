@@ -4,6 +4,9 @@ import { API_URL, authHeaders, loginUser } from "./api";
 
 export const DEFAULT_ANTHEM_VIDEO_URL = "https://youtu.be/0X2iA064w9k";
 export const DEFAULT_HERO_IMAGE = "/flag1.png";
+export const DEFAULT_MAP_URL = "https://maps.app.goo.gl/SbvARKozMPQTve388";
+export const DEFAULT_MAP_EMBED_URL =
+  "https://www.google.com/maps?q=Loyola%20College%20Negombo%2C%20Sri%20Lanka&output=embed";
 const BUNDLED_STATIC_ASSETS = new Set(["/flag1.png", "/loyola-crest.jpg"]);
 
 export type Role =
@@ -277,6 +280,8 @@ export interface DB {
     anthemVideoUrl: string;
     anthemVideoCoverImage: string;
     officeHours: string;
+    mapUrl: string;
+    mapEmbedUrl: string;
   };
   navigation: NavItem[];
   pages: Record<
@@ -418,6 +423,8 @@ export const seed: DB = {
     anthemVideoUrl: "",
     anthemVideoCoverImage: "",
     officeHours: "",
+    mapUrl: DEFAULT_MAP_URL,
+    mapEmbedUrl: DEFAULT_MAP_EMBED_URL,
   },
   navigation: [
     { id: "home", label: "Home", order: 1, visible: true },

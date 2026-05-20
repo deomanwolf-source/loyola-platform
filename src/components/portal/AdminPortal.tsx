@@ -2619,6 +2619,16 @@ function SettingsPanel({ db }: { db: DB }) {
             placeholder="Office Hours (e.g. Mon-Fri, 8AM - 3PM)"
           />
           <TextInput
+            value={db.websiteContent.mapUrl}
+            onChange={(e) => update({ mapUrl: e.target.value })}
+            placeholder="Google Maps share URL"
+          />
+          <TextInput
+            value={db.websiteContent.mapEmbedUrl}
+            onChange={(e) => update({ mapEmbedUrl: e.target.value })}
+            placeholder="Google Maps embed URL"
+          />
+          <TextInput
             value={db.websiteContent.seo.metaTitle}
             onChange={(e) =>
               setDb((current) => ({

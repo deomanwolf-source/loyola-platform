@@ -34,6 +34,8 @@ import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrati
 import {
   DEFAULT_ANTHEM_VIDEO_URL,
   DEFAULT_HERO_IMAGE,
+  DEFAULT_MAP_EMBED_URL,
+  DEFAULT_MAP_URL,
   authenticateUser,
   audit,
   getDb,
@@ -2288,6 +2290,8 @@ function StudentPortalLandingPage() {
 function ContactPage() {
   const db = useDb();
   const page = db.pages.contact;
+  const mapUrl = db.websiteContent.mapUrl || DEFAULT_MAP_URL;
+  const mapEmbedUrl = db.websiteContent.mapEmbedUrl || DEFAULT_MAP_EMBED_URL;
   const [sent, setSent] = useState(false);
   const submit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2336,8 +2340,24 @@ function ContactPage() {
               {db.websiteContent.officeHours}
             </p>
           </div>
-          <div className="mt-7 rounded-lg border border-white/12 bg-white/8 p-4 text-sm text-white/70">
-            Google Map preview and vacancies link area
+          <div className="mt-7 overflow-hidden rounded-lg border border-white/12 bg-white">
+            <div className="relative aspect-[4/3] min-h-[260px]">
+              <iframe
+                title="Loyola College Negombo location"
+                src={mapEmbedUrl}
+                className="h-full w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+              <a
+                href={mapUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="absolute left-3 top-3 rounded-md bg-white px-3 py-2 text-sm font-bold text-blue-700 shadow-soft"
+              >
+                Open in Maps
+              </a>
+            </div>
           </div>
         </aside>
         <form
@@ -2374,13 +2394,19 @@ function ContactPage() {
             {db.forms.contactSubmitLabel}
           </button>
           <div className="stagger-children mt-8 grid gap-3 md:grid-cols-3">
-            {["Google Map", "Social Media Links", "Vacancies"].map((item) => (
+            {[
+              { label: "Google Map", href: mapUrl },
+              { label: "Social Media Links", href: "/contact" },
+              { label: "Vacancies", href: "/contact" },
+            ].map((item) => (
               <a
-                key={item}
-                href="#"
+                key={item.label}
+                href={item.href}
+                target={item.label === "Google Map" ? "_blank" : undefined}
+                rel={item.label === "Google Map" ? "noreferrer" : undefined}
                 className="hover-lift rounded-lg border border-border bg-secondary/60 px-4 py-3 text-sm font-medium text-navy"
               >
-                {item}
+                {item.label}
               </a>
             ))}
           </div>

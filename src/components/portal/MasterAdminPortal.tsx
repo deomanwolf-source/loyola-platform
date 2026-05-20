@@ -479,6 +479,7 @@ function SchoolSettings() {
     ["phone", "Phone"],
     ["email", "Email"],
     ["address", "Address"],
+    ["mapUrl", "Google Maps URL"],
   ];
   const save = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

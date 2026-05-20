@@ -379,6 +379,7 @@ function SettingsPanel() {
         phone: String(formData.get("phone") ?? ""),
         email: String(formData.get("email") ?? ""),
         address: String(formData.get("address") ?? ""),
+        mapUrl: String(formData.get("mapUrl") ?? ""),
       },
     }));
     audit("School settings updated", "superadmin");
@@ -425,6 +426,14 @@ function SettingsPanel() {
               name="address"
               className="input-line"
               defaultValue={c.address}
+            />
+          </Field>
+          <Field label="Google Maps URL">
+            <input
+              id="super-school-map-url"
+              name="mapUrl"
+              className="input-line"
+              defaultValue={c.mapUrl}
             />
           </Field>
         </div>
