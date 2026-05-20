@@ -81,7 +81,7 @@ function roleLabel(role: Role) {
     masteradmin: "Master Admin",
     superadmin: "Super Admin",
     website_admin: "Website Admin",
-    eduzync_admin: "EduZync Admin",
+    eduzync_admin: "EduTrack Admin",
     teacher: "Teacher",
     student: "Student",
     parent: "Parent",
@@ -2690,7 +2690,7 @@ function CentralPortal() {
       icon: Users,
       roles: EDUZYNC_ADMIN_ROLES,
       meta: "Students, staff, classes",
-      lockedMeta: "Only EduZync admins and top admins",
+      lockedMeta: "Only EduTrack admins and top admins",
     },
     {
       title: "EduTrack",
@@ -2698,7 +2698,7 @@ function CentralPortal() {
       icon: BookOpen,
       roles: EDUTRACK_ROLES,
       meta: "Syllabus progress",
-      lockedMeta: "Teachers and EduZync admins",
+      lockedMeta: "Teachers and EduTrack admins",
     },
     {
       title: "ELMS",
@@ -3561,7 +3561,7 @@ function EduTrackRuntimePage() {
 
   if (!EDUTRACK_ROLES.includes(auth.user.role)) {
     return (
-      <AccessDeniedPage message="EduTrack is available for Master Admin, Super Admin, EduZync Admin, and Teacher accounts." />
+      <AccessDeniedPage message="EduTrack is available for Master Admin, Super Admin, EduTrack Admin, and Teacher accounts." />
     );
   }
 

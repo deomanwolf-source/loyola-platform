@@ -193,7 +193,7 @@ export function SuperAdminPortal() {
                 { key: "parent", label: "Parent" },
                 { key: "teacher", label: "Teacher" },
                 { key: "website_admin", label: "Website Admin" },
-                { key: "eduzync_admin", label: "EduZync Admin" },
+                { key: "eduzync_admin", label: "EduTrack Admin" },
                 { key: "superadmin", label: "Super Admin" },
               ]}
             />

@@ -2359,7 +2359,7 @@ function UsersPanel({ db }: { db: DB }) {
             className="input-line"
           >
             <option value="website_admin">Website Admin</option>
-            <option value="eduzync_admin">EduZync Admin</option>
+            <option value="eduzync_admin">EduTrack Admin</option>
             <option value="superadmin">Super Admin</option>
             <option value="masteradmin">Master Admin</option>
           </select>
@@ -2686,7 +2686,7 @@ function formatRole(role?: Role) {
     masteradmin: "Master Admin",
     superadmin: "Super Admin",
     website_admin: "Website Admin",
-    eduzync_admin: "EduZync Admin",
+    eduzync_admin: "EduTrack Admin",
     teacher: "Teacher",
     student: "Student",
     parent: "Parent",

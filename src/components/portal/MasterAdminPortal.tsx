@@ -241,7 +241,7 @@ function AdminUsersPanel() {
             className="border border-border bg-background px-3 py-2 text-sm outline-none focus:border-gold"
           >
             <option value="website_admin">Website Admin</option>
-            <option value="eduzync_admin">EduZync Admin</option>
+            <option value="eduzync_admin">EduTrack Admin</option>
             <option value="superadmin">Super Admin</option>
             <option value="masteradmin">Master Admin</option>
             <option value="teacher">Teacher</option>
@@ -524,7 +524,7 @@ function roleLabel(role: Role) {
     masteradmin: "Master Admin",
     superadmin: "Super Admin",
     website_admin: "Website Admin",
-    eduzync_admin: "EduZync Admin",
+    eduzync_admin: "EduTrack Admin",
     student: "Student",
     parent: "Parent",
     teacher: "Teacher",

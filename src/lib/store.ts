@@ -672,7 +672,7 @@ export const seed: DB = {
       { id: "parent", label: "Parent", desc: "Attendance, fees, messages" },
       { id: "teacher", label: "Teacher", desc: "Classes, grading, planning" },
       { id: "website_admin", label: "Website Admin", desc: "Website, media, news" },
-      { id: "eduzync_admin", label: "EduZync Admin", desc: "School data management" },
+      { id: "eduzync_admin", label: "EduTrack Admin", desc: "EduTrack and school data management" },
       { id: "superadmin", label: "Super Admin", desc: "Full school system access" },
       { id: "masteradmin", label: "Master Admin", desc: "Full system access" },
     ],
