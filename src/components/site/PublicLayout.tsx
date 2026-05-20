@@ -37,7 +37,7 @@ export const SiteHeader = memo(function SiteHeader() {
   const nav = [...db.navigation]
     .filter(
       (item) =>
-        item.visible &&
+        item.visible !== false &&
         !item.parentId &&
         item.id !== "student-portal" &&
         Boolean(db.pages[item.id]),
@@ -46,7 +46,7 @@ export const SiteHeader = memo(function SiteHeader() {
   const childNav = [...db.navigation]
     .filter(
       (item) =>
-        item.visible &&
+        item.visible !== false &&
         item.parentId &&
         item.id !== "student-portal" &&
         Boolean(db.pages[item.id]) &&
@@ -241,7 +241,13 @@ export const SiteHeader = memo(function SiteHeader() {
 export const SiteFooter = memo(function SiteFooter() {
   const db = useDb();
   const nav = [...db.navigation]
-    .filter((n) => n.visible && !n.parentId && n.id !== "student-portal" && Boolean(db.pages[n.id]))
+    .filter(
+      (n) =>
+        n.visible !== false &&
+        !n.parentId &&
+        n.id !== "student-portal" &&
+        Boolean(db.pages[n.id]),
+    )
     .sort((a, b) => a.order - b.order);
   const hrefIsLive = (href: string) => {
     const id = pageIdFromHref(href);

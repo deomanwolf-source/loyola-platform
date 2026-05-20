@@ -1053,18 +1053,17 @@ function ensureGallerySubpages(db: DB): DB {
   let changed = false;
 
   subpages.forEach((subpage) => {
-    if (!pages[subpage.id]) {
+    const hasPage = Boolean(pages[subpage.id]);
+    const hasNav = navigation.some((item) => item.id === subpage.id);
+
+    if (!hasPage && !hasNav) return;
+
+    if (!hasPage) {
       pages[subpage.id] = subpage.page;
       changed = true;
     }
 
-    const existingNav = navigation.some(
-      (item) =>
-        item.id === subpage.id ||
-        (item.parentId === "gallery" && item.label.toLowerCase() === subpage.label.toLowerCase()),
-    );
-
-    if (!existingNav) {
+    if (!hasNav) {
       navigation.push({
         id: subpage.id,
         label: subpage.label,
@@ -1085,8 +1084,12 @@ function ensureCollegeAnthemPage(db: DB): DB {
   const pages = { ...db.pages };
   const navigation = [...db.navigation];
   let changed = false;
+  const hasPage = Boolean(pages[pageId]);
+  const hasNav = navigation.some((item) => item.id === pageId);
 
-  if (!pages[pageId]) {
+  if (!hasPage && !hasNav) return db;
+
+  if (!hasPage) {
     pages[pageId] = {
       kicker: label,
       title: label,
@@ -1108,12 +1111,6 @@ function ensureCollegeAnthemPage(db: DB): DB {
     };
     changed = true;
   }
-
-  const hasNav = navigation.some(
-    (item) =>
-      item.id === pageId ||
-      (item.parentId === "about" && item.label.toLowerCase() === label.toLowerCase()),
-  );
 
   if (!hasNav) {
     navigation.push({
@@ -1161,31 +1158,23 @@ function migrateLoginAccounts(db: DB): DB {
 function cleanUnwantedPages(db: DB): DB {
   if (typeof window === "undefined") return db;
 
-  // Core pages we should strictly keep to avoid breaking site structure
-  // We removed "academics" from here so it can be purged if hidden as requested
-  const protectedIds = [
-    "home",
-    "about",
-    "admissions",
-    "contact",
-    "about/college-administration",
-    "about/college-staff",
-  ];
-
-  // 1. Explicitly unwanted or test IDs
+  const protectedIds = new Set(["home"]);
   const unwantedIds = ["011", "photo-gallery", "video-gallery"];
+  const purgeIds = new Set<string>();
 
-  // 2. Identify hidden pages (except protected ones)
-  const hiddenIds = db.navigation
-    .filter((n) => !n.visible && !protectedIds.includes(n.id))
-    .map((n) => n.id);
+  const addTree = (id: string) => {
+    if (protectedIds.has(id) || purgeIds.has(id)) return;
+    purgeIds.add(id);
+    db.navigation.filter((item) => item.parentId === id).forEach((item) => addTree(item.id));
+  };
 
-  const purgeList = [...new Set([...unwantedIds, ...hiddenIds])];
+  unwantedIds.forEach(addTree);
+  if (purgeIds.size === 0) return db;
 
-  const nextNav = db.navigation.filter((n) => !purgeList.includes(n.id));
+  const nextNav = db.navigation.filter((n) => !purgeIds.has(n.id));
   const nextPages = { ...db.pages };
-  purgeList.forEach((id) => {
-    if (nextPages[id]) delete nextPages[id];
+  purgeIds.forEach((id) => {
+    delete nextPages[id];
   });
 
   return { ...db, navigation: nextNav, pages: nextPages };

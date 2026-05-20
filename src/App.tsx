@@ -265,7 +265,10 @@ function pageIsLiveInDb(db: ReturnType<typeof getDb>, id: string) {
 
 function visibleSubpages(db: ReturnType<typeof getDb>, parentId: string) {
   return [...db.navigation]
-    .filter((item) => item.parentId === parentId && item.visible && Boolean(db.pages[item.id]))
+    .filter(
+      (item) =>
+        item.parentId === parentId && item.visible !== false && Boolean(db.pages[item.id]),
+    )
     .sort((a, b) => a.order - b.order);
 }
 

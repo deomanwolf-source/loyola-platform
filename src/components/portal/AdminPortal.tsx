@@ -317,6 +317,22 @@ function uniquePageId(baseId: string, pages: DB["pages"]) {
   return id;
 }
 
+function collectPageTreeIds(nav: DB["navigation"], id: string): Set<string> {
+  const ids = new Set<string>([id]);
+  const queue = [id];
+  while (queue.length) {
+    const next = queue.shift()!;
+    nav
+      .filter((item) => item.parentId === next)
+      .forEach((item) => {
+        if (ids.has(item.id)) return;
+        ids.add(item.id);
+        queue.push(item.id);
+      });
+  }
+  return ids;
+}
+
 function DashboardPanel({ db, setActive }: { db: DB; setActive: (id: PanelId) => void }) {
   const mediaCount =
     db.gallery.length +
@@ -415,20 +431,7 @@ function PagesPanel({ db }: { db: DB }) {
       .sort((a, b) => a.order - b.order);
 
   /** Returns the set of all descendant IDs of `id` (including itself). */
-  const descendantIds = (id: string): Set<string> => {
-    const ids = new Set<string>([id]);
-    const queue = [id];
-    while (queue.length) {
-      const next = queue.shift()!;
-      db.navigation
-        .filter((item) => item.parentId === next)
-        .forEach((item) => {
-          ids.add(item.id);
-          queue.push(item.id);
-        });
-    }
-    return ids;
-  };
+  const descendantIds = (id: string): Set<string> => collectPageTreeIds(db.navigation, id);
 
   /**
    * Flat list of all pages in depth-first order, with their depth and label
@@ -525,7 +528,7 @@ function PagesPanel({ db }: { db: DB }) {
     if (id === "home") return;
     if (!window.confirm(`Delete "${pageLabel(id)}" and any subpages under it?`)) return;
     setDb((current) => {
-      const toDelete = descendantIds(id);
+      const toDelete = collectPageTreeIds(current.navigation, id);
       const pages = { ...current.pages };
       toDelete.forEach((pageId) => {
         delete pages[pageId];

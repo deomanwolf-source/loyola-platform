@@ -62,6 +62,24 @@ function getSortedNav(nav: DB["navigation"]) {
   return sorted;
 }
 
+function pageTreeIds(nav: DB["navigation"], rootId: string) {
+  const ids = new Set<string>([rootId]);
+  const queue = [rootId];
+
+  while (queue.length) {
+    const current = queue.shift()!;
+    nav
+      .filter((item) => item.parentId === current)
+      .forEach((item) => {
+        if (ids.has(item.id)) return;
+        ids.add(item.id);
+        queue.push(item.id);
+      });
+  }
+
+  return ids;
+}
+
 async function compressImage(
   file: File,
 ): Promise<{ url: string; original: string; optimized: string }> {
@@ -392,7 +410,7 @@ function capturePreviewContent(frame: HTMLIFrameElement | null) {
 function previewItems(db: DB, pageId: string, section: string) {
   if (section === "Header") {
     return db.navigation
-      .filter((item) => item.visible)
+      .filter((item) => item.visible !== false)
       .sort((a, b) => a.order - b.order)
       .slice(0, 6)
       .map((item) => ({
@@ -858,7 +876,7 @@ export function WebsiteEditor() {
     setDb((current) => ({
       ...current,
       navigation: current.navigation.map((item) =>
-        item.id === id ? { ...item, visible: !item.visible } : item,
+        item.id === id ? { ...item, visible: !(item.visible ?? true) } : item,
       ),
     }));
   };
@@ -945,16 +963,29 @@ export function WebsiteEditor() {
     );
     if (!name) return;
 
-    const id = name
+    const slug = name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
-    if (!id || db.pages[id] || db.navigation.some((n) => n.id === id)) {
+    const baseId = parentId ? `${parentId}/${slug}` : slug;
+    if (!slug || !baseId) {
       alert("Invalid or duplicate page name.");
       return;
     }
 
+    let createdId = "";
     setDb((current) => {
+      const usedIds = new Set([
+        ...Object.keys(current.pages),
+        ...current.navigation.map((item) => item.id),
+      ]);
+      let id = baseId;
+      let index = 2;
+      while (usedIds.has(id)) {
+        id = `${baseId}-${index}`;
+        index += 1;
+      }
+      createdId = id;
       const order = parentId
         ? Math.max(
             0,
@@ -969,33 +1000,41 @@ export function WebsiteEditor() {
           [id]: {
             title: name,
             body: "New page content goes here.",
-            kicker: parentId ? db.pages[parentId]?.title : name,
+            kicker: parentId ? current.pages[parentId]?.title : name,
           },
         },
         navigation: [...current.navigation, { id, label: name, order, visible: true, parentId }],
       };
     });
-    setSelectedPage(id);
+    if (createdId) setSelectedPage(createdId);
     setMessage(`${parentId ? "Subpage" : "Page"} '${name}' created.`);
-    audit(`Created ${parentId ? "subpage" : "page"} ${id}`, "Website editor");
+    audit(`Created ${parentId ? "subpage" : "page"} ${createdId || baseId}`, "Website editor");
   };
 
   const deletePage = (id: string) => {
+    if (id === "home") {
+      alert("Home page cannot be deleted.");
+      return;
+    }
     if (
       confirm(
-        `Are you sure you want to delete '${db.pages[id]?.title || id}'? This cannot be undone.`,
+        `Are you sure you want to delete '${db.pages[id]?.title || id}' and any subpages under it? This cannot be undone.`,
       )
     ) {
+      const selectedDeleted = pageTreeIds(db.navigation, id).has(selectedPage);
       setDb((current) => {
+        const idsToDelete = pageTreeIds(current.navigation, id);
         const newPages = { ...current.pages };
-        delete newPages[id];
+        idsToDelete.forEach((pageId) => {
+          delete newPages[pageId];
+        });
         return {
           ...current,
           pages: newPages,
-          navigation: current.navigation.filter((n) => n.id !== id && n.parentId !== id), // Also remove children from nav
+          navigation: current.navigation.filter((n) => !idsToDelete.has(n.id)),
         };
       });
-      if (selectedPage === id) setSelectedPage("home");
+      if (selectedDeleted) setSelectedPage("home");
       setMessage(`Page deleted.`);
       audit(`Deleted page ${id}`, "Website editor");
     }
@@ -1231,19 +1270,7 @@ export function WebsiteEditor() {
               {pageIds.map((id) => {
                 const navItem = db.navigation.find((n) => n.id === id);
                 const isSubpage = !!navItem?.parentId;
-                const isCorePage = [
-                  "home",
-                  "about",
-                  "academics",
-                  "admissions",
-                  "news",
-                  "events",
-                  "sports-clubs",
-                  "gallery",
-                  "downloads",
-                  "student-portal",
-                  "contact",
-                ].includes(id);
+                const canDelete = id !== "home";
                 const isActive = selectedPage === id;
                 return (
                   <div key={id} className={`flex items-center gap-1 ${isSubpage ? "ml-3" : ""}`}>
@@ -1272,7 +1299,7 @@ export function WebsiteEditor() {
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      {!isCorePage && (
+                      {canDelete && (
                         <button
                           type="button"
                           onClick={() => deletePage(id)}
