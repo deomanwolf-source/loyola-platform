@@ -3630,6 +3630,7 @@ app.get("/api/me", auth, async (req, res) => {
 
 const frontendRoot = path.join(__dirname, "public");
 const frontendIndex = path.join(frontendRoot, "index.html");
+const frontendAssets = path.join(frontendRoot, "assets");
 
 if (fs.existsSync(frontendIndex)) {
   const sendFrontendApp = (req, res) => {
@@ -3654,6 +3655,20 @@ if (fs.existsSync(frontendIndex)) {
     res.sendFile(path.join(frontendRoot, "edutrack", "index.html"));
   });
 
+  if (fs.existsSync(frontendAssets)) {
+    app.use(
+      "/assets",
+      express.static(frontendAssets, {
+        immutable: true,
+        index: false,
+        maxAge: "1y",
+        setHeaders(res) {
+          res.setHeader("X-Content-Type-Options", "nosniff");
+        },
+      }),
+    );
+  }
+
   app.use(
     express.static(frontendRoot, {
       index: false,
@@ -3666,6 +3681,9 @@ if (fs.existsSync(frontendIndex)) {
 
   app.use((req, res, next) => {
     if (req.method !== "GET" || req.path.startsWith("/api/")) return next();
+    if (req.path.startsWith("/assets/") || path.extname(req.path)) {
+      return res.status(404).type("text/plain").send("Static file not found");
+    }
     sendFrontendApp(req, res);
   });
 }
