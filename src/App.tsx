@@ -1,0 +1,3829 @@
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import {
+  ArrowRight,
+  Award,
+  Bell,
+  BookOpen,
+  Calendar,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  Download,
+  Film,
+  FileText,
+  GraduationCap,
+  Images,
+  Landmark,
+  Lock,
+  LogOut,
+  Mail,
+  MapPin,
+  Phone,
+  PlayCircle,
+  ShieldCheck,
+  Trophy,
+  Users,
+  X,
+  Image as ImageIcon,
+} from "lucide-react";
+import { BrandedLoader } from "@/components/BrandedLoader";
+import { HeroBackgroundLayer, PageHeader, PublicLayout } from "@/components/site/PublicLayout";
+import { CollegeStaffPage } from "@/components/site/CollegeStaffPage";
+import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrationPage";
+import {
+  DEFAULT_ANTHEM_VIDEO_URL,
+  DEFAULT_HERO_IMAGE,
+  authenticateUser,
+  audit,
+  getDb,
+  makeId,
+  setAuth,
+  setDb,
+  useAuth,
+  useDb,
+  type GalleryItem,
+  type GalleryVideo,
+  type Role,
+  type Teacher,
+} from "@/lib/store";
+import { API_URL, authHeaders } from "@/lib/api";
+
+const StudentPortal = lazy(() =>
+  import("@/components/portal/StudentPortal").then((module) => ({ default: module.StudentPortal })),
+);
+const ParentPortal = lazy(() =>
+  import("@/components/portal/ParentPortal").then((module) => ({ default: module.ParentPortal })),
+);
+const TeacherPortal = lazy(() =>
+  import("@/components/portal/TeacherPortal").then((module) => ({ default: module.TeacherPortal })),
+);
+const AdminPortal = lazy(() =>
+  import("@/components/portal/AdminPortal").then((module) => ({ default: module.AdminPortal })),
+);
+
+const MASTER_ROLES: Role[] = ["masteradmin", "superadmin"];
+const WEBSITE_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "website_admin"];
+const EDUZYNC_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "eduzync_admin"];
+const EDUTRACK_ROLES: Role[] = ["masteradmin", "superadmin", "eduzync_admin", "teacher"];
+const ELMS_ROLES: Role[] = ["masteradmin", "superadmin", "teacher", "student"];
+const REPORT_CARD_ROLES: Role[] = [
+  "masteradmin",
+  "superadmin",
+  "eduzync_admin",
+  "teacher",
+  "student",
+  "parent",
+];
+
+function roleLabel(role: Role) {
+  const labels: Record<Role, string> = {
+    masteradmin: "Master Admin",
+    superadmin: "Super Admin",
+    website_admin: "Website Admin",
+    eduzync_admin: "EduZync Admin",
+    teacher: "Teacher",
+    student: "Student",
+    parent: "Parent",
+  };
+  return labels[role];
+}
+
+function AccessDeniedPage({
+  title = "Access Denied",
+  message = "Your account does not have permission to open this area.",
+}: {
+  title?: string;
+  message?: string;
+}) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#eef3ff] px-6 text-[#172033]">
+      <section className="w-full max-w-lg rounded-lg border border-[#d8e1f5] bg-white p-8 text-center shadow-sm">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-crimson/10 text-crimson">
+          <Lock className="h-6 w-6" />
+        </span>
+        <h1 className="mt-5 font-serif text-4xl font-bold text-navy">{title}</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">{message}</p>
+        <a
+          href="/portal"
+          className="mt-6 inline-flex items-center justify-center rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+        >
+          Back to portal
+        </a>
+      </section>
+    </main>
+  );
+}
+export function App() {
+  const rawPath = typeof window === "undefined" ? "/" : window.location.pathname;
+  const path = rawPath !== "/" ? rawPath.replace(/\/$/, "") : "/";
+  const db = useDb();
+  const pageIsLive = (id: string) =>
+    Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+  const requestedPageId = path === "/" || path === "" ? "home" : path.replace(/^\/+/, "");
+  const visualPageId = requestedPageId === "notices" ? "news" : requestedPageId;
+
+  if (path === "/portal/edutrack") return <EduTrackRuntimePage />;
+
+  if (path === "/photo-gallery") {
+    return (
+      <PhotoGalleryPage
+        pageId={pageIsLive("gallery/photo-gallery") ? "gallery/photo-gallery" : "photo-gallery"}
+      />
+    );
+  }
+  if (path === "/video-gallery") {
+    return (
+      <VideoGalleryPage
+        pageId={pageIsLive("gallery/video-gallery") ? "gallery/video-gallery" : "video-gallery"}
+      />
+    );
+  }
+
+  if (
+    path !== "/login" &&
+    !path.startsWith("/portal/") &&
+    (path === "/about/college-anthem-hymn" || path === "/college-anthem-hymn") &&
+    (pageIsLive("about/college-anthem-hymn") || pageIsLive("college-anthem-hymn"))
+  ) {
+    return (
+      <CollegeAnthemHymnPage
+        pageId={
+          pageIsLive(path.replace(/^\/+/, ""))
+            ? path.replace(/^\/+/, "")
+            : "about/college-anthem-hymn"
+        }
+      />
+    );
+  }
+
+  if (
+    path !== "/login" &&
+    !path.startsWith("/portal/") &&
+    pageIsLive(visualPageId) &&
+    db.pages[visualPageId]?.visualHtml
+  ) {
+    return <VisualBuilderPage pageId={visualPageId} />;
+  }
+
+  if (path === "/" || path === "") return <HomePage />;
+  if (
+    (path === "/about/college-administration" && pageIsLive("about/college-administration")) ||
+    (path === "/college-administration" && pageIsLive("college-administration"))
+  ) {
+    return <CollegeAdministrationPage pageId={path.replace(/^\/+/, "")} />;
+  }
+  if (
+    (path === "/about/college-staff" && pageIsLive("about/college-staff")) ||
+    (path === "/college-staff" && pageIsLive("college-staff"))
+  ) {
+    return <CollegeStaffPage pageId={path.replace(/^\/+/, "")} />;
+  }
+  if (
+    (path === "/about/college-anthem-hymn" && pageIsLive("about/college-anthem-hymn")) ||
+    (path === "/college-anthem-hymn" &&
+      (pageIsLive("college-anthem-hymn") || pageIsLive("about/college-anthem-hymn")))
+  ) {
+    return (
+      <CollegeAnthemHymnPage
+        pageId={
+          pageIsLive(path.replace(/^\/+/, ""))
+            ? path.replace(/^\/+/, "")
+            : "about/college-anthem-hymn"
+        }
+      />
+    );
+  }
+  if (path === "/about" && pageIsLive("about")) return <AboutPage />;
+  if (path === "/academics" && pageIsLive("academics")) return <AcademicsPage />;
+  if (path === "/admissions" && pageIsLive("admissions")) return <AdmissionsPage />;
+  if (path === "/events" && pageIsLive("events")) return <EventsPage />;
+  if ((path === "/news" || path === "/notices") && pageIsLive("news")) return <NewsPage />;
+  if (path === "/sports-clubs" && pageIsLive("sports-clubs")) return <SportsClubsPage />;
+  if (path === "/gallery" && pageIsLive("gallery")) return <GalleryPage />;
+  if (path.startsWith("/gallery/photo-gallery/") && pageIsLive("gallery/photo-gallery")) {
+    return <PhotoAlbumPage albumKey={decodeURIComponent(path.split("/").pop() || "")} />;
+  }
+  if (
+    (path === "/gallery/photo-gallery" && pageIsLive("gallery/photo-gallery")) ||
+    (path === "/photo-gallery" && pageIsLive("photo-gallery"))
+  ) {
+    return (
+      <PhotoGalleryPage
+        pageId={pageIsLive("gallery/photo-gallery") ? "gallery/photo-gallery" : "photo-gallery"}
+      />
+    );
+  }
+  if (
+    (path === "/gallery/video-gallery" && pageIsLive("gallery/video-gallery")) ||
+    (path === "/video-gallery" && pageIsLive("video-gallery"))
+  ) {
+    return (
+      <VideoGalleryPage
+        pageId={pageIsLive("gallery/video-gallery") ? "gallery/video-gallery" : "video-gallery"}
+      />
+    );
+  }
+  if (path === "/downloads" && pageIsLive("downloads")) return <DownloadsPage />;
+  if (path === "/student-portal" && pageIsLive("student-portal"))
+    return <StudentPortalLandingPage />;
+  if (path === "/contact" && pageIsLive("contact")) return <ContactPage />;
+  if (path === "/login") return <LoginPage />;
+  if (path === "/portal") return <CentralPortal />;
+  if (path === "/admin") {
+    return (
+      <Suspense fallback={<BrandedLoader title="Opening admin" subtitle="Loading dashboard" />}>
+        <AdminPortal />
+      </Suspense>
+    );
+  }
+  if (["/portal/edutrack", "/portal/eduzync", "/portal/elms", "/portal/reports"].includes(path)) {
+    return <ModulePage moduleId={path.split("/").pop() || ""} />;
+  }
+  if (path.startsWith("/portal/")) return <PortalRouter role={path.split("/")[2] as Role} />;
+
+  const dynamicPageId = path.replace(/^\/+/, "");
+
+  if (
+    ["rectors-message", "rector-s-message", "rector-message", "rector-massage"].includes(
+      dynamicPageId,
+    ) &&
+    pageIsLive(dynamicPageId)
+  ) {
+    return <RectorsMessagePage pageId={dynamicPageId} />;
+  }
+
+  if (pageIsLive(dynamicPageId)) return <GenericPage pageId={dynamicPageId} />;
+  return <NotFoundPage />;
+}
+
+function pageIsLiveInDb(db: ReturnType<typeof getDb>, id: string) {
+  return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+}
+
+function visibleSubpages(db: ReturnType<typeof getDb>, parentId: string) {
+  return [...db.navigation]
+    .filter((item) => item.parentId === parentId && item.visible && Boolean(db.pages[item.id]))
+    .sort((a, b) => a.order - b.order);
+}
+
+function VisualBuilderPage({ pageId }: { pageId: string }) {
+  const db = useDb();
+  const page = db.pages[pageId];
+
+  if (!page?.visualHtml) return <GenericPage pageId={pageId} />;
+
+  return (
+    <PublicLayout>
+      {page.visualCss && <style>{page.visualCss}</style>}
+      <div className="visual-page" dangerouslySetInnerHTML={{ __html: page.visualHtml }} />
+      {pageId !== "about" && <SubpagesSection parentId={pageId} />}
+    </PublicLayout>
+  );
+}
+
+function SubpagesSection({ parentId }: { parentId: string }) {
+  const db = useDb();
+  const children = visibleSubpages(db, parentId);
+  if (children.length === 0) return null;
+
+  return (
+    <section className="border-t border-border bg-white py-16">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">Sub pages</p>
+            <h2 className="mt-3 font-serif text-4xl font-bold capitalize text-navy">
+              {parentId === "home"
+                ? "Explore more"
+                : `${parentId.split("/").pop()?.replaceAll("-", " ")} pages`}
+            </h2>
+          </div>
+        </div>
+        <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {children.map((item) => {
+            const page = db.pages[item.id];
+            const title = page.title || item.label;
+            const image =
+              page.image ||
+              db.media.campusImage ||
+              db.websiteContent.heroImage ||
+              DEFAULT_HERO_IMAGE;
+            return (
+              <a
+                key={item.id}
+                href={item.id === "home" ? "/" : `/${item.id}`}
+                className="hover-lift overflow-hidden rounded-lg border border-border bg-background shadow-soft transition-smooth hover:-translate-y-1 hover:border-gold hover:bg-white"
+              >
+                <img src={image} alt="" className="aspect-[16/9] w-full object-cover" />
+                <div className="p-6">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                    {item.label}
+                  </p>
+                  <h3 className="mt-2 font-serif text-2xl font-bold text-navy">{title}</h3>
+                  <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                    {page.body || "Open this page for more information."}
+                  </p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
+                    Open page <ArrowRight className="h-4 w-4" />
+                  </span>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function leadershipPriority(member: Teacher) {
+  const text =
+    `${member.name} ${member.position || ""} ${member.responsibilities || ""}`.toLowerCase();
+  if (text.includes("cardinal") || text.includes("archbishop")) return 0;
+  if (text.includes("general manager") || text.includes("manager of catholic")) return 1;
+  if (text.includes("rector") || text.includes("principal")) return 2;
+  if (text.includes("vice rector")) return 3;
+  if (text.includes("vice")) return 4;
+  return 5;
+}
+
+function HomeAdministrationBoard() {
+  const db = useDb();
+  const board = [...db.teachers]
+    .filter((member) => {
+      if (member.status !== "Active") return false;
+      const text = `${member.category || ""} ${member.position || ""} ${member.name}`.toLowerCase();
+      return (
+        text.includes("top administration") ||
+        text.includes("administration") ||
+        text.includes("cardinal") ||
+        text.includes("archbishop") ||
+        text.includes("general manager") ||
+        text.includes("rector") ||
+        text.includes("principal")
+      );
+    })
+    .sort((a, b) => leadershipPriority(a) - leadershipPriority(b) || a.name.localeCompare(b.name))
+    .slice(0, 4);
+
+  if (board.length === 0) return null;
+
+  return (
+    <section className="border-y border-border bg-[#f3f5fa] py-20">
+      <div className="mx-auto max-w-7xl px-6">
+        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+              Administration Board
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy md:text-5xl">
+              Leadership guiding Loyola College.
+            </h2>
+            <p className="mt-4 leading-relaxed text-muted-foreground">
+              Meet the spiritual and academic leadership team serving the Loyola College community
+              with faith, discipline, and clear educational direction.
+            </p>
+          </div>
+          <a
+            href="/about/college-administration"
+            className="inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+          >
+            Full administration <ArrowRight className="h-4 w-4" />
+          </a>
+        </div>
+
+        <div className="stagger-children mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {board.map((member) => (
+            <article
+              key={member.id}
+              className="group overflow-hidden rounded-lg border border-border bg-white shadow-soft transition-smooth hover:-translate-y-1 hover:shadow-elegant"
+            >
+              <div className="relative aspect-[4/5] bg-[#dfe5ef]">
+                {member.image ? (
+                  <img
+                    src={member.image}
+                    alt={member.name}
+                    className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-navy/20">
+                    <ShieldCheck className="h-20 w-20" />
+                  </div>
+                )}
+                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-navy/72 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              </div>
+              <div className="p-5 text-center">
+                <h3 className="font-serif text-xl font-bold leading-tight text-navy">
+                  {member.name}
+                </h3>
+                <span className="mx-auto mt-3 block h-0.5 w-10 bg-gold" />
+                <p className="mt-3 min-h-[2.5rem] text-sm font-semibold leading-relaxed text-muted-foreground">
+                  {member.position || member.type || "Administration"}
+                </p>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HomeVisionMissionIdentity() {
+  const missionPoints = [
+    "To aim at integral education of body, mind and spirit through service and leadership.",
+    "To strive to form citizens of upright character who pursue excellence in every sphere.",
+    "To promote character formation based on human and religious values.",
+  ];
+
+  return (
+    <section className="relative overflow-hidden bg-[#082766] py-20 text-white">
+      <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(135deg,transparent_0,transparent_24px,#fff_25px,transparent_26px),linear-gradient(45deg,transparent_0,transparent_28px,#fff_29px,transparent_30px)] [background-size:120px_120px]" />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 lg:grid-cols-[minmax(0,1fr)_560px]">
+        <div className="max-w-3xl">
+          <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
+            Loyola identity
+          </p>
+          <h2 className="mt-4 text-balance font-serif text-4xl font-bold leading-tight md:text-6xl">
+            Welcome to Loyola College, Negombo
+          </h2>
+
+          <div className="stagger-children mt-10 grid gap-6">
+            <div>
+              <h3 className="text-2xl font-black">Our Vision</h3>
+              <p className="mt-3 max-w-2xl leading-relaxed text-white/74">
+                To announce God&apos;s Kingdom through Christian values.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-2xl font-black">Mission Statement</h3>
+              <div className="mt-4 space-y-4">
+                {missionPoints.map((point) => (
+                  <p key={point} className="flex gap-3 leading-relaxed text-white/74">
+                    <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-gold-light" />
+                    <span>{point}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside className="overflow-hidden rounded-lg border border-white/14 bg-white shadow-elegant">
+          <div className="aspect-[16/10] bg-black">
+            <img
+              src={DEFAULT_HERO_IMAGE}
+              alt="Loyola College flag"
+              className="h-full w-full object-contain"
+            />
+          </div>
+          <div className="border-t border-border bg-white p-6 text-center">
+            <p className="font-serif text-2xl font-bold text-navy">Veritate Ad Lumen Et Vitam</p>
+            <p className="mt-2 text-sm font-semibold text-muted-foreground">
+              In Truth to Light and Life
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
+function HomePage() {
+  const db = useDb();
+  const content = db.websiteContent;
+  const home = db.homeSections;
+  const page = db.pages.home;
+  const quickLinks = [
+    {
+      title: "Explore College",
+      body: "About, history, values, and college life.",
+      icon: Landmark,
+      href: "/about",
+    },
+    {
+      title: "View Notices",
+      body: "Important updates, circulars, and exam notices.",
+      icon: FileText,
+      href: "/news",
+    },
+    {
+      title: "Downloads",
+      body: "Forms, timetables, circulars, and school files.",
+      icon: Download,
+      href: "/downloads",
+    },
+    {
+      title: "Upcoming Events",
+      body: "School calendar, sports, clubs, and celebrations.",
+      icon: Calendar,
+      href: "/events",
+    },
+  ];
+  const publicPageIsLive = (href: string) => {
+    const id = href.replace(/^\/+/, "") || "home";
+    return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+  };
+  const academicPreviews = [
+    [
+      "Primary Section",
+      "Foundational learning, language growth, values, and classroom confidence.",
+    ],
+    ["Middle School", "Structured study habits, co-curricular discovery, and personal formation."],
+    [
+      "Upper School",
+      "Exam preparation, leadership, clubs, sports, and disciplined academic focus.",
+    ],
+    ["Advanced Level", "Technology, Science, Commerce, and Arts pathways for senior students."],
+  ];
+  const clubs = [
+    "Media Unit",
+    "Science Society",
+    "ICT Society",
+    "Prefects Board",
+    "English Literary Association",
+    "Religious Society",
+  ];
+  const heroTitle =
+    content.heroTitle?.trim() || "A Tradition of Excellence. A Future of Innovation.";
+  const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
+  const heroImage = page.image || content.heroImage || db.media.campusImage || DEFAULT_HERO_IMAGE;
+
+  return (
+    <PublicLayout>
+      <section className="relative isolate overflow-hidden bg-navy text-white">
+        <HeroBackgroundLayer
+          fallbackImage={heroImage}
+          fallbackOpacity={0.46}
+          mediaUrl={page.backgroundMediaUrl}
+          mediaType={page.backgroundMediaType}
+          mediaOpacity={page.backgroundMediaOpacity}
+          gradientClassName="bg-[linear-gradient(105deg,rgb(10_22_40_/0.98),rgb(10_22_40_/0.84),rgb(10_22_40_/0.66))]"
+          gridOpacityClassName="opacity-30"
+        />
+        <div className="relative mx-auto grid max-w-7xl gap-8 px-5 pb-12 pt-10 sm:px-6 sm:py-16 md:py-20 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-12 lg:py-28">
+          <div>
+            <span className="gold-divider mb-5" />
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
+              {content.schoolName}
+            </p>
+            <h1 className="mt-4 max-w-4xl text-balance font-serif text-3xl font-bold leading-[1.12] sm:text-4xl md:text-5xl lg:mt-6 lg:text-7xl">
+              {heroTitle}
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/82 sm:text-base md:text-lg lg:mt-6 lg:text-xl">
+              {heroText}
+            </p>
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <a
+                href="/about"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-crimson px-5 py-3 text-sm font-bold text-white sm:justify-start sm:px-6"
+              >
+                Explore College <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href="/news"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white sm:justify-start sm:px-6"
+              >
+                View Notices
+              </a>
+            </div>
+            <div className="stagger-children mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:mt-10 lg:gap-4">
+              {home.stats.map((stat) => (
+                <div
+                  key={stat.id}
+                  className="hover-lift cursor-default rounded-lg border border-white/14 bg-white/10 p-4 lg:p-5"
+                >
+                  <p className="font-serif text-2xl font-bold text-gold-light lg:text-3xl">
+                    {stat.value}
+                  </p>
+                  <p className="mt-2 text-sm text-white/70">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <aside className="self-center rounded-lg border border-white/14 bg-white/10 p-4 backdrop-blur sm:p-6">
+            <p className="text-sm font-bold text-white">Loyola quick access</p>
+            <div className="mt-5 grid gap-3">
+              {quickLinks
+                .filter((item) => publicPageIsLive(item.href))
+                .map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <a
+                      key={item.title}
+                      href={item.href}
+                      className="grid grid-cols-[42px_1fr_auto] items-center gap-4 rounded-lg bg-white/10 p-4"
+                    >
+                      <span className="grid h-10 w-10 place-items-center rounded-lg bg-white/10 text-gold-light">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-semibold">{item.title}</span>
+                        <span className="block text-xs text-white/60">{item.body}</span>
+                      </span>
+                      <ArrowRight className="h-4 w-4 text-white/45" />
+                    </a>
+                  );
+                })}
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_420px]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+            Welcome to Loyola College
+          </p>
+          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{home.approachTitle}</h2>
+          <p className="mt-5 max-w-3xl leading-relaxed text-muted-foreground">
+            {home.approachBody}
+          </p>
+          <div className="mt-8 grid gap-4 md:grid-cols-2 stagger-children">
+            {home.pillars.map((pillar) => (
+              <div
+                key={pillar.id}
+                className="rounded-lg border border-border bg-white p-5 shadow-soft hover-lift cursor-default"
+              >
+                <h3 className="font-bold text-ink">{pillar.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{pillar.body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        {db.media.campusImage || db.websiteContent.heroImage ? (
+          <img
+            src={db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE}
+            alt="Campus"
+            className="h-full min-h-[420px] rounded-lg object-cover shadow-elegant"
+          />
+        ) : (
+          <div className="flex h-full min-h-[420px] flex-col items-center justify-center rounded-lg border border-border bg-secondary text-center text-muted-foreground shadow-elegant">
+            <img
+              src="/loyola-crest.jpg"
+              alt="Loyola College"
+              className="mx-auto h-32 w-32 object-contain opacity-40"
+            />
+            <p className="mt-4 text-xs font-bold uppercase tracking-widest opacity-60">
+              Campus image
+            </p>
+          </div>
+        )}
+      </section>
+
+      <HomeAdministrationBoard />
+      <HomeVisionMissionIdentity />
+
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">Academics</p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Academic pathways for every stage.
+            </h2>
+          </div>
+          {publicPageIsLive("/academics") && (
+            <a href="/academics" className="text-sm font-bold text-crimson">
+              Academics overview
+            </a>
+          )}
+        </div>
+        <div className="stagger-children mt-8 grid gap-5 md:grid-cols-4">
+          {academicPreviews.map(([title, body]) => (
+            <article
+              key={title}
+              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+            >
+              <GraduationCap className="h-7 w-7 text-gold" />
+              <h3 className="mt-4 font-bold text-navy">{title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <NewsAndEventsPreview />
+
+      <section className="bg-white py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[1fr_1fr]">
+          <div>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="font-serif text-4xl font-bold text-navy">Sports & Clubs</h2>
+              {publicPageIsLive("/sports-clubs") && (
+                <a href="/sports-clubs" className="text-sm font-bold text-crimson">
+                  View all
+                </a>
+              )}
+            </div>
+            <div className="stagger-children mt-6 grid gap-3 sm:grid-cols-2">
+              {publicPageIsLive("/sports-clubs") &&
+                clubs.map((club) => (
+                  <a
+                    key={club}
+                    href="/sports-clubs"
+                    className="hover-lift rounded-lg border border-border bg-background p-4 text-sm font-semibold text-navy shadow-soft"
+                  >
+                    {club}
+                  </a>
+                ))}
+            </div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="font-serif text-4xl font-bold text-navy">Gallery Preview</h2>
+              {publicPageIsLive("/gallery") && (
+                <a href="/gallery" className="text-sm font-bold text-crimson">
+                  Open gallery
+                </a>
+              )}
+            </div>
+            <div className="stagger-children mt-6 grid grid-cols-2 gap-3">
+              {db.gallery
+                .filter((item) => item.visible !== false)
+                .slice(0, 4)
+                .map((item) => (
+                  <img
+                    key={item.id}
+                    src={(item.images || [item.image]).filter(Boolean)[0] || "/loyola-crest.jpg"}
+                    alt={item.label}
+                    className="aspect-[4/3] rounded-lg object-cover shadow-soft"
+                  />
+                ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[1fr_360px]">
+        <div className="rounded-lg bg-navy p-8 text-white shadow-elegant">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
+            Downloads & Notices
+          </p>
+          <h2 className="mt-4 font-serif text-4xl font-bold">
+            Important school files in one clean place.
+          </h2>
+          <p className="mt-4 max-w-2xl text-white/72">
+            Access circulars, timetables, application forms, notices, event documents, and school
+            resources without searching through duplicated portal links.
+          </p>
+          {publicPageIsLive("/downloads") && (
+            <a
+              href="/downloads"
+              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-3 text-sm font-bold text-gold-foreground"
+            >
+              Open downloads <ArrowRight className="h-4 w-4" />
+            </a>
+          )}
+        </div>
+        <aside className="rounded-lg border border-border bg-white p-7 shadow-soft">
+          <h2 className="font-serif text-3xl text-navy">Contact Preview</h2>
+          <div className="mt-5 space-y-3 text-sm text-muted-foreground">
+            <p className="flex gap-3">
+              <MapPin className="h-5 w-5 text-gold" /> {content.address}
+            </p>
+            <p className="flex gap-3">
+              <Phone className="h-5 w-5 text-gold" /> {content.phone}
+            </p>
+            <p className="flex gap-3">
+              <Mail className="h-5 w-5 text-gold" /> {content.email}
+            </p>
+          </div>
+          {publicPageIsLive("/contact") && (
+            <a
+              href="/contact"
+              className="mt-6 inline-flex rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+            >
+              Contact office
+            </a>
+          )}
+        </aside>
+      </section>
+      <SubpagesSection parentId="home" />
+    </PublicLayout>
+  );
+}
+
+function AboutPage() {
+  const db = useDb();
+  const page = db.pages.about;
+  const about = db.aboutSections;
+  const staffGroups = ["Academic Staff", "Non-Academic Staff", "Supportive Staff"];
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="about"
+        kicker={page.kicker || "About"}
+        title={page.title || ""}
+        subtitle={page.body}
+        image={page.image || db.media.aboutImage}
+      />
+      <section
+        id="rector-message"
+        className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[1fr_420px]"
+      >
+        <div>
+          <p id="history" className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+            {about.storyKicker}
+          </p>
+          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{about.storyTitle}</h2>
+          <p className="mt-6 leading-relaxed text-muted-foreground">{about.storyBodyOne}</p>
+          <p className="mt-4 leading-relaxed text-muted-foreground">{about.storyBodyTwo}</p>
+        </div>
+        <div className="rounded-lg bg-navy p-8 text-white">
+          <p className="font-serif text-3xl leading-snug">{about.quote}</p>
+          <p className="mt-6 text-sm font-bold uppercase tracking-[0.18em] text-gold-light">
+            {about.quoteAuthor}
+          </p>
+        </div>
+      </section>
+    </PublicLayout>
+  );
+}
+
+function isDirectVideoUrl(url: string) {
+  return /\.(mp4|webm|ogg)(\?|#|$)/i.test(url);
+}
+
+function getYouTubeEmbedUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    let videoId = "";
+
+    if (host === "youtu.be") {
+      videoId = parsed.pathname.split("/").filter(Boolean)[0] || "";
+    } else if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      if (parsed.pathname.startsWith("/watch")) videoId = parsed.searchParams.get("v") || "";
+      if (parsed.pathname.startsWith("/shorts/")) videoId = parsed.pathname.split("/")[2] || "";
+      if (parsed.pathname.startsWith("/embed/")) videoId = parsed.pathname.split("/")[2] || "";
+    }
+
+    if (!videoId) return "";
+    const start = parsed.searchParams.get("t") || parsed.searchParams.get("start") || "";
+    const startSeconds = start.endsWith("s") ? start.slice(0, -1) : start;
+    const params = new URLSearchParams({
+      autoplay: "1",
+      rel: "0",
+      modestbranding: "1",
+    });
+    if (/^\d+$/.test(startSeconds)) params.set("start", startSeconds);
+    return `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+  } catch {
+    return "";
+  }
+}
+
+function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageId?: string }) {
+  const db = useDb();
+  const page = db.pages[pageId] || db.pages["about/college-anthem-hymn"];
+  const [mediaOpen, setMediaOpen] = useState(false);
+
+  const heroImage =
+    page?.image || db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE;
+  const anthemVideoUrl = (
+    db.websiteContent.anthemVideoUrl ||
+    page?.anthemVideoUrl ||
+    DEFAULT_ANTHEM_VIDEO_URL
+  ).trim();
+  const anthemVideoTitle = page?.anthemVideoTitle || "College Anthem & Hymn";
+  const anthemVideoCover =
+    db.websiteContent.anthemVideoCoverImage || page?.anthemVideoCoverImage || heroImage;
+  const youtubeEmbedUrl = getYouTubeEmbedUrl(anthemVideoUrl);
+  const canPlayInModal = Boolean(
+    anthemVideoUrl && (youtubeEmbedUrl || isDirectVideoUrl(anthemVideoUrl)),
+  );
+  const customBody = (page?.body || "").trim();
+  const hasCustomText =
+    Boolean(customBody) &&
+    customBody !== "New page content goes here." &&
+    customBody !== "A ceremonial page for the school anthem, hymn, and Loyola identity.";
+  const customTextBlocks = hasCustomText ? customBody.split(/\n{2,}/).filter(Boolean) : [];
+
+  useEffect(() => {
+    if (!mediaOpen) return;
+    const originalOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMediaOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mediaOpen]);
+
+  const hymnVerses = [
+    [
+      "Sons and daughters of Negombo we sing",
+      "From Lanka's little Rome our praises we bring",
+      "O Saint of Loyola whose name we bear",
+      "Guide us keep us in your care",
+    ],
+    [
+      "We pledge our love to our school this day",
+      "To walk steadfastly along the long way",
+      "Knowledge and wisdom to gain we will strive",
+      "With endless quest and relentless drive",
+    ],
+    [
+      "We learn from books, we learn through play",
+      "To build our soul we need to pray",
+      "In love and sacrifice let us grow",
+      "Virtues through character may we show",
+    ],
+    [
+      "Our alma mater will ever grow in fame",
+      "Through our efforts it will gain a great name",
+      "In all we do we will reach new heights",
+      "In truth we'll shine as a beacon of light",
+    ],
+  ];
+
+  return (
+    <PublicLayout>
+      <section className="relative isolate overflow-hidden bg-navy text-white">
+        <HeroBackgroundLayer
+          fallbackImage={heroImage}
+          fallbackOpacity={0.34}
+          mediaUrl={page?.backgroundMediaUrl}
+          mediaType={page?.backgroundMediaType}
+          mediaOpacity={page?.backgroundMediaOpacity}
+          gradientClassName="bg-[linear-gradient(110deg,rgb(10_22_40_/0.98),rgb(10_22_40_/0.9)_48%,rgb(183_15_27_/0.72))]"
+          gridOpacityClassName="opacity-25"
+        />
+        <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-[1fr_360px] lg:py-28">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
+              Faith, learning, discipline, and service
+            </p>
+            <span className="gold-divider mt-5" />
+            <h1 className="mt-6 max-w-5xl font-serif text-5xl font-bold leading-tight md:text-7xl">
+              {page?.title || "College Anthem & Hymn"}
+            </h1>
+            <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/78">
+              A dignified home for Loyola College Negombo's ceremonial songs, school values, and
+              shared identity.
+            </p>
+          </div>
+          <aside className="rounded-lg border border-white/14 bg-white/10 p-6 text-center shadow-elegant backdrop-blur">
+            <img
+              src={db.websiteContent.logoImage || "/loyola-crest.jpg"}
+              alt=""
+              className="mx-auto h-24 w-24 rounded-full border-4 border-gold bg-white object-contain p-2"
+            />
+            <p className="mt-5 font-serif text-3xl font-bold">Loyola College</p>
+            <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
+              {db.websiteContent.tagline}
+            </p>
+          </aside>
+        </div>
+      </section>
+
+      <section className="border-b border-border bg-white">
+        <div className="mx-auto grid max-w-7xl gap-4 px-6 py-8 md:grid-cols-3">
+          {[
+            ["Motto", db.websiteContent.tagline],
+            ["Language", "Sinhala anthem and English hymn"],
+            ["Purpose", "Prayer, gratitude, loyalty, and formation"],
+          ].map(([label, value]) => (
+            <div key={label} className="rounded-lg border border-border bg-background p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">{label}</p>
+              <p className="mt-2 font-serif text-2xl font-bold text-navy">{value}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="bg-secondary/35 py-12 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-8 lg:grid-cols-2">
+            <article className="rounded-lg border border-border bg-white p-7 shadow-soft">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+                    Official Text
+                  </p>
+                  <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Anthem Notes</h2>
+                </div>
+                <Trophy className="h-10 w-10 text-gold" />
+              </div>
+              {customTextBlocks.length > 0 ? (
+                <div className="mt-7 space-y-6">
+                  {customTextBlocks.map((block, index) => (
+                    <p
+                      key={index}
+                      className="whitespace-pre-line rounded-lg bg-background p-5 text-center text-base leading-9 text-muted-foreground"
+                    >
+                      {block}
+                    </p>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-7 rounded-lg bg-background p-6 text-center">
+                  <p className="font-serif text-2xl font-bold text-navy">සිංහල ගීතය</p>
+                </div>
+              )}
+            </article>
+
+            <article className="rounded-lg border border-border bg-white p-7 shadow-soft">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+                College Hymn
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Words of Loyalty</h2>
+              <div className="mt-7 space-y-6">
+                {hymnVerses.map((verse, index) => (
+                  <div key={index} className="rounded-lg bg-background p-5 text-center">
+                    {verse.map((line) => (
+                      <p key={line} className="leading-8 text-muted-foreground">
+                        {line}
+                      </p>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[1fr_420px]">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+              Watch and Listen
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Anthem and hymn media.</h2>
+
+            {anthemVideoUrl && (
+              <button
+                type="button"
+                onClick={() => setMediaOpen(true)}
+                className="mt-7 inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white shadow-soft transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+              >
+                Play in popup <Film className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="overflow-hidden rounded-lg border border-border bg-navy shadow-elegant">
+            {anthemVideoUrl && isDirectVideoUrl(anthemVideoUrl) ? (
+              <button
+                type="button"
+                onClick={() => setMediaOpen(true)}
+                className="group relative block w-full"
+              >
+                <img
+                  src={anthemVideoCover}
+                  alt=""
+                  className="aspect-video w-full object-cover opacity-80 transition-smooth group-hover:scale-105"
+                />
+                <span className="absolute inset-0 grid place-items-center bg-navy/25">
+                  <span className="anthem-play-button grid h-20 w-20 place-items-center rounded-full border-2 border-white/80 bg-gold text-navy shadow-elegant">
+                    <PlayCircle className="h-11 w-11" />
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setMediaOpen(true)}
+                className="group relative block w-full"
+              >
+                <img
+                  src={anthemVideoCover}
+                  alt=""
+                  className="aspect-video w-full object-cover opacity-80 transition-smooth group-hover:scale-105"
+                />
+                <span className="absolute inset-0 grid place-items-center bg-navy/25">
+                  <span className="anthem-play-button grid h-20 w-20 place-items-center rounded-full border-2 border-white/80 bg-gold text-navy shadow-elegant">
+                    <PlayCircle className="h-11 w-11" />
+                  </span>
+                </span>
+              </button>
+            )}
+            <div className="border-t border-white/10 p-5 text-white">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light">
+                Featured media
+              </p>
+              <h3 className="mt-2 font-serif text-2xl font-bold">{anthemVideoTitle}</h3>
+            </div>
+          </div>
+        </div>
+      </section>
+      {mediaOpen && (
+        <div
+          className="fixed inset-0 z-[120] grid place-items-center bg-navy/78 px-4 py-8 backdrop-blur-md animate-fade-in"
+          onClick={() => setMediaOpen(false)}
+        >
+          <div
+            className="w-full max-w-3xl overflow-hidden rounded-lg border border-white/15 bg-white shadow-elegant animate-scale-in"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
+                  Featured media
+                </p>
+                <h3 className="mt-1 font-serif text-2xl font-bold text-navy">{anthemVideoTitle}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMediaOpen(false)}
+                className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-border bg-secondary text-navy transition-smooth hover:bg-navy hover:text-white"
+                aria-label="Close media popup"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="bg-black">
+              {youtubeEmbedUrl ? (
+                <iframe
+                  key={youtubeEmbedUrl}
+                  src={youtubeEmbedUrl}
+                  title={anthemVideoTitle}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="aspect-video w-full"
+                />
+              ) : isDirectVideoUrl(anthemVideoUrl) ? (
+                <video
+                  key={anthemVideoUrl}
+                  src={anthemVideoUrl}
+                  controls
+                  autoPlay
+                  poster={anthemVideoCover}
+                  className="aspect-video w-full bg-black object-contain"
+                />
+              ) : (
+                <div className="grid aspect-video place-items-center bg-navy px-8 text-center text-white">
+                  <div>
+                    <Film className="mx-auto h-12 w-12 text-gold" />
+                    <p className="mt-4 font-serif text-2xl font-bold">
+                      This media link cannot be embedded.
+                    </p>
+                    <a
+                      href={anthemVideoUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-5 inline-flex rounded-lg bg-gold px-5 py-3 text-sm font-bold text-navy"
+                    >
+                      Open media
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+            {canPlayInModal && (
+              <p className="px-5 py-3 text-xs text-muted-foreground">
+                Playing inside the Loyola website. Close this window to stop playback.
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+    </PublicLayout>
+  );
+}
+
+function AcademicsPage() {
+  const db = useDb();
+  const page = db.pages.academics;
+  const sections = [
+    [
+      "Primary Section",
+      "primary",
+      "Foundational literacy, numeracy, faith formation, creativity, and school readiness.",
+    ],
+    [
+      "Middle School",
+      "middle",
+      "Balanced academic growth with clubs, sports, language learning, and personal responsibility.",
+    ],
+    [
+      "Upper School",
+      "upper",
+      "Examination focus, subject depth, leadership, discipline, and career preparation.",
+    ],
+    [
+      "Advanced Level",
+      "advanced-level",
+      "Technology, Science, Commerce, and Arts streams with senior academic guidance.",
+    ],
+  ];
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="academics"
+        kicker={page.kicker || "Academics"}
+        title={page.title || ""}
+        subtitle={page.body}
+        image={page.image}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="stagger-children grid gap-5 md:grid-cols-2">
+          {db.academicsSections.departments.map((department) => (
+            <article
+              key={department.id}
+              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+            >
+              <p className="font-serif text-4xl font-bold text-gold">{department.count}</p>
+              <h2 className="mt-3 text-xl font-bold text-navy">{department.name}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {department.body}
+              </p>
+            </article>
+          ))}
+        </div>
+        <div
+          id="exam-timetable"
+          className="mt-10 overflow-x-auto rounded-lg border border-border bg-white shadow-soft"
+        >
+          <table className="w-full text-sm">
+            <thead className="bg-secondary text-left text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <tr>
+                <th className="p-4">Subject</th>
+                <th className="p-4">Grade</th>
+                <th className="p-4">Department</th>
+              </tr>
+            </thead>
+            <tbody>
+              {db.subjects.map((subject) => (
+                <tr key={subject.id} className="border-t border-border">
+                  <td className="p-4 font-medium text-navy">{subject.name}</td>
+                  <td className="p-4">{subject.grade}</td>
+                  <td className="p-4">{subject.department}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div id="calendar" className="stagger-children mt-8 grid gap-5 md:grid-cols-2">
+          {["Academic Calendar", "Cambridge English Academy"].map((item) => (
+            <article
+              key={item}
+              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+            >
+              <Calendar className="h-7 w-7 text-gold" />
+              <h2 className="mt-3 font-serif text-2xl text-navy">{item}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                A dedicated area for schedules, resources, notices, and inquiry links.
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+      <SubpagesSection parentId="academics" />
+    </PublicLayout>
+  );
+}
+
+function AdmissionsPage() {
+  const db = useDb();
+  const [submitted, setSubmitted] = useState(false);
+  const page = db.pages.admissions;
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const childName = String(formData.get("childName") || "").trim();
+    const record = {
+      id: makeId("APP"),
+      childName,
+      grade: String(formData.get("grade") || "Grade 1"),
+      parentName: String(formData.get("parentName") || "").trim(),
+      email: String(formData.get("email") || "").trim(),
+      phone: String(formData.get("phone") || "").trim(),
+      status: "Submitted",
+      createdAt: new Date().toISOString(),
+    };
+    if (!record.childName || !record.parentName || !record.email || !record.phone) return;
+    setDb((current) => ({ ...current, admissions: [record, ...current.admissions] }));
+    audit(`Admission submitted: ${childName}`, "Public");
+    setSubmitted(true);
+    event.currentTarget.reset();
+  };
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="admissions"
+        kicker={page.kicker || "Admissions"}
+        title={page.title || ""}
+        subtitle={page.body}
+        image={page.image}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="stagger-children mb-10 grid gap-5 md:grid-cols-3">
+          {["Admission Requirements", "Required Documents", "Important Dates"].map((item) => (
+            <article
+              key={item}
+              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+            >
+              <FileText className="h-7 w-7 text-gold" />
+              <h2 className="mt-3 font-serif text-2xl text-navy">{item}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                Families can review this information before submitting an online inquiry.
+              </p>
+            </article>
+          ))}
+        </div>
+        <div className="stagger-children grid gap-4 md:grid-cols-4">
+          {db.admissionsSteps.map((step) => (
+            <div
+              key={step.id}
+              className="hover-lift rounded-lg border border-border border-l-gold bg-white p-5 shadow-soft"
+            >
+              <p className="font-serif text-3xl text-gold">{step.number}</p>
+              <h2 className="mt-2 font-bold text-navy">{step.title}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mx-auto mt-12 max-w-3xl rounded-lg border border-border bg-white p-8 shadow-elegant">
+          {submitted ? (
+            <div className="py-10 text-center">
+              <CheckCircle2 className="mx-auto h-14 w-14 text-success" />
+              <h2 className="mt-4 font-serif text-3xl text-navy">
+                {db.forms.admissionsSuccessTitle}
+              </h2>
+              <p className="mt-2 text-muted-foreground">{db.forms.admissionsSuccessText}</p>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="space-y-5">
+              <h2 className="font-serif text-3xl text-navy">{db.forms.admissionsTitle}</h2>
+              <Field label="Child's full name">
+                <input required name="childName" className="input-line" />
+              </Field>
+              <Field label="Grade applying for">
+                <select name="grade" defaultValue="Grade 1" className="input-line">
+                  {Array.from({ length: 12 }, (_, index) => (
+                    <option key={index}>Grade {index + 1}</option>
+                  ))}
+                </select>
+              </Field>
+              <div className="grid gap-5 md:grid-cols-2">
+                <Field label="Parent / guardian name">
+                  <input required name="parentName" className="input-line" />
+                </Field>
+                <Field label="Phone">
+                  <input required name="phone" className="input-line" />
+                </Field>
+              </div>
+              <Field label="Email">
+                <input required type="email" name="email" className="input-line" />
+              </Field>
+              <button
+                type="submit"
+                className="w-full rounded-lg bg-navy py-4 text-sm font-bold text-white"
+              >
+                {db.forms.admissionsSubmitLabel}
+              </button>
+            </form>
+          )}
+        </div>
+        <div className="stagger-children mt-10 grid gap-5 md:grid-cols-2">
+          <a
+            href="/downloads"
+            className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+          >
+            <Download className="h-7 w-7 text-gold" />
+            <h2 className="mt-3 font-serif text-2xl text-navy">Download Application Forms</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Admission forms, circulars, requirements, and parent documents.
+            </p>
+          </a>
+          <a
+            href="/contact"
+            className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+          >
+            <Mail className="h-7 w-7 text-gold" />
+            <h2 className="mt-3 font-serif text-2xl text-navy">Contact Admission Office</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Ask questions about process, dates, documents, and available grades.
+            </p>
+          </a>
+        </div>
+      </section>
+      <SubpagesSection parentId="admissions" />
+    </PublicLayout>
+  );
+}
+
+function EventsPage() {
+  const db = useDb();
+  const page = db.pages.events;
+  const categories = [
+    "Upcoming Events",
+    "Past Events",
+    "Annual Events",
+    "Academic Events",
+    "Sports Events",
+    "Religious Events",
+    "Club Events",
+    "Media Events",
+  ];
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="events"
+        kicker={page.kicker || "Events"}
+        title={page.title || ""}
+        subtitle={page.body}
+        image={page.image}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="stagger-children mb-8 flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <span
+              key={category}
+              className="hover-lift rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft"
+            >
+              {category}
+            </span>
+          ))}
+        </div>
+        <div className="stagger-children grid gap-5 md:grid-cols-3">
+          {db.events.map((event) => (
+            <EventCard key={event.id} event={event} />
+          ))}
+        </div>
+      </section>
+      <SubpagesSection parentId="events" />
+    </PublicLayout>
+  );
+}
+
+function NewsPage() {
+  const db = useDb();
+  const page = db.pages.news;
+  const filters = [
+    "Latest News",
+    "Important Notices",
+    "Exam Notices",
+    "Event Notices",
+    "Student Notices",
+    "Parent Notices",
+    "Admission Notices",
+    "PDF Circulars",
+  ];
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="news"
+        kicker={page.kicker || "News & Notices"}
+        title={page.title || "News, notices, circulars, and school updates."}
+        subtitle={
+          page.body ||
+          "Search important college updates, pinned notices, exam circulars, parent notices, student notices, and downloadable PDFs."
+        }
+        image={page.image}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="mb-8 grid gap-3 md:grid-cols-[1fr_auto]">
+          <input
+            className="rounded-lg border border-border bg-white px-4 py-3 text-sm outline-none focus:border-gold"
+            placeholder="Search news, notices, circulars..."
+          />
+          <select className="rounded-lg border border-border bg-white px-4 py-3 text-sm">
+            <option>Category filter</option>
+            {filters.map((filter) => (
+              <option key={filter}>{filter}</option>
+            ))}
+          </select>
+        </div>
+        <div className="stagger-children mb-8 flex flex-wrap gap-2">
+          {filters.map((filter) => (
+            <span
+              key={filter}
+              id={
+                filter === "Latest News"
+                  ? "latest-news"
+                  : filter === "Important Notices"
+                    ? "important-notices"
+                    : undefined
+              }
+              className="hover-lift rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft"
+            >
+              {filter}
+            </span>
+          ))}
+        </div>
+        <div className="stagger-children grid gap-5 md:grid-cols-3">
+          {db.news.map((item) => (
+            <NewsCard key={item.id} item={item} />
+          ))}
+        </div>
+        <div className="stagger-children mt-10 grid gap-4 md:grid-cols-3">
+          {["Pinned notices", "Urgent notice badge", "PDF download button"].map((feature) => (
+            <div
+              key={feature}
+              className="hover-lift rounded-lg border border-border bg-white p-5 text-sm font-medium text-navy shadow-soft"
+            >
+              <Bell className="mb-3 h-6 w-6 text-gold" />
+              {feature}
+            </div>
+          ))}
+        </div>
+      </section>
+      <SubpagesSection parentId="news" />
+    </PublicLayout>
+  );
+}
+
+function SportsClubsPage() {
+  const db = useDb();
+  const page = db.pages["sports-clubs"];
+  const sports = ["Athletics", "Cricket", "Football", "Basketball", "Swimming", "Badminton"];
+  const clubs = [
+    "Media Unit",
+    "Science Society",
+    "ICT Society",
+    "Prefects Board",
+    "English Literary Association",
+    "Religious Society",
+    "Environmental Society",
+  ];
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="sports-clubs"
+        kicker={page.kicker || "Sports & Clubs"}
+        title={page.title || "Student leadership, clubs, societies, sports, and achievements."}
+        subtitle={
+          page.body ||
+          "A dedicated space for sports teams, clubs, student leadership, schedules, achievements, galleries, and society updates."
+        }
+        image={page.image}
+      />
+      <section id="sports" className="mx-auto max-w-7xl px-6 py-20">
+        <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+              Sports Overview
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Sports clubs and event schedules.
+            </h2>
+            <div className="stagger-children mt-6 grid gap-3 sm:grid-cols-2">
+              {sports.map((sport) => (
+                <article
+                  key={sport}
+                  className="hover-lift rounded-lg border border-border bg-white p-5 shadow-soft"
+                >
+                  <Trophy className="h-7 w-7 text-gold" />
+                  <h3 className="mt-3 font-bold text-navy">{sport}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Team updates, fixtures, teacher-in-charge, achievements, and gallery.
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+          <div id="clubs">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+              Clubs & Societies
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Student communities across campus.
+            </h2>
+            <div className="stagger-children mt-6 grid gap-3">
+              {clubs.map((club) => (
+                <article
+                  key={club}
+                  className="hover-lift rounded-lg border border-border bg-white p-5 shadow-soft"
+                >
+                  <h3 className="font-bold text-navy">{club}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Club logo, description, teacher-in-charge, president, secretary, members,
+                    events, news, and gallery.
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div id="achievements" className="stagger-children mt-12 grid gap-5 md:grid-cols-3">
+          {["Sports Achievements", "Student Leadership", "Club Gallery"].map((item) => (
+            <article
+              key={item}
+              className="hover-lift rounded-lg bg-navy p-6 text-white shadow-elegant"
+            >
+              <Award className="h-7 w-7 text-gold-light" />
+              <h2 className="mt-3 font-serif text-2xl">{item}</h2>
+              <p className="mt-2 text-sm text-white/70">
+                A publishable section for records, leaders, events, and media coverage.
+              </p>
+            </article>
+          ))}
+        </div>
+      </section>
+      <SubpagesSection parentId="sports-clubs" />
+    </PublicLayout>
+  );
+}
+
+function GalleryPage() {
+  const db = useDb();
+  const page = db.pages.gallery;
+  const albums = db.gallery.filter((item) => item.visible !== false);
+  const videoAlbums = db.videoGallery.filter(
+    (item) => item.visible !== false && item.videos.length > 0,
+  );
+  const categories = [
+    "Photo Gallery",
+    "Video Gallery",
+    "Event Albums",
+    "Sports Albums",
+    "Religious Events",
+    "Academic Events",
+    "Media Unit Coverage",
+    "Old Memories",
+  ];
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="gallery"
+        kicker={page.kicker || "Gallery"}
+        title={page.title || "Photo, video, event, sports, academic, and old memories albums."}
+        subtitle={
+          page.body ||
+          "Browse Loyola College moments with album covers, captions, categories, dates, lightbox previews, and video embeds."
+        }
+        image={page.image || db.media.campusImage}
+      />
+      <section id="photos" className="mx-auto max-w-7xl px-6 py-20">
+        <div className="stagger-children mb-8 flex flex-wrap gap-2">
+          {categories.map((category) => (
+            <span
+              key={category}
+              id={category === "Video Gallery" ? "videos" : undefined}
+              className="hover-lift rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft"
+            >
+              {category}
+            </span>
+          ))}
+        </div>
+        <div className="stagger-children grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+          {albums.map((item) => {
+            const images = (item.images || (item.image ? [item.image] : []))
+              .filter(Boolean)
+              .slice(0, 10);
+            const cover = images[0] || "/loyola-crest.jpg";
+            return (
+              <article
+                key={item.id}
+                className="hover-lift overflow-hidden rounded-lg border border-border bg-white shadow-soft"
+              >
+                <img src={cover} alt={item.label} className="aspect-[4/3] w-full object-cover" />
+                <div className="p-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                    Photo album | {images.length} photo{images.length === 1 ? "" : "s"}
+                  </p>
+                  <h2 className="mt-2 font-serif text-2xl text-navy">{item.label}</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {item.description ||
+                      "Browse this Loyola College album and open the full collection link."}
+                  </p>
+                  {images.length > 1 && (
+                    <div className="mt-4 grid grid-cols-5 gap-2">
+                      {images.slice(0, 5).map((image) => (
+                        <img
+                          key={image}
+                          src={image}
+                          alt=""
+                          className="aspect-square rounded-md object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {item.link ? (
+                    <a
+                      href={item.link}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-5 inline-flex rounded-lg bg-navy px-4 py-2 text-sm font-bold text-white"
+                    >
+                      Show more
+                    </a>
+                  ) : (
+                    <span className="mt-5 inline-flex rounded-lg bg-muted-foreground/35 px-4 py-2 text-sm font-bold text-white">
+                      Show more
+                    </span>
+                  )}
+                </div>
+              </article>
+            );
+          })}
+          {albums.length === 0 && (
+            <p className="rounded-lg border border-border bg-white p-6 text-sm text-muted-foreground shadow-soft">
+              No visible albums yet.
+            </p>
+          )}
+        </div>
+        {videoAlbums.length > 0 && (
+          <div className="hover-lift mt-12 rounded-lg border border-border bg-white p-6 shadow-soft">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+              Video gallery
+            </p>
+            <h2 className="mt-2 font-serif text-3xl font-bold text-navy">
+              Videos are managed separately
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Open the dedicated video gallery to view school videos and YouTube previews.
+            </p>
+            <a
+              href="/gallery/video-gallery"
+              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-navy px-4 py-2 text-sm font-bold text-white"
+            >
+              Open Video Gallery <Film className="h-4 w-4" />
+            </a>
+          </div>
+        )}
+      </section>
+      <SubpagesSection parentId="gallery" />
+    </PublicLayout>
+  );
+}
+
+function albumImages(item: GalleryItem) {
+  return (item.images || (item.image ? [item.image] : [])).filter(Boolean);
+}
+
+function albumHref(item: GalleryItem) {
+  return `/gallery/photo-gallery/${encodeURIComponent(item.id)}`;
+}
+
+function PhotoAlbumPage({ albumKey }: { albumKey: string }) {
+  const db = useDb();
+  const album = db.gallery.find((item) => item.id === albumKey && item.visible !== false);
+  const images = album ? albumImages(album) : [];
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const selectedImage = selectedIndex === null ? null : images[selectedIndex];
+
+  const moveLightbox = (direction: -1 | 1) => {
+    setSelectedIndex((current) => {
+      if (current === null || images.length === 0) return current;
+      return (current + direction + images.length) % images.length;
+    });
+  };
+
+  if (!album) {
+    return (
+      <PublicLayout>
+        <PageHeader
+          pageId="gallery/photo-gallery"
+          kicker="Photo Gallery"
+          title="Album not found"
+          subtitle="This album is unavailable or hidden."
+          image={db.media.campusImage}
+        />
+        <section className="mx-auto max-w-4xl px-6 py-16">
+          <a
+            href="/gallery/photo-gallery"
+            className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-3 text-sm font-bold text-white"
+          >
+            <ChevronLeft className="h-4 w-4" /> Back to photo albums
+          </a>
+        </section>
+      </PublicLayout>
+    );
+  }
+
+  return (
+    <PublicLayout>
+      <section className="bg-page-soft py-14">
+        <div className="mx-auto max-w-7xl px-6">
+          <a
+            href="/gallery/photo-gallery"
+            className="mb-8 inline-flex items-center gap-2 rounded-full border border-border bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.14em] text-navy shadow-soft transition-smooth hover:border-gold"
+          >
+            <ChevronLeft className="h-4 w-4" /> Back to albums
+          </a>
+          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                All photos
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                {album.label} gallery
+              </h2>
+            </div>
+            {album.link && (
+              <a
+                href={album.link}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-3 text-sm font-bold text-white shadow-soft transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+              >
+                Show more <ArrowRight className="h-4 w-4" />
+              </a>
+            )}
+          </div>
+
+          <div className="stagger-children grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {images.map((image, index) => (
+              <button
+                key={`${image}-${index}`}
+                type="button"
+                onClick={() => setSelectedIndex(index)}
+                className="group relative overflow-hidden rounded-lg border border-border bg-white text-left shadow-soft transition-smooth hover:-translate-y-1 hover:border-gold hover:shadow-elegant"
+              >
+                <img
+                  src={image}
+                  alt={`${album.label} photo ${index + 1}`}
+                  className="aspect-[4/3] w-full object-cover transition-smooth group-hover:scale-105"
+                />
+              </button>
+            ))}
+            {images.length === 0 && (
+              <p className="rounded-lg border border-border bg-white p-6 text-sm text-muted-foreground shadow-soft">
+                No photos have been added to this album yet.
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {selectedImage && selectedIndex !== null && (
+        <div className="fixed inset-0 z-[100] bg-navy/95 p-4 text-white md:p-8">
+          <div className="mx-auto flex h-full max-w-7xl flex-col">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light">
+                  {album.label}
+                </p>
+                <p className="mt-1 text-sm text-white/70">
+                  {selectedIndex + 1} of {images.length}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedIndex(null)}
+                className="grid h-11 w-11 place-items-center rounded-full bg-white text-navy"
+                aria-label="Close photo preview"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="grid min-h-0 flex-1 grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3">
+              <button
+                type="button"
+                onClick={() => moveLightbox(-1)}
+                className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-white/10"
+                aria-label="Previous photo"
+              >
+                <ChevronLeft className="h-6 w-6" />
+              </button>
+              <img
+                src={selectedImage}
+                alt={`${album.label} photo ${selectedIndex + 1}`}
+                className="mx-auto max-h-full min-h-0 max-w-full rounded-lg object-contain shadow-elegant"
+              />
+              <button
+                type="button"
+                onClick={() => moveLightbox(1)}
+                className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-white/10"
+                aria-label="Next photo"
+              >
+                <ChevronRight className="h-6 w-6" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </PublicLayout>
+  );
+}
+
+function youtubeVideoId(url: string) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname.replace(/^www\./, "");
+    if (host === "youtu.be") return parsed.pathname.split("/").filter(Boolean)[0] || "";
+    if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      if (parsed.pathname === "/watch") return parsed.searchParams.get("v") || "";
+      const parts = parsed.pathname.split("/").filter(Boolean);
+      if (["embed", "shorts", "live"].includes(parts[0])) return parts[1] || "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+}
+
+function youtubeEmbedUrl(url: string) {
+  const id = youtubeVideoId(url);
+  return id ? `https://www.youtube.com/embed/${id}` : "";
+}
+
+function videoPoster(video: GalleryVideo, images: string[]) {
+  const youtubeId = youtubeVideoId(video.url);
+  return (
+    video.thumbnail ||
+    images[0] ||
+    (youtubeId ? `https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg` : "")
+  );
+}
+
+function GalleryVideoFrame({
+  video,
+  images,
+  className = "aspect-video w-full bg-black object-contain",
+}: {
+  video: GalleryVideo;
+  images: string[];
+  className?: string;
+}) {
+  const embedUrl = youtubeEmbedUrl(video.url);
+  if (embedUrl) {
+    return (
+      <iframe
+        src={embedUrl}
+        title={video.name}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowFullScreen
+        className={className}
+      />
+    );
+  }
+
+  return (
+    <video controls poster={videoPoster(video, images)} className={className}>
+      {video.webmUrl && <source src={video.webmUrl} type="video/webm" />}
+      <source src={video.url} type="video/mp4" />
+    </video>
+  );
+}
+
+function PhotoGalleryPage({ pageId }: { pageId: string }) {
+  const db = useDb();
+  const page = db.pages[pageId] || db.pages.gallery;
+  const albums = db.gallery
+    .filter((item) => item.visible !== false)
+    .map((item) => ({ item, images: albumImages(item) }))
+    .filter(({ images }) => images.length > 0);
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={pageId}
+        kicker={page?.kicker || "Photo Gallery"}
+        title={page?.title || "Photo Gallery"}
+        subtitle={
+          page?.body ||
+          "Browse campus life, celebrations, sports, academic moments, and old memories from Loyola College."
+        }
+        image={page?.image || albums[0]?.images[0] || db.media.campusImage}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-16">
+        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Photo albums
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Browse by album</h2>
+          </div>
+          <a
+            href="/gallery/video-gallery"
+            className="inline-flex items-center gap-2 rounded-full border border-border bg-white px-5 py-3 text-sm font-bold text-navy shadow-soft transition-smooth hover:border-gold"
+          >
+            Video Gallery <Film className="h-4 w-4" />
+          </a>
+        </div>
+        <div className="stagger-children grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {albums.map(({ item, images }) => (
+            <article
+              key={item.id}
+              className="group hover-lift overflow-hidden rounded-lg border border-border bg-white shadow-soft transition-smooth hover:-translate-y-1 hover:border-gold hover:shadow-elegant"
+            >
+              <a href={albumHref(item)} className="block overflow-hidden">
+                <img
+                  src={images[0]}
+                  alt={item.label}
+                  className="aspect-[4/3] w-full object-cover transition-smooth group-hover:scale-105"
+                />
+              </a>
+              <div className="p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                    <Images className="h-4 w-4" /> {images.length} photo
+                    {images.length === 1 ? "" : "s"}
+                  </p>
+                </div>
+                <a href={albumHref(item)} className="block">
+                  <h3 className="mt-3 font-serif text-2xl font-bold text-navy transition-smooth hover:text-crimson">
+                    {item.label}
+                  </h3>
+                </a>
+                <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+                  {item.description || "A curated Loyola College photo collection."}
+                </p>
+                <div className="mt-4 grid grid-cols-5 gap-2">
+                  {images.slice(0, 5).map((image) => (
+                    <a key={image} href={albumHref(item)}>
+                      <img src={image} alt="" className="aspect-square rounded-md object-cover" />
+                    </a>
+                  ))}
+                </div>
+                <a
+                  href={albumHref(item)}
+                  className="mt-5 inline-flex items-center gap-2 rounded-lg bg-navy px-4 py-2 text-sm font-bold text-white"
+                >
+                  Open album <ArrowRight className="h-4 w-4" />
+                </a>
+                {item.link && (
+                  <a
+                    href={item.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="ml-2 mt-5 inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-bold text-navy"
+                  >
+                    Show more <ArrowRight className="h-4 w-4" />
+                  </a>
+                )}
+              </div>
+            </article>
+          ))}
+          {albums.length === 0 && (
+            <p className="rounded-lg border border-border bg-white p-6 text-sm text-muted-foreground shadow-soft">
+              No visible photo albums yet.
+            </p>
+          )}
+        </div>
+      </section>
+      <SubpagesSection parentId={pageId} />
+    </PublicLayout>
+  );
+}
+
+function VideoGalleryPage({ pageId }: { pageId: string }) {
+  const db = useDb();
+  const page = db.pages[pageId] || db.pages.gallery;
+  const albums = db.videoGallery
+    .filter((item) => item.visible !== false && item.videos.length > 0)
+    .map((item) => ({ item, videos: item.videos, cover: item.coverImage || "" }));
+  const featured = albums[0];
+  const videoCount = albums.reduce((total, album) => total + album.videos.length, 0);
+  const featuredPoster = featured?.videos[0]
+    ? videoPoster(featured.videos[0], [featured.cover])
+    : "";
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={pageId}
+        kicker={page?.kicker || "Video Gallery"}
+        title={page?.title || "Video Gallery"}
+        subtitle={
+          page?.body ||
+          "Watch school events, celebrations, performances, sports coverage, and media unit highlights."
+        }
+        image={page?.image || featuredPoster || db.media.campusImage}
+      />
+      <section className="bg-white py-16">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
+          <div className="hover-lift overflow-hidden rounded-lg border border-border bg-navy shadow-elegant">
+            {featured?.videos[0] ? (
+              <GalleryVideoFrame
+                video={featured.videos[0]}
+                images={[featured.cover]}
+                className="aspect-video w-full bg-black object-contain"
+              />
+            ) : (
+              <div className="grid aspect-video place-items-center bg-secondary text-muted-foreground">
+                <PlayCircle className="h-12 w-12" />
+              </div>
+            )}
+            <div className="border-t border-white/10 p-5 text-white">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light">
+                Featured video
+              </p>
+              <h2 className="mt-2 font-serif text-3xl font-bold">
+                {featured?.item.label || "Video highlights"}
+              </h2>
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Watch archive
+            </p>
+            <h2 className="mt-4 font-serif text-4xl font-bold leading-tight text-navy md:text-5xl">
+              A focused video page for school coverage.
+            </h2>
+            <p className="mt-5 leading-relaxed text-muted-foreground">
+              Videos are grouped by album so visitors can scan the event context first, then play
+              the clips directly on the page.
+            </p>
+            <div className="stagger-children mt-8 grid grid-cols-2 gap-3">
+              {[
+                ["Video albums", albums.length],
+                ["Videos", videoCount],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="hover-lift rounded-lg border border-border bg-secondary/45 p-4"
+                >
+                  <p className="text-2xl font-black text-navy">{value}</p>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+            <a
+              href="/gallery/photo-gallery"
+              className="mt-8 inline-flex items-center gap-2 rounded-full border border-border bg-white px-5 py-3 text-sm font-bold text-navy shadow-soft transition-smooth hover:border-gold"
+            >
+              Photo Gallery <Camera className="h-4 w-4" />
+            </a>
+          </div>
+        </div>
+      </section>
+      <section className="mx-auto max-w-7xl px-6 py-16">
+        <div className="stagger-children grid gap-6 lg:grid-cols-2">
+          {albums.map(({ item, videos, cover }) => (
+            <article
+              key={item.id}
+              className="hover-lift overflow-hidden rounded-lg border border-border bg-white shadow-soft"
+            >
+              <div className="border-b border-border bg-secondary/45 p-5">
+                <p className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                  <Film className="h-4 w-4" /> {videos.length} video
+                  {videos.length === 1 ? "" : "s"}
+                </p>
+                <h3 className="mt-2 font-serif text-2xl font-bold text-navy">{item.label}</h3>
+                {item.description && (
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                    {item.description}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-4 p-5">
+                {videos.map((video) => (
+                  <div key={video.id} className="overflow-hidden rounded-lg border border-border">
+                    <GalleryVideoFrame
+                      video={video}
+                      images={[cover]}
+                      className="aspect-video w-full bg-black object-contain"
+                    />
+                    <div className="flex items-center justify-between gap-3 bg-white px-4 py-3">
+                      <p className="min-w-0 truncate text-sm font-bold text-navy">{video.name}</p>
+                      <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+                        {new Date(video.uploadedAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          ))}
+          {albums.length === 0 && (
+            <p className="rounded-lg border border-border bg-white p-6 text-sm text-muted-foreground shadow-soft">
+              No visible videos yet.
+            </p>
+          )}
+        </div>
+      </section>
+      <SubpagesSection parentId={pageId} />
+    </PublicLayout>
+  );
+}
+
+function DownloadsPage() {
+  const db = useDb();
+  const page = db.pages.downloads;
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="downloads"
+        kicker={page.kicker || "Downloads"}
+        title={
+          page.title || "Forms, timetables, circulars, school policies, notices, and past papers."
+        }
+        subtitle={
+          page.body ||
+          "A searchable download area for students, parents, teachers, and admissions applicants."
+        }
+        image={page.image}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="stagger-children grid gap-5 md:grid-cols-4">
+          {db.downloads.map((item) => (
+            <article
+              key={item.id}
+              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+            >
+              <Download className="h-7 w-7 text-gold" />
+              <h2 className="mt-4 font-serif text-2xl text-navy">{item.title}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                {item.description}
+              </p>
+              <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                {item.type}
+              </p>
+              <a
+                href={item.fileUrl || "#"}
+                download
+                className={`mt-4 inline-flex rounded-lg px-4 py-2 text-sm font-bold text-white ${
+                  item.fileUrl ? "bg-navy" : "pointer-events-none bg-muted-foreground/45"
+                }`}
+              >
+                Download
+              </a>
+            </article>
+          ))}
+        </div>
+      </section>
+      <SubpagesSection parentId="downloads" />
+    </PublicLayout>
+  );
+}
+
+function StudentPortalLandingPage() {
+  const db = useDb();
+  const page = db.pages["student-portal"];
+  const links = [
+    "LMS Login",
+    "Exam Results",
+    "Timetables",
+    "Assignments",
+    "Online Resources",
+    "School Calendar",
+    "Notices",
+    "Help / Support",
+  ];
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="student-portal"
+        kicker={page.kicker || "Student Portal"}
+        title={
+          page.title || "LMS, results, timetables, assignments, resources, calendar, and notices."
+        }
+        subtitle={
+          page.body ||
+          "A clear gateway for students and parents before entering the secure role-based portal."
+        }
+        image={page.image}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-20">
+        <div className="stagger-children grid gap-5 md:grid-cols-4">
+          {links.map((link) => (
+            <a
+              key={link}
+              href="/login"
+              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft transition-smooth hover:-translate-y-1 hover:border-gold"
+            >
+              <ShieldCheck className="h-7 w-7 text-gold" />
+              <h2 className="mt-4 font-serif text-2xl text-navy">{link}</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Open secure portal access.</p>
+            </a>
+          ))}
+        </div>
+      </section>
+      <SubpagesSection parentId="student-portal" />
+    </PublicLayout>
+  );
+}
+
+function ContactPage() {
+  const db = useDb();
+  const page = db.pages.contact;
+  const [sent, setSent] = useState(false);
+  const submit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+    const subject = String(formData.get("subject") || "").trim();
+    const record = {
+      id: makeId("MSG"),
+      name: String(formData.get("name") || "").trim(),
+      email: String(formData.get("email") || "").trim(),
+      phone: String(formData.get("phone") || "").trim(),
+      subject,
+      body: String(formData.get("message") || "").trim(),
+      status: "Unread",
+      createdAt: new Date().toISOString(),
+    };
+    if (!record.name || !record.email || !record.subject || !record.body) return;
+    setDb((current) => ({ ...current, messages: [record, ...current.messages] }));
+    audit(`Contact message: ${subject}`, "Public");
+    setSent(true);
+    event.currentTarget.reset();
+  };
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="contact"
+        kicker={page.kicker || "Contact"}
+        title={page.title || ""}
+        subtitle={page.body}
+        image={page.image}
+      />
+      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[380px_1fr]">
+        <aside className="hover-lift rounded-lg bg-navy p-7 text-white">
+          <h2 className="font-serif text-3xl">College office</h2>
+          <div className="mt-6 space-y-4 text-sm text-white/75">
+            <p className="flex gap-3">
+              <MapPin className="h-5 w-5 text-gold" /> {db.websiteContent.address}
+            </p>
+            <p className="flex gap-3">
+              <Phone className="h-5 w-5 text-gold" /> {db.websiteContent.phone}
+            </p>
+            <p className="flex gap-3">
+              <Mail className="h-5 w-5 text-gold" /> {db.websiteContent.email}
+            </p>
+            <p className="flex gap-3">
+              <Calendar className="h-5 w-5 text-gold" /> Office Hours:{" "}
+              {db.websiteContent.officeHours}
+            </p>
+          </div>
+          <div className="mt-7 rounded-lg border border-white/12 bg-white/8 p-4 text-sm text-white/70">
+            Google Map preview and vacancies link area
+          </div>
+        </aside>
+        <form
+          onSubmit={submit}
+          className="rounded-lg border border-border bg-white p-8 shadow-soft focus-gold"
+        >
+          <h2 className="font-serif text-3xl text-navy">{db.forms.contactTitle}</h2>
+          {sent && (
+            <p className="mt-4 rounded-lg bg-success/10 p-3 text-sm text-success">
+              {db.forms.contactSuccessText}
+            </p>
+          )}
+          <div className="mt-6 grid gap-5 md:grid-cols-3">
+            <Field label="Name">
+              <input required name="name" className="input-line" />
+            </Field>
+            <Field label="Email">
+              <input required type="email" name="email" className="input-line" />
+            </Field>
+            <Field label="Phone">
+              <input name="phone" className="input-line" placeholder="Optional" />
+            </Field>
+          </div>
+          <Field label="Subject">
+            <input required name="subject" className="input-line" />
+          </Field>
+          <Field label="Message">
+            <textarea required name="message" rows={5} className="input-line resize-none" />
+          </Field>
+          <button
+            type="submit"
+            className="mt-5 rounded-lg bg-navy px-6 py-3 text-sm font-bold text-white"
+          >
+            {db.forms.contactSubmitLabel}
+          </button>
+          <div className="stagger-children mt-8 grid gap-3 md:grid-cols-3">
+            {["Google Map", "Social Media Links", "Vacancies"].map((item) => (
+              <a
+                key={item}
+                href="#"
+                className="hover-lift rounded-lg border border-border bg-secondary/60 px-4 py-3 text-sm font-medium text-navy"
+              >
+                {item}
+              </a>
+            ))}
+          </div>
+        </form>
+      </section>
+      <SubpagesSection parentId="contact" />
+    </PublicLayout>
+  );
+}
+
+function GenericPage({ pageId }: { pageId: string }) {
+  const db = useDb();
+  const page = db.pages[pageId];
+  const title = page?.title || pageId.split("/").pop()?.replaceAll("-", " ") || "Page";
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={pageId}
+        kicker={page?.kicker || "Page"}
+        title={title}
+        subtitle={page?.visualHtml ? undefined : page?.body}
+        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
+
+      {page?.visualHtml ? (
+        <>
+          {page.visualCss && <style>{page.visualCss}</style>}
+          <div
+            className="mx-auto max-w-6xl px-6 py-12"
+            dangerouslySetInnerHTML={{ __html: page.visualHtml }}
+          />
+        </>
+      ) : page?.blocks && page.blocks.length > 0 ? (
+        <div className="mx-auto max-w-5xl px-6 py-20 space-y-16">
+          {page.blocks.map((block) => (
+            <section key={block.id} className="w-full">
+              {block.type === "text" && (
+                <article className="prose prose-slate max-w-none">
+                  {block.content.title && (
+                    <h2 className="font-serif text-3xl font-bold text-navy">
+                      {block.content.title}
+                    </h2>
+                  )}
+                  {block.content.body && (
+                    <p className="text-muted-foreground whitespace-pre-wrap">
+                      {block.content.body}
+                    </p>
+                  )}
+                </article>
+              )}
+              {block.type === "hero" && (
+                <div className="rounded-2xl bg-navy p-10 text-center text-white shadow-elegant">
+                  {block.content.title && (
+                    <h2 className="font-serif text-4xl font-bold">{block.content.title}</h2>
+                  )}
+                  {block.content.body && <p className="mt-4 text-white/80">{block.content.body}</p>}
+                </div>
+              )}
+              {block.type === "quote" && (
+                <blockquote className="border-l-4 border-gold pl-6 py-2">
+                  <p className="font-serif text-2xl italic text-navy">{block.content.quote}</p>
+                  {block.content.author && (
+                    <footer className="mt-3 text-sm font-bold uppercase tracking-wider text-crimson">
+                      — {block.content.author}
+                    </footer>
+                  )}
+                </blockquote>
+              )}
+              {block.type === "gallery" && (
+                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+                  <div className="col-span-full mb-2">
+                    {block.content.title && (
+                      <h3 className="font-serif text-2xl font-bold text-navy">
+                        {block.content.title}
+                      </h3>
+                    )}
+                  </div>
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="aspect-square rounded-xl bg-slate-100 flex items-center justify-center border border-slate-200"
+                    >
+                      <ImageIcon className="h-8 w-8 text-slate-300" />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+          ))}
+        </div>
+      ) : (
+        <section className="mx-auto max-w-4xl px-6 py-20">
+          <article className="rounded-lg border border-border bg-white p-8 shadow-soft">
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
+              {pageId === "home" ? "/" : `/${pageId}`}
+            </p>
+            <h2 className="mt-4 font-serif text-4xl font-bold capitalize text-navy">{title}</h2>
+            <p className="mt-5 leading-relaxed text-muted-foreground whitespace-pre-wrap">
+              {page?.body || "Add page content from the Page Builder."}
+            </p>
+          </article>
+        </section>
+      )}
+      <SubpagesSection parentId={pageId} />
+    </PublicLayout>
+  );
+}
+
+function RectorsMessagePage({ pageId = "rectors-message" }: { pageId?: string }) {
+  const db = useDb();
+  const page = db.pages[pageId] || db.pages["rectors-message"];
+  const title = page?.title || "Rector's Message";
+  const defaultBody =
+    "Dear Students, Parents, and Alumni of Loyola College,\n\nIn today's world of advancing technology, it is essential for us to continually update and modernize our systems. In line with this, we are transitioning from manual systems to web-based online management systems. We have already upgraded our Annual Calendar and Student Progress Report systems to a web-based portal.\n\nWe kindly ask for your cooperation as we move forward with these updates to align with current standards.\n\nWishing you all the best,\n\nRev. Fr. D.M.J. Kennedy Perera\nRector / Principal";
+  const bodyText =
+    page?.body && page.body.trim() !== "New page content goes here." ? page.body : defaultBody;
+  const paragraphs = bodyText.split("\n").filter((p) => p.trim() !== "");
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={pageId}
+        kicker={page?.kicker || "About"}
+        title={title}
+        subtitle="A message from the Principal of Loyola College Negombo"
+        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
+      <section className="mx-auto max-w-6xl px-6 py-24">
+        <div className="grid gap-12 lg:grid-cols-[400px_1fr] lg:gap-20">
+          <div className="relative">
+            <div className="overflow-hidden rounded-2xl border-4 border-white shadow-elegant">
+              <img
+                src={db.media.principalImage || "/loyola-crest.jpg"}
+                alt="Rector of Loyola College"
+                className="w-full object-cover"
+              />
+            </div>
+            <div className="absolute -bottom-6 -right-6 -z-10 h-full w-full rounded-2xl bg-gold/20" />
+          </div>
+          <article className="prose prose-lg prose-slate max-w-none">
+            {paragraphs.map((p, i) => {
+              if (i === 0 && (p.startsWith("Dear") || p.startsWith("Welcome"))) {
+                return (
+                  <h2 key={i} className="font-serif text-3xl font-bold text-navy mb-8">
+                    {p}
+                  </h2>
+                );
+              }
+              if (i === paragraphs.length - 2 && (p.startsWith("Rev.") || p.startsWith("Fr."))) {
+                return (
+                  <div key={i} className="mt-12 border-l-4 border-gold pl-6">
+                    <p className="font-bold text-navy text-lg">{p}</p>
+                    <p className="text-sm font-bold uppercase tracking-[0.16em] text-crimson mt-1">
+                      {paragraphs[i + 1]}
+                    </p>
+                  </div>
+                );
+              }
+              if (
+                i === paragraphs.length - 1 &&
+                (paragraphs[i - 1]?.startsWith("Rev.") || paragraphs[i - 1]?.startsWith("Fr."))
+              ) {
+                return null;
+              }
+              return (
+                <p key={i} className="mb-6 text-muted-foreground leading-relaxed">
+                  {p}
+                </p>
+              );
+            })}
+          </article>
+        </div>
+      </section>
+      <SubpagesSection parentId="rectors-message" />
+    </PublicLayout>
+  );
+}
+
+function LoginPage() {
+  const db = useDb();
+  const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setSubmitting(true);
+    const formData = new FormData(event.currentTarget);
+    try {
+      await authenticateUser(
+        String(formData.get("email") || ""),
+        String(formData.get("password") || ""),
+      );
+      window.location.href = "/portal";
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Sign in failed.");
+      setSubmitting(false);
+    }
+  };
+  return (
+    <main className="login-page grid min-h-screen bg-background lg:grid-cols-2">
+      <section className="login-brand-panel hidden bg-gradient-hero p-14 text-white lg:flex lg:flex-col lg:justify-between">
+        <div className="relative z-10 flex items-center gap-4 animate-fade-in-up">
+          <img
+            className="h-14 w-14 rounded-full border-2 border-gold bg-white object-contain p-1"
+            src="/loyola-crest.jpg"
+            alt=""
+          />
+          <div>
+            <p className="font-serif text-2xl font-bold">{db.websiteContent.schoolName}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">
+              {db.websiteContent.tagline}
+            </p>
+          </div>
+        </div>
+        <div className="relative z-10 max-w-xl animate-fade-in-up animation-delay-2">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light">
+            Loyola College Portal
+          </p>
+          <h1 className="mt-5 font-serif text-6xl font-bold leading-none">Secure portal access</h1>
+          <p className="mt-5 max-w-md text-sm leading-6 text-white/72">
+            A focused workspace for staff, students, parents, and administration.
+          </p>
+        </div>
+        <p className="relative z-10 text-sm text-white/70">
+          &copy; 2026 {db.websiteContent.schoolName}
+        </p>
+      </section>
+      <section className="grid min-h-screen place-items-center px-6 py-10">
+        <form onSubmit={submit} className="login-card w-full max-w-md animate-fade-in-up">
+          <a
+            href="/"
+            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground transition-smooth hover:text-crimson"
+          >
+            &lt;- Back to website
+          </a>
+          <h2 className="mt-7 font-serif text-5xl font-bold text-navy">Portal sign in</h2>
+          <p className="mt-3 text-muted-foreground">
+            Use your assigned username/email and password.
+          </p>
+          <Field label="Username or email">
+            <input
+              name="email"
+              type="email"
+              required
+              autoComplete="username"
+              className="input-line"
+            />
+          </Field>
+          <Field label="Password">
+            <input
+              name="password"
+              type="password"
+              required
+              autoComplete="current-password"
+              className="input-line"
+            />
+          </Field>
+          {error && (
+            <p className="mt-5 animate-scale-in rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
+              {error}
+            </p>
+          )}
+          <button
+            disabled={submitting}
+            type="submit"
+            className="login-submit mt-7 w-full rounded-lg bg-navy px-5 py-4 text-sm font-bold text-white shadow-elegant transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid disabled:translate-y-0 disabled:cursor-wait disabled:opacity-70"
+          >
+            {submitting ? "Signing in..." : "Sign in to portal"}
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
+function CentralPortal() {
+  const auth = useAuth();
+
+  useEffect(() => {
+    if (!auth.loading && !auth.user) window.location.href = "/login";
+  }, [auth.loading, auth.user]);
+
+  if (auth.loading || !auth.user) {
+    return <BrandedLoader title="Opening portal" subtitle="Checking your session" />;
+  }
+
+  const modules: {
+    title: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+    roles: Role[];
+    meta: string;
+    lockedMeta: string;
+  }[] = [
+    {
+      title: "Website Admin",
+      href: "/admin",
+      icon: ShieldCheck,
+      roles: WEBSITE_ADMIN_ROLES,
+      meta: "Website, media, news, notices, events",
+      lockedMeta: "Only website admins and top admins",
+    },
+    {
+      title: "EduZync",
+      href: "/portal/eduzync",
+      icon: Users,
+      roles: EDUZYNC_ADMIN_ROLES,
+      meta: "Students, staff, classes",
+      lockedMeta: "Only EduZync admins and top admins",
+    },
+    {
+      title: "EduTrack",
+      href: "/portal/edutrack",
+      icon: BookOpen,
+      roles: EDUTRACK_ROLES,
+      meta: "Syllabus progress",
+      lockedMeta: "Teachers and EduZync admins",
+    },
+    {
+      title: "ELMS",
+      href: "/portal/elms",
+      icon: GraduationCap,
+      roles: ELMS_ROLES,
+      meta: "Learning workspace",
+      lockedMeta: "Students and teachers",
+    },
+    {
+      title: "Report Cards",
+      href: "/portal/reports",
+      icon: FileText,
+      roles: REPORT_CARD_ROLES,
+      meta: "Marks and reports",
+      lockedMeta: "Available by profile relationship",
+    },
+    {
+      title: "Users",
+      href: "/admin?panel=users",
+      icon: Users,
+      roles: MASTER_ROLES,
+      meta: "Accounts and permissions",
+      lockedMeta: "Only Master Admin and Super Admin",
+    },
+  ];
+
+  const logout = async () => {
+    audit(`${auth.user?.role} signed out`, auth.user?.email || "");
+    await setAuth(null);
+    window.location.href = "/login";
+  };
+
+  return (
+    <main className="portal-landing min-h-screen bg-[#eef3ff] text-[#172033]">
+      <header className="border-b border-[#d8e1f5] bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-5">
+          <a href="/" className="flex items-center gap-3">
+            <img
+              className="h-11 w-11 rounded-full border border-[#d8e1f5] object-contain p-1"
+              src="/loyola-crest.jpg"
+              alt=""
+            />
+            <span>
+              <span className="block font-serif text-xl font-bold text-navy">Loyola Portal</span>
+              <span className="block text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+                Digital Platform
+              </span>
+            </span>
+          </a>
+          <div className="flex items-center gap-3">
+            <div className="hidden text-right sm:block">
+              <p className="text-sm font-bold">{auth.user.name}</p>
+              <p className="text-xs uppercase text-muted-foreground">{roleLabel(auth.user.role)}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="grid h-10 w-10 place-items-center rounded border border-[#d8e1f5] text-navy"
+              aria-label="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-7xl px-6 py-10">
+        <div className="flex flex-col gap-2 animate-fade-in-up">
+          <p className="text-sm font-bold uppercase tracking-[0.18em] text-crimson">
+            Welcome, {auth.user.name}
+          </p>
+          <h1 className="font-serif text-4xl font-bold text-navy">Available Apps</h1>
+          <span className="mt-3 inline-flex w-fit rounded-full border border-[#d8e1f5] bg-white px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-navy">
+            {roleLabel(auth.user.role)}
+          </span>
+        </div>
+
+        <div className="stagger-children mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {modules.map((module) => {
+            const Icon = module.icon;
+            const allowed = module.roles.includes(auth.user!.role);
+            return allowed ? (
+              <a
+                key={module.href}
+                href={module.href}
+                className="group hover-lift rounded-lg border border-[#d8e1f5] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-[#a9bce7] hover:shadow-md"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded bg-[#08286f] text-white">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <span className="mt-5 block font-serif text-2xl font-bold text-navy">
+                  {module.title}
+                </span>
+                <span className="mt-2 block text-sm text-muted-foreground">{module.meta}</span>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
+                  Open <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </span>
+              </a>
+            ) : (
+              <div
+                key={module.href}
+                className="rounded-lg border border-[#d8e1f5] bg-white/70 p-5 opacity-75 shadow-sm animate-fade-in-up"
+              >
+                <span className="grid h-11 w-11 place-items-center rounded bg-slate-200 text-slate-500">
+                  <Lock className="h-5 w-5" />
+                </span>
+                <span className="mt-5 block font-serif text-2xl font-bold text-slate-500">
+                  {module.title}
+                </span>
+                <span className="mt-2 block text-sm text-muted-foreground">
+                  {module.lockedMeta}
+                </span>
+                <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-slate-400">
+                  Locked
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+type EduTrackRow = Record<string, string | number | null | undefined>;
+
+type EduTrackDashboard = {
+  totalItems: number;
+  completedItems: number;
+  completionPercent: number;
+  bySubject: EduTrackRow[];
+  byTeacher?: EduTrackRow[];
+};
+
+function EduTrackIntegratedPage() {
+  const auth = useAuth();
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "terms" | "syllabus" | "progress" | "warnings"
+  >("dashboard");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [terms, setTerms] = useState<EduTrackRow[]>([]);
+  const [subjects, setSubjects] = useState<EduTrackRow[]>([]);
+  const [teachers, setTeachers] = useState<EduTrackRow[]>([]);
+  const [syllabus, setSyllabus] = useState<EduTrackRow[]>([]);
+  const [progress, setProgress] = useState<EduTrackRow[]>([]);
+  const [warnings, setWarnings] = useState<EduTrackRow[]>([]);
+  const [dashboard, setDashboard] = useState<EduTrackDashboard>({
+    totalItems: 0,
+    completedItems: 0,
+    completionPercent: 0,
+    bySubject: [],
+  });
+  const [termForm, setTermForm] = useState({
+    level: "Upper",
+    term_name: "Term 1",
+    start_date: "",
+    end_date: "",
+    warning_threshold: 80,
+    status: "Active",
+  });
+  const [subjectForm, setSubjectForm] = useState({
+    name: "",
+    grade: "10",
+    section: "A",
+    teacher_id: "",
+  });
+  const [syllabusForm, setSyllabusForm] = useState({
+    subject_id: "",
+    grade: "10",
+    title: "",
+    description: "",
+    term_id: "",
+  });
+  const [progressForm, setProgressForm] = useState({
+    teacher_id: "",
+    subject_id: "",
+    syllabus_item_id: "",
+    status: "completed",
+    note: "",
+  });
+
+  useEffect(() => {
+    if (!auth.loading && !auth.user) window.location.href = "/login";
+  }, [auth.loading, auth.user]);
+
+  const allowed: Role[] = EDUTRACK_ROLES;
+
+  const apiJson = async (path: string, options: RequestInit = {}) => {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...options,
+      headers: authHeaders({ "Content-Type": "application/json", ...(options.headers || {}) }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Request failed: ${path}`);
+    return data;
+  };
+
+  const loadEduTrack = async () => {
+    if (!auth.user) return;
+    setLoading(true);
+    setError("");
+    try {
+      const [
+        termsData,
+        subjectsData,
+        teachersData,
+        syllabusData,
+        progressData,
+        warningsData,
+        dashData,
+      ] = await Promise.all([
+        apiJson("/api/edutrack/terms"),
+        apiJson("/api/subjects").catch(() => []),
+        apiJson("/api/teachers"),
+        apiJson("/api/edutrack/syllabus"),
+        apiJson("/api/edutrack/progress"),
+        apiJson("/api/edutrack/warnings"),
+        apiJson("/api/edutrack/dashboard"),
+      ]);
+      setTerms(Array.isArray(termsData) ? termsData : []);
+      setSubjects(Array.isArray(subjectsData) ? subjectsData : []);
+      setTeachers(Array.isArray(teachersData) ? teachersData : []);
+      setSyllabus(Array.isArray(syllabusData) ? syllabusData : []);
+      setProgress(Array.isArray(progressData) ? progressData : []);
+      setWarnings(Array.isArray(warningsData) ? warningsData : []);
+      setDashboard(
+        dashData || { totalItems: 0, completedItems: 0, completionPercent: 0, bySubject: [] },
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load EduTrack data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!auth.loading && auth.user && allowed.includes(auth.user.role)) void loadEduTrack();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.loading, auth.user?.id]);
+
+  if (auth.loading || !auth.user) {
+    return <BrandedLoader title="Opening EduTrack" subtitle="Checking your session" />;
+  }
+
+  if (!allowed.includes(auth.user.role)) {
+    window.location.href = "/portal";
+    return (
+      <BrandedLoader title="Returning to portal" subtitle="EduTrack is not enabled for this role" />
+    );
+  }
+
+  const isAdmin = EDUZYNC_ADMIN_ROLES.includes(auth.user.role);
+
+  const submitTerm = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await apiJson("/api/edutrack/terms", { method: "POST", body: JSON.stringify(termForm) });
+    setTermForm({
+      level: "Upper",
+      term_name: "Term 1",
+      start_date: "",
+      end_date: "",
+      warning_threshold: 80,
+      status: "Active",
+    });
+    await loadEduTrack();
+  };
+
+  const submitSubject = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await apiJson("/api/subjects", { method: "POST", body: JSON.stringify(subjectForm) });
+    setSubjectForm({ name: "", grade: "10", section: "A", teacher_id: "" });
+    await loadEduTrack();
+  };
+
+  const submitSyllabus = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await apiJson("/api/edutrack/syllabus", { method: "POST", body: JSON.stringify(syllabusForm) });
+    setSyllabusForm({ subject_id: "", grade: "10", title: "", description: "", term_id: "" });
+    await loadEduTrack();
+  };
+
+  const submitProgress = async (event: React.FormEvent) => {
+    event.preventDefault();
+    await apiJson("/api/edutrack/progress", { method: "POST", body: JSON.stringify(progressForm) });
+    setProgressForm({
+      teacher_id: "",
+      subject_id: "",
+      syllabus_item_id: "",
+      status: "completed",
+      note: "",
+    });
+    await loadEduTrack();
+  };
+
+  const seedDemoData = async () => {
+    try {
+      setLoading(true);
+      const term = await apiJson("/api/edutrack/terms", {
+        method: "POST",
+        body: JSON.stringify({
+          level: "Upper",
+          term_name: "Term 1",
+          start_date: "2026-01-01",
+          end_date: "2026-04-30",
+          warning_threshold: 80,
+          status: "Active",
+        }),
+      });
+      const subject = await apiJson("/api/subjects", {
+        method: "POST",
+        body: JSON.stringify({
+          name: "Science",
+          grade: "10",
+          section: "A",
+          teacher_id: teachers[0]?.id || auth.user.id,
+        }),
+      });
+      await apiJson("/api/edutrack/syllabus", {
+        method: "POST",
+        body: JSON.stringify({
+          subject_id: subject.id,
+          grade: "10",
+          title: "Matter and Materials",
+          description: "Properties of matter and practical classroom coverage.",
+          term_id: term.id,
+        }),
+      });
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create demo data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const tabs = [
+    { id: "dashboard", label: "Dashboard", icon: Award },
+    { id: "terms", label: "Terms", icon: Calendar },
+    { id: "syllabus", label: "Syllabus", icon: BookOpen },
+    { id: "progress", label: "Progress", icon: CheckCircle2 },
+    { id: "warnings", label: "Warnings", icon: Bell },
+  ] as const;
+
+  const inputClass =
+    "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#38bdf8]";
+  const labelClass = "text-xs font-black uppercase tracking-[0.16em] text-white/50";
+
+  return (
+    <main className="min-h-screen bg-[#050b18] text-white">
+      <div className="absolute inset-0 -z-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(220,38,38,0.14),transparent_26%)]" />
+      <header className="relative z-10 border-b border-white/10 bg-[#07111f]/90 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-4">
+          <div className="flex items-center gap-3">
+            <a
+              href="/portal"
+              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10"
+            >
+              ← Portal
+            </a>
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0f2f7a] shadow-lg">
+              <BookOpen className="h-6 w-6" />
+            </span>
+            <div>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7dd3fc]">
+                Loyola Digital Platform
+              </p>
+              <h1 className="font-serif text-2xl font-black">EduTrack Academic Tracking</h1>
+            </div>
+          </div>
+          <div className="text-right text-xs text-white/60">
+            <p className="font-bold text-white">{auth.user.name}</p>
+            <p>{auth.user.role} • MySQL backend</p>
+          </div>
+        </div>
+      </header>
+
+      <section className="relative z-10 mx-auto max-w-7xl px-6 py-8">
+        {error && (
+          <div className="mb-5 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-100">
+            {error}
+          </div>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Overall</p>
+            <p className="mt-3 text-4xl font-black text-[#7dd3fc]">
+              {dashboard.completionPercent || 0}%
+            </p>
+            <p className="mt-1 text-sm text-white/55">Syllabus coverage</p>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Terms</p>
+            <p className="mt-3 text-4xl font-black text-white">{terms.length}</p>
+            <p className="mt-1 text-sm text-white/55">Academic periods</p>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Items</p>
+            <p className="mt-3 text-4xl font-black text-white">
+              {dashboard.completedItems || 0}/{dashboard.totalItems || 0}
+            </p>
+            <p className="mt-1 text-sm text-white/55">Completed topics</p>
+          </div>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Warnings</p>
+            <p className="mt-3 text-4xl font-black text-[#fbbf24]">{warnings.length}</p>
+            <p className="mt-1 text-sm text-white/55">Below threshold</p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition ${activeTab === tab.id ? "bg-white text-[#07111f]" : "text-white/70 hover:bg-white/10"}`}
+              >
+                <Icon className="h-4 w-4" /> {tab.label}
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            onClick={() => void loadEduTrack()}
+            className="ml-auto rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/70 hover:bg-white/10"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-10 text-center text-white/60">
+            Loading EduTrack data...
+          </div>
+        ) : (
+          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+            <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-2xl">
+              {activeTab === "dashboard" && (
+                <div>
+                  <h2 className="font-serif text-2xl font-black">Academic overview</h2>
+                  <p className="mt-2 text-sm text-white/55">
+                    Live coverage by subject from the shared MySQL backend.
+                  </p>
+                  <div className="mt-6 grid gap-3">
+                    {(dashboard.bySubject || []).length === 0 && (
+                      <EmptyState
+                        title="No subject progress yet"
+                        action={
+                          isAdmin ? "Create demo EduTrack records" : "Ask admin to add syllabus"
+                        }
+                        onAction={isAdmin ? seedDemoData : undefined}
+                      />
+                    )}
+                    {(dashboard.bySubject || []).map((row: EduTrackRow) => (
+                      <div
+                        key={row.subject_id || row.subject_name}
+                        className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="font-bold">{row.subject_name || "Subject"}</p>
+                          <p className="text-sm font-black text-[#7dd3fc]">
+                            {row.completionPercent}%
+                          </p>
+                        </div>
+                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                          <div
+                            className="h-full rounded-full bg-[#38bdf8]"
+                            style={{
+                              width: `${Math.min(100, Number(row.completionPercent || 0))}%`,
+                            }}
+                          />
+                        </div>
+                        <p className="mt-2 text-xs text-white/45">
+                          {row.completed_items || 0} of {row.total_items || 0} items completed
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === "terms" && (
+                <DataList
+                  title="Academic terms"
+                  empty="No terms yet. Add Term 1, Term 2, or Term 3."
+                >
+                  {terms.map((term) => (
+                    <InfoRow
+                      key={term.id}
+                      title={`${term.level} • ${term.term_name}`}
+                      meta={`${term.start_date || "No start"} → ${term.end_date || "No end"}`}
+                      badge={`${term.warning_threshold || 80}% threshold`}
+                    />
+                  ))}
+                </DataList>
+              )}
+
+              {activeTab === "syllabus" && (
+                <DataList
+                  title="Syllabus items"
+                  empty="No syllabus items yet. Add subjects and topics from the right panel."
+                >
+                  {syllabus.map((item) => (
+                    <InfoRow
+                      key={item.id}
+                      title={item.title}
+                      meta={`${item.subject_name || "No subject"} • Grade ${item.grade || "-"}`}
+                      badge={item.term_name || "No term"}
+                    />
+                  ))}
+                </DataList>
+              )}
+
+              {activeTab === "progress" && (
+                <DataList
+                  title="Progress log"
+                  empty="No progress records yet. Mark a syllabus item as completed."
+                >
+                  {progress.map((item) => (
+                    <InfoRow
+                      key={item.id}
+                      title={item.syllabus_title || "Progress record"}
+                      meta={`${item.subject_name || "Subject"} • ${item.teacher_id}`}
+                      badge={item.status}
+                    />
+                  ))}
+                </DataList>
+              )}
+
+              {activeTab === "warnings" && (
+                <DataList
+                  title="Warning log"
+                  empty="No warnings. Great! Coverage is above threshold or no data is available."
+                >
+                  {warnings.map((item) => (
+                    <InfoRow
+                      key={`${item.term_id}-${item.subject_id}`}
+                      title={item.subject_name || "Subject"}
+                      meta={`${item.term_name} is at ${item.completionPercent}%`}
+                      badge={`Below ${item.warning_threshold}%`}
+                      warning
+                    />
+                  ))}
+                </DataList>
+              )}
+            </div>
+
+            <aside className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-2xl">
+              <h3 className="font-serif text-xl font-black">Quick actions</h3>
+              <p className="mt-2 text-sm text-white/50">Create records directly into MySQL.</p>
+              {!isAdmin && (
+                <p className="mt-4 rounded-xl bg-white/10 p-3 text-sm text-white/70">
+                  Teachers can update progress. Admin can create terms and syllabus.
+                </p>
+              )}
+
+              {isAdmin && activeTab === "terms" && (
+                <form onSubmit={submitTerm} className="mt-5 grid gap-3">
+                  <label className={labelClass}>Level</label>
+                  <select
+                    className={inputClass}
+                    value={termForm.level}
+                    onChange={(e) => setTermForm({ ...termForm, level: e.target.value })}
+                  >
+                    {["Primary", "Middle", "Upper", "A/L"].map((level) => (
+                      <option key={level} value={level}>
+                        {level}
+                      </option>
+                    ))}
+                  </select>
+                  <label className={labelClass}>Term name</label>
+                  <input
+                    className={inputClass}
+                    value={termForm.term_name}
+                    onChange={(e) => setTermForm({ ...termForm, term_name: e.target.value })}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={termForm.start_date}
+                      onChange={(e) => setTermForm({ ...termForm, start_date: e.target.value })}
+                    />
+                    <input
+                      type="date"
+                      className={inputClass}
+                      value={termForm.end_date}
+                      onChange={(e) => setTermForm({ ...termForm, end_date: e.target.value })}
+                    />
+                  </div>
+                  <button className="rounded-xl bg-[#38bdf8] px-4 py-3 text-sm font-black text-[#07111f]">
+                    Save term
+                  </button>
+                </form>
+              )}
+
+              {isAdmin && activeTab === "syllabus" && (
+                <div className="mt-5 space-y-5">
+                  <form
+                    onSubmit={submitSubject}
+                    className="grid gap-3 rounded-2xl border border-white/10 p-4"
+                  >
+                    <p className="font-bold">Add subject</p>
+                    <input
+                      className={inputClass}
+                      placeholder="Subject name"
+                      value={subjectForm.name}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+                      required
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <input
+                        className={inputClass}
+                        placeholder="Grade"
+                        value={subjectForm.grade}
+                        onChange={(e) => setSubjectForm({ ...subjectForm, grade: e.target.value })}
+                      />
+                      <input
+                        className={inputClass}
+                        placeholder="Section"
+                        value={subjectForm.section}
+                        onChange={(e) =>
+                          setSubjectForm({ ...subjectForm, section: e.target.value })
+                        }
+                      />
+                    </div>
+                    <button className="rounded-xl bg-white px-4 py-3 text-sm font-black text-[#07111f]">
+                      Add subject
+                    </button>
+                  </form>
+                  <form
+                    onSubmit={submitSyllabus}
+                    className="grid gap-3 rounded-2xl border border-white/10 p-4"
+                  >
+                    <p className="font-bold">Add syllabus item</p>
+                    <select
+                      className={inputClass}
+                      value={syllabusForm.subject_id}
+                      onChange={(e) =>
+                        setSyllabusForm({ ...syllabusForm, subject_id: e.target.value })
+                      }
+                      required
+                    >
+                      <option value="">Select subject</option>
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.name}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className={inputClass}
+                      value={syllabusForm.term_id}
+                      onChange={(e) =>
+                        setSyllabusForm({ ...syllabusForm, term_id: e.target.value })
+                      }
+                    >
+                      <option value="">Select term</option>
+                      {terms.map((term) => (
+                        <option key={term.id} value={term.id}>
+                          {term.level} • {term.term_name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      className={inputClass}
+                      placeholder="Topic title"
+                      value={syllabusForm.title}
+                      onChange={(e) => setSyllabusForm({ ...syllabusForm, title: e.target.value })}
+                      required
+                    />
+                    <textarea
+                      className={inputClass}
+                      placeholder="Description"
+                      value={syllabusForm.description}
+                      onChange={(e) =>
+                        setSyllabusForm({ ...syllabusForm, description: e.target.value })
+                      }
+                    />
+                    <button className="rounded-xl bg-[#38bdf8] px-4 py-3 text-sm font-black text-[#07111f]">
+                      Save syllabus
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {activeTab === "progress" && (
+                <form onSubmit={submitProgress} className="mt-5 grid gap-3">
+                  <select
+                    className={inputClass}
+                    value={progressForm.teacher_id}
+                    onChange={(e) =>
+                      setProgressForm({ ...progressForm, teacher_id: e.target.value })
+                    }
+                    required
+                  >
+                    <option value="">Select teacher</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id}>
+                        {teacher.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className={inputClass}
+                    value={progressForm.subject_id}
+                    onChange={(e) =>
+                      setProgressForm({ ...progressForm, subject_id: e.target.value })
+                    }
+                    required
+                  >
+                    <option value="">Select subject</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id}>
+                        {subject.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className={inputClass}
+                    value={progressForm.syllabus_item_id}
+                    onChange={(e) =>
+                      setProgressForm({ ...progressForm, syllabus_item_id: e.target.value })
+                    }
+                    required
+                  >
+                    <option value="">Select syllabus item</option>
+                    {syllabus.map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.title}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className={inputClass}
+                    value={progressForm.status}
+                    onChange={(e) => setProgressForm({ ...progressForm, status: e.target.value })}
+                  >
+                    <option value="completed">Completed</option>
+                    <option value="pending">Pending</option>
+                  </select>
+                  <textarea
+                    className={inputClass}
+                    placeholder="Teacher note"
+                    value={progressForm.note}
+                    onChange={(e) => setProgressForm({ ...progressForm, note: e.target.value })}
+                  />
+                  <button className="rounded-xl bg-[#22c55e] px-4 py-3 text-sm font-black text-[#07111f]">
+                    Save progress
+                  </button>
+                </form>
+              )}
+
+              {activeTab === "dashboard" && isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => void seedDemoData()}
+                  className="mt-5 w-full rounded-xl bg-[#fbbf24] px-4 py-3 text-sm font-black text-[#07111f]"
+                >
+                  Create demo EduTrack data
+                </button>
+              )}
+            </aside>
+          </div>
+        )}
+      </section>
+    </main>
+  );
+}
+
+function EmptyState({
+  title,
+  action,
+  onAction,
+}: {
+  title: string;
+  action?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center">
+      <p className="font-serif text-2xl font-black text-white">{title}</p>
+      <p className="mt-2 text-sm text-white/45">
+        Your module is ready. Add records to begin tracking.
+      </p>
+      {action && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          className="mt-5 rounded-xl bg-white px-4 py-3 text-sm font-black text-[#07111f]"
+        >
+          {action}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function DataList({
+  title,
+  empty,
+  children,
+}: {
+  title: string;
+  empty: string;
+  children: React.ReactNode;
+}) {
+  const count = Array.isArray(children) ? children.length : 1;
+  return (
+    <div>
+      <h2 className="font-serif text-2xl font-black">{title}</h2>
+      <div className="mt-5 grid gap-3">{count ? children : <EmptyState title={empty} />}</div>
+    </div>
+  );
+}
+
+function InfoRow({
+  title,
+  meta,
+  badge,
+  warning = false,
+}: {
+  title: string;
+  meta: string;
+  badge?: string;
+  warning?: boolean;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+      <div>
+        <p className="font-bold text-white">{title}</p>
+        <p className="mt-1 text-sm text-white/45">{meta}</p>
+      </div>
+      {badge && (
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-black ${warning ? "bg-amber-400 text-[#07111f]" : "bg-white/10 text-white/70"}`}
+        >
+          {badge}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function EduTrackRuntimePage() {
+  const auth = useAuth();
+
+  useEffect(() => {
+    if (!auth.loading && !auth.user) window.location.href = "/login";
+  }, [auth.loading, auth.user]);
+
+  if (auth.loading || !auth.user) {
+    return <BrandedLoader title="Opening EduTrack" subtitle="Checking your session" />;
+  }
+
+  if (!EDUTRACK_ROLES.includes(auth.user.role)) {
+    return (
+      <AccessDeniedPage message="EduTrack is available for Master Admin, Super Admin, EduZync Admin, and Teacher accounts." />
+    );
+  }
+
+  return (
+    <main className="h-screen min-h-[100dvh] w-full overflow-hidden bg-[#081324]">
+      <iframe
+        title="EduTrack"
+        src="/edutrack/"
+        className="h-full w-full border-0"
+        allow="clipboard-read; clipboard-write"
+      />
+    </main>
+  );
+}
+
+function ModulePage({ moduleId }: { moduleId: string }) {
+  const auth = useAuth();
+
+  useEffect(() => {
+    if (moduleId === "edutrack") return;
+    if (!auth.loading && !auth.user) window.location.href = "/login";
+  }, [auth.loading, auth.user, moduleId]);
+
+  if (moduleId === "edutrack") return <EduTrackRuntimePage />;
+
+  if (auth.loading || !auth.user) {
+    return <BrandedLoader title="Opening module" subtitle="Checking your session" />;
+  }
+
+  const modules: Record<
+    string,
+    {
+      title: string;
+      icon: React.ComponentType<{ className?: string }>;
+      roles: Role[];
+      actions: { label: string; href: string }[];
+    }
+  > = {
+    eduzync: {
+      title: "EduZync",
+      icon: Users,
+      roles: EDUZYNC_ADMIN_ROLES,
+      actions: [
+        { label: "Students", href: "/portal/eduzync?tab=students" },
+        { label: "Teachers", href: "/portal/eduzync?tab=teachers" },
+        { label: "Classes", href: "/portal/eduzync?tab=classes" },
+        { label: "Subjects", href: "/portal/eduzync?tab=subjects" },
+      ],
+    },
+    edutrack: {
+      title: "EduTrack",
+      icon: BookOpen,
+      roles: EDUTRACK_ROLES,
+      actions: [
+        { label: "Terms", href: "/portal/edutrack?tab=terms" },
+        { label: "Syllabus", href: "/portal/edutrack?tab=syllabus" },
+        { label: "Progress", href: "/portal/edutrack?tab=progress" },
+        { label: "Warnings", href: "/portal/edutrack?tab=warnings" },
+      ],
+    },
+    elms: {
+      title: "ELMS",
+      icon: GraduationCap,
+      roles: ELMS_ROLES,
+      actions: [
+        { label: "Courses", href: "/portal/elms?tab=courses" },
+        { label: "Lessons", href: "/portal/elms?tab=lessons" },
+        { label: "Assignments", href: "/portal/elms?tab=assignments" },
+      ],
+    },
+    reports: {
+      title: "Report Cards",
+      icon: FileText,
+      roles: REPORT_CARD_ROLES,
+      actions: [
+        { label: "Report Cards", href: "/portal/reports?tab=cards" },
+        { label: "Marks", href: "/portal/reports?tab=marks" },
+        { label: "PDF Export", href: "/portal/reports?tab=pdf" },
+      ],
+    },
+  };
+  const module = modules[moduleId] || modules.eduzync;
+  if (!module.roles.includes(auth.user.role)) {
+    return (
+      <AccessDeniedPage
+        message={`${module.title} is not enabled for ${roleLabel(auth.user.role)} accounts.`}
+      />
+    );
+  }
+  const Icon = module.icon;
+
+  return (
+    <main className="min-h-screen bg-[#eef3ff] text-[#172033]">
+      <header className="border-b border-[#d8e1f5] bg-white">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
+          <a href="/portal" className="inline-flex items-center gap-2 text-sm font-bold text-navy">
+            <ChevronLeft className="h-4 w-4" /> Portal
+          </a>
+          <p className="text-sm font-bold text-muted-foreground">{auth.user.name}</p>
+        </div>
+      </header>
+      <section className="mx-auto max-w-7xl px-6 py-10">
+        <div className="flex items-center gap-4">
+          <span className="grid h-14 w-14 place-items-center rounded bg-[#08286f] text-white">
+            <Icon className="h-7 w-7" />
+          </span>
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-crimson">
+              Loyola Digital Platform
+            </p>
+            <h1 className="font-serif text-4xl font-bold text-navy">{module.title}</h1>
+          </div>
+        </div>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {module.actions.map((action) => (
+            <a
+              key={action.href}
+              href={action.href}
+              className="rounded-lg border border-[#d8e1f5] bg-white px-5 py-4 text-sm font-bold text-navy shadow-sm hover:border-[#a9bce7]"
+            >
+              {action.label}
+            </a>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function PortalRouter({ role }: { role: Role }) {
+  const loading = <BrandedLoader title="Opening portal" subtitle="Loading your Loyola workspace" />;
+  const portals: Partial<Record<Role, React.ReactNode>> = {
+    student: <StudentPortal />,
+    parent: <ParentPortal />,
+    teacher: <TeacherPortal />,
+    website_admin: <AdminPortal />,
+    eduzync_admin: <ModulePage moduleId="eduzync" />,
+    superadmin: <AdminPortal />,
+    masteradmin: <AdminPortal />,
+  };
+  return <Suspense fallback={loading}>{portals[role] || <LoginPage />}</Suspense>;
+}
+
+function NewsAndEventsPreview() {
+  const db = useDb();
+  return (
+    <section className="border-y border-border bg-white py-20">
+      <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-2">
+        <div>
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-serif text-4xl font-bold text-navy">News & notices</h2>
+            <a href="/news" className="text-sm font-bold text-crimson">
+              All news
+            </a>
+          </div>
+          <div className="mt-6 grid gap-4">
+            {db.news.slice(0, 2).map((item) => (
+              <NewsCard key={item.id} item={item} compact />
+            ))}
+          </div>
+        </div>
+        <div>
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="font-serif text-4xl font-bold text-navy">Upcoming events</h2>
+            <a href="/events" className="text-sm font-bold text-crimson">
+              All events
+            </a>
+          </div>
+          <div className="mt-6 grid gap-4">
+            {db.events.slice(0, 3).map((event) => (
+              <EventCard key={event.id} event={event} compact />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function NewsCard({
+  item,
+  compact = false,
+}: {
+  item: { title: string; date: string; body: string; audience: string; image?: string };
+  compact?: boolean;
+}) {
+  return (
+    <article
+      className={`rounded-lg border border-border bg-white shadow-soft ${compact ? "grid grid-cols-[120px_1fr]" : ""}`}
+    >
+      {item.image && (
+        <img
+          src={item.image}
+          alt=""
+          className={`${compact ? "h-full min-h-32 rounded-l-lg" : "aspect-[16/10] rounded-t-lg"} w-full object-cover`}
+        />
+      )}
+      <div className="p-5">
+        <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+          {item.audience} | {item.date}
+        </p>
+        <h3 className="mt-3 text-lg font-bold leading-snug text-ink">{item.title}</h3>
+        <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+          {item.body}
+        </p>
+      </div>
+    </article>
+  );
+}
+
+function EventCard({
+  event,
+  compact = false,
+}: {
+  event: { title: string; date: string; location: string; type: string };
+  compact?: boolean;
+}) {
+  const date = new Date(event.date);
+  return (
+    <article
+      className={`rounded-lg border border-border bg-white p-5 shadow-soft ${compact ? "grid grid-cols-[70px_1fr] gap-4" : ""}`}
+    >
+      <div>
+        <p className="font-serif text-3xl font-bold text-navy">{date.getDate()}</p>
+        <p className="mt-1 inline-block rounded bg-crimson px-2 py-1 text-xs font-bold uppercase text-white">
+          {date.toLocaleString("en", { month: "short" })}
+        </p>
+      </div>
+      <div>
+        <h3 className="font-bold text-ink">{event.title}</h3>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {event.location} | {event.type}
+        </p>
+      </div>
+    </article>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="mt-5 block">
+      <span className="text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground">
+        {label}
+      </span>
+      <div className="mt-2">{children}</div>
+    </label>
+  );
+}
+
+function NotFoundPage() {
+  return (
+    <PublicLayout>
+      <section className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <h1 className="font-serif text-5xl font-bold text-navy">Page not found</h1>
+        <p className="mt-4 text-muted-foreground">The page you opened does not exist.</p>
+        <a
+          href="/"
+          className="mt-8 inline-flex rounded-lg bg-navy px-6 py-3 text-sm font-bold text-white"
+        >
+          Go home
+        </a>
+      </section>
+    </PublicLayout>
+  );
+}
