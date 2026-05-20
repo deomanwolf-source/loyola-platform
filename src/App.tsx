@@ -2494,8 +2494,7 @@ function RectorsMessagePage({ pageId = "rectors-message" }: { pageId?: string })
   const db = useDb();
   const page = db.pages[pageId] || db.pages["rectors-message"];
   const title = page?.title || "Rector's Message";
-  const defaultBody =
-    "Dear Students, Parents, and Alumni of Loyola College,\n\nIn today's world of advancing technology, it is essential for us to continually update and modernize our systems. In line with this, we are transitioning from manual systems to web-based online management systems. We have already upgraded our Annual Calendar and Student Progress Report systems to a web-based portal.\n\nWe kindly ask for your cooperation as we move forward with these updates to align with current standards.\n\nWishing you all the best,\n\nRev. Fr. D.M.J. Kennedy Perera\nRector / Principal";
+  const defaultBody = "";
   const bodyText =
     page?.body && page.body.trim() !== "New page content goes here." ? page.body : defaultBody;
   const paragraphs = bodyText.split("\n").filter((p) => p.trim() !== "");

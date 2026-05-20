@@ -392,11 +392,10 @@ export const seed: DB = {
     address: "Loyola College, Negombo, Sri Lanka",
     phone: "0312 277 258",
     email: "loyolacollege.negombo@hotmail.com",
-    heroEyebrow: "Catholic education in Negombo",
-    heroTitle: "Truth, light, and life for the next generation.",
-    heroText:
-      "A modern digital home for Loyola College Negombo, bringing admissions, academics, notices, events, galleries, and parent communication into one clear school website.",
-    heroImage: DEFAULT_HERO_IMAGE,
+    heroEyebrow: "",
+    heroTitle: "Loyola College Negombo",
+    heroText: "",
+    heroImage: "",
     backgroundMediaUrl: "",
     backgroundMediaType: "",
     backgroundMediaOpacity: 0.34,
@@ -406,20 +405,18 @@ export const seed: DB = {
     logoImage: "/loyola-crest.jpg",
     headerApplyLabel: "Admissions",
     headerSignInLabel: "Portal Login",
-    footerText:
-      "Loyola College Negombo is a Catholic school community shaped by Christian values, disciplined learning, service, leadership, and the motto Veritate Ad Lumen Et Vitam.",
-    footerLegalLine: "Veritate Ad Lumen Et Vitam | In Truth to Light and Life",
+    footerText: "",
+    footerLegalLine: "",
     customCss: "",
     socials: { facebook: "#", instagram: "#", linkedin: "#", youtube: "#" },
     seo: {
-      metaTitle: "Loyola College Negombo - Veritate Ad Lumen Et Vitam",
-      metaDescription:
-        "Loyola College Negombo official school website with admissions, academics, events, news, and secure portal access.",
-      ogImage: DEFAULT_HERO_IMAGE,
+      metaTitle: "Loyola College Negombo",
+      metaDescription: "",
+      ogImage: "",
     },
-    anthemVideoUrl: DEFAULT_ANTHEM_VIDEO_URL,
-    anthemVideoCoverImage: "/loyola-crest.jpg",
-    officeHours: "Monday to Friday, 8.00 AM - 3.00 PM",
+    anthemVideoUrl: "",
+    anthemVideoCoverImage: "",
+    officeHours: "",
   },
   navigation: [
     { id: "home", label: "Home", order: 1, visible: true },
@@ -472,174 +469,111 @@ export const seed: DB = {
   pages: {
     home: {
       eyebrow: "Loyola College Negombo",
-      welcomeTitle: "Truth, light, and life at the heart of education.",
+      welcomeTitle: "",
     },
     about: {
       kicker: "About",
       title: "Faith, learning, discipline, and service.",
-      body: "A Catholic private school in Negombo with a proud identity, long history, and a clear mission for character formation.",
+      body: "",
     },
     "about/college-staff": {
       kicker: "College Staff",
       title: "College Staff",
-      body: "Meet our dedicated staff, teachers, and administrators guiding the Loyola College community.",
+      body: "",
     },
     "about/college-administration": {
       kicker: "Governance",
       title: "College Administration",
-      body: "Meet the leadership team guiding Loyola College towards excellence in education and character formation.",
+      body: "",
     },
     "about/college-anthem-hymn": {
       kicker: "College Anthem & Hymn",
       title: "College Anthem & Hymn",
-      body: "A ceremonial page for the school anthem, hymn, and Loyola identity.",
+      body: "",
       anthemVideoCoverImage: "",
-      anthemVideoUrl: DEFAULT_ANTHEM_VIDEO_URL,
+      anthemVideoUrl: "",
       anthemVideoTitle: "College Anthem & Hymn",
     },
     admissions: {
       kicker: "Admissions",
-      title: "Apply online and begin your Loyola journey.",
-      body: "Admissions inquiries can be submitted online. The college office can review each request and guide families through the next steps.",
+      title: "Admissions",
+      body: "",
     },
     academics: {
       kicker: "Academics",
-      title: "Academic formation rooted in values and excellence.",
-      body: "The academic programme supports disciplined study, co-curricular growth, English, faith formation, and responsible leadership.",
+      title: "Academics",
+      body: "",
     },
     events: {
       kicker: "Events",
-      title: "Celebrations, sports, clubs, and academic showcases.",
-      body: "Browse upcoming events across the academic year.",
+      title: "Events",
+      body: "",
     },
     news: {
       kicker: "News & Notices",
-      title: "Announcements, notices, and stories from campus.",
+      title: "News & Notices",
       body: "",
     },
     "sports-clubs": {
       kicker: "Sports & Clubs",
-      title: "Student leadership, sports, clubs, societies, and achievements.",
-      body: "Explore teams, clubs, societies, achievements, event schedules, student leadership, and galleries.",
+      title: "Sports & Clubs",
+      body: "",
     },
     gallery: {
       kicker: "Gallery",
-      title: "Photos, videos, albums, events, sports, and old memories.",
-      body: "Browse Loyola College moments with album covers, captions, categories, and media previews.",
+      title: "Gallery",
+      body: "",
     },
     "gallery/photo-gallery": {
       kicker: "Photo Gallery",
       title: "Photo Gallery",
-      body: "Browse campus life, celebrations, sports, academic moments, and old memories from Loyola College.",
+      body: "",
     },
     "gallery/video-gallery": {
       kicker: "Video Gallery",
       title: "Video Gallery",
-      body: "Watch school events, celebrations, performances, sports coverage, and media unit highlights.",
+      body: "",
     },
     downloads: {
       kicker: "Downloads",
-      title: "Forms, circulars, timetables, policies, notices, and past papers.",
-      body: "Find important PDF and document downloads for students, parents, and admissions applicants.",
+      title: "Downloads",
+      body: "",
     },
     "student-portal": {
       kicker: "Student Portal",
-      title: "LMS, results, timetables, assignments, resources, calendar, and notices.",
-      body: "Open secure learning and school service links from one student gateway.",
+      title: "Student Portal",
+      body: "",
     },
     contact: { kicker: "Contact", title: "Visit, write, or call us.", body: "" },
   },
   homeSections: {
-    approachKicker: "Our approach",
-    approachTitle: "A Loyola education shaped by religion, education, English, and discipline.",
-    approachBody:
-      "The redesigned website organizes the school experience around faith formation, academic discipline, English development, leadership, sports, clubs, notices, and parent communication.",
-    campusKicker: "Campus life",
-    campusTitle: "A connected campus experience for students and families.",
-    campusBody:
-      "Classrooms, sports, clubs, prayer, leadership, media, galleries, and notices come together in a focused digital experience for Loyola College Negombo.",
-    newsKicker: "Latest from campus",
-    newsTitle: "News, notices & stories",
-    eventsKicker: "Calendar",
-    eventsTitle: "Upcoming events",
-    admissionsCtaKicker: "Admissions 2026",
-    admissionsCtaTitle: "Build an advanced school website visitors can trust from the first click.",
-    admissionsCtaButton: "Start admissions",
-    stats: [
-      { id: "HS001", label: "Established", value: "1949" },
-      { id: "HS002", label: "Students", value: "2,662" },
-      { id: "HS003", label: "Academic staff", value: "145+" },
-      { id: "HS004", label: "Grades", value: "1-A/L" },
-    ],
-    pillars: [
-      {
-        id: "HP001",
-        icon: "graduation",
-        title: "Academic excellence",
-        body: "Structured learning, committed teachers, and high expectations across every grade.",
-      },
-      {
-        id: "HP002",
-        icon: "book",
-        title: "Truth and light",
-        body: "A school culture rooted in knowledge, reflection, faith, and moral courage.",
-      },
-      {
-        id: "HP003",
-        icon: "users",
-        title: "Community formation",
-        body: "Students, parents, teachers, and leaders working together as one school family.",
-      },
-      {
-        id: "HP004",
-        icon: "award",
-        title: "Discipline and service",
-        body: "Co-curricular life, leadership, and service help students grow beyond the classroom.",
-      },
-    ],
+    approachKicker: "",
+    approachTitle: "",
+    approachBody: "",
+    campusKicker: "",
+    campusTitle: "",
+    campusBody: "",
+    newsKicker: "",
+    newsTitle: "News & Notices",
+    eventsKicker: "",
+    eventsTitle: "Events",
+    admissionsCtaKicker: "",
+    admissionsCtaTitle: "",
+    admissionsCtaButton: "Admissions",
+    stats: [],
+    pillars: [],
   },
   aboutSections: {
-    storyKicker: "Our story",
-    storyTitle: "A 75+ year identity built on truth, light, and life.",
-    storyBodyOne:
-      "Loyola College Negombo began in 1949 and has grown into a respected Catholic private school in Negombo, with learning, discipline, prayer, community, and service at its heart.",
-    storyBodyTwo:
-      "The motto, Veritate Ad Lumen Et Vitam, gives the redesigned website its visual direction: deep blue for trust and learning, crimson for commitment and service, and white for clarity.",
-    stats: [
-      { id: "AB001", label: "Established", value: "1949" },
-      { id: "AB002", label: "Academic staff", value: "145+" },
-      { id: "AB003", label: "Students", value: "2,662" },
-    ],
-    quote: "Education should lead every student toward truth, light, and a life of service.",
-    quoteAuthor: "Veritate Ad Lumen Et Vitam",
+    storyKicker: "",
+    storyTitle: "",
+    storyBodyOne: "",
+    storyBodyTwo: "",
+    stats: [],
+    quote: "",
+    quoteAuthor: "",
   },
   academicsSections: {
-    departments: [
-      {
-        id: "DP001",
-        name: "Sciences",
-        body: "Biology, Chemistry, Physics, Computer Science, and a dedicated robotics lab.",
-        count: "9",
-      },
-      {
-        id: "DP002",
-        name: "Humanities",
-        body: "English Literature, History, Geography, Economics, Philosophy.",
-        count: "7",
-      },
-      {
-        id: "DP003",
-        name: "Arts",
-        body: "Visual Art, Music, Drama, and Design Technology in studio facilities.",
-        count: "5",
-      },
-      {
-        id: "DP004",
-        name: "Languages",
-        body: "English, Sinhala, Tamil, French, and German across the senior school.",
-        count: "4",
-      },
-    ],
+    departments: [],
     subjectsTitle: "All subjects",
     subjectColumnLabel: "Subject",
     gradeColumnLabel: "Grade",
@@ -678,41 +612,16 @@ export const seed: DB = {
     ],
   },
   automation: {
-    themeApplied: false,
+    themeApplied: true,
     autoSeo: true,
     autoSortNews: true,
     autoSortEvents: true,
     autoSyncNavigation: true,
     autoFillEmptyPageDescriptions: true,
     showMissingContentWarnings: true,
-    lastReport: "Automation has not run yet.",
+    lastReport: "Clean site shell ready.",
   },
-  admissionsSteps: [
-    {
-      id: "AS001",
-      number: "01",
-      title: "Submit application",
-      body: "Complete the online form with your child's details.",
-    },
-    {
-      id: "AS002",
-      number: "02",
-      title: "Entrance assessment",
-      body: "Age-appropriate assessment in language, mathematics, and reasoning.",
-    },
-    {
-      id: "AS003",
-      number: "03",
-      title: "Family interview",
-      body: "Meet our admissions team and tour the campus.",
-    },
-    {
-      id: "AS004",
-      number: "04",
-      title: "Offer of place",
-      body: "Receive your offer letter within ten working days.",
-    },
-  ],
+  admissionsSteps: [],
   forms: {
     admissionsTitle: "Apply for the 2026 academic year",
     admissionsSubmitLabel: "Submit application",
@@ -740,73 +649,7 @@ export const seed: DB = {
     },
   ],
   students: [],
-  teachers: [
-    {
-      id: "T-REC-1",
-      name: "Rev. Fr. D.M.J. Kennedy Perera",
-      position: "Rector / Principal",
-      type: "Academic Staff",
-      category: "Top Administration",
-      section: "Administration",
-      subject: "",
-      classes: "",
-      status: "Active",
-      qualifications: "B.Th., M.Ed., PGD in Education Management",
-      responsibilities: "Overall Administration, Spiritual Direction",
-    },
-    {
-      id: "T-VP-1",
-      name: "Rev. Fr. Suranga Niroshan",
-      position: "Vice Rector",
-      type: "Academic Staff",
-      category: "Top Administration",
-      section: "Administration",
-      subject: "",
-      classes: "",
-      status: "Active",
-      qualifications: "B.Th., B.A. (Philosophy)",
-      responsibilities: "Discipline, Co-curricular Activities",
-    },
-    {
-      id: "T-SEC-1",
-      name: "Mrs. Nimali Fernando",
-      position: "Sectional Head - Primary",
-      type: "Academic Staff",
-      category: "Sectional Heads",
-      section: "Primary",
-      subject: "Mathematics",
-      classes: "Grade 1-5",
-      status: "Active",
-      qualifications: "B.Ed. (Primary Education)",
-      responsibilities: "Primary Section Administration",
-    },
-    {
-      id: "T-GH-1",
-      name: "Mr. Samantha Silva",
-      position: "Grade 10 Head",
-      type: "Academic Staff",
-      category: "Grade Heads",
-      section: "Upper",
-      subject: "Science",
-      classes: "Grade 10",
-      status: "Active",
-      qualifications: "B.Sc. (Science), PGDE",
-      responsibilities: "Grade 10 Discipline & Academic Progress",
-    },
-    {
-      id: "T-AL-1",
-      name: "Mrs. Deepika Perera",
-      position: "Stream Head - Science",
-      type: "Academic Staff",
-      category: "A/L Stream Heads",
-      section: "Advanced Level",
-      subject: "Chemistry",
-      classes: "A/L",
-      status: "Active",
-      qualifications: "B.Sc. (Chemistry Sp.), M.Sc.",
-      responsibilities: "A/L Science Stream Coordination",
-    },
-  ],
+  teachers: [],
   parents: [],
   classes: [],
   subjects: [],
@@ -1025,10 +868,39 @@ function stripDemoContent(db: DB): DB {
     "parent@school.test",
     "teacher@school.test",
   ]);
+  const bundledStaffIds = new Set(["T-REC-1", "T-VP-1", "T-SEC-1", "T-GH-1", "T-AL-1"]);
+  const bundledStaffNames = new Set([
+    "rev. fr. d.m.j. kennedy perera",
+    "rev. fr. suranga niroshan",
+    "mrs. nimali fernando",
+    "mr. samantha silva",
+    "mrs. deepika perera",
+  ]);
+  const bundledHomeStatIds = new Set(["HS001", "HS002", "HS003", "HS004"]);
+  const bundledHomePillarIds = new Set(["HP001", "HP002", "HP003", "HP004"]);
+  const bundledAboutStatIds = new Set(["AB001", "AB002", "AB003"]);
+  const bundledDepartmentIds = new Set(["DP001", "DP002", "DP003", "DP004"]);
+  const bundledAdmissionStepIds = new Set(["AS001", "AS002", "AS003", "AS004"]);
   const hasUnsplashImage = (value?: string) => /images\.unsplash\.com/i.test(value || "");
 
   return {
     ...db,
+    homeSections: {
+      ...db.homeSections,
+      stats: db.homeSections.stats.filter((row) => !bundledHomeStatIds.has(row.id)),
+      pillars: db.homeSections.pillars.filter((row) => !bundledHomePillarIds.has(row.id)),
+    },
+    aboutSections: {
+      ...db.aboutSections,
+      stats: db.aboutSections.stats.filter((row) => !bundledAboutStatIds.has(row.id)),
+    },
+    academicsSections: {
+      ...db.academicsSections,
+      departments: db.academicsSections.departments.filter(
+        (row) => !bundledDepartmentIds.has(row.id),
+      ),
+    },
+    admissionsSteps: db.admissionsSteps.filter((row) => !bundledAdmissionStepIds.has(row.id)),
     websiteContent: {
       ...db.websiteContent,
       heroImage: hasUnsplashImage(db.websiteContent.heroImage) ? "" : db.websiteContent.heroImage,
@@ -1057,7 +929,12 @@ function stripDemoContent(db: DB): DB {
     ),
     users: db.users.filter((user) => !oldDemoEmails.has(user.email.toLowerCase())),
     students: db.students.filter((row) => !["S001", "S002", "S003", "S004"].includes(row.id)),
-    teachers: db.teachers.filter((row) => !["T001", "T002", "T003"].includes(row.id)),
+    teachers: db.teachers.filter(
+      (row) =>
+        !["T001", "T002", "T003"].includes(row.id) &&
+        !bundledStaffIds.has(row.id) &&
+        !bundledStaffNames.has(row.name.toLowerCase()),
+    ),
     parents: db.parents.filter((row) => !["P001", "P002"].includes(row.id)),
     classes: db.classes.filter((row) => !["C001", "C002", "C003"].includes(row.id)),
     subjects: db.subjects.filter((row) => !["SUB01", "SUB02", "SUB03", "SUB04"].includes(row.id)),
@@ -1078,119 +955,14 @@ function stripDemoContent(db: DB): DB {
 
 function applyLoyolaThemeDefaults(db: DB): DB {
   const alreadyLoyola = db.automation.themeApplied === true;
-  const isCustomized =
-    db.websiteContent.schoolName !== "Loyola College Negombo" &&
-    db.websiteContent.schoolName !== seed.websiteContent.schoolName;
-
-  if (alreadyLoyola || (isCustomized && db.websiteContent.schoolName)) return db;
+  if (alreadyLoyola) return db;
 
   return {
     ...db,
-    websiteContent: {
-      ...db.websiteContent,
-      schoolName: "Loyola College Negombo",
-      tagline: "Veritate Ad Lumen Et Vitam",
-      address: "Loyola College, Negombo, Sri Lanka",
-      phone: "0312 277 258",
-      email: "loyolacollege.negombo@hotmail.com",
-      heroEyebrow: "Catholic education in Negombo",
-      heroTitle: "Truth, light, and life for the next generation.",
-      heroText:
-        "A modern digital home for Loyola College Negombo, bringing admissions, academics, notices, events, galleries, and parent communication into one clear school website.",
-      primaryColor: "#16085F",
-      accentColor: "#A00008",
-      logoText: "LC",
-      logoImage: "/loyola-crest.jpg",
-      footerText:
-        "Loyola College Negombo is a Catholic school community shaped by Christian values, disciplined learning, service, leadership, and the motto Veritate Ad Lumen Et Vitam.",
-      footerLegalLine: "Veritate Ad Lumen Et Vitam | In Truth to Light and Life",
-      seo: {
-        ...db.websiteContent.seo,
-        metaTitle: "Loyola College Negombo - Veritate Ad Lumen Et Vitam",
-        metaDescription:
-          "Loyola College Negombo official school website with admissions, academics, events, news, and secure portal access.",
-        ogImage: DEFAULT_HERO_IMAGE,
-      },
-    },
-    pages: {
-      ...db.pages,
-      home: {
-        ...db.pages.home,
-        eyebrow: "Loyola College Negombo",
-        welcomeTitle: "Truth, light, and life at the heart of education.",
-      },
-      about: {
-        ...db.pages.about,
-        title: "Faith, learning, discipline, and service.",
-        body: "Loyola College Negombo is a school community dedicated to academic excellence, Catholic values, and the formation of responsible young people.",
-      },
-      admissions: {
-        ...db.pages.admissions,
-        title: "Apply online and begin your Loyola journey.",
-        body: "Admissions inquiries can be submitted online. Our office will review each request and guide families through the next steps.",
-      },
-      academics: {
-        ...db.pages.academics,
-        title: "Academic formation rooted in values and excellence.",
-        body: "Our academic programme supports disciplined study, co-curricular growth, and responsible leadership.",
-      },
-    },
-    homeSections: {
-      ...db.homeSections,
-      approachTitle: "A Loyola education shaped by religion, education, English, and discipline.",
-      approachBody:
-        "The redesigned website organizes the school experience around faith formation, academic discipline, English development, leadership, sports, clubs, notices, and parent communication.",
-      campusBody:
-        "Classrooms, sports, clubs, prayer, leadership, media, galleries, and notices come together in a focused digital experience for Loyola College Negombo.",
-      admissionsCtaTitle:
-        "Build an advanced school website visitors can trust from the first click.",
-      stats: [
-        { id: "HS001", label: "Established", value: "1949" },
-        { id: "HS002", label: "Students", value: "2,662" },
-        { id: "HS003", label: "Academic staff", value: "145+" },
-        { id: "HS004", label: "Grades", value: "1-A/L" },
-      ],
-      pillars: [
-        {
-          id: "HP001",
-          icon: "graduation",
-          title: "Academic excellence",
-          body: "Structured learning, committed teachers, and high expectations across every grade.",
-        },
-        {
-          id: "HP002",
-          icon: "book",
-          title: "Truth and light",
-          body: "A school culture rooted in knowledge, reflection, faith, and moral courage.",
-        },
-        {
-          id: "HP003",
-          icon: "users",
-          title: "Community formation",
-          body: "Students, parents, teachers, and leaders working together as one school family.",
-        },
-        {
-          id: "HP004",
-          icon: "award",
-          title: "Discipline and service",
-          body: "Co-curricular life, leadership, and service help students grow beyond the classroom.",
-        },
-      ],
-    },
-    aboutSections: {
-      ...db.aboutSections,
-      storyTitle: "A 75+ year identity built on truth, light, and life.",
-      storyBodyOne:
-        "Loyola College Negombo began in 1949 and has grown into a respected Catholic private school in Negombo, with learning, discipline, prayer, community, and service at its heart.",
-      storyBodyTwo:
-        "The motto, Veritate Ad Lumen Et Vitam, gives the redesigned website its visual direction: deep blue for trust and learning, crimson for commitment and service, and white for clarity.",
-      quote: "Education should lead every student toward truth, light, and a life of service.",
-      quoteAuthor: "Veritate Ad Lumen Et Vitam",
-    },
     automation: {
       ...db.automation,
       themeApplied: true,
-      lastReport: "Loyola crest theme applied.",
+      lastReport: "Clean site shell ready.",
     },
   };
 }
@@ -1241,7 +1013,7 @@ function ensureGallerySubpages(db: DB): DB {
       page: {
         kicker: "Photo Gallery",
         title: "Photo Gallery",
-        body: "Browse campus life, celebrations, sports, academic moments, and old memories from Loyola College.",
+        body: "",
       },
     },
     {
@@ -1251,7 +1023,7 @@ function ensureGallerySubpages(db: DB): DB {
       page: {
         kicker: "Video Gallery",
         title: "Video Gallery",
-        body: "Watch school events, celebrations, performances, sports coverage, and media unit highlights.",
+        body: "",
       },
     },
   ];
@@ -1298,9 +1070,9 @@ function ensureCollegeAnthemPage(db: DB): DB {
     pages[pageId] = {
       kicker: label,
       title: label,
-      body: "A ceremonial page for the school anthem, hymn, and Loyola identity.",
+      body: "",
       anthemVideoCoverImage: "",
-      anthemVideoUrl: DEFAULT_ANTHEM_VIDEO_URL,
+      anthemVideoUrl: "",
       anthemVideoTitle: label,
     };
     changed = true;
@@ -1311,7 +1083,7 @@ function ensureCollegeAnthemPage(db: DB): DB {
     pages[pageId] = {
       ...pages[pageId],
       anthemVideoCoverImage: pages[pageId].anthemVideoCoverImage || "",
-      anthemVideoUrl: pages[pageId].anthemVideoUrl?.trim() || DEFAULT_ANTHEM_VIDEO_URL,
+      anthemVideoUrl: pages[pageId].anthemVideoUrl?.trim() || "",
       anthemVideoTitle: label,
     };
     changed = true;

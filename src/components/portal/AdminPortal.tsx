@@ -3952,7 +3952,7 @@ function StaffPanel({ db }: { db: DB }) {
                       Full Name
                     </label>
                     <TextInput
-                      placeholder="E.g. D.M.J. Kennedy Perera"
+                      placeholder="E.g. Full name"
                       value={formName}
                       onChange={(e) => setFormName(e.target.value)}
                     />
