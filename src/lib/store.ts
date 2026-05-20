@@ -1175,33 +1175,26 @@ function migrateLoginAccounts(db: DB): DB {
   return { ...db, users };
 }
 
-function cleanUnwantedPages(db: DB): DB {
-  if (typeof window === "undefined") return db;
+function repairRequiredPages(db: DB): DB {
+  const pages = db.pages && typeof db.pages === "object" ? { ...db.pages } : {};
+  const navigation = Array.isArray(db.navigation) ? [...db.navigation] : [...seed.navigation];
+  let changed = false;
 
-  const protectedIds = new Set(["home"]);
-  const unwantedIds = ["011", "photo-gallery", "video-gallery"];
-  const purgeIds = new Set<string>();
+  if (!pages.home) {
+    pages.home = { ...seed.pages.home };
+    changed = true;
+  }
 
-  const addTree = (id: string) => {
-    if (protectedIds.has(id) || purgeIds.has(id)) return;
-    purgeIds.add(id);
-    db.navigation.filter((item) => item.parentId === id).forEach((item) => addTree(item.id));
-  };
+  if (!navigation.some((item) => item.id === "home")) {
+    navigation.unshift({ ...seed.navigation[0] });
+    changed = true;
+  }
 
-  unwantedIds.forEach(addTree);
-  if (purgeIds.size === 0) return db;
-
-  const nextNav = db.navigation.filter((n) => !purgeIds.has(n.id));
-  const nextPages = { ...db.pages };
-  purgeIds.forEach((id) => {
-    delete nextPages[id];
-  });
-
-  return { ...db, navigation: nextNav, pages: nextPages };
+  return changed ? { ...db, navigation, pages } : db;
 }
 
 function prepareDb(db: DB): DB {
-  const prepared = cleanUnwantedPages(
+  const prepared = repairRequiredPages(
     normalizeImageFields(
       migrateLoginAccounts(
         stripDemoContent(
@@ -1234,9 +1227,21 @@ function shouldUseLocalDrafts() {
 
 function mergeStoredDb(parsed: Partial<DB>): DB {
   const parsedWebsite = (parsed.websiteContent || {}) as Partial<DB["websiteContent"]>;
+  const parsedPages =
+    parsed.pages && typeof parsed.pages === "object" && !Array.isArray(parsed.pages)
+      ? parsed.pages
+      : {};
+  const pages = Object.keys(parsedPages).length > 0 ? parsedPages : seed.pages;
+  const navigation =
+    Array.isArray(parsed.navigation) && parsed.navigation.length > 0
+      ? parsed.navigation
+      : seed.navigation;
+
   return prepareDb({
     ...seed,
     ...parsed,
+    navigation,
+    pages,
     websiteContent: {
       ...seed.websiteContent,
       ...parsedWebsite,

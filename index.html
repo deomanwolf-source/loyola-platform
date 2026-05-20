@@ -67,6 +67,63 @@
         box-shadow: 0 18px 42px -24px rgb(10 22 40 / 0.55);
       }
 
+      .boot-error {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        background: linear-gradient(135deg, #eef3ff, #f8fafc);
+        color: #172033;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        padding: 24px;
+      }
+
+      .boot-error-card {
+        width: min(100%, 430px);
+        border: 1px solid #d8e1f5;
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 24px 70px -42px rgb(10 22 40 / 0.55);
+        padding: 28px;
+        text-align: center;
+      }
+
+      .boot-error-card img {
+        width: 70px;
+        height: 70px;
+        border: 3px solid var(--boot-gold);
+        border-radius: 999px;
+        object-fit: contain;
+        padding: 6px;
+      }
+
+      .boot-error-card h1 {
+        color: var(--boot-navy);
+        font-size: 24px;
+        line-height: 1.2;
+        margin: 18px 0 10px;
+      }
+
+      .boot-error-card p {
+        color: #5d6a7e;
+        font-size: 14px;
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      .boot-error-card button {
+        border: 0;
+        border-radius: 8px;
+        background: var(--boot-navy);
+        color: white;
+        cursor: pointer;
+        font: inherit;
+        font-size: 14px;
+        font-weight: 700;
+        margin-top: 18px;
+        padding: 11px 18px;
+      }
+
       @keyframes boot-loader-spin {
         to {
           transform: rotate(360deg);
@@ -84,6 +141,47 @@
         </div>
       </div>
     </div>
+    <script>
+      (function () {
+        var rootId = "root";
+        var settled = false;
+
+        function showBootError() {
+          if (settled) return;
+          var root = document.getElementById(rootId);
+          if (!root || !root.querySelector(".boot-loader")) return;
+          settled = true;
+          root.innerHTML =
+            '<main class="boot-error" role="alert">' +
+            '<section class="boot-error-card">' +
+            '<img src="/loyola-crest.jpg" alt="Loyola College" />' +
+            "<h1>Unable to load Loyola College</h1>" +
+            "<p>The website files did not finish loading. Refresh the page, or try again shortly.</p>" +
+            '<button type="button" onclick="window.location.reload()">Refresh</button>' +
+            "</section>" +
+            "</main>";
+        }
+
+        var timer = window.setTimeout(showBootError, 20000);
+
+        window.__loyolaBootComplete = function () {
+          settled = true;
+          window.clearTimeout(timer);
+        };
+
+        window.addEventListener(
+          "error",
+          function (event) {
+            var target = event.target;
+            if (target && (target.tagName === "SCRIPT" || target.tagName === "LINK")) {
+              showBootError();
+            }
+          },
+          true,
+        );
+        window.addEventListener("unhandledrejection", showBootError);
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

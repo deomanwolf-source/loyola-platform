@@ -1019,6 +1019,49 @@ function scrubUserPasswords(siteDb) {
   };
 }
 
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function protectPageSnapshot(siteDb, existingDb) {
+  const incomingPages = isPlainObject(siteDb.pages) ? siteDb.pages : {};
+  const existingPages = isPlainObject(existingDb?.pages) ? existingDb.pages : {};
+  const incomingCount = Object.keys(incomingPages).length;
+  const existingCount = Object.keys(existingPages).length;
+  const missingHome = !isPlainObject(incomingPages.home);
+  const likelyAccidentalMassDrop =
+    existingCount >= 4 && incomingCount > 0 && incomingCount < Math.ceil(existingCount / 2);
+
+  let nextDb = siteDb;
+
+  if (existingCount > 0 && (incomingCount === 0 || missingHome || likelyAccidentalMassDrop)) {
+    nextDb = {
+      ...nextDb,
+      pages: {
+        ...existingPages,
+        ...incomingPages,
+      },
+    };
+  }
+
+  if (
+    (!Array.isArray(nextDb.navigation) || nextDb.navigation.length === 0) &&
+    Array.isArray(existingDb?.navigation) &&
+    existingDb.navigation.length > 0
+  ) {
+    nextDb = {
+      ...nextDb,
+      navigation: existingDb.navigation,
+    };
+  }
+
+  if (!isPlainObject(nextDb.pages) || !isPlainObject(nextDb.pages.home)) {
+    throw new Error("Refusing to publish a website database without the home page.");
+  }
+
+  return nextDb;
+}
+
 async function upsertPortalUserAccount(runner, user) {
   const accountId = String(user?.id || `U-${Date.now()}`).trim();
   const accountEmail = normalizeEmail(user?.email || "");
@@ -1814,8 +1857,10 @@ async function writeSiteDb(siteDb) {
 
   const contentVersion = Date.now();
   const publishedAt = new Date(contentVersion).toISOString();
+  const existingDb = await readSiteDb();
+  const protectedDb = protectPageSnapshot(siteDb, existingDb);
   const syncDb = {
-    ...siteDb,
+    ...protectedDb,
     contentVersion,
     publishedAt,
   };

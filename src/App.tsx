@@ -499,7 +499,7 @@ function HomePage() {
   const db = useDb();
   const content = db.websiteContent;
   const home = db.homeSections;
-  const page = db.pages.home;
+  const page = db.pages.home || {};
   const quickLinks = [
     {
       title: "Explore College",
