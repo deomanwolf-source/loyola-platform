@@ -1,4 +1,18 @@
-export const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+function defaultApiUrl() {
+  if (typeof window === "undefined") return "http://localhost:5000";
+
+  if (["localhost", "127.0.0.1"].includes(window.location.hostname)) {
+    return "http://127.0.0.1:5000";
+  }
+
+  return window.location.origin;
+}
+
+function normalizeApiUrl(value: string | undefined) {
+  return (value || "").trim().replace(/\/+$/, "");
+}
+
+export const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL) || defaultApiUrl();
 
 export function getAuthToken() {
   return localStorage.getItem("loyola_token") || "";
