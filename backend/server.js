@@ -49,11 +49,14 @@ const defaultOrigins = [
   "http://127.0.0.1:5173",
   "http://localhost:8080",
   "http://127.0.0.1:8080",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
 ];
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || defaultOrigins.join(","))
+const envOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
+const allowedOrigins = [...new Set([...defaultOrigins, ...envOrigins])];
 
 if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 24) {
   console.warn("[security] Use a strong JWT_SECRET with at least 24 characters before production.");
