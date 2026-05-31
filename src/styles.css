@@ -1781,22 +1781,26 @@ img[loading="lazy"].loaded {
   animation: fadeIn 0.22s ease both;
 }
 
+.reveal-on-scroll {
+  opacity: 0;
+  transform: translate3d(0, 28px, 0) scale(0.985);
+  filter: blur(3px);
+  transition: opacity 0.82s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.82s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.82s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, opacity, filter;
+}
+
+.reveal-on-scroll.is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  filter: blur(0);
+}
+
 /* Enhanced toolbar button press */
 .visual-builder .gjs-toolbar-item:active {
   transform: scale(0.9);
   transition: transform 80ms ease;
-}
-
-@supports (animation-timeline: view()) {
-  .public-site main > section:not(:first-child) {
-    animation-timeline: view();
-    animation-range: entry 4% cover 30%;
-  }
-
-  .public-site .stagger-children > * {
-    animation-timeline: view();
-    animation-range: entry 0% cover 26%;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
