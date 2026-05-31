@@ -232,8 +232,72 @@ function escapeHtml(value?: string) {
   );
 }
 
+function homeVisualStarter() {
+  return `<section class="home-about-section">
+  <div class="container home-about-grid">
+    <div>
+      <p class="eyebrow">About Our College</p>
+      <h2 style="margin-top:12px;">Loyola College at a glance.</h2>
+      <p style="margin-top:18px;">A short official introduction to Loyola College, its community, and its mission can be placed here.</p>
+      <a class="btn" href="/about" style="margin-top:24px;">More Details</a>
+    </div>
+    <div class="home-stat-grid">
+      <article class="stat-tile"><strong>0</strong><span>Students</span></article>
+      <article class="stat-tile"><strong>0</strong><span>Academic Staff</span></article>
+      <article class="stat-tile"><strong>0</strong><span>Established</span></article>
+      <article class="stat-tile"><strong>0</strong><span>Available</span></article>
+    </div>
+  </div>
+</section>
+
+<section class="home-rector-section">
+  <div class="container home-rector-grid">
+    <figure class="home-rector-photo">
+      <img src="/loyola-crest.jpg" alt="Rector portrait placeholder" />
+    </figure>
+    <article class="home-rector-message">
+      <p class="eyebrow">Rector's Message</p>
+      <h2 style="margin-top:12px;">Message title goes here.</h2>
+      <p style="margin-top:18px;">Dear students, parents, and alumni, a brief message for the college community can be placed here.</p>
+      <p style="margin-top:14px;">Use this space for a second short paragraph when the homepage message needs more detail.</p>
+      <p class="home-signature">Name Placeholder<br /><span>Role Placeholder</span></p>
+    </article>
+  </div>
+</section>
+
+<section class="home-leadership-section">
+  <div class="container">
+    <div class="home-section-heading">
+      <p class="eyebrow">Administration Board</p>
+      <h2 style="margin-top:12px;">Leadership guiding Loyola College.</h2>
+      <p style="margin-top:16px;">Introduce the leadership team serving the Loyola College community.</p>
+    </div>
+    <div class="leadership-grid" style="margin-top:32px;">
+      <article class="leadership-card">
+        <img src="/loyola-crest.jpg" alt="" />
+        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+      </article>
+      <article class="leadership-card">
+        <img src="/loyola-crest.jpg" alt="" />
+        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+      </article>
+      <article class="leadership-card">
+        <img src="/loyola-crest.jpg" alt="" />
+        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+      </article>
+      <article class="leadership-card">
+        <img src="/loyola-crest.jpg" alt="" />
+        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+      </article>
+    </div>
+  </div>
+</section>`;
+}
+
 function visualStarterForPage(db: DB, pageId: string) {
   const page = db.pages[pageId] || db.pages.home || {};
+  if (pageId === "home") return homeVisualStarter();
+
   const navItem = db.navigation.find((item) => item.id === pageId);
   const pageName = navItem?.label || page.title || displayPageName(pageId);
   const title =
@@ -1069,12 +1133,13 @@ export function WebsiteEditor() {
 
   const openVisualBuilder = () => {
     const savedPage = db.pages[selectedPage];
-    const captured = capturePreviewContent(previewFrameRef.current);
+    const captured =
+      selectedPage === "home" ? null : capturePreviewContent(previewFrameRef.current);
 
     setVisualEditorInitial({
       html: captured?.html || savedPage?.visualHtml || visualStarterForPage(db, selectedPage),
       css: savedPage?.visualCss || "",
-      canvasCss: captured?.css || "",
+      canvasCss: selectedPage === "home" ? "" : captured?.css || "",
     });
     setVisualEditorOpen(true);
     setMessage(`Visual Builder opened for '${savedPage?.title || selectedPage}'.`);
