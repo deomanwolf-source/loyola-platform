@@ -40,7 +40,6 @@ function siteSummary(data?: DB) {
     pages: data?.pages ? Object.keys(data.pages).length : 0,
     navigation: Array.isArray(data?.navigation) ? data.navigation.length : 0,
     news: Array.isArray(data?.news) ? data.news.length : 0,
-    notices: Array.isArray(data?.notices) ? data.notices.length : 0,
     events: Array.isArray(data?.events) ? data.events.length : 0,
     teachers: Array.isArray(data?.teachers) ? data.teachers.length : 0,
     students: Array.isArray(data?.students) ? data.students.length : 0,

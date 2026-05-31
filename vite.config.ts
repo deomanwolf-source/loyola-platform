@@ -93,6 +93,8 @@ export default defineConfig({
     port: 8080,
   },
   build: {
+    outDir: "backend/public",
+    emptyOutDir: true,
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {

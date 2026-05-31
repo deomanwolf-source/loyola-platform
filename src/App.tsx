@@ -2974,7 +2974,7 @@ function CentralPortal() {
   );
 }
 
-type EduTrackRow = Record<string, string | number | null | undefined>;
+type EduTrackRow = Record<string, any>;
 
 type EduTrackDashboard = {
   totalItems: number;
@@ -3165,7 +3165,7 @@ function EduTrackIntegratedPage() {
           name: "Science",
           grade: "10",
           section: "A",
-          teacher_id: teachers[0]?.id || auth.user.id,
+          teacher_id: teachers[0]?.id || auth.user?.id || "",
         }),
       });
       await apiJson("/api/edutrack/syllabus", {
