@@ -1,10 +1,12 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import grapesjs from "grapesjs";
 import type { Editor, Plugin } from "grapesjs";
 import "grapesjs/dist/css/grapes.min.css";
 import {
   AlertCircle,
+  CheckCircle2,
   Eye,
+  ImagePlus,
   LayoutTemplate,
   Loader2,
   Monitor,
@@ -16,6 +18,7 @@ import {
   Smartphone,
   TabletSmartphone,
   Undo2,
+  Upload,
   X,
 } from "lucide-react";
 import { deleteBackendFileByUrl, uploadFileToBackend } from "@/lib/backend-upload";
@@ -34,11 +37,20 @@ interface VisualEditorProps {
 }
 
 type AssetUploadEvent = DragEvent | Event;
+type UploadedAssetNotice = {
+  name: string;
+  url: string;
+  kind: "image" | "video" | "file";
+};
 
 function getUploadFiles(event: AssetUploadEvent): FileList | null {
   if ("dataTransfer" in event && event.dataTransfer) return event.dataTransfer.files;
   const target = event.target;
   return target instanceof HTMLInputElement ? target.files : null;
+}
+
+function isFileDrag(event: React.DragEvent<HTMLElement>) {
+  return Array.from(event.dataTransfer.types).includes("Files");
 }
 
 const CANVAS_STYLES = `
@@ -116,6 +128,81 @@ const CANVAS_STYLES = `
     padding: 28px;
     box-shadow: 0 16px 38px -28px rgba(8, 40, 111, 0.45);
   }
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .stat-tile {
+    border: 1px solid #dde4ed;
+    border-radius: 8px;
+    background: #fff;
+    padding: 24px;
+    text-align: center;
+    box-shadow: 0 14px 34px -28px rgba(8, 40, 111, 0.42);
+  }
+  .stat-tile strong {
+    display: block;
+    color: var(--loyola-navy);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 2.1rem;
+    line-height: 1;
+  }
+  .stat-tile span {
+    display: block;
+    margin-top: 8px;
+    color: #64748b;
+    font-size: .8rem;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .team-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .team-card {
+    overflow: hidden;
+    border: 1px solid #dde4ed;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 38px -28px rgba(8, 40, 111, 0.45);
+  }
+  .team-card img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+  }
+  .team-card div {
+    padding: 20px;
+  }
+  .team-card p {
+    margin-top: 6px;
+  }
+  .cta-banner {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--loyola-navy), #1e3560);
+    color: #fff;
+  }
+  .cta-banner::after {
+    position: absolute;
+    inset: -30% -12% auto auto;
+    width: 260px;
+    aspect-ratio: 1;
+    border-radius: 999px;
+    background: rgba(214, 173, 25, .22);
+    content: "";
+  }
+  .cta-banner h2,
+  .cta-banner p {
+    color: #fff;
+  }
+  .cta-banner .eyebrow {
+    color: #f7d96b;
+  }
   .band { background: var(--loyola-soft); }
   .quote {
     border-left: 4px solid var(--loyola-gold);
@@ -191,7 +278,7 @@ const CANVAS_STYLES = `
   @media (max-width: 760px) {
     section { padding: 52px 22px; }
     .container { width: 100%; }
-    .grid-2, .grid-3, .anthem-media-layout { grid-template-columns: 1fr; }
+    .grid-2, .grid-3, .stats-row, .team-grid, .anthem-media-layout { grid-template-columns: 1fr; }
   }
 `;
 
@@ -251,12 +338,58 @@ export function VisualEditor({
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activeDevice, setActiveDevice] = useState("desktop");
   const [isDirty, setIsDirty] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState<UploadedAssetNotice | null>(null);
+  const [saveConfirmation, setSaveConfirmation] = useState("");
+  const [uploadedAssetCount, setUploadedAssetCount] = useState(0);
+  const [fileDragging, setFileDragging] = useState(false);
 
   const gjsRef = useRef<HTMLDivElement>(null);
   const blocksRef = useRef<HTMLDivElement>(null);
   const stylesRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement>(null);
   const traitsRef = useRef<HTMLDivElement>(null);
+
+  const uploadAssetFiles = useCallback(async (filesLike: FileList | File[]) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+
+    const files = Array.from(filesLike);
+    for (const file of files) {
+      try {
+        let kind: UploadedAssetNotice["kind"] = "file";
+        if (file.type.startsWith("image/")) {
+          kind = "image";
+          if (!IMAGE_TYPES.includes(file.type)) {
+            alert(`Image "${file.name}" must be a JPG or PNG file.`);
+            continue;
+          }
+          if (file.size > MAX_IMAGE_BYTES) {
+            alert(`Image "${file.name}" is larger than 5MB and cannot be uploaded.`);
+            continue;
+          }
+        } else if (file.type.startsWith("video/")) {
+          kind = "video";
+          if (!VIDEO_TYPES.includes(file.type)) {
+            alert(`Video "${file.name}" must be MP4, MOV, or WebM.`);
+            continue;
+          }
+          if (file.size > MAX_VIDEO_BYTES) {
+            alert(`Video "${file.name}" is larger than 500MB and cannot be uploaded.`);
+            continue;
+          }
+        }
+
+        const url = await uploadFileToBackend("site-images", file);
+        editor.AssetManager.add({ src: url, name: file.name });
+        setUploadNotice({ name: file.name, url, kind });
+        setUploadedAssetCount((count) => count + 1);
+        setSaveConfirmation("");
+      } catch (err) {
+        console.error("Failed to upload asset", err);
+        alert(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!gjsRef.current) return;
@@ -312,41 +445,7 @@ export function VisualEditor({
             uploadFile: async (event: AssetUploadEvent) => {
               const files = getUploadFiles(event);
               if (!files || files.length === 0) return;
-              try {
-                for (let i = 0; i < files.length; i++) {
-                  const file = files[i];
-
-                  if (file.type.startsWith("image/")) {
-                    if (!IMAGE_TYPES.includes(file.type)) {
-                      alert(`Image "${file.name}" must be a JPG or PNG file.`);
-                      continue;
-                    }
-                    if (file.size > MAX_IMAGE_BYTES) {
-                      alert(`Image "${file.name}" is larger than 5MB and cannot be uploaded.`);
-                      continue;
-                    }
-                    const url = await uploadFileToBackend("site-images", file);
-                    editor.AssetManager.add({ src: url, name: file.name });
-                  } else if (file.type.startsWith("video/")) {
-                    if (!VIDEO_TYPES.includes(file.type)) {
-                      alert(`Video "${file.name}" must be MP4, MOV, or WebM.`);
-                      continue;
-                    }
-                    if (file.size > MAX_VIDEO_BYTES) {
-                      alert(`Video "${file.name}" is larger than 500MB and cannot be uploaded.`);
-                      continue;
-                    }
-                    const url = await uploadFileToBackend("site-images", file);
-                    editor.AssetManager.add({ src: url, name: file.name });
-                  } else {
-                    const url = await uploadFileToBackend("site-images", file);
-                    editor.AssetManager.add({ src: url, name: file.name });
-                  }
-                }
-              } catch (err) {
-                console.error("Failed to upload image", err);
-                alert(`Upload failed: ${err instanceof Error ? err.message : "Unknown error"}`);
-              }
+              await uploadAssetFiles(files);
             },
           },
           panels: { defaults: [] },
@@ -504,6 +603,24 @@ export function VisualEditor({
   </div>
 </section>`,
         });
+        blocks.add("loyola-stats-row", {
+          label: "Stats Row",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18V8"/></svg>`,
+          content: `<section class="band"><div class="container"><p class="eyebrow">At a glance</p><h2 style="margin-top:12px;">Loyola by the numbers</h2><div class="stats-row" style="margin-top:28px;"><article class="stat-tile"><strong>100+</strong><span>Years of service</span></article><article class="stat-tile"><strong>2,000+</strong><span>Students</span></article><article class="stat-tile"><strong>90+</strong><span>Teachers</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs and sports</span></article></div></div></section>`,
+        });
+        blocks.add("loyola-team-cards", {
+          label: "Team Cards",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c.7-3.2 2.4-5 5-5s4.3 1.8 5 5M11 20c.7-3.2 2.4-5 5-5s4.3 1.8 5 5"/></svg>`,
+          content: `<section><div class="container"><p class="eyebrow">Leadership</p><h2 style="margin-top:12px;">Meet the team</h2><div class="team-grid" style="margin-top:28px;"><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article></div></div></section>`,
+        });
+        blocks.add("loyola-cta-banner", {
+          label: "Call to Action",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/><path d="M4 5h16v14H4z"/></svg>`,
+          content: `<section><div class="container cta-banner"><div style="position:relative;z-index:1;padding:42px;"><p class="eyebrow">Next step</p><h2 style="max-width:720px;margin-top:12px;">Invite families to connect with Loyola.</h2><p style="max-width:620px;margin-top:16px;">Use this banner for admissions, contact, events, or important announcements.</p><a class="btn gold" href="#" style="margin-top:24px;">Get started</a></div></div></section>`,
+        });
 
         editor.setComponents(initialHtml || STARTER_HTML);
         editor.setStyle(initialCss || "");
@@ -527,6 +644,9 @@ export function VisualEditor({
     if (!editorRef.current) return;
     onSave(editorRef.current.getHtml(), editorRef.current.getCss() ?? "");
     setIsDirty(false);
+    setSaveConfirmation(
+      uploadedAssetCount > 0 ? "Saved page with uploaded media URLs." : "Saved page content.",
+    );
   };
 
   const handleClose = () => {
@@ -544,6 +664,36 @@ export function VisualEditor({
   const selectDevice = (device: EditorDevice) => {
     editorRef.current?.setDevice(device.deviceName);
     setActiveDevice(device.id);
+  };
+
+  const openAssets = () => {
+    editorRef.current?.runCommand("open-assets");
+  };
+
+  const handleDragEnter = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!isFileDrag(event)) return;
+    event.preventDefault();
+    setFileDragging(true);
+  };
+
+  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!isFileDrag(event)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setFileDragging(true);
+  };
+
+  const handleDragLeave = (event: React.DragEvent<HTMLDivElement>) => {
+    const nextTarget = event.relatedTarget as Node | null;
+    if (nextTarget && event.currentTarget.contains(nextTarget)) return;
+    setFileDragging(false);
+  };
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    if (!isFileDrag(event)) return;
+    event.preventDefault();
+    setFileDragging(false);
+    void uploadAssetFiles(event.dataTransfer.files);
   };
 
   if (loadError) {
@@ -566,7 +716,13 @@ export function VisualEditor({
   }
 
   return (
-    <div className="visual-builder fixed inset-0 z-[200] flex flex-col bg-[#0b1020] text-slate-100">
+    <div
+      className="visual-builder fixed inset-0 z-[200] flex flex-col bg-[#0b1020] text-slate-100"
+      onDragEnter={handleDragEnter}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       {loading && (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 bg-[#0b1020]">
           <Loader2 className="h-10 w-10 animate-spin text-amber-300" />
@@ -600,6 +756,36 @@ export function VisualEditor({
               )}
             </h2>
           </div>
+        </div>
+
+        <div className="hidden min-w-0 flex-1 justify-center px-3 xl:flex">
+          {uploadNotice ? (
+            <div className="flex min-w-0 max-w-md items-center gap-3 rounded-md border border-emerald-400/25 bg-emerald-400/10 px-3 py-1.5 text-emerald-100">
+              {uploadNotice.kind === "image" ? (
+                <img
+                  src={uploadNotice.url}
+                  alt=""
+                  className="h-8 w-10 rounded object-cover ring-1 ring-white/10"
+                />
+              ) : (
+                <span className="grid h-8 w-10 place-items-center rounded bg-white/10">
+                  <Upload className="h-4 w-4" />
+                </span>
+              )}
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-300" />
+              <div className="min-w-0">
+                <p className="truncate text-xs font-black">Uploaded {uploadNotice.name}</p>
+                <p className="truncate text-[10px] text-emerald-100/70">
+                  {saveConfirmation || "Save Page to keep this media in the page HTML."}
+                </p>
+              </div>
+            </div>
+          ) : saveConfirmation ? (
+            <div className="inline-flex items-center gap-2 rounded-md border border-amber-300/25 bg-amber-300/10 px-3 py-2 text-xs font-bold text-amber-100">
+              <CheckCircle2 className="h-4 w-4 text-amber-300" />
+              {saveConfirmation}
+            </div>
+          ) : null}
         </div>
 
         <div className="hidden items-center gap-1 rounded-md border border-white/10 bg-white/5 p-1 md:flex">
@@ -649,6 +835,14 @@ export function VisualEditor({
           </button>
           <button
             type="button"
+            onClick={openAssets}
+            title="Upload image or asset"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-slate-300 transition hover:bg-white/10 hover:text-white"
+          >
+            <ImagePlus className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
             onClick={handleSave}
             className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-amber-300 px-4 text-xs font-black text-[#08286f] shadow-[0_12px_28px_-18px_rgba(252,211,77,.9)] transition hover:bg-amber-200"
           >
@@ -664,7 +858,18 @@ export function VisualEditor({
           <div ref={blocksRef} className="visual-builder-blocks min-h-0 flex-1 overflow-y-auto" />
         </aside>
 
-        <main className="min-h-0 bg-[#090d18]">
+        <main className="relative min-h-0 bg-[#090d18]">
+          {fileDragging && (
+            <div className="pointer-events-none absolute inset-4 z-20 grid place-items-center rounded-xl border-2 border-dashed border-amber-300 bg-[#0b1020]/72 text-center shadow-[0_24px_70px_-40px_rgba(0,0,0,.9)] backdrop-blur-sm">
+              <div>
+                <Upload className="mx-auto h-9 w-9 text-amber-300" />
+                <p className="mt-3 text-sm font-black text-white">Drop files to upload</p>
+                <p className="mt-1 text-xs text-slate-300">
+                  JPG, PNG, MP4, MOV, and WebM are added to the Asset Manager.
+                </p>
+              </div>
+            </div>
+          )}
           <div ref={gjsRef} className="h-full w-full" />
         </main>
 
@@ -984,6 +1189,75 @@ function GjsStyles() {
 
       .visual-builder .gjs-rte-action {
         color: #e2e8f0;
+      }
+
+      .visual-builder .gjs-mdl-dialog {
+        overflow: hidden;
+        border: 1px solid rgba(148,163,184,.2);
+        border-radius: 10px;
+        background: #111827;
+        color: #e2e8f0;
+        box-shadow: 0 34px 90px -42px rgba(0,0,0,.95);
+      }
+
+      .visual-builder .gjs-mdl-header {
+        border-bottom: 1px solid rgba(255,255,255,.08);
+        background: rgba(15,23,42,.82);
+        color: #fff;
+        font-weight: 900;
+      }
+
+      .visual-builder .gjs-mdl-content {
+        background: #111827;
+      }
+
+      .visual-builder .gjs-am-file-uploader {
+        border: 1px dashed rgba(252,211,77,.48);
+        border-radius: 10px;
+        background: rgba(252,211,77,.08);
+        color: #e2e8f0;
+      }
+
+      .visual-builder .gjs-am-assets {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+        gap: 10px;
+      }
+
+      .visual-builder .gjs-am-asset {
+        width: auto;
+        margin: 0;
+        overflow: hidden;
+        border: 1px solid rgba(148,163,184,.18);
+        border-radius: 8px;
+        background: rgba(255,255,255,.045);
+        box-shadow: none;
+        transition: transform .16s ease, border-color .16s ease, background-color .16s ease;
+      }
+
+      .visual-builder .gjs-am-asset:hover {
+        border-color: rgba(252,211,77,.72);
+        background: rgba(252,211,77,.11);
+        transform: translateY(-2px);
+      }
+
+      .visual-builder .gjs-am-preview-cont {
+        background: rgba(15,23,42,.8);
+      }
+
+      .visual-builder .gjs-am-name {
+        color: rgba(226,232,240,.82);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .visual-builder .gjs-btn-prim,
+      .visual-builder .gjs-am-add-asset button {
+        border: 0 !important;
+        border-radius: 7px;
+        background: #fcd34d !important;
+        color: #08286f !important;
+        font-weight: 900;
       }
 
       .visual-builder .gjs-badge,
