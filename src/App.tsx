@@ -10,6 +10,7 @@ import {
   ChevronRight,
   CheckCircle2,
   Download,
+  Eye,
   Film,
   FileText,
   GraduationCap,
