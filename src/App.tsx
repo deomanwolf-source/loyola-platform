@@ -4,6 +4,7 @@ import {
   Award,
   Bell,
   BookOpen,
+  Briefcase,
   Calendar,
   Camera,
   ChevronLeft,
@@ -2902,6 +2903,14 @@ function CentralPortal() {
       roles: WEBSITE_ADMIN_ROLES,
       meta: "Website, media, news, notices, events",
       lockedMeta: "Only website admins and top admins",
+    },
+    {
+      title: "Staff Management",
+      href: "/admin?panel=staff",
+      icon: Briefcase,
+      roles: MASTER_ROLES,
+      meta: "Staff profiles, photos, accounts",
+      lockedMeta: "Only Master Admin and Super Admin",
     },
     {
       title: "EduZync",
