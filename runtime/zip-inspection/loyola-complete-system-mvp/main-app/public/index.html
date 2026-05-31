@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Loyola College Negombo | In Truth To Light And Life</title>
+  <meta name="description" content="Official website of Loyola College Negombo. Explore school news, notices, events, staff, gallery, and portal access.">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="topbar"><span>📍 Negombo, Sri Lanka</span><span>☎ Contact School Office</span></div>
+  <nav class="nav">
+    <a class="logo" href="/"><span class="badge">LC</span><span>Loyola College<br><small>Negombo</small></span></a>
+    <div class="navlinks">
+      <a href="/">Home</a><a href="/about.html">About</a><a href="/staff.html">Staff</a><a href="/calendar.html">Calendar</a><a class="btn" href="/admin.html">Portal Login</a>
+    </div>
+  </nav>
+  <header class="hero">
+    <img class="hero-bg" src="https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1800&q=80" alt="School background">
+    <div class="hero-content">
+      <div class="eyebrow">Veritate Ad Lumen Et Vitam</div>
+      <h1>Loyola College Negombo</h1>
+      <p>In Truth To Light And Life — a premium digital gateway for students, parents, teachers, and the Loyola community.</p>
+      <div class="actions"><a class="btn" href="/about.html">Explore Our College</a><a class="btn secondary" href="#notices">View Notices</a><a class="btn secondary" href="/admin.html">Portal Login</a></div>
+    </div>
+  </header>
+  <main>
+    <section class="section">
+      <h2>Quick Access</h2><p class="section-intro">Find important school areas quickly.</p>
+      <div class="grid">
+        <a class="card" href="#notices"><div class="icon">📢</div><h3>Notices</h3><p>Important updates and announcements.</p></a>
+        <a class="card" href="#events"><div class="icon">📅</div><h3>Events</h3><p>Upcoming school activities.</p></a>
+        <a class="card" href="/staff.html"><div class="icon">👩‍🏫</div><h3>Staff</h3><p>Academic and administrative staff.</p></a>
+        <a class="card" href="#"><div class="icon">🖼️</div><h3>Gallery</h3><p>School memories and achievements.</p></a>
+        <a class="card" href="/calendar.html"><div class="icon">🗓️</div><h3>Calendar</h3><p>Academic calendar and events.</p></a>
+        <a class="card" href="/admin.html"><div class="icon">🔐</div><h3>Portal</h3><p>Admin, staff, and EduTrack access.</p></a>
+      </div>
+    </section>
+    <section class="section">
+      <div class="split">
+        <div><div class="eyebrow">About Loyola</div><h2>A Catholic school with a mission for truth, light, and life.</h2><p class="section-intro">This clean starter home page is ready to connect to Website Studio and real CMS content.</p><a class="btn" href="/about.html">Read More</a></div>
+        <div class="photo-card"></div>
+      </div>
+    </section>
+    <section class="section" id="notices"><h2>Latest News & Notices</h2><div class="grid" id="noticeGrid"></div></section>
+    <section class="section" id="events"><h2>Upcoming Events</h2><div class="grid" id="eventGrid"></div></section>
+    <section class="section stats"><h2>School At A Glance</h2><div class="grid"><div class="stat"><strong>100+</strong><p>Years of excellence</p></div><div class="stat"><strong>2500+</strong><p>Students</p></div><div class="stat"><strong>150+</strong><p>Staff</p></div><div class="stat"><strong>13</strong><p>Grades</p></div></div></section>
+  </main>
+  <footer class="footer"><h3>Loyola College Negombo</h3><p>In Truth To Light And Life</p></footer>
+<script>
+async function loadCards(){
+  document.getElementById('noticeGrid').innerHTML = '<div class="card"><h3>Welcome Notice</h3><p>No published notices yet. Add notices from Website Admin.</p></div>';
+  document.getElementById('eventGrid').innerHTML = '<div class="card"><h3>No Events Yet</h3><p>Add events from Website Admin.</p></div>';
+}
+loadCards();
+</script>
+</body>
+</html>
