@@ -38,6 +38,7 @@ export function PortalShell({
   const db = useDb();
   const [openMobile, setOpenMobile] = useState(false);
   const [query, setQuery] = useState("");
+  const [headerScrolled, setHeaderScrolled] = useState(false);
   const activeRef = useRef(active);
   const navFrame = useRef<number | null>(null);
   const pendingNav = useRef<string | null>(null);
@@ -174,6 +175,10 @@ export function PortalShell({
     if (target) activateNav(target.id);
   };
 
+  const handleMainScroll = useCallback((event: React.UIEvent<HTMLElement>) => {
+    setHeaderScrolled(event.currentTarget.scrollTop > 8);
+  }, []);
+
   if (auth.loading) {
     return (
       <BrandedLoader
@@ -190,7 +195,7 @@ export function PortalShell({
   return (
     <div data-admin-panel className="flex h-screen overflow-hidden bg-[#eef3ff] text-[#172033]">
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-[#08286f] py-8 text-white shadow-xl transition-transform lg:static lg:translate-x-0 ${openMobile ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-[#08286f] py-8 text-white shadow-xl transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${openMobile ? "translate-x-0 animate-slide-in-left" : "-translate-x-full"}`}
       >
         <div className="mb-8 flex items-center justify-between px-6">
           <a href="/" className="flex items-center gap-4">
@@ -229,10 +234,15 @@ export function PortalShell({
                       <button
                         type="button"
                         onClick={() => activateNav(i.id)}
-                        className={`mx-0 flex w-full items-center gap-4 rounded-lg px-4 py-3 text-sm font-semibold transition-smooth ${isActive ? "translate-x-1 bg-[#806900] text-white shadow-[0_14px_28px_-20px_rgb(0_0_0_/0.65)]" : "text-[#9eb4ef] hover:bg-[#123b8f] hover:text-white"}`}
+                        className={`group relative mx-0 flex w-full items-center gap-4 overflow-hidden rounded-lg px-4 py-3 text-sm font-semibold transition-smooth ${isActive ? "translate-x-1 bg-[#806900] text-white shadow-[0_14px_28px_-20px_rgb(0_0_0_/0.65)]" : "text-[#9eb4ef] hover:translate-x-1 hover:bg-[#123b8f] hover:text-white"}`}
                       >
-                        <i.icon className="h-4 w-4" />
-                        <span>{i.label}</span>
+                        {isActive ? (
+                          <span className="portal-nav-active-bar" />
+                        ) : (
+                          <span className="absolute left-0 top-1/2 h-0 w-[3px] -translate-y-1/2 rounded-r bg-[#ffe06d]/0 transition-all duration-200 group-hover:h-1/2 group-hover:bg-[#ffe06d]/70" />
+                        )}
+                        <i.icon className="relative z-10 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
+                        <span className="relative z-10">{i.label}</span>
                       </button>
                     </li>
                   );
@@ -284,7 +294,13 @@ export function PortalShell({
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-[#c8d5f4] bg-[#eef3ff] px-6 shadow-sm">
+        <header
+          className={`flex h-16 items-center justify-between border-b bg-[#eef3ff]/88 px-6 backdrop-blur-xl transition-all duration-300 ${
+            headerScrolled
+              ? "border-[#aebfe8] shadow-[0_16px_40px_-32px_rgba(8,40,111,.55)]"
+              : "border-[#c8d5f4] shadow-sm"
+          }`}
+        >
           <div className="flex min-w-0 flex-1 items-center gap-4">
             <button
               type="button"
@@ -388,11 +404,11 @@ export function PortalShell({
             <button
               type="button"
               onClick={openNotifications}
-              className="relative grid h-9 w-9 place-items-center rounded-full text-[#536690] hover:bg-white hover:text-[#08286f]"
+              className="portal-notification-button relative grid h-9 w-9 place-items-center rounded-full text-[#536690] transition-smooth hover:bg-white hover:text-[#08286f]"
               title="Open messages"
             >
-              <Bell className="h-4 w-4" />
-              <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-[#ffe06d]" />
+              <Bell className="portal-notification-icon h-4 w-4" />
+              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-[#ffe06d] shadow-[0_0_0_3px_rgba(255,224,109,.22)] animate-pulse-badge" />
             </button>
             <div className="hidden items-center gap-3 border-l border-[#c8d5f4] pl-4 xl:flex">
               <div className="text-right">
@@ -412,7 +428,10 @@ export function PortalShell({
           </div>
         </header>
 
-        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#e7eefc] p-6 md:p-8 xl:p-10">
+        <main
+          onScroll={handleMainScroll}
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#e7eefc] p-6 md:p-8 xl:p-10"
+        >
           {children}
         </main>
       </div>

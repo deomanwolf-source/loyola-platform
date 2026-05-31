@@ -599,7 +599,7 @@ function HomePage() {
                   key={stat.id}
                   className="hover-lift cursor-default rounded-lg border border-white/14 bg-white/10 p-4 lg:p-5"
                 >
-                  <p className="font-serif text-2xl font-bold text-gold-light lg:text-3xl">
+                  <p className="animate-count-up font-serif text-2xl font-bold text-gold-light lg:text-3xl">
                     {stat.value}
                   </p>
                   <p className="mt-2 text-sm text-white/70">{stat.label}</p>
@@ -2592,6 +2592,7 @@ function LoginPage() {
   const db = useDb();
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
@@ -2608,77 +2609,266 @@ function LoginPage() {
       setSubmitting(false);
     }
   };
+
+  const roleChips = [
+    { label: "Student", color: "bg-sky-100 text-sky-800" },
+    { label: "Parent", color: "bg-violet-100 text-violet-800" },
+    { label: "Teacher", color: "bg-emerald-100 text-emerald-800" },
+    { label: "Admin", color: "bg-amber-100 text-amber-800" },
+  ];
+
   return (
-    <main className="login-page grid min-h-screen bg-background lg:grid-cols-2">
-      <section className="login-brand-panel hidden bg-gradient-hero p-14 text-white lg:flex lg:flex-col lg:justify-between">
-        <div className="relative z-10 flex items-center gap-4 animate-fade-in-up">
-          <img
-            className="h-14 w-14 rounded-full border-2 border-gold bg-white object-contain p-1"
-            src="/loyola-crest.jpg"
-            alt=""
-          />
+    <main className="login-page grid min-h-screen bg-[#f0f4ff] lg:grid-cols-[1.1fr_1fr]">
+      {/* ── Left brand panel ────────────────────────────────── */}
+      <section
+        className="login-brand-panel relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between"
+        style={{
+          background:
+            "linear-gradient(135deg, #071430 0%, #0a1e4a 40%, #14286e 70%, #0a1628 100%)",
+        }}
+      >
+        {/* Animated gradient blobs */}
+        <div
+          className="pointer-events-none absolute -top-32 -left-32 h-96 w-96 rounded-full opacity-25"
+          style={{
+            background: "radial-gradient(circle, #d4a017 0%, transparent 70%)",
+            animation: "morphBg 8s ease-in-out infinite",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute -bottom-20 -right-20 h-80 w-80 rounded-full opacity-20"
+          style={{
+            background: "radial-gradient(circle, #b70f1b 0%, transparent 70%)",
+            animation: "morphBg 11s ease-in-out infinite reverse",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute top-1/2 left-1/2 h-64 w-64 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-10"
+          style={{
+            background: "radial-gradient(circle, #ffffff 0%, transparent 70%)",
+            animation: "float 6s ease-in-out infinite",
+          }}
+        />
+        {/* Grid overlay */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
+            backgroundSize: "48px 48px",
+          }}
+        />
+
+        {/* Top: Logo + school name */}
+        <div className="relative z-10 flex items-center gap-4 p-10 animate-fade-in-up">
+          <div className="relative">
+            <div
+              className="absolute inset-0 rounded-full opacity-60"
+              style={{
+                background: "conic-gradient(from 0deg, #d4a017, #f7d96b, #d4a017)",
+                animation: "brandRingSpin 3s linear infinite",
+                padding: "3px",
+                borderRadius: "999px",
+              }}
+            />
+            <img
+              className="relative h-16 w-16 rounded-full border-2 border-gold bg-white object-contain p-1.5 shadow-lg"
+              src="/loyola-crest.jpg"
+              alt=""
+              style={{ animation: "brandLogoPulse 3s ease-in-out infinite" }}
+            />
+          </div>
           <div>
-            <p className="font-serif text-2xl font-bold">{db.websiteContent.schoolName}</p>
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">
+            <p className="font-serif text-2xl font-bold text-white leading-tight">
+              {db.websiteContent.schoolName}
+            </p>
+            <p className="mt-0.5 text-xs font-bold uppercase tracking-[0.22em] text-amber-300">
               {db.websiteContent.tagline}
             </p>
           </div>
         </div>
-        <div className="relative z-10 max-w-xl animate-fade-in-up animation-delay-2">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light">
-            Loyola College Portal
+
+        {/* Centre: Headline */}
+        <div className="relative z-10 px-10 animate-fade-in-up animation-delay-2">
+          <div
+            className="mb-6 h-0.5 w-12 rounded"
+            style={{ background: "#d4a017", animation: "dividerGrow 0.8s ease both 0.3s" }}
+          />
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-amber-300/80">
+            Secure portal access
           </p>
-          <h1 className="mt-5 font-serif text-6xl font-bold leading-none">Secure portal access</h1>
-          <p className="mt-5 max-w-md text-sm leading-6 text-white/72">
-            A focused workspace for staff, students, parents, and administration.
+          <h1 className="mt-4 font-serif text-5xl font-bold leading-[1.1] text-white">
+            Your Loyola
+            <br />
+            <span className="text-amber-300">digital home.</span>
+          </h1>
+          <p className="mt-5 max-w-sm text-sm leading-7 text-white/65">
+            A unified workspace connecting students, parents, teachers, and
+            administration through one secure sign-in.
+          </p>
+
+          {/* Feature pills */}
+          <div className="stagger-fast mt-8 flex flex-wrap gap-2">
+            {[
+              "Student Portal",
+              "Parent Access",
+              "Staff Dashboard",
+              "Website Studio",
+            ].map((item) => (
+              <span
+                key={item}
+                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Bottom: Copyright */}
+        <div className="relative z-10 px-10 pb-10">
+          <p className="text-xs text-white/45">
+            &copy; {new Date().getFullYear()} {db.websiteContent.schoolName}. All rights reserved.
           </p>
         </div>
-        <p className="relative z-10 text-sm text-white/70">
-          &copy; 2026 {db.websiteContent.schoolName}
-        </p>
       </section>
-      <section className="grid min-h-screen place-items-center px-6 py-10">
-        <form onSubmit={submit} className="login-card w-full max-w-md animate-fade-in-up">
+
+      {/* ── Right form panel ────────────────────────────────── */}
+      <section className="flex min-h-screen flex-col items-center justify-center px-5 py-10 sm:px-10">
+        <div className="mb-8 flex items-center gap-3 lg:hidden animate-fade-in">
+          <img
+            className="h-12 w-12 rounded-full border-2 border-[#d4a017] bg-white object-contain p-1"
+            src="/loyola-crest.jpg"
+            alt=""
+          />
+          <div>
+            <p className="font-serif text-xl font-bold text-navy">
+              {db.websiteContent.schoolName}
+            </p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#d4a017]">
+              {db.websiteContent.tagline}
+            </p>
+          </div>
+        </div>
+
+        <form
+          onSubmit={submit}
+          className="login-card w-full max-w-[420px] animate-fade-in-up"
+          style={{ animationDelay: "80ms" }}
+        >
           <a
             href="/"
-            className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground transition-smooth hover:text-crimson"
+            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.18em] text-muted-foreground transition-all hover:text-crimson hover:gap-2.5"
           >
-            &lt;- Back to website
+            <ChevronLeft className="h-3.5 w-3.5" />
+            Back to website
           </a>
-          <h2 className="mt-7 font-serif text-5xl font-bold text-navy">Portal sign in</h2>
-          <p className="mt-3 text-muted-foreground">
-            Use your assigned username/email and password.
-          </p>
-          <Field label="Username or email">
-            <input
-              name="email"
-              type="email"
-              required
-              autoComplete="username"
-              className="input-line"
-            />
-          </Field>
-          <Field label="Password">
-            <input
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="input-line"
-            />
-          </Field>
-          {error && (
-            <p className="mt-5 animate-scale-in rounded-lg border border-destructive/25 bg-destructive/10 px-4 py-3 text-sm font-medium text-destructive">
-              {error}
+
+          <div className="mt-7">
+            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b70f1b]">
+              Portal sign in
             </p>
+            <h2 className="mt-2 font-serif text-4xl font-bold text-navy leading-tight">
+              Welcome back
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Enter your assigned email and password to continue.
+            </p>
+          </div>
+
+          <div className="mt-7">
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                Email address
+              </span>
+              <div className="relative mt-2">
+                <Mail className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="login-email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="username"
+                  placeholder="you@school.test"
+                  className="input-line pl-7"
+                />
+              </div>
+            </label>
+          </div>
+
+          <div className="mt-5">
+            <label className="block">
+              <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                Password
+              </span>
+              <div className="relative mt-2">
+                <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <input
+                  id="login-password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="input-line pl-7 pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute top-1/2 right-0 -translate-y-1/2 text-slate-400 transition hover:text-navy"
+                  tabIndex={-1}
+                >
+                  <Eye className="h-4 w-4" />
+                </button>
+              </div>
+            </label>
+          </div>
+
+          {error && (
+            <div className="animate-bounce-in mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <X className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+              <p className="text-sm font-medium text-red-700">{error}</p>
+            </div>
           )}
+
           <button
+            id="login-submit"
             disabled={submitting}
             type="submit"
-            className="login-submit mt-7 w-full rounded-lg bg-navy px-5 py-4 text-sm font-bold text-white shadow-elegant transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid disabled:translate-y-0 disabled:cursor-wait disabled:opacity-70"
+            className="login-submit mt-7 w-full rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white shadow-[0_12px_32px_-16px_rgba(10,22,40,0.6)] transition-all hover:-translate-y-0.5 hover:bg-[#122040] disabled:translate-y-0 disabled:cursor-wait disabled:opacity-60"
           >
-            {submitting ? "Signing in..." : "Sign in to portal"}
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
+                  style={{ animation: "spin 0.7s linear infinite" }}
+                />
+                Signing in…
+              </span>
+            ) : (
+              "Sign in to portal →"
+            )}
           </button>
+
+          <div className="mt-8 border-t border-border pt-6">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
+              Available for
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {roleChips.map((chip) => (
+                <span
+                  key={chip.label}
+                  className={`inline-flex rounded-full px-3 py-1 text-xs font-bold ${chip.color}`}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-400">
+              Access is limited to active Loyola College portal accounts.
+            </p>
+          </div>
         </form>
       </section>
     </main>

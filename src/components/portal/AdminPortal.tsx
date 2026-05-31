@@ -223,7 +223,7 @@ function StatCard({
 }) {
   return (
     <div
-      className={`rounded-[1.4rem] border p-5 shadow-soft ${accent ? "border-gold/40 bg-gold/10" : "border-border bg-white"}`}
+      className={`hover-lift rounded-[1.4rem] border p-5 shadow-soft transition-smooth ${accent ? "stat-card-shimmer border-gold/40 bg-gold/10" : "border-border bg-white"}`}
     >
       <div className="flex items-start justify-between gap-4">
         <div>
@@ -253,7 +253,7 @@ function PanelShell({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-[1.6rem] border border-border bg-white p-6 shadow-soft">
+    <div className="animate-panel-entry rounded-[1.6rem] border border-border bg-white p-6 shadow-soft">
       <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
         <div>
           {kicker && (
@@ -347,7 +347,7 @@ function DashboardPanel({ db, setActive }: { db: DB; setActive: (id: PanelId) =>
     (db.websiteContent.heroImage ? 1 : 0);
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 stagger-children">
         <StatCard
           icon={FileText}
           label="Pages"
@@ -1977,11 +1977,23 @@ function MediaPanel({ db }: { db: DB }) {
                     key={item.id}
                     className="overflow-hidden rounded-xl border border-border bg-white shadow-soft"
                   >
-                    <img
-                      src={images[0] || "/loyola-crest.jpg"}
-                      alt={item.label}
-                      className="aspect-video w-full object-cover"
-                    />
+                    <div className="group relative overflow-hidden">
+                      <img
+                        src={images[0] || "/loyola-crest.jpg"}
+                        alt={item.label}
+                        className="aspect-video w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedAlbumId(item.id);
+                          coverInputRef.current?.click();
+                        }}
+                        className="absolute inset-0 flex items-center justify-center gap-2 bg-navy/72 text-sm font-black text-white opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-hover:opacity-100"
+                      >
+                        <Upload className="h-4 w-4" /> Change cover
+                      </button>
+                    </div>
                     <div className="p-3">
                       <div className="grid gap-2">
                         <TextInput
@@ -2008,9 +2020,12 @@ function MediaPanel({ db }: { db: DB }) {
                             type="button"
                             onClick={() => removeAlbumImage(item.id, image)}
                             title="Remove image"
-                            className="relative overflow-hidden rounded-md border border-border bg-secondary"
+                            className="group relative overflow-hidden rounded-md border border-border bg-secondary"
                           >
                             <img src={image} alt="" className="aspect-square w-full object-cover" />
+                            <span className="absolute inset-0 grid place-items-center bg-crimson/72 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -3056,7 +3071,7 @@ export function AdminPortal() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#eef3f8] text-slate-900">
+    <div data-admin-panel className="flex min-h-screen bg-[#eef3f8] text-slate-900">
       {/* Sidebar */}
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-navy text-white shadow-2xl transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
@@ -3860,7 +3875,7 @@ function StaffPanel({ db }: { db: DB }) {
 
         {activeTab === "dashboard" && (
           <div className="space-y-6">
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-4 stagger-children">
               <StatCard icon={Users} label="Total Staff" value={db.teachers.length} />
               <StatCard
                 icon={GraduationCap}
@@ -3887,7 +3902,7 @@ function StaffPanel({ db }: { db: DB }) {
                   .map((t) => (
                     <div
                       key={t.id}
-                      className="flex items-center justify-between rounded-xl bg-secondary/50 p-3"
+                      className="hover-lift flex items-center justify-between rounded-xl bg-secondary/50 p-3 transition-smooth"
                     >
                       <div className="flex items-center gap-3">
                         {t.image ? (
@@ -3957,7 +3972,7 @@ function StaffPanel({ db }: { db: DB }) {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {filteredTeachers.map((t) => (
-                    <tr key={t.id} className="hover:bg-secondary/20">
+                    <tr key={t.id} className="transition-smooth hover:bg-secondary/30">
                       <td className="p-4 font-mono text-xs font-bold text-slate-500">{t.id}</td>
                       <td className="p-4 flex items-center gap-3">
                         {t.image ? (

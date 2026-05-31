@@ -529,15 +529,25 @@ function PreviewWebsite({
   return (
     <div className="flex h-[78vh] min-h-[640px] flex-col overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white shadow-elegant">
       <div className="shrink-0 border-b border-slate-200 bg-slate-50 px-5 py-3">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full bg-red-400" />
             <span className="h-3 w-3 rounded-full bg-amber-400" />
             <span className="h-3 w-3 rounded-full bg-emerald-400" />
           </div>
-          <span className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-            Live preview {path} | {selectedSection}
-          </span>
+          <a
+            href={path}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-white px-3 py-1.5 text-xs font-black uppercase tracking-[0.14em] text-navy shadow-sm transition hover:border-emerald-300 hover:bg-emerald-50"
+          >
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse-badge" />
+              Live
+            </span>
+            <Eye className="h-3.5 w-3.5" />
+            Preview {path} | {selectedSection}
+          </a>
         </div>
       </div>
       <iframe
@@ -553,8 +563,9 @@ function PreviewWebsite({
         <button
           type="button"
           onClick={() => setRefreshKey((current) => current + 1)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-navy"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-navy"
         >
+          <RefreshCw className="h-3 w-3" />
           Refresh
         </button>
       </div>
@@ -1135,7 +1146,11 @@ export function WebsiteEditor() {
     setSavingState("idle");
   };
 
-  const saveVisualContent = (html: string, css: string) => {
+  const saveVisualContent = async (html: string, css: string) => {
+    const pageTitle = db.pages[selectedPage]?.title || selectedPage;
+    setSavingState("saving");
+    setMessageTone("info");
+    setMessage("Saving visual content and uploaded media...");
     setDb((current) => ({
       ...current,
       pages: {
@@ -1149,8 +1164,20 @@ export function WebsiteEditor() {
     }));
     setVisualEditorOpen(false);
     setVisualEditorInitial(null);
-    setMessage(`Visual content saved for '${db.pages[selectedPage]?.title || selectedPage}'.`);
     audit(`Visual builder saved ${selectedPage}`, "Website editor");
+
+    const result = await saveDbNow();
+    if (result.remote) {
+      setMessageTone("info");
+      setMessage(
+        `Changes live on website for '${pageTitle}'${
+          result.contentVersion ? ` as version ${result.contentVersion}` : ""
+        }. Uploaded photos are saved with this page.`,
+      );
+    } else {
+      showSyncResult(`Visual content saved for '${pageTitle}'`, result, "save");
+    }
+    setSavingState("idle");
   };
 
   const isLocalOnly = messageTone === "error" && message.includes("Local draft");
@@ -1162,7 +1189,7 @@ export function WebsiteEditor() {
           initialHtml={visualEditorInitial.html}
           initialCss={visualEditorInitial.css}
           canvasCss={visualEditorInitial.canvasCss}
-          onSave={saveVisualContent}
+          onSave={(html, css) => void saveVisualContent(html, css)}
           onClose={() => {
             setVisualEditorOpen(false);
             setVisualEditorInitial(null);
@@ -1542,7 +1569,7 @@ export function WebsiteEditor() {
               <button
                 type="button"
                 onClick={openVisualBuilder}
-                className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#0a1628] to-[#1e3560] px-4 py-3 text-sm font-bold text-white shadow-[0_4px_16px_-4px_rgba(10,22,40,0.4)] transition-all duration-200 hover:shadow-[0_6px_22px_-4px_rgba(10,22,40,0.55)] hover:scale-[1.02] active:scale-[0.98]"
+                className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />{" "}
                 Open Visual Builder
