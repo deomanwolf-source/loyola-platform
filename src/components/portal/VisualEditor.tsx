@@ -693,23 +693,243 @@ export function VisualEditor({
           media: `<svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18V8"/></svg>`,
           content: `<section class="band"><div class="container"><p class="eyebrow">At a glance</p><h2 style="margin-top:12px;">Loyola by the numbers</h2><div class="stats-row" style="margin-top:28px;"><article class="stat-tile"><strong>100+</strong><span>Years of service</span></article><article class="stat-tile"><strong>2,000+</strong><span>Students</span></article><article class="stat-tile"><strong>90+</strong><span>Teachers</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs and sports</span></article></div></div></section>`,
         });
+        blocks.add("loyola-home-hero", {
+          label: "Home Hero",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M7 10h8M7 14h5"/></svg>`,
+          content: `<section class="home-hero-section" style="position:relative; background:#0a1628; color:#fff; overflow:hidden; padding:80px 40px; min-height:85vh; display:flex; align-items:center;">
+  <div style="position:absolute; inset:0; opacity:0.3; background-image:radial-gradient(rgba(255,255,255,0.08) 1px, transparent 1px); background-size:24px 24px;"></div>
+  <div class="container grid-2" style="position:relative; z-index:2; align-items:center; gap:40px;">
+    <div>
+      <span class="gold-divider" style="margin-bottom:20px;"></span>
+      <p class="eyebrow" style="color:#f7d96b; font-size:12px; font-weight:800; letter-spacing:0.24em; text-transform:uppercase;">Loyola College Negombo</p>
+      <h1 style="font-family:serif; font-size:clamp(2.5rem, 5vw, 4.5rem); line-height:1.1; font-weight:bold; margin-top:20px; color:#fff;">A Tradition of Excellence.<br/>A Future of Innovation.</h1>
+      <p style="margin-top:20px; font-size:1.1rem; color:rgba(255,255,255,0.85); max-width:600px; line-height:1.6;">Veritate ad Lumen et Vitam. Providing premium education, character formation, and holistic development for generations.</p>
+      <div style="margin-top:30px; display:flex; flex-wrap:wrap; gap:16px;">
+        <a class="btn gold" href="/about" style="background:#d4a017; color:#0a1628; padding:12px 28px; border-radius:8px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Explore College &rarr;</a>
+        <a class="btn" href="/news" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:12px 28px; border-radius:8px; font-weight:800; text-decoration:none;">View Notices</a>
+      </div>
+    </div>
+    <aside style="background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:12px; padding:30px; backdrop-filter:blur(10px);">
+      <h3 style="font-family:serif; font-size:1.35rem; font-weight:bold; color:#fff; margin-bottom:20px;">Loyola Quick Access</h3>
+      <div style="display:grid; gap:12px;">
+        <a href="/portal" style="display:flex; align-items:center; gap:16px; padding:14px; background:rgba(255,255,255,0.08); border-radius:8px; text-decoration:none; color:#fff; transition: background 0.2s;">
+          <span style="font-size:24px; color:#f7d96b;">🔐</span>
+          <div>
+            <strong style="display:block; font-size:14px;">Portal Login</strong>
+            <span style="font-size:11px; color:rgba(255,255,255,0.6);">Secure sign-in for school portals</span>
+          </div>
+        </a>
+        <a href="/downloads" style="display:flex; align-items:center; gap:16px; padding:14px; background:rgba(255,255,255,0.08); border-radius:8px; text-decoration:none; color:#fff; transition: background 0.2s;">
+          <span style="font-size:24px; color:#f7d96b;">📁</span>
+          <div>
+            <strong style="display:block; font-size:14px;">Downloads &amp; Forms</strong>
+            <span style="font-size:11px; color:rgba(255,255,255,0.6);">Circulars, syllabuses, and files</span>
+          </div>
+        </a>
+        <a href="/about/college-staff" style="display:flex; align-items:center; gap:16px; padding:14px; background:rgba(255,255,255,0.08); border-radius:8px; text-decoration:none; color:#fff; transition: background 0.2s;">
+          <span style="font-size:24px; color:#f7d96b;">🎓</span>
+          <div>
+            <strong style="display:block; font-size:14px;">Academic Staff</strong>
+            <span style="font-size:11px; color:rgba(255,255,255,0.6);">Our rector, administration, and faculty</span>
+          </div>
+        </a>
+      </div>
+    </aside>
+  </div>
+</section>`,
+        });
         blocks.add("loyola-home-about", {
           label: "Home About",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h9v14H4zM16 6h4M16 11h4M16 16h4"/></svg>`,
-          content: `<section class="home-about-section"><div class="container home-about-grid"><div><p class="eyebrow">About Our College</p><h2 style="margin-top:12px;">Loyola College at a glance.</h2><p style="margin-top:18px;">A short official introduction to Loyola College, its community, and its mission can be placed here.</p><a class="btn" href="/about" style="margin-top:24px;">More Details</a></div><div class="home-stat-grid"><article class="stat-tile"><strong>0</strong><span>Students</span></article><article class="stat-tile"><strong>0</strong><span>Academic Staff</span></article><article class="stat-tile"><strong>0</strong><span>Established</span></article><article class="stat-tile"><strong>0</strong><span>Available</span></article></div></div></section>`,
+          content: `<section class="home-about-section"><div class="container home-about-grid"><div><p class="eyebrow">About Our College</p><h2 style="margin-top:12px;">Loyola College Negombo.</h2><p style="margin-top:18px; line-height:1.6; color:#546179;">Founded with a rich legacy of spiritual, intellectual, and physical excellence, Loyola College has stood as a beacon of education, preparing students to serve with leadership, integrity, and truth.</p><a class="btn" href="/about" style="margin-top:24px; text-decoration:none;">More Details</a></div><div class="home-stat-grid"><article class="stat-tile"><strong>2,500+</strong><span>Active Students</span></article><article class="stat-tile"><strong>110+</strong><span>Academic Staff</span></article><article class="stat-tile"><strong>1993</strong><span>Established</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs &amp; Sports</span></article></div></div></section>`,
+        });
+        blocks.add("loyola-home-pillars", {
+          label: "Home Pillars",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z"/></svg>`,
+          content: `<section class="home-pillars-section" style="background:#f8fafc; padding:80px 40px; border-y:1px solid #dde4ed;">
+  <div class="container">
+    <div style="text-align:center; max-width:800px; margin:0 auto 50px;">
+      <p class="eyebrow" style="color:#b70f1b;">Our Core Approach</p>
+      <h2 style="margin-top:12px; font-family:serif; font-size:2.5rem; color:#0a1628;">A Foundation of Excellence</h2>
+      <p style="margin-top:16px; color:#64748b; line-height:1.6;">We nurture our students through balanced education systems designed to foster deep technical expertise, robust physical capabilities, and strong moral values.</p>
+    </div>
+    <div class="grid-3" style="gap:24px;">
+      <article class="feature-card" style="background:#fff; border:1px solid #dde4ed; padding:30px; border-radius:8px;">
+        <span style="font-size:32px;">🧠</span>
+        <h3 style="margin-top:16px; font-family:serif; font-size:1.35rem; color:#0a1628;">Academic Rigor</h3>
+        <p style="margin-top:12px; font-size:0.9rem; color:#64748b; line-height:1.6;">Modern curricula focusing on science, technology, mathematics, commerce, and humanities to prepare students for international pathways.</p>
+      </article>
+      <article class="feature-card" style="background:#fff; border:1px solid #dde4ed; padding:30px; border-radius:8px;">
+        <span style="font-size:32px;">⛪</span>
+        <h3 style="margin-top:16px; font-family:serif; font-size:1.35rem; color:#0a1628;">Character Formation</h3>
+        <p style="margin-top:12px; font-size:0.9rem; color:#64748b; line-height:1.6;">Character guidance built upon Christian principles, respect, self-discipline, and compassion to raise upright citizens.</p>
+      </article>
+      <article class="feature-card" style="background:#fff; border:1px solid #dde4ed; padding:30px; border-radius:8px;">
+        <span style="font-size:32px;">🏆</span>
+        <h3 style="margin-top:16px; font-family:serif; font-size:1.35rem; color:#0a1628;">Co-Curricular Growth</h3>
+        <p style="margin-top:12px; font-size:0.9rem; color:#64748b; line-height:1.6;">Vibrant athletics, clubs, and societies, offering sports, music, drama, coding, and environmental exploration.</p>
+      </article>
+    </div>
+  </div>
+</section>`,
         });
         blocks.add("loyola-rector-message", {
           label: "Rector Message",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M5 4h6v16H5zM14 6h6M14 10h6M14 14h4"/></svg>`,
-          content: `<section class="home-rector-section"><div class="container home-rector-grid"><figure class="home-rector-photo"><img src="/loyola-crest.jpg" alt="Rector portrait placeholder" /></figure><article class="home-rector-message"><p class="eyebrow">Rector's Message</p><h2 style="margin-top:12px;">Message title goes here.</h2><p style="margin-top:18px;">Dear students, parents, and alumni, a brief message for the college community can be placed here.</p><p style="margin-top:14px;">Use this space for a second short paragraph when the homepage message needs more detail.</p><p class="home-signature">Name Placeholder<br /><span>Role Placeholder</span></p></article></div></section>`,
+          content: `<section class="home-rector-section"><div class="container home-rector-grid"><figure class="home-rector-photo"><img src="/loyola-crest.jpg" alt="Rector portrait placeholder" /></figure><article class="home-rector-message"><p class="eyebrow">Rector's Message</p><h2 style="margin-top:12px;">Welcome to Our Digital Space.</h2><p style="margin-top:18px; line-height:1.6; color:#546179;">Dear teachers, students, parents, and alumni, I welcome you warmly to Loyola College Negombo. Our mission is to raise children of truth, who discover light and life through learning, compassion, and spiritual strength.</p><p style="margin-top:14px; line-height:1.6; color:#546179;">We aim to ensure that every student who leaves our gates is equipped with both academic excellence and a strong moral character to face the modern world's challenges.</p><p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector, Loyola College</span></p></article></div></section>`,
         });
         blocks.add("loyola-leadership-grid", {
           label: "Leadership Grid",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M5 6h4v5H5zM10 6h4v5h-4zM15 6h4v5h-4zM5 13h4v5H5zM10 13h4v5h-4zM15 13h4v5h-4z"/></svg>`,
-          content: `<section class="home-leadership-section"><div class="container"><div class="home-section-heading"><p class="eyebrow">Administration Board</p><h2 style="margin-top:12px;">Leadership guiding Loyola College.</h2><p style="margin-top:16px;">Introduce the leadership team serving the Loyola College community.</p></div><div class="leadership-grid" style="margin-top:32px;"><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article></div></div></section>`,
+          content: `<section class="home-leadership-section" style="background:#f8fafc; padding:80px 40px;"><div class="container"><div class="home-section-heading" style="text-align:center; max-width:800px; margin:0 auto 50px;"><p class="eyebrow">Administration Board</p><h2 style="margin-top:12px; font-family:serif; font-size:2.5rem; color:#0a1628;">College Leadership</h2><p style="margin-top:16px; color:#64748b; line-height:1.6;">The administration board steering Loyola College's legacy and future directions.</p></div><div class="leadership-grid" style="margin-top:32px;"><article class="leadership-card"><img src="/loyola-crest.jpg" alt="Rector" /><div style="padding:20px;"><h3 style="font-family:serif; font-size:1.25rem; font-weight:bold; color:#0a1628; margin:0;">Rev. Fr. Kennedy Perera</h3><span style="display:block; width:40px; height:2px; background:#d4a017; margin:10px auto;"></span><p style="margin:10px 0 0; font-size:0.85rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Rector</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="Vice Principal" /><div style="padding:20px;"><h3 style="font-family:serif; font-size:1.25rem; font-weight:bold; color:#0a1628; margin:0;">Rev. Fr. Suranga Niroshan</h3><span style="display:block; width:40px; height:2px; background:#d4a017; margin:10px auto;"></span><p style="margin:10px 0 0; font-size:0.85rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Vice Principal</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="Sectional Head" /><div style="padding:20px;"><h3 style="font-family:serif; font-size:1.25rem; font-weight:bold; color:#0a1628; margin:0;">Mrs. Nimali Fernando</h3><span style="display:block; width:40px; height:2px; background:#d4a017; margin:10px auto;"></span><p style="margin:10px 0 0; font-size:0.85rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Primary Section Head</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="Senior Master" /><div style="padding:20px;"><h3 style="font-family:serif; font-size:1.25rem; font-weight:bold; color:#0a1628; margin:0;">Mr. Samantha Silva</h3><span style="display:block; width:40px; height:2px; background:#d4a017; margin:10px auto;"></span><p style="margin:10px 0 0; font-size:0.85rem; color:#64748b; font-weight:bold; text-transform:uppercase;">Senior Section Head</p></div></article></div></div></section>`,
+        });
+        blocks.add("loyola-home-vision", {
+          label: "Home Vision",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>`,
+          content: `<section class="home-vision-mission-section" style="background:#082766; color:#fff; padding:80px 40px; position:relative; overflow:hidden;">
+  <div style="position:absolute; inset:0; opacity:0.08; background-image:linear-gradient(135deg,transparent 0,transparent 24px,#fff 25px,transparent 26px),linear-gradient(45deg,transparent 0,transparent 28px,#fff 29px,transparent 30px); background-size:120px_120px;"></div>
+  <div class="container grid-2" style="position:relative; z-index:2; align-items:center; gap:48px;">
+    <div>
+      <p class="eyebrow" style="color:#fff1a8; font-size:12px; font-weight:800; letter-spacing:0.24em;">Loyola Identity</p>
+      <h2 style="font-family:serif; font-size:2.8rem; font-weight:bold; margin-top:16px; color:#fff; line-height:1.2;">Welcome to Loyola College</h2>
+      <div style="margin-top:40px; display:grid; gap:30px;">
+        <div>
+          <h3 style="font-size:1.5rem; font-weight:bold; color:#fff1a8;">Our Vision</h3>
+          <p style="margin-top:10px; color:rgba(255,255,255,0.8); line-height:1.6; font-size:0.95rem;">To announce God's Kingdom through Christian values, offering integral education and human guidelines.</p>
+        </div>
+        <div>
+          <h3 style="font-size:1.5rem; font-weight:bold; color:#fff1a8;">Mission Statement</h3>
+          <div style="margin-top:16px; display:grid; gap:12px;">
+            <p style="display:flex; gap:12px; align-items:start; margin:0; color:rgba(255,255,255,0.8); font-size:0.95rem;">
+              <span style="color:#fff1a8; font-weight:bold;">&check;</span>
+              <span>To aim at integral education of body, mind, and spirit through service and leadership.</span>
+            </p>
+            <p style="display:flex; gap:12px; align-items:start; margin:0; color:rgba(255,255,255,0.8); font-size:0.95rem;">
+              <span style="color:#fff1a8; font-weight:bold;">&check;</span>
+              <span>To strive to form citizens of upright character who pursue excellence in every sphere.</span>
+            </p>
+            <p style="display:flex; gap:12px; align-items:start; margin:0; color:rgba(255,255,255,0.8); font-size:0.95rem;">
+              <span style="color:#fff1a8; font-weight:bold;">&check;</span>
+              <span>To promote character formation based on human and religious values.</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside style="background:#fff; border-radius:12px; overflow:hidden; box-shadow:0 20px 50px rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); max-width:480px; margin:0 auto;">
+      <div style="aspect-ratio:1.6; background:#000;">
+        <img src="/flag1.png" alt="Loyola Flag" style="width:100%; height:100%; object-fit:contain; background:#fff;" />
+      </div>
+      <div style="padding:30px; text-align:center; background:#fff;">
+        <p style="font-family:serif; font-size:1.5rem; font-weight:bold; color:#0a1628; margin:0;">Veritate Ad Lumen Et Vitam</p>
+        <p style="margin:8px 0 0; font-size:0.85rem; color:#64748b; font-weight:bold;">In Truth to Light and Life</p>
+      </div>
+    </aside>
+  </div>
+</section>`,
+        });
+        blocks.add("loyola-home-academics", {
+          label: "Home Academics",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M12 3L1 9l11 6 9-4.91V17h2V9L12 3z"/><path d="M17 12v5c0 1.66-2.24 3-5 3s-5-1.34-5-3v-5l5 3 5-3z"/></svg>`,
+          content: `<section class="home-academics-section" style="padding:80px 40px;">
+  <div class="container">
+    <div style="display:flex; justify-content:between; align-items:end; flex-wrap:wrap; gap:20px; margin-bottom:40px;">
+      <div>
+        <p class="eyebrow" style="color:#b70f1b;">Academics</p>
+        <h2 style="margin-top:12px; font-family:serif; font-size:2.5rem; color:#0a1628; margin:0;">Academic pathways for every stage.</h2>
+      </div>
+      <a href="/academics" style="color:#b70f1b; font-weight:bold; text-decoration:none; font-size:0.95rem;">Academics Overview &rarr;</a>
+    </div>
+    <div class="grid-4" style="gap:20px;">
+      <article class="feature-card" style="border:1px solid #dde4ed; padding:24px; border-radius:8px; background:#fff;">
+        <span style="font-size:24px; color:#d4a017;">🎓</span>
+        <h3 style="margin-top:16px; font-family:serif; font-size:1.2rem; color:#0a1628;">Primary Section</h3>
+        <p style="margin-top:10px; font-size:0.85rem; color:#64748b; line-height:1.6;">Foundational learning, basic language development, religious values, and classroom confidence.</p>
+      </article>
+      <article class="feature-card" style="border:1px solid #dde4ed; padding:24px; border-radius:8px; background:#fff;">
+        <span style="font-size:24px; color:#d4a017;">🎓</span>
+        <h3 style="margin-top:16px; font-family:serif; font-size:1.2rem; color:#0a1628;">Middle School</h3>
+        <p style="margin-top:10px; font-size:0.85rem; color:#64748b; line-height:1.6;">Structured study habits, co-curricular exploration, personal character formation, and initial subject grids.</p>
+      </article>
+      <article class="feature-card" style="border:1px solid #dde4ed; padding:24px; border-radius:8px; background:#fff;">
+        <span style="font-size:24px; color:#d4a017;">🎓</span>
+        <h3 style="margin-top:16px; font-family:serif; font-size:1.2rem; color:#0a1628;">Upper School</h3>
+        <p style="margin-top:10px; font-size:0.85rem; color:#64748b; line-height:1.6;">Exam preparation, leadership, advanced clubs, competitive sports, and highly disciplined academic focus.</p>
+      </article>
+      <article class="feature-card" style="border:1px solid #dde4ed; padding:24px; border-radius:8px; background:#fff;">
+        <span style="font-size:24px; color:#d4a017;">🎓</span>
+        <h3 style="margin-top:16px; font-family:serif; font-size:1.2rem; color:#0a1628;">Advanced Level</h3>
+        <p style="margin-top:10px; font-size:0.85rem; color:#64748b; line-height:1.6;">Dedicated learning pathways in Science, Technology, Commerce, and Arts for senior students preparing for university.</p>
+      </article>
+    </div>
+  </div>
+</section>`,
+        });
+        blocks.add("loyola-home-sports-gallery", {
+          label: "Sports & Gallery",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M22 16V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2zm-11-4l2.03 2.71L16 11l4 5H4l7-9zM2 20h20v2H2z"/></svg>`,
+          content: `<section class="home-sports-gallery-section" style="background:#fff; padding:80px 40px; border-t:1px solid #dde4ed;">
+  <div class="container grid-2" style="gap:48px;">
+    <div>
+      <div style="display:flex; justify-content:between; align-items:center; margin-bottom:24px;">
+        <h2 style="font-family:serif; font-size:2.2rem; color:#0a1628; margin:0;">Sports &amp; Clubs</h2>
+        <a href="/sports-clubs" style="color:#b70f1b; font-weight:bold; text-decoration:none; font-size:0.9rem;">View All</a>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;">
+        <a href="/sports-clubs" style="padding:16px; border:1px solid #dde4ed; border-radius:8px; text-decoration:none; color:#0a1628; background:#f8fafc; font-weight:600; text-align:center; font-size:0.9rem; transition: transform 0.2s;">Media Unit</a>
+        <a href="/sports-clubs" style="padding:16px; border:1px solid #dde4ed; border-radius:8px; text-decoration:none; color:#0a1628; background:#f8fafc; font-weight:600; text-align:center; font-size:0.9rem; transition: transform 0.2s;">Science Society</a>
+        <a href="/sports-clubs" style="padding:16px; border:1px solid #dde4ed; border-radius:8px; text-decoration:none; color:#0a1628; background:#f8fafc; font-weight:600; text-align:center; font-size:0.9rem; transition: transform 0.2s;">ICT Society</a>
+        <a href="/sports-clubs" style="padding:16px; border:1px solid #dde4ed; border-radius:8px; text-decoration:none; color:#0a1628; background:#f8fafc; font-weight:600; text-align:center; font-size:0.9rem; transition: transform 0.2s;">Prefects Board</a>
+        <a href="/sports-clubs" style="padding:16px; border:1px solid #dde4ed; border-radius:8px; text-decoration:none; color:#0a1628; background:#f8fafc; font-weight:600; text-align:center; font-size:0.9rem; transition: transform 0.2s;">English Literary</a>
+        <a href="/sports-clubs" style="padding:16px; border:1px solid #dde4ed; border-radius:8px; text-decoration:none; color:#0a1628; background:#f8fafc; font-weight:600; text-align:center; font-size:0.9rem; transition: transform 0.2s;">Religious Society</a>
+      </div>
+    </div>
+    <div>
+      <div style="display:flex; justify-content:between; align-items:center; margin-bottom:24px;">
+        <h2 style="font-family:serif; font-size:2.2rem; color:#0a1628; margin:0;">Gallery Preview</h2>
+        <a href="/gallery" style="color:#b70f1b; font-weight:bold; text-decoration:none; font-size:0.9rem;">Open Gallery</a>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px;">
+        <img src="/loyola-crest.jpg" alt="Gallery photo" style="width:100%; aspect-ratio:1.33; object-fit:cover; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.08);" />
+        <img src="/loyola-crest.jpg" alt="Gallery photo" style="width:100%; aspect-ratio:1.33; object-fit:cover; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.08);" />
+        <img src="/loyola-crest.jpg" alt="Gallery photo" style="width:100%; aspect-ratio:1.33; object-fit:cover; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.08);" />
+        <img src="/loyola-crest.jpg" alt="Gallery photo" style="width:100%; aspect-ratio:1.33; object-fit:cover; border-radius:8px; box-shadow:0 4px 10px rgba(0,0,0,0.08);" />
+      </div>
+    </div>
+  </div>
+</section>`,
+        });
+        blocks.add("loyola-home-downloads-contact", {
+          label: "Home Downloads",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>`,
+          content: `<section class="home-downloads-contact-section" style="padding:80px 40px; background:#f8fafc; border-t:1px solid #dde4ed;">
+  <div class="container grid-[2fr_1fr]" style="gap:40px; display:grid; grid-template-columns: 2fr 1.2fr;">
+    <div style="background:#0a1628; color:#fff; padding:40px; border-radius:12px; box-shadow:0 12px 30px rgba(10,22,40,0.15); display:flex; flex-direction:column; justify-content:center;">
+      <p class="eyebrow" style="color:#f7d96b; font-size:12px; font-weight:800; letter-spacing:0.2em;">Downloads &amp; Notices</p>
+      <h2 style="font-family:serif; font-size:2.5rem; font-weight:bold; margin-top:16px; color:#fff; line-height:1.2;">Important files in one place.</h2>
+      <p style="margin-top:16px; color:rgba(255,255,255,0.75); font-size:0.95rem; line-height:1.6; max-width:600px;">Access official circulars, student timetables, application forms, academic calendars, notices, and essential school resources directly without navigating complex menus.</p>
+      <a href="/downloads" style="align-self:start; margin-top:24px; background:#d4a017; color:#0a1628; font-weight:800; padding:12px 28px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Open Downloads &rarr;</a>
+    </div>
+    <aside style="background:#fff; border:1px solid #dde4ed; padding:35px; border-radius:12px; box-shadow:0 4px 14px rgba(0,0,0,0.05); display:flex; flex-direction:column; justify-content:center;">
+      <h2 style="font-family:serif; font-size:1.8rem; color:#0a1628; margin:0 0 20px;">Contact Office</h2>
+      <div style="display:grid; gap:16px; font-size:0.9rem; color:#64748b;">
+        <p style="margin:0; display:flex; gap:12px; align-items:start;"><span style="font-size:18px;">📍</span> <span>Loyola College, Negombo, Sri Lanka</span></p>
+        <p style="margin:0; display:flex; gap:12px; align-items:start;"><span style="font-size:18px;">📞</span> <span>+94 31 222 2844</span></p>
+        <p style="margin:0; display:flex; gap:12px; align-items:start;"><span style="font-size:18px;">✉️</span> <span>info@loyalacollegenegombo.com</span></p>
+      </div>
+      <a href="/contact" style="align-self:start; margin-top:28px; background:#0a1628; color:#fff; font-weight:800; padding:12px 24px; border-radius:8px; text-decoration:none; text-align:center;">Contact Office</a>
+    </aside>
+  </div>
+</section>`,
         });
         blocks.add("loyola-team-cards", {
           label: "Team Cards",
