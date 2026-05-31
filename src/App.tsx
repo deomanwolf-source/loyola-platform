@@ -121,6 +121,38 @@ export function App() {
   const rawPath = typeof window === "undefined" ? "/" : window.location.pathname;
   const path = rawPath !== "/" ? rawPath.replace(/\/$/, "") : "/";
   const db = useDb();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add("is-revealed");
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {
+        threshold: 0.05,
+        rootMargin: "0px 0px -45px 0px",
+      }
+    );
+
+    const elements = document.querySelectorAll(
+      ".reveal-on-scroll, .reveal-stagger, .public-site main > section, .visual-page section"
+    );
+    elements.forEach((el) => {
+      if (!el.classList.contains("is-revealed")) {
+        el.classList.add("reveal-on-scroll");
+        observer.observe(el);
+      }
+    });
+
+    return () => observer.disconnect();
+  }, [path, db]);
+
   const pageIsLive = (id: string) =>
     Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   const requestedPageId = path === "/" || path === "" ? "home" : path.replace(/^\/+/, "");
@@ -163,7 +195,6 @@ export function App() {
   if (
     path !== "/login" &&
     !path.startsWith("/portal/") &&
-    visualPageId !== "home" &&
     pageIsLive(visualPageId) &&
     db.pages[visualPageId]?.visualHtml
   ) {

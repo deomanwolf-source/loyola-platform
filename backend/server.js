@@ -3631,7 +3631,7 @@ app.get("/api/me", auth, async (req, res) => {
   }
 });
 
-const frontendRoot = path.join(__dirname, "public");
+const frontendRoot = path.join(__dirname, "..", "public");
 const frontendIndex = path.join(frontendRoot, "index.html");
 const frontendAssets = path.join(frontendRoot, "assets");
 
