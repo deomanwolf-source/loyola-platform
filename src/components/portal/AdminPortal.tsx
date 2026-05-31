@@ -151,6 +151,22 @@ function navGroupsForRole(role?: Role) {
   return navGroups;
 }
 
+const allPanelIds = new Set<PanelId>(navGroups.flatMap((group) => group.items.map((item) => item.id)));
+
+function getInitialAdminPanel(): PanelId {
+  if (typeof window === "undefined") return "dashboard";
+  const panel = new URLSearchParams(window.location.search).get("panel") as PanelId | null;
+  return panel && allPanelIds.has(panel) ? panel : "dashboard";
+}
+
+function replaceAdminPanelUrl(panel: PanelId) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  url.pathname = "/admin";
+  url.searchParams.set("panel", panel);
+  window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -2931,7 +2947,7 @@ function ActivityPanel({ db }: { db: DB }) {
 export function AdminPortal() {
   const db = useDb();
   const auth = useAuth();
-  const [active, setActive] = useState<PanelId>("dashboard");
+  const [active, setActive] = useState<PanelId>(() => getInitialAdminPanel());
   const lastLoggedPanel = useRef<PanelId>("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "publishing" | "submitting">(
@@ -2958,7 +2974,9 @@ export function AdminPortal() {
 
   useEffect(() => {
     if (auth.user && !visiblePanelIds.includes(active)) {
-      setActive(visiblePanelIds[0] || "dashboard");
+      const fallbackPanel = visiblePanelIds[0] || "dashboard";
+      setActive(fallbackPanel);
+      replaceAdminPanelUrl(fallbackPanel);
     }
   }, [active, auth.user, visiblePanelIds]);
 
@@ -3109,6 +3127,7 @@ export function AdminPortal() {
                     type="button"
                     onClick={() => {
                       setActive(item.id);
+                      replaceAdminPanelUrl(item.id);
                       setSidebarOpen(false);
                     }}
                     className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition-smooth ${active === item.id ? "bg-gold text-navy shadow-gold" : "text-white/60 hover:bg-white/10 hover:text-white"}`}

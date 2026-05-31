@@ -4,12 +4,14 @@ import {
   Award,
   Bell,
   BookOpen,
+  Briefcase,
   Calendar,
   Camera,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
   Download,
+  Eye,
   Film,
   FileText,
   GraduationCap,
@@ -47,7 +49,6 @@ import {
   type GalleryItem,
   type GalleryVideo,
   type Role,
-  type Teacher,
 } from "@/lib/store";
 import { API_URL, authHeaders } from "@/lib/api";
 
@@ -162,6 +163,7 @@ export function App() {
   if (
     path !== "/login" &&
     !path.startsWith("/portal/") &&
+    visualPageId !== "home" &&
     pageIsLive(visualPageId) &&
     db.pages[visualPageId]?.visualHtml
   ) {
@@ -342,96 +344,17 @@ function SubpagesSection({ parentId }: { parentId: string }) {
   );
 }
 
-function leadershipPriority(member: Teacher) {
-  const text =
-    `${member.name} ${member.position || ""} ${member.responsibilities || ""}`.toLowerCase();
-  if (text.includes("cardinal") || text.includes("archbishop")) return 0;
-  if (text.includes("general manager") || text.includes("manager of catholic")) return 1;
-  if (text.includes("rector") || text.includes("principal")) return 2;
-  if (text.includes("vice rector")) return 3;
-  if (text.includes("vice")) return 4;
-  return 5;
-}
-
-function HomeAdministrationBoard() {
+function HomeVisualBuilderSections() {
   const db = useDb();
-  const board = [...db.teachers]
-    .filter((member) => {
-      if (member.status !== "Active") return false;
-      const text = `${member.category || ""} ${member.position || ""} ${member.name}`.toLowerCase();
-      return (
-        text.includes("top administration") ||
-        text.includes("administration") ||
-        text.includes("cardinal") ||
-        text.includes("archbishop") ||
-        text.includes("general manager") ||
-        text.includes("rector") ||
-        text.includes("principal")
-      );
-    })
-    .sort((a, b) => leadershipPriority(a) - leadershipPriority(b) || a.name.localeCompare(b.name))
-    .slice(0, 4);
-
-  if (board.length === 0) return null;
+  const page = db.pages.home;
+  const html = page?.visualHtml?.trim();
+  if (!html) return null;
 
   return (
-    <section className="border-y border-border bg-[#f3f5fa] py-20">
-      <div className="mx-auto max-w-7xl px-6">
-        <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
-          <div className="max-w-3xl">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-              Administration Board
-            </p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy md:text-5xl">
-              Leadership guiding Loyola College.
-            </h2>
-            <p className="mt-4 leading-relaxed text-muted-foreground">
-              Meet the spiritual and academic leadership team serving the Loyola College community
-              with faith, discipline, and clear educational direction.
-            </p>
-          </div>
-          <a
-            href="/about/college-administration"
-            className="inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
-          >
-            Full administration <ArrowRight className="h-4 w-4" />
-          </a>
-        </div>
-
-        <div className="stagger-children mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {board.map((member) => (
-            <article
-              key={member.id}
-              className="group overflow-hidden rounded-lg border border-border bg-white shadow-soft transition-smooth hover:-translate-y-1 hover:shadow-elegant"
-            >
-              <div className="relative aspect-[4/5] bg-[#dfe5ef]">
-                {member.image ? (
-                  <img
-                    src={member.image}
-                    alt={member.name}
-                    className="h-full w-full object-cover object-top transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center text-navy/20">
-                    <ShieldCheck className="h-20 w-20" />
-                  </div>
-                )}
-                <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-navy/72 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-              </div>
-              <div className="p-5 text-center">
-                <h3 className="font-serif text-xl font-bold leading-tight text-navy">
-                  {member.name}
-                </h3>
-                <span className="mx-auto mt-3 block h-0.5 w-10 bg-gold" />
-                <p className="mt-3 min-h-[2.5rem] text-sm font-semibold leading-relaxed text-muted-foreground">
-                  {member.position || member.type || "Administration"}
-                </p>
-              </div>
-            </article>
-          ))}
-        </div>
-      </div>
-    </section>
+    <>
+      {page.visualCss && <style>{page.visualCss}</style>}
+      <div className="visual-page home-visual-sections" dangerouslySetInnerHTML={{ __html: html }} />
+    </>
   );
 }
 
@@ -636,6 +559,8 @@ function HomePage() {
         </div>
       </section>
 
+      <HomeVisualBuilderSections />
+
       <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
@@ -677,7 +602,6 @@ function HomePage() {
         )}
       </section>
 
-      <HomeAdministrationBoard />
       <HomeVisionMissionIdentity />
 
       <section className="mx-auto max-w-7xl px-6 py-20">
@@ -2901,6 +2825,14 @@ function CentralPortal() {
       roles: WEBSITE_ADMIN_ROLES,
       meta: "Website, media, news, notices, events",
       lockedMeta: "Only website admins and top admins",
+    },
+    {
+      title: "Staff Management",
+      href: "/admin?panel=staff",
+      icon: Briefcase,
+      roles: MASTER_ROLES,
+      meta: "Staff profiles, photos, accounts",
+      lockedMeta: "Only Master Admin and Super Admin",
     },
     {
       title: "EduZync",

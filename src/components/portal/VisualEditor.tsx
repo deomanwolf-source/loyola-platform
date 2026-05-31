@@ -157,6 +157,90 @@ const CANVAS_STYLES = `
     letter-spacing: .08em;
     text-transform: uppercase;
   }
+  .home-about-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 390px;
+    gap: 44px;
+    align-items: start;
+  }
+  .home-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+  .home-rector-section {
+    background: #fff;
+  }
+  .home-rector-grid {
+    display: grid;
+    grid-template-columns: 360px minmax(0, 1fr);
+    gap: 36px;
+    align-items: center;
+  }
+  .home-rector-photo {
+    margin: 0;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #eef2f6;
+    box-shadow: 0 16px 38px -28px rgba(8, 40, 111, 0.45);
+  }
+  .home-rector-photo img {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+  }
+  .home-rector-message {
+    border-left: 8px solid var(--loyola-navy);
+    background: #fff;
+    padding: 30px;
+    box-shadow: 0 16px 38px -28px rgba(8, 40, 111, 0.45);
+  }
+  .home-signature {
+    margin-top: 24px;
+    color: var(--loyola-navy);
+    font-weight: 800;
+  }
+  .home-signature span {
+    color: #64748b;
+    font-size: .82rem;
+  }
+  .home-section-heading {
+    max-width: 760px;
+  }
+  .leadership-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+  }
+  .leadership-card {
+    overflow: hidden;
+    border: 1px solid #dde4ed;
+    border-radius: 8px;
+    background: #fff;
+    text-align: center;
+    box-shadow: 0 16px 38px -28px rgba(8, 40, 111, 0.45);
+  }
+  .leadership-card img {
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    background: #dfe5ef;
+  }
+  .leadership-card div {
+    padding: 20px 16px 24px;
+  }
+  .leadership-card span {
+    display: block;
+    width: 40px;
+    height: 2px;
+    margin: 12px auto 0;
+    background: var(--loyola-gold);
+  }
+  .leadership-card p {
+    margin-top: 12px;
+    font-weight: 700;
+    color: #64748b;
+  }
   .team-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -278,7 +362,7 @@ const CANVAS_STYLES = `
   @media (max-width: 760px) {
     section { padding: 52px 22px; }
     .container { width: 100%; }
-    .grid-2, .grid-3, .stats-row, .team-grid, .anthem-media-layout { grid-template-columns: 1fr; }
+    .grid-2, .grid-3, .stats-row, .team-grid, .anthem-media-layout, .home-about-grid, .home-stat-grid, .home-rector-grid, .leadership-grid { grid-template-columns: 1fr; }
   }
 `;
 
@@ -608,6 +692,24 @@ export function VisualEditor({
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18V8"/></svg>`,
           content: `<section class="band"><div class="container"><p class="eyebrow">At a glance</p><h2 style="margin-top:12px;">Loyola by the numbers</h2><div class="stats-row" style="margin-top:28px;"><article class="stat-tile"><strong>100+</strong><span>Years of service</span></article><article class="stat-tile"><strong>2,000+</strong><span>Students</span></article><article class="stat-tile"><strong>90+</strong><span>Teachers</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs and sports</span></article></div></div></section>`,
+        });
+        blocks.add("loyola-home-about", {
+          label: "Home About",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M4 5h9v14H4zM16 6h4M16 11h4M16 16h4"/></svg>`,
+          content: `<section class="home-about-section"><div class="container home-about-grid"><div><p class="eyebrow">About Our College</p><h2 style="margin-top:12px;">Loyola College at a glance.</h2><p style="margin-top:18px;">A short official introduction to Loyola College, its community, and its mission can be placed here.</p><a class="btn" href="/about" style="margin-top:24px;">More Details</a></div><div class="home-stat-grid"><article class="stat-tile"><strong>0</strong><span>Students</span></article><article class="stat-tile"><strong>0</strong><span>Academic Staff</span></article><article class="stat-tile"><strong>0</strong><span>Established</span></article><article class="stat-tile"><strong>0</strong><span>Available</span></article></div></div></section>`,
+        });
+        blocks.add("loyola-rector-message", {
+          label: "Rector Message",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M5 4h6v16H5zM14 6h6M14 10h6M14 14h4"/></svg>`,
+          content: `<section class="home-rector-section"><div class="container home-rector-grid"><figure class="home-rector-photo"><img src="/loyola-crest.jpg" alt="Rector portrait placeholder" /></figure><article class="home-rector-message"><p class="eyebrow">Rector's Message</p><h2 style="margin-top:12px;">Message title goes here.</h2><p style="margin-top:18px;">Dear students, parents, and alumni, a brief message for the college community can be placed here.</p><p style="margin-top:14px;">Use this space for a second short paragraph when the homepage message needs more detail.</p><p class="home-signature">Name Placeholder<br /><span>Role Placeholder</span></p></article></div></section>`,
+        });
+        blocks.add("loyola-leadership-grid", {
+          label: "Leadership Grid",
+          category: "Home Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M5 6h4v5H5zM10 6h4v5h-4zM15 6h4v5h-4zM5 13h4v5H5zM10 13h4v5h-4zM15 13h4v5h-4z"/></svg>`,
+          content: `<section class="home-leadership-section"><div class="container"><div class="home-section-heading"><p class="eyebrow">Administration Board</p><h2 style="margin-top:12px;">Leadership guiding Loyola College.</h2><p style="margin-top:16px;">Introduce the leadership team serving the Loyola College community.</p></div><div class="leadership-grid" style="margin-top:32px;"><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Leadership Name</h3><span></span><p>Role or title</p></div></article></div></div></section>`,
         });
         blocks.add("loyola-team-cards", {
           label: "Team Cards",
