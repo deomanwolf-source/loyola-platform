@@ -80,6 +80,9 @@ CREATE TABLE IF NOT EXISTS site_database (
   content LONGTEXT NOT NULL,
   content_version BIGINT NOT NULL,
   published_at VARCHAR(40) NOT NULL,
+  draft_content LONGTEXT NULL,
+  draft_content_version BIGINT NOT NULL DEFAULT 0,
+  draft_updated_at VARCHAR(40) NULL,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
@@ -146,6 +149,9 @@ CREATE TABLE IF NOT EXISTS website_pages (
   slug VARCHAR(150) UNIQUE NOT NULL,
   title VARCHAR(255) NOT NULL,
   content JSON,
+  draft_json LONGTEXT NULL,
+  published_json LONGTEXT NULL,
+  published_at TIMESTAMP NULL,
   status VARCHAR(30) DEFAULT 'published',
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );

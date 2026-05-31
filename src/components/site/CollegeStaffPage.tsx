@@ -21,12 +21,22 @@ export function CollegeStaffPage({ pageId = "about/college-staff" }: { pageId?: 
   ];
 
   // Filtering Logic
-  const allStaff = (db.teachers || []).filter(
-    (s) =>
-      s.status === "Active" &&
-      s.position !== "The Archbishop of Colombo" &&
-      s.position !== "General Manager of Catholic Private Schools",
-  );
+  const seenStaff = new Set<string>();
+  const allStaff = (db.teachers || []).filter((s) => {
+    if (
+      s.status !== "Active" ||
+      s.position === "The Archbishop of Colombo" ||
+      s.position === "General Manager of Catholic Private Schools"
+    ) {
+      return false;
+    }
+
+    const key = `${s.name}`.trim().toLowerCase().replace(/\s+/g, " ");
+    if (!key) return false;
+    if (seenStaff.has(key)) return false;
+    seenStaff.add(key);
+    return true;
+  });
   const filteredStaff = allStaff.filter((staff) => {
     // 1. Search text matching
     const s = search.toLowerCase();

@@ -1,5 +1,14 @@
 import { BrandedLoader } from "@/components/BrandedLoader";
-import { useAuth, setAuth, audit, useDb, saveDbNow, type Role, resetDb } from "@/lib/store";
+import {
+  useAuth,
+  setAuth,
+  audit,
+  useDb,
+  publishDbNow,
+  saveDbNow,
+  type Role,
+  resetDb,
+} from "@/lib/store";
 import {
   Bell,
   Eye,
@@ -135,7 +144,7 @@ export function PortalShell({
 
     setSyncing("publishing");
     audit("Admin changes published", auth.user?.email || "admin");
-    const result = await saveDbNow();
+    const result = await publishDbNow();
     if (result.remote) {
       setSyncTone("info");
       setSyncMessage(

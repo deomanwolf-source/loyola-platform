@@ -632,6 +632,9 @@ async function ensureContentTables() {
       content LONGTEXT NOT NULL,
       content_version BIGINT NOT NULL,
       published_at VARCHAR(40) NOT NULL,
+      draft_content LONGTEXT NULL,
+      draft_content_version BIGINT NOT NULL DEFAULT 0,
+      draft_updated_at VARCHAR(40) NULL,
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
@@ -786,6 +789,9 @@ async function ensureContentTables() {
       slug VARCHAR(150) UNIQUE NOT NULL,
       title VARCHAR(255) NOT NULL,
       content JSON,
+      draft_json LONGTEXT NULL,
+      published_json LONGTEXT NULL,
+      published_at TIMESTAMP NULL,
       status VARCHAR(30) DEFAULT 'published',
       updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
@@ -945,6 +951,17 @@ async function ensureSiteDatabaseSchema() {
       "ALTER TABLE site_database ADD COLUMN published_at VARCHAR(40) NOT NULL DEFAULT ''",
     );
   }
+  if (!byName.has("draft_content")) {
+    await db.query("ALTER TABLE site_database ADD COLUMN draft_content LONGTEXT NULL");
+  }
+  if (!byName.has("draft_content_version")) {
+    await db.query(
+      "ALTER TABLE site_database ADD COLUMN draft_content_version BIGINT NOT NULL DEFAULT 0",
+    );
+  }
+  if (!byName.has("draft_updated_at")) {
+    await db.query("ALTER TABLE site_database ADD COLUMN draft_updated_at VARCHAR(40) NULL");
+  }
 
   const idColumn = byName.get("id");
   if (
@@ -967,6 +984,9 @@ async function ensureWebsitePagesSchema() {
   await addColumnIfMissing("website_pages", "slug", "VARCHAR(150)");
   await addColumnIfMissing("website_pages", "title", "VARCHAR(255)");
   await addColumnIfMissing("website_pages", "content", "LONGTEXT");
+  await addColumnIfMissing("website_pages", "draft_json", "LONGTEXT NULL");
+  await addColumnIfMissing("website_pages", "published_json", "LONGTEXT NULL");
+  await addColumnIfMissing("website_pages", "published_at", "TIMESTAMP NULL");
   await addColumnIfMissing("website_pages", "status", "VARCHAR(30) DEFAULT 'published'");
   await addColumnIfMissing(
     "website_pages",
@@ -1456,21 +1476,27 @@ async function processUploadedMedia(req, file, folder) {
   throw new Error("Unsupported media type.");
 }
 
-async function readSiteDb() {
+async function readSiteDb({ draft = false } = {}) {
   await ensureContentTables();
 
-  let [rows] = await db.query("SELECT content FROM site_database WHERE id = ? LIMIT 1", ["main"]);
+  let [rows] = await db.query(
+    "SELECT content, draft_content FROM site_database WHERE id = ? LIMIT 1",
+    ["main"],
+  );
   if (rows.length === 0) {
     [rows] = await db.query(
-      "SELECT content FROM site_database WHERE content IS NOT NULL ORDER BY updated_at DESC LIMIT 1",
+      "SELECT content, draft_content FROM site_database WHERE content IS NOT NULL OR draft_content IS NOT NULL ORDER BY updated_at DESC LIMIT 1",
     );
   }
 
   if (rows.length === 0) return null;
-  return parseJsonField(rows[0].content);
+  if (draft && rows[0].draft_content) {
+    return parseJsonField(rows[0].draft_content);
+  }
+  return parseJsonField(rows[0].content || rows[0].draft_content);
 }
 
-async function syncWebsitePages(connection, siteDb) {
+async function syncWebsitePages(connection, siteDb, { mode = "published", publishedAt = null } = {}) {
   const pages = siteDb.pages && typeof siteDb.pages === "object" ? siteDb.pages : {};
   const navigation = Array.isArray(siteDb.navigation) ? siteDb.navigation : [];
   const navById = new Map(navigation.map((item) => [item.id, item]));
@@ -1482,22 +1508,35 @@ async function syncWebsitePages(connection, siteDb) {
     const title = String(page.title || nav?.label || slug).slice(0, 255);
     const status = nav?.visible === false ? "hidden" : "published";
 
-    await connection.query(
-      `
-        INSERT INTO website_pages (slug, title, content, status)
-        VALUES (?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          title = VALUES(title),
-          content = VALUES(content),
-          status = VALUES(status)
-      `,
-      [slug, title, JSON.stringify(page), status],
-    );
-  }
-
-  if (slugs.length > 0) {
-    const placeholders = slugs.map(() => "?").join(",");
-    await connection.query(`DELETE FROM website_pages WHERE slug NOT IN (${placeholders})`, slugs);
+    const pageJson = JSON.stringify(page);
+    if (mode === "draft") {
+      await connection.query(
+        `
+          INSERT INTO website_pages (slug, title, draft_json, status)
+          VALUES (?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            draft_json = VALUES(draft_json),
+            status = VALUES(status)
+        `,
+        [slug, title, pageJson, status],
+      );
+    } else {
+      await connection.query(
+        `
+          INSERT INTO website_pages (slug, title, content, published_json, draft_json, status, published_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            title = VALUES(title),
+            content = VALUES(content),
+            published_json = VALUES(published_json),
+            draft_json = VALUES(draft_json),
+            status = VALUES(status),
+            published_at = VALUES(published_at)
+        `,
+        [slug, title, pageJson, pageJson, pageJson, status, publishedAt],
+      );
+    }
   }
 }
 
@@ -1738,7 +1777,6 @@ async function syncPeople(connection, siteDb) {
 
   for (const [table, ids] of [
     ["students", students.map((item) => item.id).filter(Boolean)],
-    ["teachers", teachers.map((item) => item.id).filter(Boolean)],
     ["parents", parents.map((item) => item.id).filter(Boolean)],
   ]) {
     const cleanup = deleteMissingQuery(table, "id", ids);
@@ -1774,6 +1812,8 @@ function collectMedia(siteDb) {
   add("site", siteDb.media?.campusImage);
   add("site", siteDb.media?.aboutImage);
   add("site", siteDb.media?.principalImage);
+  (siteDb.homeSections?.leadershipCards || []).forEach((item) => add("site", item.image));
+  add("site", siteDb.homeSections?.rectorImage);
 
   Object.entries(siteDb.pages || {}).forEach(([slug, page]) => {
     add(`pages/${slug}`, page.image);
@@ -1784,6 +1824,7 @@ function collectMedia(siteDb) {
   (siteDb.news || []).forEach((item) => add("news", item.image || item.image_url));
   (siteDb.downloads || []).forEach((item) => add("notices", item.fileUrl || item.file_url));
   (siteDb.teachers || []).forEach((item) => add("staff", item.image));
+  (siteDb.staffDocuments || []).forEach((item) => add("staff-documents", item.fileUrl));
   (siteDb.gallery || []).forEach((item) => {
     add("gallery", item.image);
     (item.images || []).forEach((image) => add("gallery", image));
@@ -1845,9 +1886,9 @@ async function syncMediaFiles(connection, siteDb) {
   await connection.query(cleanup.sql, cleanup.values);
 }
 
-async function syncPublishedTables(connection, siteDb) {
+async function syncPublishedTables(connection, siteDb, { publishedAt = null } = {}) {
   await syncPortalUsers(connection, siteDb);
-  await syncWebsitePages(connection, siteDb);
+  await syncWebsitePages(connection, siteDb, { mode: "published", publishedAt });
   await syncNews(connection, siteDb);
   await syncNotices(connection, siteDb);
   await syncEvents(connection, siteDb);
@@ -1855,38 +1896,76 @@ async function syncPublishedTables(connection, siteDb) {
   await syncMediaFiles(connection, siteDb);
 }
 
-async function writeSiteDb(siteDb) {
+async function writeSiteDb(siteDb, { mode = "published" } = {}) {
   await ensureContentTables();
 
   const contentVersion = Date.now();
-  const publishedAt = new Date(contentVersion).toISOString();
-  const existingDb = await readSiteDb();
+  const nowIso = new Date(contentVersion).toISOString();
+  const existingDb = await readSiteDb({ draft: mode === "draft" });
+  const publishedDb = mode === "draft" ? await readSiteDb({ draft: false }) : null;
   const protectedDb = protectPageSnapshot(siteDb, existingDb);
   const syncDb = {
     ...protectedDb,
     contentVersion,
-    publishedAt,
+    publishedAt: mode === "published" ? nowIso : protectedDb.publishedAt || nowIso,
   };
   const savedDb = scrubUserPasswords(syncDb);
 
   const connection = await db.getConnection();
   try {
     await connection.beginTransaction();
-    await connection.query(
-      `
-        INSERT INTO site_database (id, content, content_version, published_at)
-        VALUES (?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-          content = VALUES(content),
-          content_version = VALUES(content_version),
-          published_at = VALUES(published_at)
-      `,
-      ["main", JSON.stringify(savedDb), contentVersion, publishedAt],
-    );
 
-    await syncPublishedTables(connection, syncDb);
+    if (mode === "draft") {
+      const publishedSnapshot = scrubUserPasswords(publishedDb || existingDb || savedDb);
+      await connection.query(
+        `
+          INSERT INTO site_database (id, content, content_version, published_at, draft_content, draft_content_version, draft_updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            draft_content = VALUES(draft_content),
+            draft_content_version = VALUES(draft_content_version),
+            draft_updated_at = VALUES(draft_updated_at)
+        `,
+        [
+          "main",
+          JSON.stringify(publishedSnapshot),
+          Number(publishedSnapshot.contentVersion || 0),
+          publishedSnapshot.publishedAt || "",
+          JSON.stringify(savedDb),
+          contentVersion,
+          nowIso,
+        ],
+      );
+
+      await syncWebsitePages(connection, syncDb, { mode: "draft" });
+    } else {
+      await connection.query(
+        `
+          INSERT INTO site_database (id, content, content_version, published_at, draft_content, draft_content_version, draft_updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE
+            content = VALUES(content),
+            content_version = VALUES(content_version),
+            published_at = VALUES(published_at),
+            draft_content = VALUES(draft_content),
+            draft_content_version = VALUES(draft_content_version),
+            draft_updated_at = VALUES(draft_updated_at)
+        `,
+        [
+          "main",
+          JSON.stringify(savedDb),
+          contentVersion,
+          nowIso,
+          JSON.stringify(savedDb),
+          contentVersion,
+          nowIso,
+        ],
+      );
+
+      await syncPublishedTables(connection, syncDb, { publishedAt: mysqlDateTime(nowIso) });
+    }
     await connection.commit();
-    return { db: savedDb, contentVersion, storage: "mysql" };
+    return { db: savedDb, contentVersion, storage: "mysql", mode };
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -2009,13 +2088,17 @@ app.delete("/api/staff-accounts/:id", eduzyncAdminOnly, async (req, res) => {
 
 app.get("/api/site-db", async (req, res) => {
   try {
-    const siteDb = await readSiteDb();
+    const useDraft =
+      canReadPrivateDb(req) &&
+      (req.query.draft === "1" || req.headers["x-loyola-draft"] === "true");
+    const siteDb = await readSiteDb({ draft: useDraft });
     if (!siteDb) return res.json({ db: null, found: false, storage: "mysql" });
 
     res.json({
       db: canReadPrivateDb(req) ? siteDb : publicDb(siteDb),
       found: true,
       storage: "mysql",
+      mode: useDraft ? "draft" : "published",
     });
   } catch (error) {
     res.status(500).json({
@@ -2030,7 +2113,39 @@ app.post("/api/site-db", adminOnly, async (req, res) => {
       return res.status(400).json({ error: "Missing db payload" });
     }
 
-    const saved = await writeSiteDb(req.body.db);
+    const saved = await writeSiteDb(req.body.db, { mode: "published" });
+    res.json({ ok: true, ...saved });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/site-db/draft", websiteAdminOnly, async (req, res) => {
+  try {
+    if (!req.body?.db || typeof req.body.db !== "object") {
+      return res.status(400).json({ error: "Missing db payload" });
+    }
+
+    const saved = await writeSiteDb(req.body.db, { mode: "draft" });
+    res.json({ ok: true, ...saved });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message,
+    });
+  }
+});
+
+app.post("/api/site-db/publish", adminOnly, async (req, res) => {
+  try {
+    const incomingDb = req.body?.db && typeof req.body.db === "object" ? req.body.db : null;
+    const draftDb = incomingDb || (await readSiteDb({ draft: true }));
+    if (!draftDb || typeof draftDb !== "object") {
+      return res.status(400).json({ error: "No draft content is available to publish." });
+    }
+
+    const saved = await writeSiteDb(draftDb, { mode: "published" });
     res.json({ ok: true, ...saved });
   } catch (error) {
     res.status(500).json({
@@ -2265,7 +2380,7 @@ app.get("/api/pages", async (req, res) => {
   try {
     await ensureContentTables();
     const [rows] = await db.query(
-      "SELECT slug, title, content, status, updated_at FROM website_pages ORDER BY slug ASC",
+      "SELECT slug, title, COALESCE(published_json, content) AS content, status, published_at, updated_at FROM website_pages ORDER BY slug ASC",
     );
 
     res.json(
@@ -2278,6 +2393,100 @@ app.get("/api/pages", async (req, res) => {
     res.status(500).json({
       error: error.message,
     });
+  }
+});
+
+app.get("/api/pages/:slug", async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      "SELECT slug, title, COALESCE(published_json, content) AS content, status, published_at, updated_at FROM website_pages WHERE slug = ? LIMIT 1",
+      [req.params.slug],
+    );
+
+    if (!rows.length || rows[0].status === "hidden") {
+      return res.status(404).json({ error: "Page not found" });
+    }
+
+    res.json({
+      ...rows[0],
+      content: parseJsonField(rows[0].content, {}),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/pages/:slug/draft", websiteAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      "SELECT slug, title, COALESCE(draft_json, published_json, content) AS content, status, published_at, updated_at FROM website_pages WHERE slug = ? LIMIT 1",
+      [req.params.slug],
+    );
+
+    if (!rows.length) return res.status(404).json({ error: "Draft page not found" });
+
+    res.json({
+      ...rows[0],
+      content: parseJsonField(rows[0].content, {}),
+      mode: "draft",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/pages/:slug/draft", websiteAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const pageContent = req.body?.content;
+    if (!pageContent || typeof pageContent !== "object") {
+      return res.status(400).json({ error: "Missing page content payload" });
+    }
+
+    const slug = req.params.slug;
+    const draftDb = (await readSiteDb({ draft: true })) || (await readSiteDb()) || {};
+    const nextDb = {
+      ...draftDb,
+      pages: {
+        ...(draftDb.pages || {}),
+        [slug]: pageContent,
+      },
+    };
+    const saved = await writeSiteDb(nextDb, { mode: "draft" });
+
+    res.json({ ok: true, slug, content: pageContent, ...saved });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/pages/:slug/publish", adminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const slug = req.params.slug;
+    const draftDb = (await readSiteDb({ draft: true })) || (await readSiteDb());
+    if (!draftDb?.pages?.[slug]) {
+      return res.status(404).json({ error: "Draft page not found" });
+    }
+
+    const pageContent =
+      req.body?.content && typeof req.body.content === "object"
+        ? req.body.content
+        : draftDb.pages[slug];
+    const nextDb = {
+      ...draftDb,
+      pages: {
+        ...draftDb.pages,
+        [slug]: pageContent,
+      },
+    };
+    const saved = await writeSiteDb(nextDb, { mode: "published" });
+
+    res.json({ ok: true, slug, content: pageContent, ...saved });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 

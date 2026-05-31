@@ -90,6 +90,15 @@ export interface HomePillar {
   body: string;
   icon: string;
 }
+export interface HomeLeadershipCard {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  image?: string;
+  order: number;
+  visible: boolean;
+}
 export interface AdmissionStep {
   id: string;
   number: string;
@@ -147,6 +156,46 @@ export interface Teacher {
   accountEmail?: string;
   accountUserId?: string;
   accountStatus?: string;
+}
+export interface StaffAttendance {
+  id: string;
+  staffId: string;
+  date: string;
+  status: "Present" | "Absent" | "Late" | "Excused";
+  note?: string;
+}
+export interface StaffLeaveRequest {
+  id: string;
+  staffId: string;
+  fromDate: string;
+  toDate: string;
+  type: string;
+  status: "Pending" | "Approved" | "Rejected";
+  note?: string;
+}
+export interface StaffDocument {
+  id: string;
+  staffId: string;
+  title: string;
+  category: string;
+  fileUrl: string;
+  uploadedAt: string;
+}
+export interface StaffNotice {
+  id: string;
+  title: string;
+  body: string;
+  audience: string;
+  status: "Draft" | "Published";
+  createdAt: string;
+}
+export interface StaffRoleAssignment {
+  id: string;
+  staffId: string;
+  role: string;
+  websitePlace: string;
+  displayOrder: number;
+  visible: boolean;
 }
 export interface Parent {
   id: string;
@@ -326,6 +375,20 @@ export interface DB {
     admissionsCtaButton: string;
     stats: HomeStat[];
     pillars: HomePillar[];
+    aboutHeading: string;
+    aboutBody: string;
+    aboutButtonLabel: string;
+    aboutButtonHref: string;
+    rectorHeading: string;
+    rectorTitle: string;
+    rectorBody: string;
+    rectorName: string;
+    rectorDesignation: string;
+    rectorImage: string;
+    leadershipKicker: string;
+    leadershipTitle: string;
+    leadershipBody: string;
+    leadershipCards: HomeLeadershipCard[];
   };
   aboutSections: {
     storyKicker: string;
@@ -378,6 +441,11 @@ export interface DB {
   users: User[];
   students: Student[];
   teachers: Teacher[];
+  staffAttendance: StaffAttendance[];
+  staffLeaveRequests: StaffLeaveRequest[];
+  staffDocuments: StaffDocument[];
+  staffNotices: StaffNotice[];
+  staffRoles: StaffRoleAssignment[];
   parents: Parent[];
   classes: ClassRow[];
   subjects: Subject[];
@@ -574,8 +642,67 @@ export const seed: DB = {
     admissionsCtaKicker: "",
     admissionsCtaTitle: "",
     admissionsCtaButton: "Admissions",
-    stats: [],
+    stats: [
+      { id: "LC-STUDENTS", label: "Students", value: "2,662" },
+      { id: "LC-ACADEMIC-STAFF", label: "Academic Staff", value: "145" },
+      { id: "LC-LABS", label: "Available Labs", value: "3" },
+      { id: "LC-LAND", label: "Land System", value: "1" },
+    ],
     pillars: [],
+    aboutHeading: "About Our College",
+    aboutBody:
+      "Loyola College has a 75 years history that began as an institute in a cadjan hut and has since developed into a well-reputed Catholic school in the Negombo area, managed by the Archdiocese of Colombo. The present Rector of the College, Rev. Fr. Kennedy Perera, is guiding Loyola College to higher shores with his innovative vision of the 21st century.",
+    aboutButtonLabel: "More Details",
+    aboutButtonHref: "/about",
+    rectorHeading: "Rector's Message",
+    rectorTitle: "Dear Students, Parents, and Alumni of Loyola College,",
+    rectorBody:
+      "In today's world of advancing technology, it is essential for us to continually update and modernize our systems. In line with this, we are transitioning from manual systems to web-based online management systems. We have already upgraded our annual calendar and student progress report systems to a web-based portal. We kindly ask for your cooperation as we move forward with these updates to align with current standards.",
+    rectorName: "Rev. Fr. D.M.J. Kennedy Perera",
+    rectorDesignation: "Rector / Principal",
+    rectorImage: "",
+    leadershipKicker: "Administration Board",
+    leadershipTitle: "Leadership guiding Loyola College.",
+    leadershipBody:
+      "Meet the spiritual and academic leadership team serving the Loyola College community with faith, discipline, and clear educational direction.",
+    leadershipCards: [
+      {
+        id: "LC-LEAD-1",
+        name: "His Eminence Malcolm Cardinal Ranjith",
+        title: "The Archbishop of Colombo",
+        description: "Spiritual leadership and guidance for Catholic education.",
+        image: "",
+        order: 1,
+        visible: true,
+      },
+      {
+        id: "LC-LEAD-2",
+        name: "Very Rev. Fr. Gemunu Dias",
+        title: "General Manager of Catholic Private Schools",
+        description: "Administration and school network leadership.",
+        image: "",
+        order: 2,
+        visible: true,
+      },
+      {
+        id: "LC-LEAD-3",
+        name: "Rev. Fr. D.M.J. Kennedy Perera",
+        title: "Rector / Principal",
+        description: "Rector and Principal of Loyola College.",
+        image: "",
+        order: 3,
+        visible: true,
+      },
+      {
+        id: "LC-LEAD-4",
+        name: "Rev. Fr. W.G. Thilina Pathum",
+        title: "Vice Rector, Prefect of Games",
+        description: "Discipline, student formation, and games leadership.",
+        image: "",
+        order: 4,
+        visible: true,
+      },
+    ],
   },
   aboutSections: {
     storyKicker: "",
@@ -664,6 +791,11 @@ export const seed: DB = {
   ],
   students: [],
   teachers: [],
+  staffAttendance: [],
+  staffLeaveRequests: [],
+  staffDocuments: [],
+  staffNotices: [],
+  staffRoles: [],
   parents: [],
   classes: [],
   subjects: [],
@@ -686,6 +818,8 @@ const LEGACY_KEYS = ["loyola.db.v5", "loyola.db.v4", "loyola.auth.v3"];
 const MAX_LOCAL_DB_BYTES = 8_000_000;
 const SERVER_SAVE_DELAY_MS = 1400;
 const SITE_DB_API = `${API_URL}/api/site-db`;
+const SITE_DB_DRAFT_API = `${SITE_DB_API}/draft`;
+const SITE_DB_PUBLISH_API = `${SITE_DB_API}/publish`;
 
 let publishedCache: DB | null = null;
 let draftCache: DB | null = null;
@@ -729,11 +863,17 @@ async function hydrateFromRemoteDb(adoptDraftIfClean = false, force = false) {
     const isAdmin =
       sessionUser && ["website_admin", "superadmin", "masteradmin"].includes(sessionUser.role);
 
-    const response = await fetch(`${SITE_DB_API}?ts=${Date.now()}`, {
+    const useDraft = shouldUseLocalDrafts();
+    const query = new URLSearchParams({
+      ts: String(Date.now()),
+      ...(useDraft ? { draft: "1" } : {}),
+    });
+    const response = await fetch(`${SITE_DB_API}?${query.toString()}`, {
       headers: {
         Accept: "application/json",
         ...authHeaders(),
         ...(isAdmin ? { "x-loyola-admin": "true" } : {}),
+        ...(useDraft ? { "x-loyola-draft": "true" } : {}),
       },
       cache: "no-store",
     });
@@ -961,6 +1101,11 @@ function stripDemoContent(db: DB): DB {
         !bundledStaffIds.has(row.id) &&
         !bundledStaffNames.has(row.name.toLowerCase()),
     ),
+    staffAttendance: db.staffAttendance || [],
+    staffLeaveRequests: db.staffLeaveRequests || [],
+    staffDocuments: db.staffDocuments || [],
+    staffNotices: db.staffNotices || [],
+    staffRoles: db.staffRoles || [],
     parents: db.parents.filter((row) => !["P001", "P002"].includes(row.id)),
     classes: db.classes.filter((row) => !["C001", "C002", "C003"].includes(row.id)),
     subjects: db.subjects.filter((row) => !["SUB01", "SUB02", "SUB03", "SUB04"].includes(row.id)),
@@ -1193,13 +1338,33 @@ function repairRequiredPages(db: DB): DB {
   return changed ? { ...db, navigation, pages } : db;
 }
 
+function ensureRequiredHomeSections(db: DB): DB {
+  const homeSections = {
+    ...seed.homeSections,
+    ...(db.homeSections || {}),
+    stats:
+      Array.isArray(db.homeSections?.stats) && db.homeSections.stats.length > 0
+        ? db.homeSections.stats
+        : seed.homeSections.stats,
+    leadershipCards:
+      Array.isArray(db.homeSections?.leadershipCards) &&
+      db.homeSections.leadershipCards.length > 0
+        ? db.homeSections.leadershipCards
+        : seed.homeSections.leadershipCards,
+  };
+
+  return { ...db, homeSections };
+}
+
 function prepareDb(db: DB): DB {
-  const prepared = repairRequiredPages(
-    normalizeImageFields(
-      migrateLoginAccounts(
-        stripDemoContent(
-          ensureCollegeAnthemPage(
-            ensureGallerySubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+  const prepared = ensureRequiredHomeSections(
+    repairRequiredPages(
+      normalizeImageFields(
+        migrateLoginAccounts(
+          stripDemoContent(
+            ensureCollegeAnthemPage(
+              ensureGallerySubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+            ),
           ),
         ),
       ),
@@ -1222,7 +1387,7 @@ function shouldUseLocalDrafts() {
   if (typeof window === "undefined") return false;
   const path = window.location.pathname;
   const params = new URLSearchParams(window.location.search);
-  return path.startsWith("/portal/") || params.has("websiteEditorPreview");
+  return path === "/admin" || path.startsWith("/portal/") || params.has("websiteEditorPreview");
 }
 
 function mergeStoredDb(parsed: Partial<DB>): DB {
@@ -1258,6 +1423,11 @@ function mergeStoredDb(parsed: Partial<DB>): DB {
     admissionsSteps: parsed.admissionsSteps || seed.admissionsSteps,
     forms: { ...seed.forms, ...(parsed.forms || {}) },
     media: { ...seed.media, ...(parsed.media || {}) },
+    staffAttendance: parsed.staffAttendance || seed.staffAttendance,
+    staffLeaveRequests: parsed.staffLeaveRequests || seed.staffLeaveRequests,
+    staffDocuments: parsed.staffDocuments || seed.staffDocuments,
+    staffNotices: parsed.staffNotices || seed.staffNotices,
+    staffRoles: parsed.staffRoles || seed.staffRoles,
   });
 }
 
@@ -1337,13 +1507,20 @@ function canDirectPublishSiteDb() {
   return role === "masteradmin" || role === "superadmin";
 }
 
-async function publishDbToServer(
+function canSaveDraftSiteDb() {
+  const role = readSessionUser()?.role;
+  return role === "masteradmin" || role === "superadmin" || role === "website_admin";
+}
+
+async function sendDbToServer(
   db: DB,
+  endpoint: string,
+  actionLabel: "draft save" | "publish",
   options: { updateDraft?: boolean; sourceDb?: DB } = {},
 ): Promise<SaveDbResult> {
   const local = persistDraftNow();
 
-  if (!canDirectPublishSiteDb()) {
+  if (actionLabel === "publish" && !canDirectPublishSiteDb()) {
     return {
       local,
       remote: false,
@@ -1352,9 +1529,18 @@ async function publishDbToServer(
     };
   }
 
+  if (actionLabel === "draft save" && !canSaveDraftSiteDb()) {
+    return {
+      local,
+      remote: false,
+      localOnly: true,
+      error: "Website drafts require a website admin login.",
+    };
+  }
+
   if (typeof window !== "undefined") {
     try {
-      const response = await fetch(SITE_DB_API, {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ db }),
@@ -1383,7 +1569,7 @@ async function publishDbToServer(
           error =
             payload?.error ||
             (isHtml ? `Server error (status ${response.status})` : plainError) ||
-            `Server publish failed with status ${response.status}.`;
+            `Server ${actionLabel} failed with status ${response.status}.`;
         }
         return { local, remote: false, error };
       }
@@ -1393,8 +1579,12 @@ async function publishDbToServer(
         contentVersion?: number;
       } | null;
       const savedDb = payload?.db ? mergeStoredDb(payload.db) : normalizeImageFields(db);
-      publishedWriteVersion += 1;
-      publishedCache = savedDb;
+      if (actionLabel === "publish") {
+        publishedWriteVersion += 1;
+        publishedCache = savedDb;
+      } else {
+        draftWriteVersion += 1;
+      }
       if (options.updateDraft || draftCache === db || draftCache === options.sourceDb) {
         draftCache = savedDb;
         scheduleDraftPersist();
@@ -1405,12 +1595,29 @@ async function publishDbToServer(
       return {
         local,
         remote: false,
-        error: caught instanceof Error ? caught.message : "Server publish request failed.",
+        error:
+          caught instanceof Error
+            ? caught.message
+            : `Server ${actionLabel} request failed.`,
       };
     }
   }
 
-  return { local, remote: false, error: "Server publish is only available in the browser." };
+  return { local, remote: false, error: "Server sync is only available in the browser." };
+}
+
+async function saveDraftDbToServer(
+  db: DB,
+  options: { updateDraft?: boolean; sourceDb?: DB } = {},
+) {
+  return sendDbToServer(db, SITE_DB_DRAFT_API, "draft save", options);
+}
+
+async function publishDbToServer(
+  db: DB,
+  options: { updateDraft?: boolean; sourceDb?: DB } = {},
+) {
+  return sendDbToServer(db, SITE_DB_PUBLISH_API, "publish", options);
 }
 
 async function flushServerPersist() {
@@ -1421,12 +1628,12 @@ async function flushServerPersist() {
   const db = pendingServerDb;
   pendingServerDb = null;
   if (!db) return { local: persistDraftNow(), remote: false };
-  return publishDbToServer(db, { sourceDb: db });
+  return saveDraftDbToServer(db, { sourceDb: db });
 }
 
 function scheduleServerPersist(db: DB) {
   if (typeof window === "undefined") return;
-  if (!canDirectPublishSiteDb()) {
+  if (!canSaveDraftSiteDb()) {
     persistDraftNow();
     return;
   }
@@ -1447,6 +1654,19 @@ export async function saveDbNow(): Promise<SaveDbResult> {
     draftCache = db;
     persistDraftNow();
   }
+  pendingServerDb = null;
+  if (serverPersistTimer && typeof window !== "undefined") {
+    window.clearTimeout(serverPersistTimer);
+    serverPersistTimer = null;
+  }
+  return saveDraftDbToServer(db, { updateDraft: true, sourceDb });
+}
+
+export async function publishDbNow(): Promise<SaveDbResult> {
+  const sourceDb = draftCache || readDraftDb();
+  const db = normalizeImageFields(sourceDb);
+  draftCache = db;
+  persistDraftNow();
   pendingServerDb = null;
   if (serverPersistTimer && typeof window !== "undefined") {
     window.clearTimeout(serverPersistTimer);

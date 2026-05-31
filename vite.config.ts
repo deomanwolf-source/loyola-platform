@@ -75,6 +75,7 @@ function eduTrackPortalPlugin(): Plugin {
 }
 
 export default defineConfig({
+  publicDir: false,
   plugins: [
     tailwindcss(),
     tsConfigPaths({ projects: ["./tsconfig.json"] }),
@@ -94,7 +95,7 @@ export default defineConfig({
   },
   build: {
     outDir: "public",
-    emptyOutDir: true,
+    emptyOutDir: false,
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {

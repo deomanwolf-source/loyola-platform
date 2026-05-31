@@ -49,6 +49,7 @@ import {
   audit,
   makeId,
   resetDb,
+  publishDbNow,
   saveDbNow,
   setAuth,
   setDb,
@@ -3071,7 +3072,7 @@ export function AdminPortal() {
 
     setSavingState("publishing");
     audit("Admin published changes", auth.user?.email || "admin");
-    const result = await saveDbNow();
+    const result = await publishDbNow();
     if (result.remote) {
       setSaveMessageTone("info");
       setSaveMessage(
@@ -3405,7 +3406,17 @@ function loadImage(src: string) {
 }
 
 function StaffPanel({ db }: { db: DB }) {
-  const [activeTab, setActiveTab] = useState<"dashboard" | "add" | "all">("dashboard");
+  const [activeTab, setActiveTab] = useState<
+    | "dashboard"
+    | "profiles"
+    | "add"
+    | "attendance"
+    | "leave"
+    | "documents"
+    | "notices"
+    | "roles"
+    | "audit"
+  >("dashboard");
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
 
@@ -3425,6 +3436,39 @@ function StaffPanel({ db }: { db: DB }) {
   const [formAccountPassword, setFormAccountPassword] = useState("");
   const [savingStaff, setSavingStaff] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [attendanceForm, setAttendanceForm] = useState({
+    staffId: "",
+    date: new Date().toISOString().slice(0, 10),
+    status: "Present" as "Present" | "Absent" | "Late" | "Excused",
+    note: "",
+  });
+  const [leaveForm, setLeaveForm] = useState({
+    staffId: "",
+    fromDate: new Date().toISOString().slice(0, 10),
+    toDate: new Date().toISOString().slice(0, 10),
+    type: "Casual Leave",
+    status: "Pending" as const,
+    note: "",
+  });
+  const [documentForm, setDocumentForm] = useState({
+    staffId: "",
+    title: "",
+    category: "Certificate",
+  });
+  const [noticeForm, setNoticeForm] = useState({
+    title: "",
+    body: "",
+    audience: "All Staff",
+    status: "Draft" as "Draft" | "Published",
+  });
+  const [roleForm, setRoleForm] = useState({
+    staffId: "",
+    role: "",
+    websitePlace: "All Teachers Directory",
+    displayOrder: 1,
+    visible: true,
+  });
+  const [uploadingDocument, setUploadingDocument] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -3758,7 +3802,7 @@ function StaffPanel({ db }: { db: DB }) {
 
       setFormAccountPassword("");
       resetForm();
-      setActiveTab("all");
+      setActiveTab("profiles");
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Could not save staff member.");
     } finally {
@@ -3838,6 +3882,203 @@ function StaffPanel({ db }: { db: DB }) {
   });
 
   const allTypes = ["All", "Academic Staff", "Non-Academic Staff", "Supportive Staff"];
+  const staffName = (id: string) => db.teachers.find((teacher) => teacher.id === id)?.name || id;
+  const staffOptions = db.teachers.filter((teacher) => teacher.status !== "Inactive");
+
+  const saveAttendance = () => {
+    if (!attendanceForm.staffId) return window.alert("Select a staff member.");
+    setDb((current) => ({
+      ...current,
+      staffAttendance: [
+        {
+          id: makeId("STA"),
+          ...attendanceForm,
+        },
+        ...(current.staffAttendance || []),
+      ],
+    }));
+    audit(`Staff attendance recorded: ${staffName(attendanceForm.staffId)}`, "Admin");
+    setAttendanceForm({ ...attendanceForm, note: "" });
+  };
+
+  const saveLeaveRequest = () => {
+    if (!leaveForm.staffId) return window.alert("Select a staff member.");
+    setDb((current) => ({
+      ...current,
+      staffLeaveRequests: [
+        {
+          id: makeId("SLR"),
+          ...leaveForm,
+        },
+        ...(current.staffLeaveRequests || []),
+      ],
+    }));
+    audit(`Staff leave request recorded: ${staffName(leaveForm.staffId)}`, "Admin");
+    setLeaveForm({ ...leaveForm, note: "" });
+  };
+
+  const updateLeaveStatus = (id: string, status: "Pending" | "Approved" | "Rejected") => {
+    setDb((current) => ({
+      ...current,
+      staffLeaveRequests: (current.staffLeaveRequests || []).map((request) =>
+        request.id === id ? { ...request, status } : request,
+      ),
+    }));
+    audit(`Staff leave request ${status.toLowerCase()}: ${id}`, "Admin");
+  };
+
+  const uploadStaffDocument = async (file?: File) => {
+    if (!documentForm.staffId) return window.alert("Select a staff member.");
+    if (!documentForm.title.trim()) return window.alert("Document title is required.");
+    if (!file) return window.alert("Choose a document or image file.");
+
+    setUploadingDocument(true);
+    try {
+      const fileUrl = await uploadFileToBackend("staff-documents", file);
+      setDb((current) => ({
+        ...current,
+        staffDocuments: [
+          {
+            id: makeId("SDOC"),
+            staffId: documentForm.staffId,
+            title: documentForm.title.trim(),
+            category: documentForm.category,
+            fileUrl,
+            uploadedAt: new Date().toISOString(),
+          },
+          ...(current.staffDocuments || []),
+        ],
+      }));
+      audit(`Staff document uploaded: ${documentForm.title}`, "Admin");
+      setDocumentForm({ ...documentForm, title: "" });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Document upload failed.");
+    } finally {
+      setUploadingDocument(false);
+    }
+  };
+
+  const saveStaffNotice = () => {
+    if (!noticeForm.title.trim()) return window.alert("Notice title is required.");
+    setDb((current) => ({
+      ...current,
+      staffNotices: [
+        {
+          id: makeId("SNO"),
+          title: noticeForm.title.trim(),
+          body: noticeForm.body.trim(),
+          audience: noticeForm.audience,
+          status: noticeForm.status,
+          createdAt: new Date().toISOString(),
+        },
+        ...(current.staffNotices || []),
+      ],
+    }));
+    audit(`Staff notice saved: ${noticeForm.title}`, "Admin");
+    setNoticeForm({ ...noticeForm, title: "", body: "" });
+  };
+
+  const saveRoleAssignment = () => {
+    if (!roleForm.staffId) return window.alert("Select a staff member.");
+    if (!roleForm.role.trim()) return window.alert("Role title is required.");
+    setDb((current) => ({
+      ...current,
+      staffRoles: [
+        {
+          id: makeId("SROLE"),
+          staffId: roleForm.staffId,
+          role: roleForm.role.trim(),
+          websitePlace: roleForm.websitePlace,
+          displayOrder: roleForm.displayOrder,
+          visible: roleForm.visible,
+        },
+        ...(current.staffRoles || []),
+      ],
+    }));
+    audit(`Staff role assigned: ${roleForm.role}`, "Admin");
+    setRoleForm({ ...roleForm, role: "", displayOrder: roleForm.displayOrder + 1 });
+  };
+
+  const exportStaffCsv = () => {
+    const headers = [
+      "id",
+      "name",
+      "position",
+      "type",
+      "category",
+      "section",
+      "subject",
+      "classes",
+      "status",
+      "image",
+    ];
+    const escapeCsv = (value?: string) => `"${String(value || "").replace(/"/g, '""')}"`;
+    const rows = db.teachers.map((teacher) =>
+      headers.map((key) => escapeCsv(String(teacher[key as keyof Teacher] || ""))).join(","),
+    );
+    const blob = new Blob([[headers.join(","), ...rows].join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `loyola-staff-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importStaffCsv = (file?: File) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = String(reader.result || "");
+      const [headerLine, ...rowLines] = text.split(/\r?\n/).filter(Boolean);
+      const headers = headerLine.split(",").map((header) => header.trim());
+      const parseRow = (line: string) =>
+        line
+          .match(/("([^"]|"")*"|[^,]*)(,|$)/g)
+          ?.map((cell) =>
+            cell
+              .replace(/,$/, "")
+              .replace(/^"|"$/g, "")
+              .replace(/""/g, '"')
+              .trim(),
+          )
+          .filter((_, index, cells) => index < cells.length - 1 || line.endsWith(",")) || [];
+
+      const imported = rowLines
+        .map((line) => {
+          const cells = parseRow(line);
+          const row = Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""]));
+          if (!row.name) return null;
+          return {
+            id: row.id || generateStaffId(db.teachers),
+            name: row.name,
+            position: row.position || "",
+            type: row.type || "Academic Staff",
+            category: row.category || getAutoCategory(row.position || "Normal Teacher"),
+            section: row.section || "",
+            subject: row.subject || "",
+            classes: row.classes || "",
+            status: row.status || "Active",
+            image: row.image || "",
+            qualifications: "",
+            responsibilities: "",
+          } as Teacher;
+        })
+        .filter(Boolean) as Teacher[];
+
+      if (imported.length === 0) return window.alert("No staff rows found in the CSV file.");
+      setDb((current) => {
+        const byId = new Map(current.teachers.map((teacher) => [teacher.id, teacher]));
+        imported.forEach((teacher) => byId.set(teacher.id, { ...byId.get(teacher.id), ...teacher }));
+        return { ...current, teachers: Array.from(byId.values()) };
+      });
+      audit(`Imported ${imported.length} staff CSV row${imported.length === 1 ? "" : "s"}`, "Admin");
+      window.alert(`Imported ${imported.length} staff row${imported.length === 1 ? "" : "s"}.`);
+    };
+    reader.readAsText(file);
+  };
 
   return (
     <div className="space-y-6">
@@ -3877,8 +4118,14 @@ function StaffPanel({ db }: { db: DB }) {
           {(
             [
               { id: "dashboard", label: "Staff Dashboard" },
-              { id: "all", label: "All Staff Members" },
+              { id: "profiles", label: "Staff Profiles" },
               { id: "add", label: editingId ? "Edit Staff Member" : "Add Staff Member" },
+              { id: "attendance", label: "Attendance" },
+              { id: "leave", label: "Leave Requests" },
+              { id: "documents", label: "Documents" },
+              { id: "notices", label: "Notices" },
+              { id: "roles", label: "Roles" },
+              { id: "audit", label: "Audit History" },
             ] as const
           ).map((tab) => (
             <button
@@ -3954,7 +4201,7 @@ function StaffPanel({ db }: { db: DB }) {
           </div>
         )}
 
-        {activeTab === "all" && (
+        {activeTab === "profiles" && (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-3">
               <TextInput
@@ -3974,6 +4221,25 @@ function StaffPanel({ db }: { db: DB }) {
                   </option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={exportStaffCsv}
+                className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-white px-4 text-sm font-bold text-navy hover:border-gold"
+              >
+                <Download className="h-4 w-4" /> Export CSV
+              </button>
+              <label className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-xl bg-navy px-4 text-sm font-bold text-white hover:bg-navy/90">
+                <Upload className="h-4 w-4" /> Import CSV
+                <input
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(event) => {
+                    importStaffCsv(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
             </div>
             <div className="overflow-x-auto rounded-2xl border border-border bg-white shadow-soft">
               <table className="w-full text-left text-sm">
@@ -4059,6 +4325,370 @@ function StaffPanel({ db }: { db: DB }) {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {activeTab === "attendance" && (
+          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <div className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+              <h3 className="font-serif text-xl font-bold text-navy">Record Attendance</h3>
+              <div className="mt-4 grid gap-3">
+                <select
+                  value={attendanceForm.staffId}
+                  onChange={(e) => setAttendanceForm({ ...attendanceForm, staffId: e.target.value })}
+                  className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
+                >
+                  <option value="">Select staff member</option>
+                  {staffOptions.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
+                <TextInput
+                  type="date"
+                  value={attendanceForm.date}
+                  onChange={(e) => setAttendanceForm({ ...attendanceForm, date: e.target.value })}
+                />
+                <select
+                  value={attendanceForm.status}
+                  onChange={(e) =>
+                    setAttendanceForm({
+                      ...attendanceForm,
+                      status: e.target.value as "Present" | "Absent" | "Late" | "Excused",
+                    })
+                  }
+                  className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
+                >
+                  <option>Present</option>
+                  <option>Absent</option>
+                  <option>Late</option>
+                  <option>Excused</option>
+                </select>
+                <TextArea
+                  rows={3}
+                  placeholder="Note"
+                  value={attendanceForm.note}
+                  onChange={(e) => setAttendanceForm({ ...attendanceForm, note: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={saveAttendance}
+                  className="rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white"
+                >
+                  Save Attendance
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto rounded-2xl border border-border bg-white shadow-soft">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-secondary/50 text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="p-4">Date</th>
+                    <th className="p-4">Staff</th>
+                    <th className="p-4">Status</th>
+                    <th className="p-4">Note</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {(db.staffAttendance || []).slice(0, 100).map((row) => (
+                    <tr key={row.id}>
+                      <td className="p-4 font-semibold text-navy">{row.date}</td>
+                      <td className="p-4">{staffName(row.staffId)}</td>
+                      <td className="p-4 text-xs font-black text-crimson">{row.status}</td>
+                      <td className="p-4 text-muted-foreground">{row.note || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "leave" && (
+          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <div className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+              <h3 className="font-serif text-xl font-bold text-navy">Leave Request</h3>
+              <div className="mt-4 grid gap-3">
+                <select
+                  value={leaveForm.staffId}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, staffId: e.target.value })}
+                  className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
+                >
+                  <option value="">Select staff member</option>
+                  {staffOptions.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="grid grid-cols-2 gap-3">
+                  <TextInput
+                    type="date"
+                    value={leaveForm.fromDate}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, fromDate: e.target.value })}
+                  />
+                  <TextInput
+                    type="date"
+                    value={leaveForm.toDate}
+                    onChange={(e) => setLeaveForm({ ...leaveForm, toDate: e.target.value })}
+                  />
+                </div>
+                <TextInput
+                  value={leaveForm.type}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, type: e.target.value })}
+                />
+                <TextArea
+                  rows={3}
+                  placeholder="Reason or note"
+                  value={leaveForm.note}
+                  onChange={(e) => setLeaveForm({ ...leaveForm, note: e.target.value })}
+                />
+                <button
+                  type="button"
+                  onClick={saveLeaveRequest}
+                  className="rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white"
+                >
+                  Save Leave Request
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {(db.staffLeaveRequests || []).map((request) => (
+                <div key={request.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-navy">{staffName(request.staffId)}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {request.type} | {request.fromDate} to {request.toDate}
+                      </p>
+                      {request.note && <p className="mt-2 text-sm text-muted-foreground">{request.note}</p>}
+                    </div>
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs font-black text-navy">
+                      {request.status}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    {(["Pending", "Approved", "Rejected"] as const).map((status) => (
+                      <button
+                        key={status}
+                        type="button"
+                        onClick={() => updateLeaveStatus(request.id, status)}
+                        className="rounded-lg border border-border px-3 py-2 text-xs font-bold text-navy hover:border-gold"
+                      >
+                        {status}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "documents" && (
+          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <div className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+              <h3 className="font-serif text-xl font-bold text-navy">Staff Documents</h3>
+              <div className="mt-4 grid gap-3">
+                <select
+                  value={documentForm.staffId}
+                  onChange={(e) => setDocumentForm({ ...documentForm, staffId: e.target.value })}
+                  className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
+                >
+                  <option value="">Select staff member</option>
+                  {staffOptions.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
+                <TextInput
+                  placeholder="Document title"
+                  value={documentForm.title}
+                  onChange={(e) => setDocumentForm({ ...documentForm, title: e.target.value })}
+                />
+                <TextInput
+                  placeholder="Category"
+                  value={documentForm.category}
+                  onChange={(e) => setDocumentForm({ ...documentForm, category: e.target.value })}
+                />
+                <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white">
+                  <Upload className="h-4 w-4" /> {uploadingDocument ? "Uploading..." : "Upload File"}
+                  <input
+                    type="file"
+                    className="hidden"
+                    disabled={uploadingDocument}
+                    onChange={(event) => {
+                      void uploadStaffDocument(event.target.files?.[0]);
+                      event.target.value = "";
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {(db.staffDocuments || []).map((doc) => (
+                <a
+                  key={doc.id}
+                  href={doc.fileUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rounded-2xl border border-border bg-white p-5 shadow-soft hover:border-gold"
+                >
+                  <p className="font-bold text-navy">{doc.title}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {staffName(doc.staffId)} | {doc.category}
+                  </p>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "notices" && (
+          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <div className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+              <h3 className="font-serif text-xl font-bold text-navy">Staff Notice</h3>
+              <div className="mt-4 grid gap-3">
+                <TextInput
+                  placeholder="Notice title"
+                  value={noticeForm.title}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, title: e.target.value })}
+                />
+                <TextArea
+                  rows={4}
+                  placeholder="Notice body"
+                  value={noticeForm.body}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, body: e.target.value })}
+                />
+                <TextInput
+                  value={noticeForm.audience}
+                  onChange={(e) => setNoticeForm({ ...noticeForm, audience: e.target.value })}
+                />
+                <select
+                  value={noticeForm.status}
+                  onChange={(e) =>
+                    setNoticeForm({ ...noticeForm, status: e.target.value as "Draft" | "Published" })
+                  }
+                  className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
+                >
+                  <option>Draft</option>
+                  <option>Published</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={saveStaffNotice}
+                  className="rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white"
+                >
+                  Save Notice
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {(db.staffNotices || []).map((notice) => (
+                <div key={notice.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-bold text-navy">{notice.title}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{notice.audience}</p>
+                    </div>
+                    <span className="rounded-full bg-secondary px-3 py-1 text-xs font-black text-navy">
+                      {notice.status}
+                    </span>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{notice.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "roles" && (
+          <div className="grid gap-6 lg:grid-cols-[360px_1fr]">
+            <div className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+              <h3 className="font-serif text-xl font-bold text-navy">Role Assignment</h3>
+              <div className="mt-4 grid gap-3">
+                <select
+                  value={roleForm.staffId}
+                  onChange={(e) => setRoleForm({ ...roleForm, staffId: e.target.value })}
+                  className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
+                >
+                  <option value="">Select staff member</option>
+                  {staffOptions.map((teacher) => (
+                    <option key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </option>
+                  ))}
+                </select>
+                <TextInput
+                  placeholder="Role or position"
+                  value={roleForm.role}
+                  onChange={(e) => setRoleForm({ ...roleForm, role: e.target.value })}
+                />
+                <TextInput
+                  placeholder="Website place"
+                  value={roleForm.websitePlace}
+                  onChange={(e) => setRoleForm({ ...roleForm, websitePlace: e.target.value })}
+                />
+                <TextInput
+                  type="number"
+                  min={1}
+                  value={roleForm.displayOrder}
+                  onChange={(e) =>
+                    setRoleForm({ ...roleForm, displayOrder: Number(e.target.value || 1) })
+                  }
+                />
+                <label className="flex items-center gap-2 rounded-xl bg-secondary px-3 py-2 text-sm font-bold text-navy">
+                  <input
+                    type="checkbox"
+                    checked={roleForm.visible}
+                    onChange={(e) => setRoleForm({ ...roleForm, visible: e.target.checked })}
+                  />
+                  Visible on website
+                </label>
+                <button
+                  type="button"
+                  onClick={saveRoleAssignment}
+                  className="rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white"
+                >
+                  Save Role
+                </button>
+              </div>
+            </div>
+            <div className="grid gap-3">
+              {(db.staffRoles || [])
+                .slice()
+                .sort((a, b) => a.displayOrder - b.displayOrder)
+                .map((role) => (
+                  <div key={role.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                    <p className="font-bold text-navy">{staffName(role.staffId)}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {role.role} | {role.websitePlace}
+                    </p>
+                    <p className="mt-2 text-xs font-black uppercase tracking-wider text-crimson">
+                      Order {role.displayOrder} | {role.visible ? "Visible" : "Hidden"}
+                    </p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === "audit" && (
+          <div className="grid gap-3">
+            {db.auditLogs
+              .filter((log) => /staff|teacher|attendance|leave|document|role/i.test(log.action))
+              .slice(0, 100)
+              .map((log) => (
+                <div key={log.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                  <p className="font-bold text-navy">{log.action}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {log.actorName || log.actorEmail || log.user} |{" "}
+                    {new Date(log.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              ))}
           </div>
         )}
 

@@ -195,6 +195,7 @@ export function App() {
   if (
     path !== "/login" &&
     !path.startsWith("/portal/") &&
+    visualPageId !== "home" &&
     pageIsLive(visualPageId) &&
     db.pages[visualPageId]?.visualHtml
   ) {
@@ -385,6 +386,135 @@ function HomeVisualBuilderSections() {
     <>
       {page.visualCss && <style>{page.visualCss}</style>}
       <div className="visual-page home-visual-sections" dangerouslySetInnerHTML={{ __html: html }} />
+    </>
+  );
+}
+
+function HomeRequiredSections() {
+  const db = useDb();
+  const home = db.homeSections;
+  const statIcons = [Users, Briefcase, BookOpen, Landmark];
+  const stats = home.stats.length > 0 ? home.stats : [];
+  const leadershipCards = [...(home.leadershipCards || [])]
+    .filter((card) => card.visible !== false)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  const rectorImage =
+    home.rectorImage || db.media.principalImage || db.pages["rectors-message"]?.image || "";
+
+  return (
+    <>
+      <section className="border-b border-border bg-white py-16 md:py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[minmax(0,1fr)_520px]">
+          <div>
+            <span className="gold-divider mb-5" />
+            <h2 className="font-serif text-3xl font-bold text-navy md:text-4xl">
+              {home.aboutHeading}
+            </h2>
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
+              {home.aboutBody}
+            </p>
+            <a
+              href={home.aboutButtonHref || "/about"}
+              className="mt-6 inline-flex rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+            >
+              {home.aboutButtonLabel || "More Details"}
+            </a>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {stats.map((stat, index) => {
+              const Icon = statIcons[index] || Award;
+              return (
+                <article
+                  key={stat.id}
+                  className="rounded-lg border border-border bg-white p-6 text-center shadow-soft"
+                >
+                  <Icon className="mx-auto h-6 w-6 text-gold" />
+                  <p className="mt-3 font-serif text-3xl font-bold text-navy">{stat.value}</p>
+                  <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    {stat.label}
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-secondary/30 py-16 md:py-20">
+        <div className="mx-auto grid max-w-7xl gap-8 px-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-center">
+          <figure className="overflow-hidden rounded-lg border border-border bg-white shadow-elegant">
+            {rectorImage ? (
+              <img src={rectorImage} alt={home.rectorName} className="aspect-[4/5] w-full object-cover" />
+            ) : (
+              <div className="grid aspect-[4/5] place-items-center bg-white p-12">
+                <img src="/loyola-crest.jpg" alt="" className="h-40 w-40 object-contain opacity-80" />
+              </div>
+            )}
+          </figure>
+          <article className="rounded-lg border border-border bg-white p-7 shadow-soft md:p-9">
+            <p className="inline-flex rounded bg-navy px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-white">
+              {home.rectorHeading}
+            </p>
+            <h2 className="mt-5 font-serif text-2xl font-bold text-navy md:text-3xl">
+              {home.rectorTitle}
+            </h2>
+            <p className="mt-5 whitespace-pre-line text-sm leading-7 text-muted-foreground md:text-base">
+              {home.rectorBody}
+            </p>
+            <p className="mt-6 font-bold text-navy">{home.rectorName}</p>
+            <p className="text-sm font-semibold text-crimson">{home.rectorDesignation}</p>
+          </article>
+        </div>
+      </section>
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div className="max-w-3xl">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+                {home.leadershipKicker}
+              </p>
+              <h2 className="mt-3 font-serif text-3xl font-bold text-navy md:text-5xl">
+                {home.leadershipTitle}
+              </h2>
+              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+                {home.leadershipBody}
+              </p>
+            </div>
+            <a
+              href="/about/college-administration"
+              className="inline-flex rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+            >
+              Full administration <ArrowRight className="ml-2 h-4 w-4" />
+            </a>
+          </div>
+          <div className="stagger-children mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {leadershipCards.map((card) => (
+              <article
+                key={card.id}
+                className="rounded-lg border border-border bg-white p-4 text-center shadow-soft"
+              >
+                <div className="overflow-hidden rounded bg-secondary">
+                  {card.image ? (
+                    <img src={card.image} alt={card.name} className="aspect-[4/5] w-full object-cover" />
+                  ) : (
+                    <div className="grid aspect-[4/5] place-items-center bg-secondary/70 p-8">
+                      <img src="/loyola-crest.jpg" alt="" className="h-20 w-20 object-contain opacity-55" />
+                    </div>
+                  )}
+                </div>
+                <h3 className="mt-4 font-serif text-lg font-bold leading-tight text-navy">
+                  {card.name}
+                </h3>
+                <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-crimson">
+                  {card.title}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{card.description}</p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
     </>
   );
 }
@@ -590,7 +720,7 @@ function HomePage() {
         </div>
       </section>
 
-      <HomeVisualBuilderSections />
+      {page.visualHtml?.trim() ? <HomeVisualBuilderSections /> : <HomeRequiredSections />}
 
       <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div>

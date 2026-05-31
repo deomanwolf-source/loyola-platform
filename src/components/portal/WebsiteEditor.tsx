@@ -26,6 +26,7 @@ import {
   makeId,
   setDb,
   useDb,
+  publishDbNow,
   saveDbNow,
   useAuth,
   type DB,
@@ -238,14 +239,14 @@ function homeVisualStarter() {
     <div>
       <p class="eyebrow">About Our College</p>
       <h2 style="margin-top:12px;">Loyola College at a glance.</h2>
-      <p style="margin-top:18px;">A short official introduction to Loyola College, its community, and its mission can be placed here.</p>
+      <p style="margin-top:18px;">Loyola College has a 75 years history that began as an institute in a cadjan hut and has since developed into a well-reputed Catholic school in the Negombo area, managed by the Archdiocese of Colombo. The present Rector of the College, Rev. Fr. Kennedy Perera, is guiding Loyola College to higher shores with his innovative vision of the 21st century.</p>
       <a class="btn" href="/about" style="margin-top:24px;">More Details</a>
     </div>
     <div class="home-stat-grid">
-      <article class="stat-tile"><strong>0</strong><span>Students</span></article>
-      <article class="stat-tile"><strong>0</strong><span>Academic Staff</span></article>
-      <article class="stat-tile"><strong>0</strong><span>Established</span></article>
-      <article class="stat-tile"><strong>0</strong><span>Available</span></article>
+      <article class="stat-tile"><strong>2,662</strong><span>Students</span></article>
+      <article class="stat-tile"><strong>145</strong><span>Academic Staff</span></article>
+      <article class="stat-tile"><strong>3</strong><span>Available Labs</span></article>
+      <article class="stat-tile"><strong>1</strong><span>Land System</span></article>
     </div>
   </div>
 </section>
@@ -257,10 +258,10 @@ function homeVisualStarter() {
     </figure>
     <article class="home-rector-message">
       <p class="eyebrow">Rector's Message</p>
-      <h2 style="margin-top:12px;">Message title goes here.</h2>
-      <p style="margin-top:18px;">Dear students, parents, and alumni, a brief message for the college community can be placed here.</p>
-      <p style="margin-top:14px;">Use this space for a second short paragraph when the homepage message needs more detail.</p>
-      <p class="home-signature">Name Placeholder<br /><span>Role Placeholder</span></p>
+      <h2 style="margin-top:12px;">Dear Students, Parents, and Alumni of Loyola College,</h2>
+      <p style="margin-top:18px;">In today's world of advancing technology, it is essential for us to continually update and modernize our systems. In line with this, we are transitioning from manual systems to web-based online management systems. We have already upgraded our annual calendar and student progress report systems to a web-based portal.</p>
+      <p style="margin-top:14px;">We kindly ask for your cooperation as we move forward with these updates to align with current standards.</p>
+      <p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector / Principal</span></p>
     </article>
   </div>
 </section>
@@ -270,24 +271,24 @@ function homeVisualStarter() {
     <div class="home-section-heading">
       <p class="eyebrow">Administration Board</p>
       <h2 style="margin-top:12px;">Leadership guiding Loyola College.</h2>
-      <p style="margin-top:16px;">Introduce the leadership team serving the Loyola College community.</p>
+      <p style="margin-top:16px;">Meet the spiritual and academic leadership team serving the Loyola College community with faith, discipline, and clear educational direction.</p>
     </div>
     <div class="leadership-grid" style="margin-top:32px;">
       <article class="leadership-card">
         <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+        <div><h3>His Eminence Malcolm Cardinal Ranjith</h3><span></span><p>The Archbishop of Colombo</p></div>
       </article>
       <article class="leadership-card">
         <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+        <div><h3>Very Rev. Fr. Gemunu Dias</h3><span></span><p>General Manager of Catholic Private Schools</p></div>
       </article>
       <article class="leadership-card">
         <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+        <div><h3>Rev. Fr. D.M.J. Kennedy Perera</h3><span></span><p>Rector/Principal</p></div>
       </article>
       <article class="leadership-card">
         <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>Leadership Name</h3><span></span><p>Role or title</p></div>
+        <div><h3>Rev. Fr. W.G. Thilina Pathum</h3><span></span><p>Vice Rector, Prefect of Games</p></div>
       </article>
     </div>
   </div>
@@ -1206,7 +1207,7 @@ export function WebsiteEditor() {
 
     setSavingState("publishing");
     audit(`Published website changes for ${selectedPage}`, "Website editor");
-    const result = await saveDbNow();
+    const result = await publishDbNow();
     showSyncResult("Website changes published", result, "publish");
     setSavingState("idle");
   };
@@ -1235,9 +1236,9 @@ export function WebsiteEditor() {
     if (result.remote) {
       setMessageTone("info");
       setMessage(
-        `Changes live on website for '${pageTitle}'${
+        `Visual content saved as a cloud draft for '${pageTitle}'${
           result.contentVersion ? ` as version ${result.contentVersion}` : ""
-        }. Uploaded photos are saved with this page.`,
+        }. Publish when this page is ready for the public website.`,
       );
     } else {
       showSyncResult(`Visual content saved for '${pageTitle}'`, result, "save");
