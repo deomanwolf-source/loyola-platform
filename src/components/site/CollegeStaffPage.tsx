@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, GraduationCap, Mail, Phone, User, Users, X } from "lucide-react";
+import { Briefcase, GraduationCap, Mail, Phone, Search, User, Users, X } from "lucide-react";
 import { PublicLayout } from "@/components/site/PublicLayout";
 import { useDb, type Teacher } from "@/lib/store";
 import { API_URL } from "@/lib/api";
@@ -149,6 +149,26 @@ function makeAssignments(profiles: StaffProfile[]) {
       })),
     )
     .sort(compareAssignments);
+}
+
+function assignmentMatchesSearch(assignment: StaffAssignment, query: string) {
+  if (!query) return true;
+  const haystack = [
+    assignment.profile.name,
+    assignment.profile.qualifications,
+    assignment.profile.bio,
+    assignment.position.position_code,
+    assignment.position.display_title,
+    assignment.position.main_category,
+    assignment.position.section,
+    assignment.position.subsection,
+    assignment.position.stream,
+    assignment.position.medium,
+    assignment.position.class_or_stream,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(query);
 }
 
 function StaffPhoto({ profile, size = "large" }: { profile: StaffProfile; size?: "small" | "large" }) {
@@ -395,6 +415,7 @@ export function CollegeStaffPage({
   const db = useDb();
   const [liveTeachers, setLiveTeachers] = useState<Teacher[] | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<StaffAssignment | null>(null);
+  const [search, setSearch] = useState("");
   void pageId;
 
   useEffect(() => {
@@ -436,9 +457,13 @@ export function CollegeStaffPage({
     : null;
 
   const assignments = useMemo(() => makeAssignments(profiles), [profiles]);
+  const query = normalize(search);
+  const filteredAssignments = assignments.filter((assignment) =>
+    assignmentMatchesSearch(assignment, query),
+  );
   const grouped = STAFF_DISPLAY_GROUPS.map((group) => ({
     group,
-    assignments: assignments
+    assignments: filteredAssignments
       .filter((assignment) => assignment.group.id === group.id)
       .sort(compareAssignments),
   })).filter((item) => item.assignments.length > 0);
@@ -456,6 +481,19 @@ export function CollegeStaffPage({
             Academic Staff
           </h1>
           <div className="mt-4 border-t border-slate-300" />
+          <div className="mt-6 max-w-xl">
+            <label className="relative block">
+              <span className="sr-only">Search staff</span>
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+              <input
+                type="search"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by name, position, qualification..."
+                className="h-12 w-full rounded-lg border border-slate-300 bg-white pl-12 pr-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-crimson focus:ring-2 focus:ring-crimson/15"
+              />
+            </label>
+          </div>
 
           {grouped.length > 0 ? (
             grouped.map(({ group, assignments }) => (
@@ -470,7 +508,9 @@ export function CollegeStaffPage({
             <div className="py-20 text-center">
               <Users className="mx-auto h-12 w-12 text-black/45" />
               <h3 className="mt-4 text-xl font-bold text-black">No staff found</h3>
-              <p className="mt-2 text-black/60">Try adjusting your search.</p>
+              <p className="mt-2 text-black/60">
+                {query ? "Try another name or position." : "No active staff profiles are available."}
+              </p>
             </div>
           )}
         </div>
