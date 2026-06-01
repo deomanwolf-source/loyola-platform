@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Briefcase, GraduationCap, Mail, Phone, Search, User, Users } from "lucide-react";
 import { PageHeader, PublicLayout } from "@/components/site/PublicLayout";
 import { useDb, type Teacher } from "@/lib/store";
+import { API_URL } from "@/lib/api";
 import {
   STAFF_DISPLAY_GROUPS,
   parseStaffPosition,
@@ -273,8 +274,28 @@ export function CollegeStaffPage({
   const db = useDb();
   const page = db.pages[pageId] || db.pages["about/college-staff"];
   const [search, setSearch] = useState("");
+  const [liveTeachers, setLiveTeachers] = useState<Teacher[] | null>(null);
 
-  const profiles = useMemo(() => staffDirectoryProfiles(db.teachers || []), [db.teachers]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/teachers?ts=${Date.now()}`, {
+      headers: { Accept: "application/json" },
+      cache: "no-store",
+    })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((rows) => {
+        if (!cancelled && Array.isArray(rows)) setLiveTeachers(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLiveTeachers(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const directoryTeachers = liveTeachers || db.teachers || [];
+  const profiles = useMemo(() => staffDirectoryProfiles(directoryTeachers), [directoryTeachers]);
   const directProfile = profileSlug
     ? profiles.find((profile) => profile.slug === profileSlug || profile.id === profileSlug)
     : null;
