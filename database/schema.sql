@@ -3,6 +3,7 @@ USE loyola_platform;
 
 CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(50) PRIMARY KEY,
+  external_staff_id VARCHAR(80) NULL,
   name VARCHAR(150) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
   role ENUM(
@@ -17,7 +18,9 @@ CREATE TABLE IF NOT EXISTS users (
   ) NOT NULL DEFAULT 'student',
   status VARCHAR(30) NOT NULL DEFAULT 'Active',
   password_hash VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_users_external_staff_id (external_staff_id)
 );
 
 CREATE TABLE IF NOT EXISTS role_permissions (
@@ -175,6 +178,7 @@ CREATE TABLE IF NOT EXISTS students (
 CREATE TABLE IF NOT EXISTS teachers (
   id VARCHAR(50) PRIMARY KEY,
   staff_id VARCHAR(50) NULL,
+  external_staff_id VARCHAR(80) NULL,
   slug VARCHAR(180) NULL,
   name VARCHAR(150) NOT NULL,
   email VARCHAR(190) NULL,
@@ -197,7 +201,8 @@ CREATE TABLE IF NOT EXISTS teachers (
   account_email VARCHAR(190),
   account_user_id VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_teachers_staff_id (staff_id)
+  KEY idx_teachers_staff_id (staff_id),
+  KEY idx_teachers_external_staff_id (external_staff_id)
 );
 
 CREATE TABLE IF NOT EXISTS staff_profiles (
@@ -219,6 +224,9 @@ CREATE TABLE IF NOT EXISTS staff_profiles (
   sort_order INT NOT NULL DEFAULT 0,
   profile_image TEXT NULL,
   photo_url TEXT NULL,
+  edutrack_sync_status VARCHAR(30) DEFAULT 'not_synced',
+  edutrack_sync_error TEXT NULL,
+  edutrack_teacher_id VARCHAR(80) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_staff_profiles_user_id (user_id),
@@ -227,6 +235,20 @@ CREATE TABLE IF NOT EXISTS staff_profiles (
   KEY idx_staff_profiles_type (staff_type),
   KEY idx_staff_profiles_slug (slug),
   KEY idx_staff_profiles_sort (sort_order)
+);
+
+CREATE TABLE IF NOT EXISTS staff_sync_outbox (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_profile_id VARCHAR(50),
+  target_system VARCHAR(50) NOT NULL DEFAULT 'edutrack',
+  payload LONGTEXT,
+  status VARCHAR(30) DEFAULT 'pending',
+  error TEXT,
+  attempts INT DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_staff_sync_outbox_staff (staff_profile_id),
+  KEY idx_staff_sync_outbox_status (status)
 );
 
 CREATE TABLE IF NOT EXISTS staff_profile_photos (

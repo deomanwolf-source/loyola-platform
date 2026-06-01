@@ -1100,6 +1100,13 @@ function registerStaffRoutes(app, context) {
     await addColumnIfMissing("staff_profiles", "sort_order", "INT NOT NULL DEFAULT 0");
     await addColumnIfMissing("staff_profiles", "profile_image", "TEXT NULL");
     await addColumnIfMissing("staff_profiles", "photo_url", "TEXT NULL");
+    await addColumnIfMissing(
+      "staff_profiles",
+      "edutrack_sync_status",
+      "VARCHAR(30) DEFAULT 'not_synced'",
+    );
+    await addColumnIfMissing("staff_profiles", "edutrack_sync_error", "TEXT NULL");
+    await addColumnIfMissing("staff_profiles", "edutrack_teacher_id", "VARCHAR(80) NULL");
     await addIndexIfMissing("staff_profiles", "idx_staff_profiles_email", "(email)");
     await addIndexIfMissing("staff_profiles", "idx_staff_profiles_nic", "(nic)");
     await addIndexIfMissing("staff_profiles", "idx_staff_profiles_slug", "(slug)");
@@ -1121,6 +1128,7 @@ function registerStaffRoutes(app, context) {
     `);
 
     await addColumnIfMissing("teachers", "staff_id", "VARCHAR(50) NULL");
+    await addColumnIfMissing("teachers", "external_staff_id", "VARCHAR(80) NULL");
     await addColumnIfMissing("teachers", "slug", "VARCHAR(180) NULL");
     await addColumnIfMissing("teachers", "website_place", "VARCHAR(120) NULL");
     await addColumnIfMissing("teachers", "positions_json", "LONGTEXT NULL");
@@ -1130,6 +1138,23 @@ function registerStaffRoutes(app, context) {
     await addColumnIfMissing("teachers", "bio", "TEXT NULL");
     await addColumnIfMissing("teachers", "sort_order", "INT NOT NULL DEFAULT 0");
     await addIndexIfMissing("teachers", "idx_teachers_staff_id", "(staff_id)");
+    await addIndexIfMissing("teachers", "idx_teachers_external_staff_id", "(external_staff_id)");
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS staff_sync_outbox (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        staff_profile_id VARCHAR(50),
+        target_system VARCHAR(50) NOT NULL DEFAULT 'edutrack',
+        payload LONGTEXT,
+        status VARCHAR(30) DEFAULT 'pending',
+        error TEXT,
+        attempts INT DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        KEY idx_staff_sync_outbox_staff (staff_profile_id),
+        KEY idx_staff_sync_outbox_status (status)
+      )
+    `);
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS staff_positions (
@@ -1171,15 +1196,31 @@ function registerStaffRoutes(app, context) {
       )
     `);
     await addColumnIfMissing("staff_positions", "position_master_id", "INT NULL");
-    await addColumnIfMissing("staff_positions", "position_code", "VARCHAR(180) NOT NULL DEFAULT ''");
-    await addColumnIfMissing("staff_positions", "display_title", "VARCHAR(180) NOT NULL DEFAULT ''");
-    await addColumnIfMissing("staff_positions", "main_category", "VARCHAR(120) NOT NULL DEFAULT ''");
+    await addColumnIfMissing(
+      "staff_positions",
+      "position_code",
+      "VARCHAR(180) NOT NULL DEFAULT ''",
+    );
+    await addColumnIfMissing(
+      "staff_positions",
+      "display_title",
+      "VARCHAR(180) NOT NULL DEFAULT ''",
+    );
+    await addColumnIfMissing(
+      "staff_positions",
+      "main_category",
+      "VARCHAR(120) NOT NULL DEFAULT ''",
+    );
     await addColumnIfMissing("staff_positions", "section", "VARCHAR(120) NOT NULL DEFAULT ''");
     await addColumnIfMissing("staff_positions", "subsection", "VARCHAR(120) NOT NULL DEFAULT ''");
     await addColumnIfMissing("staff_positions", "grade", "INT NULL");
     await addColumnIfMissing("staff_positions", "stream", "VARCHAR(80) NOT NULL DEFAULT ''");
     await addColumnIfMissing("staff_positions", "medium", "VARCHAR(80) NOT NULL DEFAULT ''");
-    await addColumnIfMissing("staff_positions", "class_or_stream", "VARCHAR(120) NOT NULL DEFAULT ''");
+    await addColumnIfMissing(
+      "staff_positions",
+      "class_or_stream",
+      "VARCHAR(120) NOT NULL DEFAULT ''",
+    );
     await addColumnIfMissing("staff_positions", "sort_order", "INT NOT NULL DEFAULT 0");
     await addColumnIfMissing("staff_positions", "is_known", "TINYINT(1) NOT NULL DEFAULT 1");
     await addIndexIfMissing(
@@ -2062,7 +2103,9 @@ function registerStaffRoutes(app, context) {
     if (primaryPosition && !providedStaffType) {
       payload.staffType = staffTypeFromMainCategory(primaryPosition.mainCategory);
     }
-    payload.positionCodes = payload.positions.map((position) => position.positionCode).filter(Boolean);
+    payload.positionCodes = payload.positions
+      .map((position) => position.positionCode)
+      .filter(Boolean);
     payload.replacePositions = hasField(
       body,
       "position_codes",
@@ -2743,9 +2786,9 @@ function registerStaffRoutes(app, context) {
       })),
     );
     const rows = (visiblePositions.length ? visiblePositions : [primary]).map((position) => ({
-        ...position,
-        status: active ? "Active" : "Hidden",
-      }));
+      ...position,
+      status: active ? "Active" : "Hidden",
+    }));
     const positionCodes = normalizePositionCodes(
       sourcePositions.map((position) => position.positionCode).filter(Boolean),
     );
@@ -3158,9 +3201,7 @@ function registerStaffRoutes(app, context) {
     const output = [["row", "name", "slug", "errors"]];
     rows.forEach((row) => output.push([row.rowNumber, row.name, row.slug, row.errors.join("; ")]));
     return output
-      .map((items) =>
-        items.map((item) => `"${csvSafeCell(item).replace(/"/g, '""')}"`).join(","),
-      )
+      .map((items) => items.map((item) => `"${csvSafeCell(item).replace(/"/g, '""')}"`).join(","))
       .join("\n");
   }
 
@@ -3603,7 +3644,7 @@ function registerStaffRoutes(app, context) {
 
   app.get("/api/staff/import-csv/template", staffManagerOnly, async (req, res) => {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=\"staff-import-template.csv\"");
+    res.setHeader("Content-Disposition", 'attachment; filename="staff-import-template.csv"');
     res.send(csvTemplate());
   });
 
@@ -3673,10 +3714,7 @@ function registerStaffRoutes(app, context) {
       }
 
       if (syncImport) {
-        const pruned = await pruneStaffDataNotInCsv(
-          req,
-          importedIds,
-        );
+        const pruned = await pruneStaffDataNotInCsv(req, importedIds);
         results.removedProfiles = pruned.removedProfiles;
         results.removedTeachers = pruned.removedTeachers;
         results.removedSiteTeachers = pruned.removedSiteTeachers;

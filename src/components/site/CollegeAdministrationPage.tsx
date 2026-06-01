@@ -1,7 +1,245 @@
 import { DEFAULT_HERO_IMAGE, useDb } from "@/lib/store";
 import type { Teacher } from "@/lib/store";
 import { PageHeader, PublicLayout } from "@/components/site/PublicLayout";
-import { User, ShieldCheck, GraduationCap, Award } from "lucide-react";
+import { User, ShieldCheck, GraduationCap } from "lucide-react";
+import { parseStaffPosition, staffPositionCodeOrder } from "@/lib/staff-display-order";
+import type { ParsedPositionCode } from "@/lib/staff-position-codes";
+
+type AdministrationPositionGroup = {
+  id: string;
+  title: string;
+  order: number;
+  codes: string[];
+  aliases: string[];
+};
+
+type AdministrationMember = {
+  id: string;
+  staff: Teacher;
+  positionLabel: string;
+  order: number;
+};
+
+const FIRST_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
+  {
+    id: "rector-principal",
+    title: "Rector/Principal",
+    order: 1,
+    codes: ["rector-principal"],
+    aliases: ["rector principal"],
+  },
+  {
+    id: "vice-rector-prefect-games",
+    title: "Vice Rector, Prefect of Games",
+    order: 2,
+    codes: ["vice-rector"],
+    aliases: ["vice rector", "prefect of games"],
+  },
+  {
+    id: "principal-primary",
+    title: "Principal of Primary School",
+    order: 3,
+    codes: ["principal-primary"],
+    aliases: [
+      "principal of primary school",
+      "principal of the primary school",
+      "principal primary school",
+    ],
+  },
+  {
+    id: "priest-sectional-head-upper",
+    title: "Priest in Charge & Sectional Head of Upper School",
+    order: 4,
+    codes: ["priest-in-charge-middle-upper", "sectional-head-upper"],
+    aliases: [
+      "priest in charge",
+      "priest in charge middle school and upper school",
+      "priest in charge and sectional head of upper school",
+      "sectional head of upper school",
+      "sectional head upper school",
+    ],
+  },
+];
+
+const SECOND_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
+  {
+    id: "vice-principal-advanced-level",
+    title: "Vice Principal - Advanced Level",
+    order: 1,
+    codes: ["vice-principal-advanced-level"],
+    aliases: ["vice principal advanced level", "vice principal advanced level section"],
+  },
+  {
+    id: "vice-principal-primary",
+    title: "Vice Principal - Primary School",
+    order: 2,
+    codes: ["vice-principal-primary"],
+    aliases: ["vice principal primary school", "vice principal primary section"],
+  },
+  {
+    id: "vice-principal-middle",
+    title: "Vice Principal - Middle School",
+    order: 3,
+    codes: ["vice-principal-middle"],
+    aliases: ["vice principal middle school"],
+  },
+  {
+    id: "vice-principal-upper",
+    title: "Vice Principal - Upper School",
+    order: 4,
+    codes: ["vice-principal-upper"],
+    aliases: ["vice principal upper school"],
+  },
+  {
+    id: "assistant-sectional-head-primary",
+    title: "Assistant Sectional Head - Primary School",
+    order: 5,
+    codes: ["assistant-sectional-head-primary"],
+    aliases: [
+      "assistant sectional head primary school",
+      "assistant sectional head primary section",
+    ],
+  },
+  {
+    id: "assistant-sectional-head-middle",
+    title: "Assistant Sectional Head - Middle School",
+    order: 6,
+    codes: ["assistant-sectional-head-middle"],
+    aliases: ["assistant sectional head middle school"],
+  },
+  {
+    id: "assistant-sectional-head-advanced-level",
+    title: "Assistant Sectional Head - Advanced Level",
+    order: 7,
+    codes: ["assistant-sectional-head-advanced-level"],
+    aliases: [
+      "assistant sectional head advanced level",
+      "assistant sectional head advanced level section",
+    ],
+  },
+  {
+    id: "subjects-head-primary",
+    title: "Subjects Head - Primary School",
+    order: 8,
+    codes: ["subject-head-primary"],
+    aliases: [
+      "subject head primary school",
+      "subjects head primary school",
+      "subject head primary section",
+    ],
+  },
+  {
+    id: "subjects-head-middle",
+    title: "Subjects Head - Middle School",
+    order: 9,
+    codes: ["subject-head-middle"],
+    aliases: ["subject head middle school", "subjects head middle school"],
+  },
+  {
+    id: "subjects-head-upper",
+    title: "Subjects Head - Upper School",
+    order: 10,
+    codes: ["subject-head-upper"],
+    aliases: ["subject head upper school", "subjects head upper school"],
+  },
+  {
+    id: "subjects-head-advanced-level",
+    title: "Subjects Head - Advanced Level",
+    order: 11,
+    codes: ["subject-head-advanced-level"],
+    aliases: [
+      "subject head advanced level",
+      "subjects head advanced level",
+      "subject head advanced level section",
+    ],
+  },
+];
+
+function normalizePositionText(value?: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function profileKey(staff: Teacher) {
+  return staff.staffId || staff.id.split("__")[0] || staff.slug || staff.name;
+}
+
+function fallbackPosition(staff: Teacher) {
+  const code = Array.isArray(staff.positionCodes) ? staff.positionCodes[0] : "";
+  return parseStaffPosition({
+    position_code: code,
+    display_title: staff.position || staff.subject || staff.category || "Staff Member",
+    main_category: staff.type || "",
+    section: staff.websitePlace || staff.category || "",
+    subsection: staff.section || "",
+    sort_order: staffPositionCodeOrder(code || staff.position || ""),
+  });
+}
+
+function visiblePositions(staff: Teacher) {
+  const positions = Array.isArray(staff.positions) ? staff.positions : [];
+  if (!positions.length) return [fallbackPosition(staff)];
+  return positions
+    .filter((position) => {
+      const candidate = position as typeof position & {
+        visibleOnWebsite?: boolean;
+        visible_on_website?: boolean;
+      };
+      return candidate.visibleOnWebsite !== false && candidate.visible_on_website !== false;
+    })
+    .map((position) => parseStaffPosition(position));
+}
+
+function matchesGroup(position: ParsedPositionCode, group: AdministrationPositionGroup) {
+  const code = normalizePositionText(position.position_code).replace(/\s+/g, "-");
+  if (group.codes.includes(code)) return true;
+
+  const title = normalizePositionText(position.display_title);
+  const section = normalizePositionText(position.section);
+  const subsection = normalizePositionText(position.subsection);
+  const candidates = new Set(
+    [title, `${title} ${section}`, `${title} ${subsection}`, `${title} ${section} ${subsection}`]
+      .map(normalizePositionText)
+      .filter(Boolean),
+  );
+  return group.aliases.some((alias) => candidates.has(normalizePositionText(alias)));
+}
+
+function administrationMembers(
+  staff: Teacher[],
+  groups: AdministrationPositionGroup[],
+): AdministrationMember[] {
+  const byMember = new Map<string, AdministrationMember>();
+
+  staff
+    .filter((member) => member.status === "Active" && Boolean(member.name?.trim()))
+    .forEach((member) => {
+      visiblePositions(member).forEach((position) => {
+        const group = groups.find((candidate) => matchesGroup(position, candidate));
+        if (!group) return;
+
+        const key = `${group.id}:${profileKey(member)}`;
+        if (byMember.has(key)) return;
+        byMember.set(key, {
+          id: key,
+          staff: member,
+          positionLabel: group.title,
+          order: group.order,
+        });
+      });
+    });
+
+  return [...byMember.values()].sort(
+    (a, b) =>
+      a.order - b.order ||
+      Number(a.staff.sortOrder || 0) - Number(b.staff.sortOrder || 0) ||
+      a.staff.name.localeCompare(b.staff.name),
+  );
+}
 
 export function CollegeAdministrationPage({
   pageId = "college-administration",
@@ -17,15 +255,8 @@ export function CollegeAdministrationPage({
     };
 
   const allStaff = (db.teachers || []).filter((s) => s.status === "Active");
-
-  const categoryOf = (staff: Teacher) => staff.websitePlace || staff.category || "";
-  const topAdmin = allStaff.filter((staff) =>
-    ["Top Administration", "College Administration"].includes(categoryOf(staff)),
-  );
-  const vicePrincipals = allStaff.filter((staff) => /vice principal/i.test(staff.position || ""));
-  const sectionalHeads = allStaff.filter((staff) =>
-    ["Sectional Heads", "Assistant Sectional Heads"].includes(categoryOf(staff)),
-  );
+  const topAdmin = administrationMembers(allStaff, FIRST_ADMIN_POSITIONS);
+  const academicLeadership = administrationMembers(allStaff, SECOND_ADMIN_POSITIONS);
 
   return (
     <PublicLayout>
@@ -53,22 +284,12 @@ export function CollegeAdministrationPage({
             />
           )}
 
-          {vicePrincipals.length > 0 && (
+          {academicLeadership.length > 0 && (
             <AdminSection
-              title="Vice Principals"
+              title="Academic Leadership"
               kicker="Academic Leadership"
               icon={<GraduationCap className="h-6 w-6 text-gold" />}
-              staff={vicePrincipals}
-              className="mt-32"
-            />
-          )}
-
-          {sectionalHeads.length > 0 && (
-            <AdminSection
-              title="Sectional Heads"
-              kicker="Operational Heads"
-              icon={<Award className="h-6 w-6 text-gold" />}
-              staff={sectionalHeads}
+              staff={academicLeadership}
               className="mt-32"
             />
           )}
@@ -88,7 +309,7 @@ function AdminSection({
   title: string;
   kicker: string;
   icon: React.ReactNode;
-  staff: Teacher[];
+  staff: AdministrationMember[];
   className?: string;
 }) {
   return (
@@ -112,14 +333,16 @@ function AdminSection({
 
       <div className="stagger-children grid gap-12 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {staff.map((member) => (
-          <AdminCard key={member.id} staff={member} />
+          <AdminCard key={member.id} member={member} />
         ))}
       </div>
     </div>
   );
 }
 
-function AdminCard({ staff }: { staff: Teacher }) {
+function AdminCard({ member }: { member: AdministrationMember }) {
+  const { staff } = member;
+
   return (
     <article className="group hover-lift relative flex flex-col items-center">
       <div className="relative aspect-[4/5] w-full overflow-hidden rounded-lg bg-white p-2 shadow-elegant transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-2xl">
@@ -149,7 +372,7 @@ function AdminCard({ staff }: { staff: Teacher }) {
         <div className="mt-3 flex flex-col items-center gap-1">
           <span className="h-0.5 w-8 bg-gold transition-all duration-500 group-hover:w-16"></span>
           <p className="mt-2 text-xs font-bold uppercase tracking-[0.15em] text-slate-500 transition-colors duration-300 group-hover:text-navy">
-            {staff.position || staff.type}
+            {member.positionLabel}
           </p>
         </div>
         <div className="mt-6 scale-90 opacity-0 transition-all duration-500 group-hover:scale-100 group-hover:opacity-100">

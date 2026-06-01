@@ -264,7 +264,10 @@ const reliefUpload = multer({
   fileFilter(req, file, cb) {
     const ext = path.extname(file.originalname || "").toLowerCase();
     const mimetype = String(file.mimetype || "").toLowerCase();
-    if (ext === ".pdf" && (!mimetype || mimetype === "application/pdf" || mimetype === "application/octet-stream")) {
+    if (
+      ext === ".pdf" &&
+      (!mimetype || mimetype === "application/pdf" || mimetype === "application/octet-stream")
+    ) {
       return cb(null, true);
     }
     cb(new Error("PDF required"));
@@ -462,12 +465,14 @@ async function ensureAccessTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
       id VARCHAR(50) PRIMARY KEY,
+      external_staff_id VARCHAR(80) NULL,
       name VARCHAR(150) NOT NULL,
       email VARCHAR(190) NOT NULL UNIQUE,
       role ${ROLE_ENUM_SQL},
       status VARCHAR(30) NOT NULL DEFAULT 'Active',
       password_hash VARCHAR(255) NOT NULL,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     )
   `);
 
@@ -488,6 +493,19 @@ async function ensureAccessTables() {
   await db.query(`ALTER TABLE users MODIFY role ${ROLE_ENUM_MIGRATION_SQL}`);
   await db.query("UPDATE users SET role = ? WHERE role = 'admin'", [ROLES.website]);
   await db.query(`ALTER TABLE users MODIFY role ${ROLE_ENUM_SQL}`);
+  await ensureTableColumns("users", [
+    { name: "external_staff_id", definition: "external_staff_id VARCHAR(80) NULL AFTER id" },
+    {
+      name: "updated_at",
+      definition: "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+    },
+  ]);
+  await ensureTableIndexes("users", [
+    {
+      name: "idx_users_external_staff_id",
+      sql: "CREATE INDEX idx_users_external_staff_id ON users (external_staff_id)",
+    },
+  ]);
   await seedRolePermissions();
   accessSchemaReady = true;
 }
@@ -862,6 +880,7 @@ async function ensureContentTables() {
     CREATE TABLE IF NOT EXISTS teachers (
       id VARCHAR(50) PRIMARY KEY,
       staff_id VARCHAR(50) NULL,
+      external_staff_id VARCHAR(80) NULL,
       slug VARCHAR(180) NULL,
       name VARCHAR(150) NOT NULL,
       email VARCHAR(190) NULL,
@@ -1146,13 +1165,18 @@ async function ensureContentTables() {
   await addColumnIfMissing("media_files", "original_size", "INT");
   await addColumnIfMissing("media_files", "category", "VARCHAR(100)");
   await addColumnIfMissing("media_files", "warnings", "LONGTEXT");
-  await addColumnIfMissing("edutrack_relief_assignments", "uploaded_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+  await addColumnIfMissing(
+    "edutrack_relief_assignments",
+    "uploaded_at",
+    "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+  );
   await addColumnIfMissing("edutrack_relief_assignments", "allowed_extra_prints", "INT DEFAULT 0");
   await addColumnIfMissing("edutrack_relief_assignments", "last_unlocked_by", "VARCHAR(64)");
   await addColumnIfMissing("edutrack_relief_assignments", "last_unlocked_at", "TIMESTAMP NULL");
   await addColumnIfMissing("edutrack_relief_assignments", "last_unlock_reason", "TEXT");
   await backfillMediaCategories();
   await addColumnIfMissing("teachers", "staff_id", "VARCHAR(50) NULL");
+  await addColumnIfMissing("teachers", "external_staff_id", "VARCHAR(80) NULL");
   await addColumnIfMissing("teachers", "slug", "VARCHAR(180) NULL");
   await addColumnIfMissing("teachers", "email", "VARCHAR(190) NULL");
   await addColumnIfMissing("teachers", "phone", "VARCHAR(50) NULL");
@@ -1168,11 +1192,44 @@ async function ensureContentTables() {
       name: "idx_teachers_staff_id",
       sql: "CREATE INDEX idx_teachers_staff_id ON teachers (staff_id)",
     },
+    {
+      name: "idx_teachers_external_staff_id",
+      sql: "CREATE INDEX idx_teachers_external_staff_id ON teachers (external_staff_id)",
+    },
   ]);
+  await ensureStaffSyncSchema();
   await ensureSiteDatabaseSchema();
   await ensureWebsitePagesSchema();
 
   contentSchemaReady = true;
+}
+
+async function ensureStaffSyncSchema() {
+  if (await tableExists("staff_profiles")) {
+    await addColumnIfMissing(
+      "staff_profiles",
+      "edutrack_sync_status",
+      "VARCHAR(30) DEFAULT 'not_synced'",
+    );
+    await addColumnIfMissing("staff_profiles", "edutrack_sync_error", "TEXT NULL");
+    await addColumnIfMissing("staff_profiles", "edutrack_teacher_id", "VARCHAR(80) NULL");
+  }
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS staff_sync_outbox (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      staff_profile_id VARCHAR(50),
+      target_system VARCHAR(50) NOT NULL DEFAULT 'edutrack',
+      payload LONGTEXT,
+      status VARCHAR(30) DEFAULT 'pending',
+      error TEXT,
+      attempts INT DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_staff_sync_outbox_staff (staff_profile_id),
+      KEY idx_staff_sync_outbox_status (status)
+    )
+  `);
 }
 
 async function addColumnIfMissing(table, column, definition) {
@@ -1181,6 +1238,21 @@ async function addColumnIfMissing(table, column, definition) {
   const [rows] = await db.query(`SHOW COLUMNS FROM ${safeTable} LIKE ?`, [safeColumn]);
   if (rows.length > 0) return;
   await db.query(`ALTER TABLE ${safeTable} ADD COLUMN ${safeColumn} ${definition}`);
+}
+
+async function tableExists(table) {
+  const safeTable = table.replace(/[^a-z0-9_]/gi, "");
+  const [rows] = await db.query(
+    `
+      SELECT TABLE_NAME
+      FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?
+      LIMIT 1
+    `,
+    [safeTable],
+  );
+  return rows.length > 0;
 }
 
 async function tableColumns(table) {
@@ -1394,8 +1466,269 @@ async function removeTeacherFromSiteDatabaseContent(runner, teacherId) {
   return true;
 }
 
-async function syncTeacherAccountToEduTrack() {
-  return { ok: true, skipped: true };
+function compactText(value, maxLength = 190) {
+  return String(value || "")
+    .trim()
+    .slice(0, maxLength);
+}
+
+function syncSetupPassword() {
+  return `SetupRequired-${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
+}
+
+function syncAccountId(prefix = "EDUUSR") {
+  return `${prefix}-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
+}
+
+function syncSlug(value) {
+  return (
+    String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 180) || "teacher"
+  );
+}
+
+async function markStaffEduTrackSync(runner, payload, status, error = "", teacherId = "") {
+  if (!(await tableExists("staff_profiles"))) return;
+  const staffId = compactText(payload?.staffId || payload?.staff_id, 50);
+  const effectiveTeacherId = compactText(
+    teacherId || payload?.teacherId || payload?.teacher_id,
+    50,
+  );
+  if (!staffId && !effectiveTeacherId) return;
+
+  await runner.query(
+    `
+      UPDATE staff_profiles
+      SET edutrack_sync_status = ?, edutrack_sync_error = ?, edutrack_teacher_id = ?
+      WHERE id = ? OR teacher_id = ?
+    `,
+    [status, error || null, effectiveTeacherId || null, staffId, effectiveTeacherId || staffId],
+  );
+}
+
+async function queueStaffEduTrackSync(runner, payload, error) {
+  await ensureStaffSyncSchema();
+  const staffId = compactText(payload?.staffId || payload?.staff_id, 50);
+  await runner.query(
+    `
+      INSERT INTO staff_sync_outbox (staff_profile_id, target_system, payload, status, error, attempts)
+      VALUES (?, 'edutrack', ?, 'failed', ?, 1)
+    `,
+    [staffId || null, JSON.stringify(payload || {}), error.message || String(error)],
+  );
+  await markStaffEduTrackSync(runner, payload, "failed", error.message || String(error));
+}
+
+async function upsertLocalEduTrackTeacher(runner, payload = {}) {
+  const staffId = compactText(payload.staffId || payload.staff_id || payload.external_staff_id, 50);
+  const teacherId = compactText(payload.teacherId || payload.teacher_id || staffId, 50);
+  const requestedUserId = compactText(payload.userId || payload.user_id, 50);
+  const email = normalizeEmail(payload.email);
+  const name = compactText(
+    payload.name || payload.fullName || payload.full_name || email.split("@")[0],
+    150,
+  );
+  const status = normalizeAccountStatus(payload.status);
+
+  if (!staffId || !teacherId || !name || !email) {
+    throw new Error("staffId, teacherId, name, and email are required for EduTrack sync");
+  }
+
+  const [existingUsers] = await runner.query(
+    `
+      SELECT id, role
+      FROM users
+      WHERE id = ? OR external_staff_id = ? OR email = ?
+      ORDER BY (id = ?) DESC, (external_staff_id = ?) DESC, id
+      LIMIT 1
+    `,
+    [
+      requestedUserId || "__missing_user__",
+      staffId,
+      email,
+      requestedUserId || "__missing_user__",
+      staffId,
+    ],
+  );
+  if (existingUsers[0]?.role && existingUsers[0].role !== ROLES.teacher) {
+    throw new Error("EduTrack sync target user must be a teacher account");
+  }
+  const userId = existingUsers[0]?.id || requestedUserId || syncAccountId();
+  const password = typeof payload.password === "string" ? payload.password : "";
+
+  if (existingUsers.length) {
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      await runner.query(
+        `
+          UPDATE users
+          SET external_staff_id = ?, name = ?, email = ?, role = 'teacher',
+            status = ?, password_hash = ?
+          WHERE id = ?
+        `,
+        [staffId, name, email, status, passwordHash, userId],
+      );
+    } else {
+      await runner.query(
+        `
+          UPDATE users
+          SET external_staff_id = ?, name = ?, email = ?, role = 'teacher', status = ?
+          WHERE id = ?
+        `,
+        [staffId, name, email, status, userId],
+      );
+    }
+  } else {
+    const passwordHash = await bcrypt.hash(password || syncSetupPassword(), 12);
+    await runner.query(
+      `
+        INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash)
+        VALUES (?, ?, ?, ?, 'teacher', ?, ?)
+      `,
+      [userId, staffId, name, email, status, passwordHash],
+    );
+  }
+
+  const positions = Array.isArray(payload.positions) ? payload.positions : [];
+  const positionCodes = positions
+    .map((position) => position.positionCode || position.position_code || "")
+    .filter(Boolean);
+  const websitePlace = compactText(payload.websitePlace || payload.website_place || "", 120);
+  const staffType = compactText(payload.staffType || payload.staff_type || "Academic Staff", 100);
+  const photoUrl = compactText(payload.photoUrl || payload.photo_url || "", 2048);
+
+  await runner.query(
+    `
+      INSERT INTO teachers (
+        id, staff_id, external_staff_id, slug, name, email, subject, classes, status,
+        position, website_place, type, category, image, positions_json, position_codes,
+        account_email, account_user_id
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        staff_id = VALUES(staff_id),
+        external_staff_id = VALUES(external_staff_id),
+        slug = VALUES(slug),
+        name = VALUES(name),
+        email = VALUES(email),
+        subject = VALUES(subject),
+        classes = VALUES(classes),
+        status = VALUES(status),
+        position = VALUES(position),
+        website_place = VALUES(website_place),
+        type = VALUES(type),
+        category = VALUES(category),
+        image = VALUES(image),
+        positions_json = VALUES(positions_json),
+        position_codes = VALUES(position_codes),
+        account_email = VALUES(account_email),
+        account_user_id = VALUES(account_user_id)
+    `,
+    [
+      teacherId,
+      staffId,
+      staffId,
+      syncSlug(name),
+      name,
+      email,
+      compactText(payload.subject, 100),
+      compactText(payload.classes, 100),
+      status,
+      compactText(payload.position, 150),
+      websitePlace,
+      staffType,
+      websitePlace,
+      photoUrl,
+      JSON.stringify(positions),
+      JSON.stringify(positionCodes),
+      email,
+      userId,
+    ],
+  );
+
+  await markStaffEduTrackSync(runner, payload, "synced", "", teacherId);
+  return { userId, teacherId };
+}
+
+async function postExternalEduTrackSync(payload) {
+  const base = String(process.env.EDUTRACK_INTERNAL_BASE_URL || "").replace(/\/+$/g, "");
+  const secret = process.env.EDUTRACK_SYNC_SECRET;
+  if (!base || !secret) return null;
+
+  const response = await fetch(`${base}/api/internal/sync-teacher-account`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-edutrack-sync-secret": secret,
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || `EduTrack sync failed with status ${response.status}`);
+  }
+  return data;
+}
+
+async function runLocalEduTrackSync(runner, payload) {
+  if (runner === db && typeof db.getConnection === "function") {
+    const connection = await db.getConnection();
+    try {
+      await connection.beginTransaction();
+      const result = await upsertLocalEduTrackTeacher(connection, payload);
+      await connection.commit();
+      return result;
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  }
+
+  return upsertLocalEduTrackTeacher(runner, payload);
+}
+
+async function syncTeacherAccountToEduTrack(runnerOrPayload, maybePayload) {
+  const runner =
+    runnerOrPayload && typeof runnerOrPayload.query === "function" ? runnerOrPayload : db;
+  const payload =
+    runnerOrPayload && typeof runnerOrPayload.query === "function" ? maybePayload : runnerOrPayload;
+
+  if (!payload) return { ok: false, queued: false, warning: "EduTrack sync payload missing" };
+
+  await ensureContentTables();
+  await ensureStaffSyncSchema();
+
+  try {
+    const externalResult = await postExternalEduTrackSync(payload);
+    if (externalResult) {
+      const teacherId =
+        externalResult.edutrack_teacher_id || externalResult.teacherId || payload.teacherId;
+      await markStaffEduTrackSync(runner, payload, "synced", "", teacherId);
+      return { ok: true, remote: true, data: externalResult, teacherId };
+    }
+
+    const localResult = await runLocalEduTrackSync(runner, payload);
+    return {
+      ok: true,
+      remote: false,
+      data: localResult,
+      teacherId: localResult.teacherId,
+    };
+  } catch (error) {
+    await queueStaffEduTrackSync(runner, payload, error);
+    return {
+      ok: false,
+      queued: true,
+      warning: `EduTrack teacher sync failed and was queued: ${error.message}`,
+    };
+  }
 }
 
 function protectPageSnapshot(siteDb, existingDb) {
@@ -2525,13 +2858,136 @@ app.get("/api/health", async (req, res) => {
 app.get("/api/users", adminOnly, async (req, res) => {
   try {
     await ensureAccessTables();
-    const [rows] = await db.query("SELECT id, name, email, role, status, created_at FROM users");
+    const [rows] = await db.query(
+      "SELECT id, external_staff_id, name, email, role, status, created_at FROM users ORDER BY created_at DESC",
+    );
 
     res.json(rows);
   } catch (error) {
     res.status(500).json({
       error: error.message,
     });
+  }
+});
+
+app.post("/api/users", adminOnly, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const { id, name, email, password, role = ROLES.teacher, status = "Active" } = req.body || {};
+    const accountEmail = normalizeEmail(email);
+    const accountName = compactText(name || accountEmail.split("@")[0], 150);
+    const accountPassword = String(password || "");
+
+    if (!accountName || !accountEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
+      return res.status(400).json({ error: "Name and a valid email are required" });
+    }
+    if (accountPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    const [existing] = await db.query("SELECT id FROM users WHERE email = ? LIMIT 1", [
+      accountEmail,
+    ]);
+    if (existing.length) {
+      return res.status(409).json({ error: "A user with this email already exists" });
+    }
+
+    const accountId = compactText(id, 50) || syncAccountId("USR");
+    await upsertPortalUserAccount(db, {
+      id: accountId,
+      name: accountName,
+      email: accountEmail,
+      password: accountPassword,
+      role,
+      status,
+    });
+
+    res.status(201).json({
+      success: true,
+      user: {
+        id: accountId,
+        name: accountName,
+        email: accountEmail,
+        role: normalizePortalRole(role),
+        status: normalizeAccountStatus(status),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/users/:id", adminOnly, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const userId = compactText(req.params.id, 50);
+    const [[existing]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [userId]);
+    if (!existing) return res.status(404).json({ error: "User not found" });
+
+    const nextEmail =
+      req.body?.email === undefined ? existing.email : normalizeEmail(req.body.email);
+    const nextName = req.body?.name === undefined ? existing.name : compactText(req.body.name, 150);
+    const nextRole =
+      req.body?.role === undefined ? existing.role : normalizePortalRole(req.body.role);
+    const nextStatus =
+      req.body?.status === undefined ? existing.status : normalizeAccountStatus(req.body.status);
+    const nextPassword =
+      typeof req.body?.password === "string" && req.body.password.length > 0
+        ? req.body.password
+        : "";
+
+    if (!nextName || !nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      return res.status(400).json({ error: "Name and a valid email are required" });
+    }
+    if (nextPassword && nextPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+
+    const [emailMatches] = await db.query(
+      "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
+      [nextEmail, userId],
+    );
+    if (emailMatches.length) {
+      return res.status(409).json({ error: "A user with this email already exists" });
+    }
+
+    if (nextPassword) {
+      const passwordHash = await bcrypt.hash(nextPassword, 12);
+      await db.query(
+        "UPDATE users SET name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?",
+        [nextName, nextEmail, nextRole, nextStatus, passwordHash, userId],
+      );
+    } else {
+      await db.query("UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?", [
+        nextName,
+        nextEmail,
+        nextRole,
+        nextStatus,
+        userId,
+      ]);
+    }
+
+    res.json({
+      success: true,
+      user: { id: userId, name: nextName, email: nextEmail, role: nextRole, status: nextStatus },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/users/:id", adminOnly, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const userId = compactText(req.params.id, 50);
+    if (req.user?.id === userId) {
+      return res.status(400).json({ error: "You cannot disable your own account" });
+    }
+
+    const [result] = await db.query("UPDATE users SET status = 'Disabled' WHERE id = ?", [userId]);
+    res.json({ success: true, disabled: result.affectedRows > 0 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -2570,6 +3026,33 @@ app.delete("/api/staff-accounts/:id", eduzyncAdminOnly, async (req, res) => {
     res.json({ success: true, disabled: result.affectedRows > 0 });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/internal/sync-teacher-account", async (req, res) => {
+  const configuredSecret = process.env.EDUTRACK_SYNC_SECRET;
+  const requestSecret = req.headers["x-edutrack-sync-secret"];
+  if (!configuredSecret || requestSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Invalid sync secret" });
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await ensureContentTables();
+    await ensureStaffSyncSchema();
+    await connection.beginTransaction();
+    const result = await upsertLocalEduTrackTeacher(connection, req.body || {});
+    await connection.commit();
+    res.json({
+      success: true,
+      edutrack_user_id: result.userId,
+      edutrack_teacher_id: result.teacherId,
+    });
+  } catch (error) {
+    await connection.rollback();
+    res.status(400).json({ error: error.message });
+  } finally {
+    connection.release();
   }
 });
 
@@ -3969,141 +4452,133 @@ app.post(
   },
 );
 
-app.post(
-  "/api/edutrack/relief-assignments/:id/print",
-  eduzyncAdminOnly,
-  async (req, res) => {
-    const { relief_teacher_id } = req.body || {};
-    if (!relief_teacher_id) {
-      return res.status(400).json({ error: "relief_teacher_id required" });
-    }
+app.post("/api/edutrack/relief-assignments/:id/print", eduzyncAdminOnly, async (req, res) => {
+  const { relief_teacher_id } = req.body || {};
+  if (!relief_teacher_id) {
+    return res.status(400).json({ error: "relief_teacher_id required" });
+  }
 
-    const conn = await db.getConnection();
-    try {
-      await ensureContentTables();
-      const actor = reliefActor(req);
-      await conn.beginTransaction();
-      const [rows] = await conn.query(
-        "SELECT * FROM edutrack_relief_assignments WHERE id = ? FOR UPDATE",
-        [Number(req.params.id)],
-      );
-      const assignment = rows[0];
-      if (!assignment) throw new Error("Assignment not found");
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = reliefActor(req);
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      "SELECT * FROM edutrack_relief_assignments WHERE id = ? FOR UPDATE",
+      [Number(req.params.id)],
+    );
+    const assignment = rows[0];
+    if (!assignment) throw new Error("Assignment not found");
 
-      if (Number(assignment.print_count || 0) >= 1 + Number(assignment.allowed_extra_prints || 0)) {
-        await conn.query(
-          `
+    if (Number(assignment.print_count || 0) >= 1 + Number(assignment.allowed_extra_prints || 0)) {
+      await conn.query(
+        `
             INSERT INTO edutrack_relief_assignment_audit_logs
               (assignment_id, action, actor_user_id, actor_name, actor_email, relief_teacher_id, details)
             VALUES (?, 'blocked_attempt', ?, ?, ?, ?, ?)
           `,
-          [
-            assignment.id,
-            actor.id,
-            actor.name,
-            actor.email,
-            relief_teacher_id,
-            "Print blocked because the assignment is locked",
-          ],
-        );
-        await conn.commit();
-        return res.status(403).json({ error: "Already printed and locked" });
-      }
+        [
+          assignment.id,
+          actor.id,
+          actor.name,
+          actor.email,
+          relief_teacher_id,
+          "Print blocked because the assignment is locked",
+        ],
+      );
+      await conn.commit();
+      return res.status(403).json({ error: "Already printed and locked" });
+    }
 
-      const [[teacher]] = await conn.query(
-        `
+    const [[teacher]] = await conn.query(
+      `
           SELECT id, staff_id, name, position, subject
           FROM teachers
           WHERE id = ? OR staff_id = ? OR account_user_id = ?
           LIMIT 1
         `,
-        [relief_teacher_id, relief_teacher_id, relief_teacher_id],
-      );
-      if (!teacher) throw new Error("Relief teacher not found");
+      [relief_teacher_id, relief_teacher_id, relief_teacher_id],
+    );
+    if (!teacher) throw new Error("Relief teacher not found");
 
-      await conn.query(
-        `
+    await conn.query(
+      `
           UPDATE edutrack_relief_assignments
           SET relief_teacher_id = ?, relief_teacher_name = ?, relief_teacher_position = ?,
             relief_teacher_subject = ?, print_count = print_count + 1, printed_by_user_id = ?,
             printed_by_name = ?, printed_by_email = ?, printed_at = NOW(), status = 'printed'
           WHERE id = ?
         `,
-        [
-          teacher.id,
-          teacher.name,
-          teacher.position || "",
-          teacher.subject || "",
-          actor.id,
-          actor.name,
-          actor.email,
-          assignment.id,
-        ],
-      );
+      [
+        teacher.id,
+        teacher.name,
+        teacher.position || "",
+        teacher.subject || "",
+        actor.id,
+        actor.name,
+        actor.email,
+        assignment.id,
+      ],
+    );
 
-      await conn.query(
-        `
+    await conn.query(
+      `
           INSERT INTO edutrack_relief_assignment_audit_logs
             (assignment_id, action, actor_user_id, actor_name, actor_email, relief_teacher_id,
              relief_teacher_name, details)
           VALUES (?, 'print_used', ?, ?, ?, ?, ?, ?)
         `,
-        [
-          assignment.id,
-          actor.id,
-          actor.name,
-          actor.email,
-          teacher.id,
-          teacher.name,
-          "One official print used",
-        ],
-      );
-      await conn.commit();
-      res.json({
-        success: true,
-        printUrl: `/api/edutrack/relief-assignments/${assignment.id}/file`,
-      });
-    } catch (error) {
-      await conn.rollback();
-      res.status(400).json({ error: error.message });
-    } finally {
-      conn.release();
-    }
-  },
-);
+      [
+        assignment.id,
+        actor.id,
+        actor.name,
+        actor.email,
+        teacher.id,
+        teacher.name,
+        "One official print used",
+      ],
+    );
+    await conn.commit();
+    res.json({
+      success: true,
+      printUrl: `/api/edutrack/relief-assignments/${assignment.id}/file`,
+    });
+  } catch (error) {
+    await conn.rollback();
+    res.status(400).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
 
-app.post(
-  "/api/edutrack/relief-assignments/:id/unlock",
-  eduzyncAdminOnly,
-  async (req, res) => {
-    try {
-      await ensureContentTables();
-      const actor = reliefActor(req);
-      const reason = String(req.body?.reason || "Manual unlock").trim();
-      const [result] = await db.query(
-        `
+app.post("/api/edutrack/relief-assignments/:id/unlock", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = reliefActor(req);
+    const reason = String(req.body?.reason || "Manual unlock").trim();
+    const [result] = await db.query(
+      `
           UPDATE edutrack_relief_assignments
           SET allowed_extra_prints = allowed_extra_prints + 1,
             last_unlocked_by = ?, last_unlocked_at = NOW(), last_unlock_reason = ?
           WHERE id = ?
         `,
-        [actor.id, reason, Number(req.params.id)],
-      );
-      if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
-      await db.query(
-        `
+      [actor.id, reason, Number(req.params.id)],
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
+    await db.query(
+      `
           INSERT INTO edutrack_relief_assignment_audit_logs
             (assignment_id, action, actor_user_id, actor_name, actor_email, details)
           VALUES (?, 'unlocked', ?, ?, ?, ?)
         `,
-        [Number(req.params.id), actor.id, actor.name, actor.email, reason],
-      );
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
-);
+      [Number(req.params.id), actor.id, actor.name, actor.email, reason],
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.get("/api/edutrack/relief-assignments/:id/file", teacherOrAdmin, async (req, res) => {
   try {
