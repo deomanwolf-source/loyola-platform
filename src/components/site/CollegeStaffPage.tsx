@@ -318,6 +318,12 @@ function sectionedCategory(prefix: string, staff: Teacher) {
   return `${prefix} - Primary School`;
 }
 
+function canonicalWebsitePlace(value?: string) {
+  const exact = exactCategoryAliases[normalize(value)];
+  if (exact && exact !== "Class Teachers" && exact !== "Subject Teachers") return exact;
+  return value || "";
+}
+
 function nonAcademicCategory(staff: Teacher) {
   const text = normalize([staff.section, staff.position, staff.subject, staff.classes].join(" "));
   if (/finance|account/.test(text)) return "Financial Department";
@@ -409,7 +415,9 @@ function visiblePositionAssignments(staff: Teacher) {
   if (!visiblePositions.length) return [staff];
 
   return visiblePositions.map((position, index) => {
-    const websitePlace = position.websitePlace || position.website_place || staff.websitePlace;
+    const websitePlace = canonicalWebsitePlace(
+      position.websitePlace || position.website_place || staff.websitePlace || staff.category,
+    );
     return {
       ...staff,
       id: `${staff.id || staff.staffId || staff.name}__assignment_${index}`,
@@ -479,6 +487,24 @@ function matchesFilter(staff: StaffAssignment, activeFilter: string) {
     );
   }
   return staff.type === activeFilter;
+}
+
+function staffPriority(staff: StaffAssignment) {
+  const name = normalize(staff.name);
+  const role = normalize(`${staff.displayPosition} ${staff.position}`);
+  if (name.includes("kennedy") && /rector|principal/.test(role)) return 0;
+  if (/rector|principal/.test(role)) return 1;
+  if (/vice rector/.test(role)) return 2;
+  if (/vice principal/.test(role)) return 3;
+  if (/sectional head/.test(role)) return 4;
+  if (/grade head/.test(role)) return 5;
+  return 20;
+}
+
+function compareStaffAssignments(a: StaffAssignment, b: StaffAssignment) {
+  const rank = staffPriority(a) - staffPriority(b);
+  if (rank !== 0) return rank;
+  return a.name.localeCompare(b.name);
 }
 
 export function CollegeStaffPage({ pageId = "about/college-staff" }: { pageId?: string }) {
@@ -551,7 +577,7 @@ export function CollegeStaffPage({ pageId = "about/college-staff" }: { pageId?: 
         ...section,
         items: filteredAssignments.filter((staff) =>
           section.categories.includes(staff.directoryCategory),
-        ),
+        ).sort(compareStaffAssignments),
       }))
       .filter((section) => section.items.length > 0),
   })).filter((group) => group.sections.length > 0);

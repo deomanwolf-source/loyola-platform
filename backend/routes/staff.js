@@ -1788,15 +1788,18 @@ function registerStaffRoutes(app, context) {
   }
 
   function serializePosition(row) {
+    const department = row.department || "";
+    const position = row.position || "";
+    const websitePlace = normalizeWebsitePlace(row.website_place, position, "", department);
     return {
       id: row.id,
       staff_id: row.staff_id,
       position_master_id: row.position_master_id || null,
       positionMasterId: row.position_master_id || null,
-      department: row.department || "",
-      position: row.position || "",
-      website_place: row.website_place || "",
-      websitePlace: row.website_place || "",
+      department,
+      position,
+      website_place: websitePlace,
+      websitePlace,
       subject: row.subject || "",
       classes: row.classes || "",
       is_primary: row.is_primary === 1 || row.is_primary === true,
@@ -2177,17 +2180,21 @@ function registerStaffRoutes(app, context) {
       `,
       [staffId],
     );
-    return rows.map((row) => ({
-      positionMasterId: row.position_master_id || null,
-      department: row.department || "",
-      position: row.position || "",
-      websitePlace: row.website_place || "",
-      subject: row.subject || "",
-      classes: row.classes || "",
-      isPrimary: row.is_primary === 1,
-      displayOrder: Number(row.display_order || 0),
-      visibleOnWebsite: row.visible_on_website !== 0,
-    }));
+    return rows.map((row) => {
+      const department = row.department || "";
+      const position = row.position || "";
+      return {
+        positionMasterId: row.position_master_id || null,
+        department,
+        position,
+        websitePlace: normalizeWebsitePlace(row.website_place, position, "", department),
+        subject: row.subject || "",
+        classes: row.classes || "",
+        isPrimary: row.is_primary === 1,
+        displayOrder: Number(row.display_order || 0),
+        visibleOnWebsite: row.visible_on_website !== 0,
+      };
+    });
   }
 
   async function repairStaffPublicRows() {
@@ -2310,7 +2317,15 @@ function registerStaffRoutes(app, context) {
         classes: profile.classes || "",
         visibleOnWebsite: true,
       };
-    const sourcePositions = positions.length ? positions : [primary];
+    const sourcePositions = (positions.length ? positions : [primary]).map((position) => ({
+      ...position,
+      websitePlace: normalizeWebsitePlace(
+        position.websitePlace,
+        position.position,
+        profile.staffType,
+        position.department,
+      ),
+    }));
     const active = profile.status === "Active";
     const visiblePositions = sourcePositions.filter(
       (position) => position.visibleOnWebsite !== false,
