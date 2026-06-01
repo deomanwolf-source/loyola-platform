@@ -967,14 +967,36 @@ function HomePage() {
               {db.gallery
                 .filter((item) => item.visible !== false)
                 .slice(0, 4)
-                .map((item) => (
-                  <img
-                    key={item.id}
-                    src={(item.images || [item.image]).filter(Boolean)[0] || "/loyola-crest.jpg"}
-                    alt={item.label}
-                    className="aspect-[4/3] rounded-lg object-cover shadow-soft"
-                  />
-                ))}
+                .map((item) => {
+                  const images = albumImages(item);
+                  const cover = images[0] || "/loyola-crest.jpg";
+                  return (
+                    <a
+                      key={item.id}
+                      href={albumHref(item)}
+                      className="group relative block aspect-[4/3] overflow-hidden rounded-lg bg-slate-100 shadow-soft transition-smooth hover:-translate-y-1 hover:shadow-elegant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
+                      aria-label={`Open ${item.label} album`}
+                    >
+                      <img
+                        src={cover}
+                        alt={item.label}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 group-focus-visible:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-navy/90 via-navy/35 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100" />
+                      <div className="absolute inset-x-0 bottom-0 translate-y-3 p-4 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
+                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gold-light">
+                          {images.length || 1} photo{(images.length || 1) === 1 ? "" : "s"}
+                        </p>
+                        <h3 className="mt-1 line-clamp-2 font-serif text-lg font-bold leading-tight">
+                          {item.label}
+                        </h3>
+                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/78">
+                          {item.description || "Open the full album."}
+                        </p>
+                      </div>
+                    </a>
+                  );
+                })}
             </div>
           </div>
         </div>
