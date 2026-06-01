@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, GraduationCap, Mail, Phone, User, Users } from "lucide-react";
+import { Briefcase, GraduationCap, Mail, Phone, User, Users, X } from "lucide-react";
 import { PublicLayout } from "@/components/site/PublicLayout";
 import { useDb, type Teacher } from "@/lib/store";
 import { API_URL } from "@/lib/api";
@@ -205,7 +205,15 @@ function positionMeta(position: ParsedPositionCode) {
     .join(" / ");
 }
 
-function GroupBlock({ group, assignments }: { group: StaffDisplayGroup; assignments: StaffAssignment[] }) {
+function GroupBlock({
+  group,
+  assignments,
+  onViewProfile,
+}: {
+  group: StaffDisplayGroup;
+  assignments: StaffAssignment[];
+  onViewProfile: (assignment: StaffAssignment) => void;
+}) {
   if (!assignments.length) return null;
   return (
     <section className="mt-10">
@@ -230,16 +238,99 @@ function GroupBlock({ group, assignments }: { group: StaffDisplayGroup; assignme
                 {positionMeta(assignment.position)}
               </p>
             </div>
-            <a
-              href={`/staff/${assignment.profile.slug}`}
+            <button
+              type="button"
+              onClick={() => onViewProfile(assignment)}
               className="mt-5 inline-flex h-9 items-center justify-center rounded-md border border-slate-200 px-5 text-xs font-extrabold text-slate-950 transition hover:border-crimson hover:text-crimson"
             >
               View Profile
-            </a>
+            </button>
           </article>
         ))}
       </div>
     </section>
+  );
+}
+
+function StaffProfileModal({
+  assignment,
+  onClose,
+}: {
+  assignment: StaffAssignment;
+  onClose: () => void;
+}) {
+  const { profile, position } = assignment;
+  const allPositions = profile.positions
+    .map((item) => item.display_title)
+    .filter(Boolean)
+    .filter((value, index, items) => items.indexOf(value) === index);
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] grid place-items-center bg-slate-950/45 px-4 py-6 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <article
+        className="relative max-h-[90vh] w-full max-w-xl overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 text-slate-950 shadow-[0_28px_80px_rgba(15,23,42,0.28)]"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          aria-label="Close profile"
+          onClick={onClose}
+          className="absolute right-4 top-4 grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-600 transition hover:border-crimson hover:text-crimson"
+        >
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="flex flex-col items-center text-center">
+          <StaffPhoto profile={profile} size="small" />
+          <h2 className="mt-5 font-serif text-2xl font-bold leading-tight text-slate-950">
+            {profile.name}
+          </h2>
+          <p className="mt-2 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
+            {position.display_title}
+          </p>
+          {positionMeta(position) && (
+            <p className="mt-2 text-sm text-slate-500">{positionMeta(position)}</p>
+          )}
+        </div>
+
+        <dl className="mt-6 grid gap-4 text-sm">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <dt className="text-[0.7rem] font-black uppercase tracking-[0.16em] text-slate-500">
+              Positions
+            </dt>
+            <dd className="mt-2 flex flex-wrap gap-2">
+              {(allPositions.length ? allPositions : [position.display_title]).map((title) => (
+                <span
+                  key={title}
+                  className="rounded-md border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-800"
+                >
+                  {title}
+                </span>
+              ))}
+            </dd>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <dt className="text-[0.7rem] font-black uppercase tracking-[0.16em] text-slate-500">
+              Qualifications
+            </dt>
+            <dd className="mt-2 leading-6 text-slate-800">
+              {profile.qualifications || "Not added"}
+            </dd>
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <dt className="text-[0.7rem] font-black uppercase tracking-[0.16em] text-slate-500">
+              Responsibilities
+            </dt>
+            <dd className="mt-2 leading-6 text-slate-800">{profile.bio || "Not added"}</dd>
+          </div>
+        </dl>
+      </article>
+    </div>
   );
 }
 
@@ -303,6 +394,7 @@ export function CollegeStaffPage({
 }) {
   const db = useDb();
   const [liveTeachers, setLiveTeachers] = useState<Teacher[] | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<StaffAssignment | null>(null);
   void pageId;
 
   useEffect(() => {
@@ -322,6 +414,20 @@ export function CollegeStaffPage({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!selectedAssignment) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setSelectedAssignment(null);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [selectedAssignment]);
 
   const directoryTeachers = liveTeachers || db.teachers || [];
   const profiles = useMemo(() => staffDirectoryProfiles(directoryTeachers), [directoryTeachers]);
@@ -353,7 +459,12 @@ export function CollegeStaffPage({
 
           {grouped.length > 0 ? (
             grouped.map(({ group, assignments }) => (
-              <GroupBlock key={group.id} group={group} assignments={assignments} />
+              <GroupBlock
+                key={group.id}
+                group={group}
+                assignments={assignments}
+                onViewProfile={setSelectedAssignment}
+              />
             ))
           ) : (
             <div className="py-20 text-center">
@@ -364,6 +475,12 @@ export function CollegeStaffPage({
           )}
         </div>
       </section>
+      {selectedAssignment && (
+        <StaffProfileModal
+          assignment={selectedAssignment}
+          onClose={() => setSelectedAssignment(null)}
+        />
+      )}
     </PublicLayout>
   );
 }
