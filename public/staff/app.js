@@ -400,11 +400,12 @@
   }
 
   function positionCodesForProfile(person = {}) {
-    const explicit = person.position_codes || person.positionCodes;
+    const profile = person || {};
+    const explicit = profile.position_codes || profile.positionCodes;
     const fromExplicit = normalizePositionCodes(explicit);
     if (fromExplicit.length) return fromExplicit;
     return normalizePositionCodes(
-      (person.positions || [])
+      (profile.positions || [])
         .map((position) => position.position_code || position.positionCode)
         .filter(Boolean),
     );
@@ -432,13 +433,14 @@
   }
 
   function websitePositionHtml(person = {}) {
-    const positions = staffPositions(person);
+    const profile = person || {};
+    const positions = staffPositions(profile);
     const primary = positions.find((position) => position.is_primary) || positions[0] || {};
     const place =
       primary.website_place ||
       primary.websitePlace ||
-      person.website_place ||
-      person.category ||
+      profile.website_place ||
+      profile.category ||
       "-";
     const visible = isWebsitePositionVisible(primary);
     const visibleCount = positions.filter(isWebsitePositionVisible).length;
@@ -446,7 +448,7 @@
     const summary =
       positions.length > 1
         ? `${visibleCount} show / ${hiddenCount} hidden`
-        : primary.position || person.position || "";
+        : primary.position || profile.position || "";
 
     return `
       <div class="website-position-cell">
