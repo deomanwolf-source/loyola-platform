@@ -1029,11 +1029,34 @@ function HomePage() {
   );
 }
 
+const collegeHistoryParagraphs = [
+  "On 2nd February, 1949, Late Mr. Sebastian Vincent Laus Fonseka with the noble aim of creating generations of virtuous Christians, teamed up with his brother Mr. J. Anthony Fonseka and built an institution in two cadjan sheds 30 x 20 and 20 x 40, on a land obtained on lease at Periyamulla, consisting of 32 students and 7 teachers.",
+  "On a visit to Periyamulla, the late His Eminence Thomas Cardinal Cooray noticed this school and invited the Fonseka brothers to establish the institution as a school in the Periyamulla Church premises. Accordingly classes began in the building erected in the Periyamulla Church premises and Mr. S. V. Fonseka served as the 1st Principal of this school for 38 years. He was indeed a brave and courageous man who always endeavored for the betterment of children's education, yet remained a simple man himself.",
+  "In the year 1979, Rev. Bro. Clifford of the Marist congregation offered his services in the capacity of Principal for a period of one year by way of taking over the administration of the College.",
+  "In 1987 the All Ceylon Teachers' Union in Sri Lanka took over the administration of this school by way of a three member board of Trustees under Mr. J. E. Noel Dabarera, the 2nd Principal. In 1994 the All Ceylon Teachers' Union and Mr. J. E. Noel Dabarera handed over the school administration to the Archdiocese of Colombo.",
+  "In July 1994 Rev. Fr. Leo Perera, the parish priest of Our Lady of Snows Church, Periyamulla was appointed by the then Archbishop Dr. Nicholas Marcus Fernando as the first Rector of this College.",
+  "Rev. Fr. Leo Perera teamed up with Rev. Bro. Thilakasiri Fernando T.O.R to fulfill the onerous task of re-establishing the College on 27th September 1995, at the present premises, which was formerly an oil mill.",
+  "In January 2000 with the appointment of Rev. Fr. Trevor Martin as the 2nd Rector, the College made a steady progress with new buildings coming up and introduction of sweeping changes aimed at higher standards of education and discipline in the College.",
+  "On 12th January, 2003, Grade 1 English Medium class was formed for the first time in the Loyolian History paving the way to English Medium education for the students.",
+  "Loyola College Branch school at Bopitiya was declared open by His Grace the Archbishop Most Rev. Dr. Oswald Gomis on 15th January, 2003 expanding the services giving privilege for the students in that area.",
+  "On 10th February 2014, Rev. Fr. Trevor Martin left Loyola College and on the following day, Rev. Fr. Ranjith Andradi became the 3rd Rector of the College. After a brief period he handed over the Rectorship to Rev. Fr. Sudath Gunetileke, the present Rector, who assumed duties on the 26th May 2015 as the 4th Rector.",
+  "In the crack of dawn Rev. Fr. Sudath Gunetileke made things happen by purchasing three portions of adjoining land with the intention of expanding the terrestrial area. The chapel which was in the Advanced Level Section was shifted to a spacious place near the entrance making it more convenient and easily accessible. The child friendly play area for the primary students to enjoy physical activities adds beauty to the primary compound. The main entrance to the college was given an appealing and inviting appearance. Loyola Sports Complex was named after Rev. Fr. Trevor Martin as a result of his noble thoughts about the past Rector.",
+  "Today with a generous investment, the College shines in her new looks with alluring colours on its walls. Rev. Fr. Sudath is responsible for renovations and refurbishing to the various buildings in the College.",
+  "Father Sudath built a Scouts Den in order that the Scouts could keep all their belongings in one place in order. The College office was refurbished during this period and it has a very pleasant atmosphere. The College Auditorium looks great in its present form after being refurbished. The Audio Visual Room is very comfortable and can accommodate 130 persons where conferences and meetings can be conducted. The Medical Unit was refurbished with a great new look and a new Dental chair was installed in the unit for the benefit of the students.",
+  "S. V. Fonseka Hall was refurbished with a great new modern look to the old building. Upper School Staff Room was refurbished with a view to provide the staff members with a quiet relaxed environment to concentrate on whatever work during their free time. The College chapel was completely given a new face lift with very picturesque paintings. The canteen was completely turned into a modern unit with all the necessary facilities. The Upper School washrooms for the students were completely given a facelift with new fittings and accessories.",
+  "Rev. Fr. Sudath Gunetileke served as the 4th Rector of the College from 2015 to 2022. He was succeeded by Rev. Fr. Kennedy Perera, who is currently serving as the Rector. Rev. Fr. Kennedy Perera, the current Rector of the college, has undertaken various renovation and development projects in the college. One of the achievements is the renovation of the basketball court, providing the students with a modern and well-maintained facility to engage in sports and physical activity. He has also redesigned the school entrance with new statues, which enhances the aesthetic appeal of the college which add to the overall beauty of the college. A Sports Pavilion, Cadet Billet and a Technical Unit were also constructed and declared opened for the benefit of the students. Fr. Kennedy was also responsible in converting the Badminton Court in the Sports complex into a new chapel for the Primary Section, dedicated to our Patron Saint St. Ignatius of Loyola. Expansion of the Primary Section was done by constructing a new building. A special unit was newly opened in the New Building and named 'Pope Francis Differently Abled Unit'.",
+  "These efforts of Rev. Fr. Kennedy Perera reflect his commitment to uplifting the standard of the education and infrastructure at the college.",
+  "Under Rev. Fr. Kennedy's leadership, the college has continued to strive towards excellence in education and discipline. With current student body of 2,688 and a faculty of 150 teachers, the college has come a long way in its 77 years history and is a source of pride for all those associated with it.",
+];
+
 function AboutPage() {
   const db = useDb();
   const page = db.pages.about;
   const about = db.aboutSections;
-  const staffGroups = ["Academic Staff", "Non-Academic Staff", "Supportive Staff"];
+  const historyKicker = about.storyKicker || "College History";
+  const historyTitle = about.storyTitle || "College History";
+  const quote = about.quote || "Faith, learning, discipline, and service.";
+  const quoteAuthor = about.quoteAuthor || "Loyola College Negombo";
   return (
     <PublicLayout>
       <PageHeader
@@ -1044,23 +1067,26 @@ function AboutPage() {
         image={page.image || db.media.aboutImage}
       />
       <section
-        id="rector-message"
-        className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[1fr_420px]"
+        id="history"
+        className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_420px]"
       >
-        <div>
-          <p id="history" className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-            {about.storyKicker}
+        <article>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+            {historyKicker}
           </p>
-          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{about.storyTitle}</h2>
-          <p className="mt-6 leading-relaxed text-muted-foreground">{about.storyBodyOne}</p>
-          <p className="mt-4 leading-relaxed text-muted-foreground">{about.storyBodyTwo}</p>
-        </div>
-        <div className="rounded-lg bg-navy p-8 text-white">
-          <p className="font-serif text-3xl leading-snug">{about.quote}</p>
+          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{historyTitle}</h2>
+          <div className="mt-7 space-y-5 text-base leading-8 text-muted-foreground">
+            {collegeHistoryParagraphs.map((paragraph) => (
+              <p key={paragraph}>{paragraph}</p>
+            ))}
+          </div>
+        </article>
+        <aside className="h-fit rounded-lg bg-navy p-8 text-white shadow-soft lg:sticky lg:top-28">
+          <p className="font-serif text-3xl leading-snug">{quote}</p>
           <p className="mt-6 text-sm font-bold uppercase tracking-[0.18em] text-gold-light">
-            {about.quoteAuthor}
+            {quoteAuthor}
           </p>
-        </div>
+        </aside>
       </section>
     </PublicLayout>
   );
