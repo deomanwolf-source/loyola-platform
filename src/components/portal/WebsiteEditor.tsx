@@ -13,6 +13,7 @@ import {
   MonitorSmartphone,
   Palette,
   Pencil,
+  Plus,
   RefreshCw,
   Save,
   Send,
@@ -641,6 +642,9 @@ function PreviewWebsite({
 const studioSections = [
   "Header",
   "Hero",
+  "About College",
+  "Rector Message",
+  "Leadership",
   "Welcome",
   "Vision & Mission",
   "News & Notices",
@@ -785,6 +789,8 @@ export function WebsiteEditor() {
   const logoInputRef = useRef<HTMLInputElement>(null);
   const campusInputRef = useRef<HTMLInputElement>(null);
   const principalInputRef = useRef<HTMLInputElement>(null);
+  const rectorInputRef = useRef<HTMLInputElement>(null);
+  const leadershipImageInputRef = useRef<HTMLInputElement>(null);
   const pageImageInputRef = useRef<HTMLInputElement>(null);
   const anthemVideoCoverInputRef = useRef<HTMLInputElement>(null);
   const backgroundMediaInputRef = useRef<HTMLInputElement>(null);
@@ -796,6 +802,8 @@ export function WebsiteEditor() {
   const [savingState, setSavingState] = useState<"idle" | "saving" | "publishing" | "submitting">(
     "idle",
   );
+  const [widePreview, setWidePreview] = useState(false);
+  const [leadershipUploadTarget, setLeadershipUploadTarget] = useState<string | null>(null);
   const [visualEditorOpen, setVisualEditorOpen] = useState(false);
   const [visualEditorInitial, setVisualEditorInitial] = useState<{
     html: string;
@@ -834,8 +842,96 @@ export function WebsiteEditor() {
     }));
   };
 
+  const updateHomeSection = (patch: Partial<DB["homeSections"]>) => {
+    setDb((current) => ({
+      ...current,
+      homeSections: { ...current.homeSections, ...patch },
+    }));
+  };
+
+  const updateLeadershipCard = (
+    id: string,
+    patch: Partial<DB["homeSections"]["leadershipCards"][number]>,
+  ) => {
+    setDb((current) => ({
+      ...current,
+      homeSections: {
+        ...current.homeSections,
+        leadershipCards: current.homeSections.leadershipCards.map((card) =>
+          card.id === id ? { ...card, ...patch } : card,
+        ),
+      },
+    }));
+  };
+
+  const updateHomeStat = (id: string, patch: Partial<DB["homeSections"]["stats"][number]>) => {
+    setDb((current) => ({
+      ...current,
+      homeSections: {
+        ...current.homeSections,
+        stats: current.homeSections.stats.map((stat) =>
+          stat.id === id ? { ...stat, ...patch } : stat,
+        ),
+      },
+    }));
+  };
+
+  const addHomeStat = () => {
+    setDb((current) => ({
+      ...current,
+      homeSections: {
+        ...current.homeSections,
+        stats: [
+          ...current.homeSections.stats,
+          { id: makeId("HOME-STAT"), label: "New statistic", value: "0" },
+        ],
+      },
+    }));
+  };
+
+  const removeHomeStat = (id: string) => {
+    setDb((current) => ({
+      ...current,
+      homeSections: {
+        ...current.homeSections,
+        stats: current.homeSections.stats.filter((stat) => stat.id !== id),
+      },
+    }));
+  };
+
+  const addLeadershipCard = () => {
+    setDb((current) => ({
+      ...current,
+      homeSections: {
+        ...current.homeSections,
+        leadershipCards: [
+          ...current.homeSections.leadershipCards,
+          {
+            id: makeId("LEAD"),
+            name: "New leader",
+            title: "Leadership role",
+            description: "",
+            image: "",
+            order: current.homeSections.leadershipCards.length + 1,
+            visible: true,
+          },
+        ],
+      },
+    }));
+  };
+
+  const removeLeadershipCard = (id: string) => {
+    setDb((current) => ({
+      ...current,
+      homeSections: {
+        ...current.homeSections,
+        leadershipCards: current.homeSections.leadershipCards.filter((card) => card.id !== id),
+      },
+    }));
+  };
+
   const uploadTo = async (
-    target: "hero" | "logo" | "campus" | "page" | "principal" | "anthemVideoCover",
+    target: "hero" | "logo" | "campus" | "page" | "principal" | "rector" | "anthemVideoCover",
     file?: File,
   ) => {
     if (!file) return;
@@ -867,6 +963,11 @@ export function WebsiteEditor() {
           };
         if (target === "principal")
           return { ...current, media: { ...current.media, principalImage: imageUrl } };
+        if (target === "rector")
+          return {
+            ...current,
+            homeSections: { ...current.homeSections, rectorImage: imageUrl },
+          };
         if (target === "page") {
           return {
             ...current,
@@ -898,6 +999,35 @@ export function WebsiteEditor() {
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Image upload failed.");
+    }
+  };
+
+  const uploadLeadershipCardImage = async (cardId: string, file?: File) => {
+    if (!file) return;
+    try {
+      setMessage("Optimizing leadership photo...");
+      const optimized = await compressImage(file);
+      let imageUrl = optimized.url;
+      let uploaded = false;
+
+      try {
+        setMessage("Uploading leadership photo...");
+        imageUrl = await uploadFileToBackend(`site-images/leadership/${cardId}`, file);
+        uploaded = true;
+      } catch (error) {
+        if (isMediaUploadDisabledError(error)) throw error;
+      }
+
+      updateLeadershipCard(cardId, { image: imageUrl });
+      setMessage(
+        uploaded
+          ? `Leadership photo uploaded: ${optimized.original} to ${optimized.optimized}`
+          : `Leadership photo optimized for local storage: ${optimized.original} to ${optimized.optimized}`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Leadership photo upload failed.");
+    } finally {
+      setLeadershipUploadTarget(null);
     }
   };
 
@@ -1285,6 +1415,13 @@ export function WebsiteEditor() {
                 <Save className="h-4 w-4" />
                 {savingState === "saving" ? "Saving…" : "Save Draft"}
               </StudioButton>
+              <StudioButton onClick={() => setWidePreview((current) => !current)}>
+                <MonitorSmartphone className="h-4 w-4" />
+                {widePreview ? "Show Panels" : "Wide Editor"}
+              </StudioButton>
+              <StudioButton tone="dark" onClick={openVisualBuilder}>
+                <Wand2 className="h-4 w-4" /> Visual Builder
+              </StudioButton>
               <StudioButton onClick={() => window.open("/", "_blank", "noopener,noreferrer")}>
                 <Eye className="h-4 w-4" /> Preview
               </StudioButton>
@@ -1349,115 +1486,121 @@ export function WebsiteEditor() {
         </div>
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)_352px]">
-        <aside className="space-y-4">
-          {/* Pages Panel */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-            <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
-              <LayoutTemplate className="h-4 w-4 text-[#d4a017]" />
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                Pages
-              </span>
+      <div
+        className={
+          widePreview ? "grid gap-5" : "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)_352px]"
+        }
+      >
+        {!widePreview && (
+          <aside className="space-y-4">
+            {/* Pages Panel */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+              <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
+                <LayoutTemplate className="h-4 w-4 text-[#d4a017]" />
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
+                  Pages
+                </span>
+              </div>
+              <div className="p-3 space-y-1">
+                {pageIds.map((id) => {
+                  const navItem = db.navigation.find((n) => n.id === id);
+                  const isSubpage = !!navItem?.parentId;
+                  const canDelete = id !== "home";
+                  const isActive = selectedPage === id;
+                  return (
+                    <div key={id} className={`flex items-center gap-1 ${isSubpage ? "ml-3" : ""}`}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedPage(id)}
+                        className={`group flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 ${
+                          isActive
+                            ? "bg-gradient-to-r from-[#0a1628] to-[#1e3560] text-white shadow-[0_2px_12px_-2px_rgba(10,22,40,0.35)]"
+                            : "text-slate-600 hover:bg-slate-50 hover:text-navy"
+                        }`}
+                      >
+                        {isActive && (
+                          <span className="h-1.5 w-1.5 rounded-full bg-[#d4a017] shrink-0" />
+                        )}
+                        <span className="truncate">
+                          {navItem?.label || db.pages[id]?.title || id.replace("-", " ")}
+                        </span>
+                      </button>
+                      <div className="flex shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => editPageName(id)}
+                          title="Rename"
+                          className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => deletePage(id)}
+                            title="Delete"
+                            className="rounded-lg p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        {!isSubpage && (
+                          <button
+                            type="button"
+                            onClick={() => addPage(id)}
+                            title="Add subpage"
+                            className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+                          >
+                            <span className="text-sm font-black leading-none">+</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  onClick={() => addPage()}
+                  className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs font-bold text-slate-400 transition-all duration-200 hover:border-[#d4a017] hover:bg-[#d4a017]/5 hover:text-navy"
+                >
+                  + Add new page
+                </button>
+              </div>
             </div>
-            <div className="p-3 space-y-1">
-              {pageIds.map((id) => {
-                const navItem = db.navigation.find((n) => n.id === id);
-                const isSubpage = !!navItem?.parentId;
-                const canDelete = id !== "home";
-                const isActive = selectedPage === id;
-                return (
-                  <div key={id} className={`flex items-center gap-1 ${isSubpage ? "ml-3" : ""}`}>
+
+            {/* Sections Panel */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+              <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
+                <Menu className="h-4 w-4 text-[#d4a017]" />
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
+                  Sections
+                </span>
+              </div>
+              <div className="p-3 space-y-1">
+                {studioSections.map((section) => {
+                  const isActive = selectedSection === section;
+                  return (
                     <button
+                      key={section}
                       type="button"
-                      onClick={() => setSelectedPage(id)}
-                      className={`group flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 ${
+                      onClick={() => setSelectedSection(section)}
+                      className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 ${
                         isActive
-                          ? "bg-gradient-to-r from-[#0a1628] to-[#1e3560] text-white shadow-[0_2px_12px_-2px_rgba(10,22,40,0.35)]"
+                          ? "bg-[#d4a017]/12 text-navy shadow-[0_0_0_1.5px_#d4a017] font-bold"
                           : "text-slate-600 hover:bg-slate-50 hover:text-navy"
                       }`}
                     >
+                      <span>{section}</span>
                       {isActive && (
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#d4a017] shrink-0" />
+                        <span className="h-2 w-2 rounded-full bg-[#d4a017] animate-pulse-badge" />
                       )}
-                      <span className="truncate">
-                        {navItem?.label || db.pages[id]?.title || id.replace("-", " ")}
-                      </span>
                     </button>
-                    <div className="flex shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => editPageName(id)}
-                        title="Rename"
-                        className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                      {canDelete && (
-                        <button
-                          type="button"
-                          onClick={() => deletePage(id)}
-                          title="Delete"
-                          className="rounded-lg p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                      {!isSubpage && (
-                        <button
-                          type="button"
-                          onClick={() => addPage(id)}
-                          title="Add subpage"
-                          className="rounded-lg p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-                        >
-                          <span className="text-sm font-black leading-none">+</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              <button
-                type="button"
-                onClick={() => addPage()}
-                className="mt-1 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2.5 text-xs font-bold text-slate-400 transition-all duration-200 hover:border-[#d4a017] hover:bg-[#d4a017]/5 hover:text-navy"
-              >
-                + Add new page
-              </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-
-          {/* Sections Panel */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-            <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
-              <Menu className="h-4 w-4 text-[#d4a017]" />
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                Sections
-              </span>
-            </div>
-            <div className="p-3 space-y-1">
-              {studioSections.map((section) => {
-                const isActive = selectedSection === section;
-                return (
-                  <button
-                    key={section}
-                    type="button"
-                    onClick={() => setSelectedSection(section)}
-                    className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all duration-200 ${
-                      isActive
-                        ? "bg-[#d4a017]/12 text-navy shadow-[0_0_0_1.5px_#d4a017] font-bold"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-navy"
-                    }`}
-                  >
-                    <span>{section}</span>
-                    {isActive && (
-                      <span className="h-2 w-2 rounded-full bg-[#d4a017] animate-pulse-badge" />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </aside>
+          </aside>
+        )}
 
         <main className="space-y-4">
           <PreviewWebsite
@@ -1533,275 +1676,604 @@ export function WebsiteEditor() {
           </div>
         </main>
 
-        <aside className="space-y-4">
-          {/* Content Inspector */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-            <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
-              <Sparkles className="h-4 w-4 text-[#d4a017]" />
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                Content Inspector
-              </span>
-            </div>
-            <div className="p-4 space-y-4">
-              {selectedPage === "home" ? (
-                <>
-                  <Field label="School name">
-                    <input
-                      value={db.websiteContent.schoolName}
-                      onChange={(e) => updateContent({ schoolName: e.target.value })}
-                      className="input-line"
-                    />
-                  </Field>
-                  <Field label="Motto / tagline">
-                    <input
-                      value={db.websiteContent.tagline}
-                      onChange={(e) => updateContent({ tagline: e.target.value })}
-                      className="input-line"
-                    />
-                  </Field>
-                  <Field label="Hero title">
-                    <textarea
-                      value={db.websiteContent.heroTitle}
-                      onChange={(e) => updateContent({ heroTitle: e.target.value })}
-                      rows={3}
-                      className="input-line resize-none"
-                    />
-                  </Field>
-                  <Field label="Hero text">
-                    <textarea
-                      value={db.websiteContent.heroText}
-                      onChange={(e) => updateContent({ heroText: e.target.value })}
-                      rows={4}
-                      className="input-line resize-none"
-                    />
-                  </Field>
-                </>
-              ) : (
-                <>
-                  <PageBlockEditor pageId={selectedPage} />
-                  {selectedPage === "about/college-anthem-hymn" && (
-                    <div className="rounded-xl border border-[#d4a017]/30 bg-[#d4a017]/5 p-4">
-                      <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
-                        Anthem media
-                      </p>
-                      <Field label="Media title">
-                        <input
-                          value={page.anthemVideoTitle || ""}
-                          onChange={(e) => updatePage("anthemVideoTitle", e.target.value)}
-                          placeholder="College Anthem &amp; Hymn"
-                          className="input-line"
-                        />
-                      </Field>
-                      <Field label="Video link">
-                        <input
-                          value={page.anthemVideoUrl || ""}
-                          onChange={(e) => updatePage("anthemVideoUrl", e.target.value)}
-                          placeholder="YouTube or MP4 URL"
-                          className="input-line"
-                        />
-                      </Field>
-                      <Field label="Cover photo link">
-                        <input
-                          value={page.anthemVideoCoverImage || ""}
-                          onChange={(e) => updatePage("anthemVideoCoverImage", e.target.value)}
-                          placeholder="Paste image URL"
-                          className="input-line"
-                        />
-                      </Field>
-                      {page.anthemVideoCoverImage && (
-                        <img
-                          src={page.anthemVideoCoverImage}
-                          alt=""
-                          className="mt-3 aspect-video w-full rounded-xl object-cover"
-                        />
-                      )}
-                      <div className="mt-3 grid gap-2">
-                        <StudioButton
-                          tone="gold"
-                          onClick={() => anthemVideoCoverInputRef.current?.click()}
-                        >
-                          <Upload className="h-4 w-4" /> Upload video cover
-                        </StudioButton>
-                        {page.anthemVideoCoverImage && (
-                          <StudioButton onClick={() => updatePage("anthemVideoCoverImage", "")}>
-                            <Trash2 className="h-4 w-4" /> Remove cover
-                          </StudioButton>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-              <button
-                type="button"
-                onClick={openVisualBuilder}
-                className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />{" "}
-                Open Visual Builder
-              </button>
-            </div>
-          </div>
-
-          {/* Media Tools */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-            <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
-              <ImageIcon className="h-4 w-4 text-[#d4a017]" />
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                Media Tools
-              </span>
-            </div>
-            <div className="p-4 space-y-3">
-              <MediaUploadStatus />
-              {/* Hidden file inputs */}
-              <input
-                ref={heroInputRef}
-                type="file"
-                accept="image/jpeg,image/png"
-                className="hidden"
-                onChange={(e) => void uploadTo("hero", e.target.files?.[0])}
-              />
-              <input
-                ref={logoInputRef}
-                type="file"
-                accept="image/jpeg,image/png"
-                className="hidden"
-                onChange={(e) => void uploadTo("logo", e.target.files?.[0])}
-              />
-              <input
-                ref={campusInputRef}
-                type="file"
-                accept="image/jpeg,image/png"
-                className="hidden"
-                onChange={(e) => void uploadTo("campus", e.target.files?.[0])}
-              />
-              <input
-                ref={principalInputRef}
-                type="file"
-                accept="image/jpeg,image/png"
-                className="hidden"
-                onChange={(e) => void uploadTo("principal", e.target.files?.[0])}
-              />
-              <input
-                ref={pageImageInputRef}
-                type="file"
-                accept="image/jpeg,image/png"
-                className="hidden"
-                onChange={(e) => void uploadTo("page", e.target.files?.[0])}
-              />
-              <input
-                ref={anthemVideoCoverInputRef}
-                type="file"
-                accept="image/jpeg,image/png"
-                className="hidden"
-                onChange={(e) => void uploadTo("anthemVideoCover", e.target.files?.[0])}
-              />
-              <input
-                ref={backgroundMediaInputRef}
-                type="file"
-                accept="image/jpeg,image/png,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
-                className="hidden"
-                onChange={(e) => void uploadBackgroundMedia(e.target.files?.[0])}
-              />
-              <div className="grid gap-2">
-                <StudioButton onClick={() => backgroundMediaInputRef.current?.click()} tone="gold">
-                  <Upload className="h-4 w-4" /> Upload page background
-                </StudioButton>
-                {page.backgroundMediaUrl && (
-                  <StudioButton onClick={clearBackgroundMedia}>
-                    <Trash2 className="h-4 w-4" /> Remove background
-                  </StudioButton>
-                )}
+        {!widePreview && (
+          <aside className="space-y-4">
+            {/* Content Inspector */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+              <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
+                <Sparkles className="h-4 w-4 text-[#d4a017]" />
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
+                  Content Inspector
+                </span>
+              </div>
+              <div className="p-4 space-y-4">
                 {selectedPage === "home" ? (
-                  <StudioButton onClick={() => heroInputRef.current?.click()}>
-                    <Upload className="h-4 w-4" /> Upload hero image
-                  </StudioButton>
+                  <>
+                    {["Header", "Hero"].includes(selectedSection) && (
+                      <>
+                        <Field label="School name">
+                          <input
+                            value={db.websiteContent.schoolName}
+                            onChange={(e) => updateContent({ schoolName: e.target.value })}
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Motto / tagline">
+                          <input
+                            value={db.websiteContent.tagline}
+                            onChange={(e) => updateContent({ tagline: e.target.value })}
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Hero title">
+                          <textarea
+                            value={db.websiteContent.heroTitle}
+                            onChange={(e) => updateContent({ heroTitle: e.target.value })}
+                            rows={3}
+                            className="input-line resize-none"
+                          />
+                        </Field>
+                        <Field label="Hero text">
+                          <textarea
+                            value={db.websiteContent.heroText}
+                            onChange={(e) => updateContent({ heroText: e.target.value })}
+                            rows={4}
+                            className="input-line resize-none"
+                          />
+                        </Field>
+                      </>
+                    )}
+
+                    {selectedSection === "About College" && (
+                      <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
+                          Homepage about
+                        </p>
+                        <Field label="Heading">
+                          <input
+                            value={db.homeSections.aboutHeading}
+                            onChange={(e) => updateHomeSection({ aboutHeading: e.target.value })}
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Body">
+                          <textarea
+                            value={db.homeSections.aboutBody}
+                            onChange={(e) => updateHomeSection({ aboutBody: e.target.value })}
+                            rows={5}
+                            className="input-line resize-none"
+                          />
+                        </Field>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <Field label="Button text">
+                            <input
+                              value={db.homeSections.aboutButtonLabel}
+                              onChange={(e) =>
+                                updateHomeSection({ aboutButtonLabel: e.target.value })
+                              }
+                              className="input-line"
+                            />
+                          </Field>
+                          <Field label="Button link">
+                            <input
+                              value={db.homeSections.aboutButtonHref}
+                              onChange={(e) =>
+                                updateHomeSection({ aboutButtonHref: e.target.value })
+                              }
+                              className="input-line"
+                            />
+                          </Field>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                              Stats
+                            </p>
+                            <button
+                              type="button"
+                              onClick={addHomeStat}
+                              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy"
+                            >
+                              <Plus className="h-3.5 w-3.5" /> Add
+                            </button>
+                          </div>
+                          {db.homeSections.stats.map((stat) => (
+                            <div
+                              key={stat.id}
+                              className="grid gap-2 rounded-lg border border-slate-200 bg-white p-3"
+                            >
+                              <input
+                                value={stat.value}
+                                onChange={(e) => updateHomeStat(stat.id, { value: e.target.value })}
+                                placeholder="Value"
+                                className="input-line"
+                              />
+                              <input
+                                value={stat.label}
+                                onChange={(e) => updateHomeStat(stat.id, { label: e.target.value })}
+                                placeholder="Label"
+                                className="input-line"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeHomeStat(stat.id)}
+                                className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Remove
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSection === "Rector Message" && (
+                      <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
+                          Rector message
+                        </p>
+                        <Field label="Label">
+                          <input
+                            value={db.homeSections.rectorHeading}
+                            onChange={(e) => updateHomeSection({ rectorHeading: e.target.value })}
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Title">
+                          <textarea
+                            value={db.homeSections.rectorTitle}
+                            onChange={(e) => updateHomeSection({ rectorTitle: e.target.value })}
+                            rows={2}
+                            className="input-line resize-none"
+                          />
+                        </Field>
+                        <Field label="Message">
+                          <textarea
+                            value={db.homeSections.rectorBody}
+                            onChange={(e) => updateHomeSection({ rectorBody: e.target.value })}
+                            rows={6}
+                            className="input-line resize-none"
+                          />
+                        </Field>
+                        <Field label="Rector name">
+                          <input
+                            value={db.homeSections.rectorName}
+                            onChange={(e) => updateHomeSection({ rectorName: e.target.value })}
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Designation">
+                          <input
+                            value={db.homeSections.rectorDesignation}
+                            onChange={(e) =>
+                              updateHomeSection({ rectorDesignation: e.target.value })
+                            }
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Photo URL">
+                          <input
+                            value={db.homeSections.rectorImage}
+                            onChange={(e) => updateHomeSection({ rectorImage: e.target.value })}
+                            placeholder="Paste image URL or upload below"
+                            className="input-line"
+                          />
+                        </Field>
+                        {db.homeSections.rectorImage && (
+                          <img
+                            src={db.homeSections.rectorImage}
+                            alt=""
+                            className="aspect-[4/5] w-full rounded-xl object-cover"
+                          />
+                        )}
+                        <div className="grid gap-2">
+                          <StudioButton tone="gold" onClick={() => rectorInputRef.current?.click()}>
+                            <Upload className="h-4 w-4" /> Upload rector photo
+                          </StudioButton>
+                          {db.homeSections.rectorImage && (
+                            <StudioButton onClick={() => updateHomeSection({ rectorImage: "" })}>
+                              <Trash2 className="h-4 w-4" /> Remove photo
+                            </StudioButton>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedSection === "Leadership" && (
+                      <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
+                            Leadership cards
+                          </p>
+                          <button
+                            type="button"
+                            onClick={addLeadershipCard}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Add
+                          </button>
+                        </div>
+                        <Field label="Kicker">
+                          <input
+                            value={db.homeSections.leadershipKicker}
+                            onChange={(e) =>
+                              updateHomeSection({ leadershipKicker: e.target.value })
+                            }
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Title">
+                          <textarea
+                            value={db.homeSections.leadershipTitle}
+                            onChange={(e) => updateHomeSection({ leadershipTitle: e.target.value })}
+                            rows={2}
+                            className="input-line resize-none"
+                          />
+                        </Field>
+                        <Field label="Body">
+                          <textarea
+                            value={db.homeSections.leadershipBody}
+                            onChange={(e) => updateHomeSection({ leadershipBody: e.target.value })}
+                            rows={4}
+                            className="input-line resize-none"
+                          />
+                        </Field>
+                        {db.homeSections.leadershipCards
+                          .slice()
+                          .sort((a, b) => (a.order || 0) - (b.order || 0))
+                          .map((card) => (
+                            <div
+                              key={card.id}
+                              className="space-y-3 rounded-xl border border-slate-200 bg-white p-3"
+                            >
+                              {card.image && (
+                                <img
+                                  src={card.image}
+                                  alt=""
+                                  className="aspect-[4/5] w-full rounded-lg object-cover"
+                                />
+                              )}
+                              <Field label="Name">
+                                <input
+                                  value={card.name}
+                                  onChange={(e) =>
+                                    updateLeadershipCard(card.id, { name: e.target.value })
+                                  }
+                                  className="input-line"
+                                />
+                              </Field>
+                              <Field label="Role">
+                                <input
+                                  value={card.title}
+                                  onChange={(e) =>
+                                    updateLeadershipCard(card.id, { title: e.target.value })
+                                  }
+                                  className="input-line"
+                                />
+                              </Field>
+                              <Field label="Description">
+                                <textarea
+                                  value={card.description}
+                                  onChange={(e) =>
+                                    updateLeadershipCard(card.id, { description: e.target.value })
+                                  }
+                                  rows={3}
+                                  className="input-line resize-none"
+                                />
+                              </Field>
+                              <Field label="Image URL">
+                                <input
+                                  value={card.image}
+                                  onChange={(e) =>
+                                    updateLeadershipCard(card.id, { image: e.target.value })
+                                  }
+                                  className="input-line"
+                                />
+                              </Field>
+                              <div className="grid gap-2 sm:grid-cols-2">
+                                <Field label="Order">
+                                  <input
+                                    type="number"
+                                    value={card.order || 0}
+                                    onChange={(e) =>
+                                      updateLeadershipCard(card.id, {
+                                        order: Number(e.target.value) || 0,
+                                      })
+                                    }
+                                    className="input-line"
+                                  />
+                                </Field>
+                                <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-navy">
+                                  <input
+                                    type="checkbox"
+                                    checked={card.visible !== false}
+                                    onChange={(e) =>
+                                      updateLeadershipCard(card.id, { visible: e.target.checked })
+                                    }
+                                    className="accent-[#d4a017]"
+                                  />
+                                  Show
+                                </label>
+                              </div>
+                              <div className="grid gap-2">
+                                <StudioButton
+                                  tone="gold"
+                                  onClick={() => {
+                                    setLeadershipUploadTarget(card.id);
+                                    leadershipImageInputRef.current?.click();
+                                  }}
+                                >
+                                  <Upload className="h-4 w-4" /> Upload photo
+                                </StudioButton>
+                                <StudioButton onClick={() => removeLeadershipCard(card.id)}>
+                                  <Trash2 className="h-4 w-4" /> Remove card
+                                </StudioButton>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <StudioButton onClick={() => pageImageInputRef.current?.click()}>
-                    <Upload className="h-4 w-4" /> Upload page image
-                  </StudioButton>
+                  <>
+                    <PageBlockEditor pageId={selectedPage} />
+                    {selectedPage === "about/college-anthem-hymn" && (
+                      <div className="rounded-xl border border-[#d4a017]/30 bg-[#d4a017]/5 p-4">
+                        <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
+                          Anthem media
+                        </p>
+                        <Field label="Media title">
+                          <input
+                            value={page.anthemVideoTitle || ""}
+                            onChange={(e) => updatePage("anthemVideoTitle", e.target.value)}
+                            placeholder="College Anthem &amp; Hymn"
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Video link">
+                          <input
+                            value={page.anthemVideoUrl || ""}
+                            onChange={(e) => updatePage("anthemVideoUrl", e.target.value)}
+                            placeholder="YouTube or MP4 URL"
+                            className="input-line"
+                          />
+                        </Field>
+                        <Field label="Cover photo link">
+                          <input
+                            value={page.anthemVideoCoverImage || ""}
+                            onChange={(e) => updatePage("anthemVideoCoverImage", e.target.value)}
+                            placeholder="Paste image URL"
+                            className="input-line"
+                          />
+                        </Field>
+                        {page.anthemVideoCoverImage && (
+                          <img
+                            src={page.anthemVideoCoverImage}
+                            alt=""
+                            className="mt-3 aspect-video w-full rounded-xl object-cover"
+                          />
+                        )}
+                        <div className="mt-3 grid gap-2">
+                          <StudioButton
+                            tone="gold"
+                            onClick={() => anthemVideoCoverInputRef.current?.click()}
+                          >
+                            <Upload className="h-4 w-4" /> Upload video cover
+                          </StudioButton>
+                          {page.anthemVideoCoverImage && (
+                            <StudioButton onClick={() => updatePage("anthemVideoCoverImage", "")}>
+                              <Trash2 className="h-4 w-4" /> Remove cover
+                            </StudioButton>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
-                <StudioButton onClick={() => logoInputRef.current?.click()}>
-                  <Upload className="h-4 w-4" /> Upload logo
-                </StudioButton>
-                <StudioButton onClick={() => campusInputRef.current?.click()}>
-                  <Upload className="h-4 w-4" /> Upload campus image
-                </StudioButton>
-                <StudioButton onClick={() => principalInputRef.current?.click()}>
-                  <Upload className="h-4 w-4" /> Upload principal image
-                </StudioButton>
-                <Field
-                  label="Page background opacity"
-                  hint={`${Math.round((page.backgroundMediaOpacity || 0.34) * 100)}% — behind the hero gradient.`}
+                <button
+                  type="button"
+                  onClick={openVisualBuilder}
+                  className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
                 >
+                  <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />{" "}
+                  Open Visual Builder
+                </button>
+              </div>
+            </div>
+
+            {/* Media Tools */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+              <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
+                <ImageIcon className="h-4 w-4 text-[#d4a017]" />
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
+                  Media Tools
+                </span>
+              </div>
+              <div className="p-4 space-y-3">
+                <MediaUploadStatus />
+                {/* Hidden file inputs */}
+                <input
+                  ref={heroInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => void uploadTo("hero", e.target.files?.[0])}
+                />
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => void uploadTo("logo", e.target.files?.[0])}
+                />
+                <input
+                  ref={campusInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => void uploadTo("campus", e.target.files?.[0])}
+                />
+                <input
+                  ref={principalInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => {
+                    void uploadTo("principal", e.target.files?.[0]);
+                    e.currentTarget.value = "";
+                  }}
+                />
+                <input
+                  ref={rectorInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => {
+                    void uploadTo("rector", e.target.files?.[0]);
+                    e.currentTarget.value = "";
+                  }}
+                />
+                <input
+                  ref={leadershipImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (leadershipUploadTarget) {
+                      void uploadLeadershipCardImage(leadershipUploadTarget, e.target.files?.[0]);
+                    }
+                    e.currentTarget.value = "";
+                  }}
+                />
+                <input
+                  ref={pageImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => void uploadTo("page", e.target.files?.[0])}
+                />
+                <input
+                  ref={anthemVideoCoverInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => void uploadTo("anthemVideoCover", e.target.files?.[0])}
+                />
+                <input
+                  ref={backgroundMediaInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+                  className="hidden"
+                  onChange={(e) => void uploadBackgroundMedia(e.target.files?.[0])}
+                />
+                <div className="grid gap-2">
+                  <StudioButton
+                    onClick={() => backgroundMediaInputRef.current?.click()}
+                    tone="gold"
+                  >
+                    <Upload className="h-4 w-4" /> Upload page background
+                  </StudioButton>
+                  {page.backgroundMediaUrl && (
+                    <StudioButton onClick={clearBackgroundMedia}>
+                      <Trash2 className="h-4 w-4" /> Remove background
+                    </StudioButton>
+                  )}
+                  {selectedPage === "home" ? (
+                    <StudioButton onClick={() => heroInputRef.current?.click()}>
+                      <Upload className="h-4 w-4" /> Upload hero image
+                    </StudioButton>
+                  ) : (
+                    <StudioButton onClick={() => pageImageInputRef.current?.click()}>
+                      <Upload className="h-4 w-4" /> Upload page image
+                    </StudioButton>
+                  )}
+                  <StudioButton onClick={() => logoInputRef.current?.click()}>
+                    <Upload className="h-4 w-4" /> Upload logo
+                  </StudioButton>
+                  <StudioButton onClick={() => campusInputRef.current?.click()}>
+                    <Upload className="h-4 w-4" /> Upload campus image
+                  </StudioButton>
+                  <StudioButton onClick={() => principalInputRef.current?.click()}>
+                    <Upload className="h-4 w-4" /> Upload principal image
+                  </StudioButton>
+                  {selectedPage === "home" && (
+                    <StudioButton onClick={() => rectorInputRef.current?.click()}>
+                      <Upload className="h-4 w-4" /> Upload rector photo
+                    </StudioButton>
+                  )}
+                  <Field
+                    label="Page background opacity"
+                    hint={`${Math.round((page.backgroundMediaOpacity || 0.34) * 100)}% — behind the hero gradient.`}
+                  >
+                    <input
+                      type="range"
+                      min="0.08"
+                      max="0.75"
+                      step="0.01"
+                      value={page.backgroundMediaOpacity || 0.34}
+                      onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))}
+                      className="w-full accent-[#d4a017]"
+                    />
+                  </Field>
+                </div>
+              </div>
+            </div>
+
+            {/* Design & Animation */}
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+              <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
+                <Palette className="h-4 w-4 text-[#d4a017]" />
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
+                  Design &amp; Animation
+                </span>
+              </div>
+              <div className="p-4 space-y-4">
+                <Field label="Primary color">
                   <input
-                    type="range"
-                    min="0.08"
-                    max="0.75"
-                    step="0.01"
-                    value={page.backgroundMediaOpacity || 0.34}
-                    onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))}
-                    className="w-full accent-[#d4a017]"
+                    type="color"
+                    value={db.websiteContent.primaryColor}
+                    onChange={(e) => updateContent({ primaryColor: e.target.value })}
+                    className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 transition-all hover:border-[#d4a017]"
                   />
                 </Field>
-              </div>
-            </div>
-          </div>
-
-          {/* Design & Animation */}
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-            <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
-              <Palette className="h-4 w-4 text-[#d4a017]" />
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                Design &amp; Animation
-              </span>
-            </div>
-            <div className="p-4 space-y-4">
-              <Field label="Primary color">
-                <input
-                  type="color"
-                  value={db.websiteContent.primaryColor}
-                  onChange={(e) => updateContent({ primaryColor: e.target.value })}
-                  className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 transition-all hover:border-[#d4a017]"
-                />
-              </Field>
-              <Field label="Accent color">
-                <input
-                  type="color"
-                  value={db.websiteContent.accentColor}
-                  onChange={(e) => updateContent({ accentColor: e.target.value })}
-                  className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 transition-all hover:border-[#d4a017]"
-                />
-              </Field>
-              <Field label="Custom CSS" hint="Advanced: add extra CSS overrides.">
-                <textarea
-                  value={db.websiteContent.customCss}
-                  onChange={(e) => updateContent({ customCss: e.target.value })}
-                  rows={4}
-                  className="input-line resize-none font-mono text-xs"
-                />
-              </Field>
-              <div className="grid gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-3 text-xs leading-5 text-slate-500">
-                <div className="flex items-center gap-2 font-bold text-navy text-[11px] uppercase tracking-wider">
-                  <Wand2 className="h-3.5 w-3.5 text-[#d4a017]" /> Animation system active
+                <Field label="Accent color">
+                  <input
+                    type="color"
+                    value={db.websiteContent.accentColor}
+                    onChange={(e) => updateContent({ accentColor: e.target.value })}
+                    className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 transition-all hover:border-[#d4a017]"
+                  />
+                </Field>
+                <Field label="Custom CSS" hint="Advanced: add extra CSS overrides.">
+                  <textarea
+                    value={db.websiteContent.customCss}
+                    onChange={(e) => updateContent({ customCss: e.target.value })}
+                    rows={4}
+                    className="input-line resize-none font-mono text-xs"
+                  />
+                </Field>
+                <div className="grid gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-3 text-xs leading-5 text-slate-500">
+                  <div className="flex items-center gap-2 font-bold text-navy text-[11px] uppercase tracking-wider">
+                    <Wand2 className="h-3.5 w-3.5 text-[#d4a017]" /> Animation system active
+                  </div>
+                  <p>
+                    Fade-in, card lift, button glow, and smooth section transitions are enabled
+                    globally.
+                  </p>
                 </div>
-                <p>
-                  Fade-in, card lift, button glow, and smooth section transitions are enabled
-                  globally.
-                </p>
-              </div>
-              <div className="grid gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-3 text-xs leading-5 text-slate-500">
-                <div className="flex items-center gap-2 font-bold text-navy text-[11px] uppercase tracking-wider">
-                  <MonitorSmartphone className="h-3.5 w-3.5 text-[#d4a017]" /> Responsive layout
+                <div className="grid gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-3 text-xs leading-5 text-slate-500">
+                  <div className="flex items-center gap-2 font-bold text-navy text-[11px] uppercase tracking-wider">
+                    <MonitorSmartphone className="h-3.5 w-3.5 text-[#d4a017]" /> Responsive layout
+                  </div>
+                  <p>Mobile menu, responsive grids, and flexible cards built into every page.</p>
                 </div>
-                <p>Mobile menu, responsive grids, and flexible cards built into every page.</p>
+                <StudioButton tone="gold" onClick={addGalleryPlaceholder}>
+                  <ImageIcon className="h-4 w-4" /> Add gallery album
+                </StudioButton>
               </div>
-              <StudioButton tone="gold" onClick={addGalleryPlaceholder}>
-                <ImageIcon className="h-4 w-4" /> Add gallery album
-              </StudioButton>
             </div>
-          </div>
-        </aside>
+          </aside>
+        )}
       </div>
     </div>
   );

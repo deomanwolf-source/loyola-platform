@@ -13,7 +13,22 @@ const { registerStaffRoutes } = require("./routes/staff");
 dotenv.config();
 
 const app = express();
-const uploadRoot = path.join(__dirname, "uploads");
+const legacyUploadRoot = path.join(__dirname, "uploads");
+
+function resolveUploadRoot() {
+  const configured =
+    process.env.UPLOAD_ROOT || process.env.UPLOAD_DIR || process.env.PERSISTENT_UPLOAD_DIR;
+  if (configured && configured.trim()) return path.resolve(configured.trim());
+
+  const homeDir = process.env.HOME || process.env.USERPROFILE;
+  if (process.env.NODE_ENV === "production" && homeDir) {
+    return path.join(homeDir, "loyola-platform", "uploads");
+  }
+
+  return legacyUploadRoot;
+}
+
+const uploadRoot = resolveUploadRoot();
 const videoUploadDir = path.join(uploadRoot, "videos");
 
 let sharp = null;
@@ -63,7 +78,29 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 24) {
   console.warn("[security] Use a strong JWT_SECRET with at least 24 characters before production.");
 }
 
+function copyMissingUploads(sourceRoot, targetRoot) {
+  const source = path.resolve(sourceRoot);
+  const target = path.resolve(targetRoot);
+  if (source === target || !fs.existsSync(source)) return;
+
+  const copyDirectory = (from, to) => {
+    fs.mkdirSync(to, { recursive: true });
+    for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
+      const sourcePath = path.join(from, entry.name);
+      const targetPath = path.join(to, entry.name);
+      if (entry.isDirectory()) {
+        copyDirectory(sourcePath, targetPath);
+      } else if (entry.isFile() && !fs.existsSync(targetPath)) {
+        fs.copyFileSync(sourcePath, targetPath);
+      }
+    }
+  };
+
+  copyDirectory(source, target);
+}
+
 fs.mkdirSync(uploadRoot, { recursive: true });
+copyMissingUploads(legacyUploadRoot, uploadRoot);
 fs.mkdirSync(videoUploadDir, { recursive: true });
 app.disable("x-powered-by");
 app.set("trust proxy", true);
@@ -87,16 +124,24 @@ app.use(
 );
 
 app.use(express.json({ limit: "4mb" }));
-app.use(
-  "/uploads",
-  express.static(uploadRoot, {
-    fallthrough: false,
-    maxAge: "7d",
-    setHeaders(res) {
-      res.setHeader("X-Content-Type-Options", "nosniff");
-    },
-  }),
+const uploadStaticRoots = [uploadRoot, legacyUploadRoot].filter(
+  (root, index, roots) =>
+    fs.existsSync(root) &&
+    roots.findIndex((candidate) => path.resolve(candidate) === path.resolve(root)) === index,
 );
+
+uploadStaticRoots.forEach((root, index) => {
+  app.use(
+    "/uploads",
+    express.static(root, {
+      fallthrough: index < uploadStaticRoots.length - 1,
+      maxAge: "7d",
+      setHeaders(res) {
+        res.setHeader("X-Content-Type-Options", "nosniff");
+      },
+    }),
+  );
+});
 
 const rateBuckets = new Map();
 function rateLimit({ windowMs, max, keyPrefix }) {
@@ -1265,6 +1310,76 @@ function protectPageSnapshot(siteDb, existingDb) {
   return nextDb;
 }
 
+function shouldPreserveExistingArray(incoming, existing) {
+  if (!Array.isArray(existing) || existing.length === 0) return false;
+  if (!Array.isArray(incoming)) return true;
+  if (incoming.length === 0) return true;
+  return existing.length >= 6 && incoming.length < Math.ceil(existing.length / 2);
+}
+
+function mergeMediaSnapshot(incoming = {}, existing = {}) {
+  if (!isPlainObject(existing)) return incoming;
+  const next = isPlainObject(incoming) ? { ...incoming } : {};
+  for (const [key, value] of Object.entries(existing)) {
+    if ((next[key] == null || next[key] === "") && value) next[key] = value;
+  }
+  return next;
+}
+
+function mergeHomeSectionsSnapshot(incoming = {}, existing = {}) {
+  if (!isPlainObject(existing)) return incoming;
+  const next = isPlainObject(incoming) ? { ...incoming } : {};
+  for (const key of ["rectorImage"]) {
+    if (!next[key] && existing[key]) next[key] = existing[key];
+  }
+
+  if (shouldPreserveExistingArray(next.leadershipCards, existing.leadershipCards)) {
+    next.leadershipCards = existing.leadershipCards;
+  } else if (Array.isArray(next.leadershipCards) && Array.isArray(existing.leadershipCards)) {
+    const existingById = new Map(existing.leadershipCards.map((card) => [card?.id, card]));
+    next.leadershipCards = next.leadershipCards.map((card) => {
+      const existingCard = existingById.get(card?.id);
+      if (!existingCard) return card;
+      return {
+        ...card,
+        image: card?.image || existingCard.image || "",
+      };
+    });
+  }
+
+  return next;
+}
+
+function protectPersistentContentSnapshot(siteDb, existingDb) {
+  if (!isPlainObject(existingDb)) return siteDb;
+  const nextDb = { ...siteDb };
+
+  for (const key of [
+    "news",
+    "downloads",
+    "events",
+    "gallery",
+    "videoGallery",
+    "students",
+    "parents",
+    "messages",
+    "teachers",
+    "staffAttendance",
+    "staffDocuments",
+    "staffLeaveRequests",
+    "staffNotices",
+    "staffRoles",
+  ]) {
+    if (shouldPreserveExistingArray(nextDb[key], existingDb[key])) {
+      nextDb[key] = existingDb[key];
+    }
+  }
+
+  nextDb.media = mergeMediaSnapshot(nextDb.media, existingDb.media);
+  nextDb.homeSections = mergeHomeSectionsSnapshot(nextDb.homeSections, existingDb.homeSections);
+  return nextDb;
+}
+
 async function upsertPortalUserAccount(runner, user) {
   const accountId = String(user?.id || `U-${Date.now()}`).trim();
   const accountEmail = normalizeEmail(user?.email || "");
@@ -1717,7 +1832,11 @@ async function readSiteDb({ draft = false } = {}) {
   return parseJsonField(rows[0].content || rows[0].draft_content);
 }
 
-async function syncWebsitePages(connection, siteDb, { mode = "published", publishedAt = null } = {}) {
+async function syncWebsitePages(
+  connection,
+  siteDb,
+  { mode = "published", publishedAt = null } = {},
+) {
   const pages = siteDb.pages && typeof siteDb.pages === "object" ? siteDb.pages : {};
   const navigation = Array.isArray(siteDb.navigation) ? siteDb.navigation : [];
   const navById = new Map(navigation.map((item) => [item.id, item]));
@@ -2125,10 +2244,11 @@ async function writeSiteDb(siteDb, { mode = "published" } = {}) {
   const existingDb = await readSiteDb({ draft: mode === "draft" });
   const publishedDb = mode === "draft" ? await readSiteDb({ draft: false }) : null;
   const protectedDb = protectPageSnapshot(siteDb, existingDb);
+  const persistentDb = protectPersistentContentSnapshot(protectedDb, existingDb);
   const syncDb = {
-    ...protectedDb,
+    ...persistentDb,
     contentVersion,
-    publishedAt: mode === "published" ? nowIso : protectedDb.publishedAt || nowIso,
+    publishedAt: mode === "published" ? nowIso : persistentDb.publishedAt || nowIso,
   };
   const savedDb = scrubUserPasswords(syncDb);
 
