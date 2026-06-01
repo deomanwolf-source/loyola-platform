@@ -60,6 +60,17 @@ export const SiteHeader = memo(function SiteHeader() {
         pageIsLive(item.parentId),
     )
     .sort((a, b) => a.order - b.order);
+  const maxDesktopNavItems = 6;
+  const desktopNav = nav.slice(0, maxDesktopNavItems);
+  const overflowNav = nav.slice(maxDesktopNavItems);
+  const childrenFor = (id: string) =>
+    childNav
+      .filter((child) => child.parentId === id)
+      .map((child) => [child.label, hrefFor(child.id)] as [string, string]);
+  const overflowActive = overflowNav.some((item) => {
+    const href = hrefFor(item.id);
+    return path === href || (href !== "/" && path.startsWith(href));
+  });
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/80 bg-white/95 shadow-[0_18px_45px_-34px_rgb(10_22_40_/0.55)] backdrop-blur-xl transition-smooth">
@@ -102,7 +113,7 @@ export const SiteHeader = memo(function SiteHeader() {
       <div className="mx-auto flex h-[76px] max-w-[110rem] items-center justify-between gap-3 px-4 pr-16 sm:px-6 sm:pr-20 xl:h-[82px] xl:pr-6">
         <a
           href="/"
-          className="group flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3 xl:flex-none"
+          className="group flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3 xl:w-[300px] xl:flex-none 2xl:w-[350px]"
         >
           <span className="grid h-[52px] w-[52px] shrink-0 place-items-center overflow-hidden rounded-full border-[3px] border-gold bg-navy p-1.5 font-serif text-lg font-bold text-gold shadow-[0_16px_32px_-22px_rgb(10_22_40_/0.9)] ring-4 ring-navy/5 xl:h-[58px] xl:w-[58px]">
             {db.websiteContent.logoImage ? (
@@ -126,13 +137,9 @@ export const SiteHeader = memo(function SiteHeader() {
         </a>
 
         <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 xl:flex">
-          {nav.map((item) => {
+          {desktopNav.map((item) => {
             const href = hrefFor(item.id);
-            const children = [
-              ...childNav
-                .filter((child) => child.parentId === item.id)
-                .map((child) => [child.label, hrefFor(child.id)] as [string, string]),
-            ];
+            const children = childrenFor(item.id);
             const active = path === href || (href !== "/" && path.startsWith(href));
             return (
               <div key={item.id} className="group relative">
@@ -163,6 +170,51 @@ export const SiteHeader = memo(function SiteHeader() {
               </div>
             );
           })}
+          {overflowNav.length > 0 && (
+            <div className="group relative">
+              <button
+                type="button"
+                className={`relative inline-flex h-11 items-center gap-1 whitespace-nowrap rounded-full px-2.5 text-[13px] font-bold transition-smooth 2xl:gap-1.5 2xl:px-4 2xl:text-sm ${
+                  overflowActive
+                    ? "bg-gold/15 text-navy"
+                    : "text-slate-700 hover:bg-secondary hover:text-navy"
+                }`}
+                aria-haspopup="true"
+              >
+                More
+                <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+              </button>
+              <div className="invisible absolute right-0 top-full z-50 w-80 translate-y-2 rounded-xl border border-border bg-white p-2 opacity-0 shadow-elegant transition-smooth group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                {overflowNav.map((item) => {
+                  const href = hrefFor(item.id);
+                  const children = childrenFor(item.id);
+                  return (
+                    <div key={item.id} className="rounded-lg">
+                      <a
+                        href={href}
+                        className="block rounded-lg px-3 py-2.5 text-sm font-bold text-slate-700 transition-smooth hover:bg-secondary hover:text-navy"
+                      >
+                        {item.label}
+                      </a>
+                      {children.length > 0 && (
+                        <div className="mb-1 ml-3 border-l border-border pl-2">
+                          {children.map(([label, childHref]) => (
+                            <a
+                              key={childHref}
+                              href={childHref}
+                              className="block rounded-md px-3 py-2 text-xs font-semibold text-slate-500 transition-smooth hover:bg-secondary hover:text-navy"
+                            >
+                              {label}
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </nav>
 
         <div className="hidden shrink-0 items-center xl:flex">
