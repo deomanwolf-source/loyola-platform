@@ -1067,7 +1067,6 @@ function stripDemoContent(db: DB): DB {
   ]);
   const bundledStaffIds = new Set(["T-REC-1", "T-VP-1", "T-SEC-1", "T-GH-1", "T-AL-1"]);
   const bundledStaffNames = new Set([
-    "rev. fr. d.m.j. kennedy perera",
     "rev. fr. suranga niroshan",
     "mrs. nimali fernando",
     "mr. samantha silva",
@@ -1142,7 +1141,10 @@ function stripDemoContent(db: DB): DB {
       (row) =>
         !["T001", "T002", "T003"].includes(row.id) &&
         !bundledStaffIds.has(row.id) &&
-        !bundledStaffNames.has(row.name.toLowerCase()),
+        !(
+          bundledStaffNames.has(row.name.toLowerCase()) &&
+          !String(row.staffId || row.id || "").startsWith("LCS-")
+        ),
     ),
     staffAttendance: db.staffAttendance || [],
     staffLeaveRequests: db.staffLeaveRequests || [],
