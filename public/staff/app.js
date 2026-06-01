@@ -750,8 +750,62 @@
     );
   }
 
-  function profilesHtml() {
+  function profilesResultsHtml() {
     const rows = filteredStaff();
+    return panel(
+      "Staff Profiles",
+      `${rows.length} record${rows.length === 1 ? "" : "s"} visible`,
+      `<div class="table-wrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Staff</th>
+              <th>Email</th>
+              <th>Website Position</th>
+              <th>Status</th>
+              <th>Login Account</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              rows.length
+                ? rows
+                    .map(
+                      (person) => `
+                        <tr>
+                          <td>
+                            <div class="identity">
+                              ${avatar(person)}
+                              <span>
+                                <strong>${esc(person.full_name)}</strong>
+                                <small>Staff ID ${esc(staffDisplayId(person))}</small>
+                              </span>
+                            </div>
+                          </td>
+                          <td data-label="Email">
+                            <strong>${esc(person.email || person.account_email || "-")}</strong>
+                          </td>
+                          <td data-label="Website Position">${websitePositionHtml(person)}</td>
+                          <td data-label="Status"><span class="status ${esc(statusClass(person.status))}">${esc(person.status || "Active")}</span></td>
+                          <td data-label="Login Account">${loginAccountHtml(person)}</td>
+                          <td class="right">
+                            <button class="icon-button" title="Edit staff" data-edit="${esc(person.id)}">${icon("file")} Edit</button>
+                            <button class="icon-button danger" title="Delete staff" data-delete="${esc(person.id)}">${icon("trash")} Delete</button>
+                          </td>
+                        </tr>
+                      `,
+                    )
+                    .join("")
+                : `<tr><td colspan="6"><div class="empty">No staff match your filters.</div></td></tr>`
+            }
+          </tbody>
+        </table>
+      </div>`,
+    );
+  }
+
+  function profilesHtml() {
     return `
       <div class="module-toolbar">
         <div class="filter-grid">
@@ -777,57 +831,7 @@
         </div>
       </div>
       ${csvImportPreviewHtml()}
-      ${panel(
-        "Staff Profiles",
-        `${rows.length} record${rows.length === 1 ? "" : "s"} visible`,
-        `<div class="table-wrap">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Staff</th>
-                <th>Email</th>
-                <th>Website Position</th>
-                <th>Status</th>
-                <th>Login Account</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${
-                rows.length
-                  ? rows
-                      .map(
-                        (person) => `
-                          <tr>
-                            <td>
-                              <div class="identity">
-                                ${avatar(person)}
-                                <span>
-                                  <strong>${esc(person.full_name)}</strong>
-                                  <small>Staff ID ${esc(staffDisplayId(person))}</small>
-                                </span>
-                              </div>
-                            </td>
-                            <td data-label="Email">
-                              <strong>${esc(person.email || person.account_email || "-")}</strong>
-                            </td>
-                            <td data-label="Website Position">${websitePositionHtml(person)}</td>
-                            <td data-label="Status"><span class="status ${esc(statusClass(person.status))}">${esc(person.status || "Active")}</span></td>
-                            <td data-label="Login Account">${loginAccountHtml(person)}</td>
-                            <td class="right">
-                              <button class="icon-button" title="Edit staff" data-edit="${esc(person.id)}">${icon("file")} Edit</button>
-                              <button class="icon-button danger" title="Delete staff" data-delete="${esc(person.id)}">${icon("trash")} Delete</button>
-                            </td>
-                          </tr>
-                        `,
-                      )
-                      .join("")
-                  : `<tr><td colspan="6"><div class="empty">No staff match your filters.</div></td></tr>`
-              }
-            </tbody>
-          </table>
-        </div>`,
-      )}
+      <div id="profiles-results">${profilesResultsHtml()}</div>
     `;
   }
 
@@ -1551,6 +1555,15 @@
     await setView("form", { newRecord: true });
   }
 
+  function bindStaffRowActions(root = document) {
+    root.querySelectorAll("[data-edit]").forEach((button) => {
+      button.addEventListener("click", () => setView("form", { editingId: button.dataset.edit }));
+    });
+    root.querySelectorAll("[data-delete]").forEach((button) => {
+      button.addEventListener("click", () => deleteStaff(button.dataset.delete));
+    });
+  }
+
   function bindActions() {
     document.querySelectorAll("[data-view]").forEach((button) => {
       button.addEventListener("click", (event) => {
@@ -1593,12 +1606,7 @@
     });
     const importCsvFile = document.getElementById("import-csv-file");
     if (importCsvFile) importCsvFile.addEventListener("change", importStaffCsv);
-    document.querySelectorAll("[data-edit]").forEach((button) => {
-      button.addEventListener("click", () => setView("form", { editingId: button.dataset.edit }));
-    });
-    document.querySelectorAll("[data-delete]").forEach((button) => {
-      button.addEventListener("click", () => deleteStaff(button.dataset.delete));
-    });
+    bindStaffRowActions();
 
     const search = document.getElementById("filter-search");
     if (search) search.addEventListener("input", () => updateFilter("search", search.value));
@@ -1714,7 +1722,21 @@
 
   function updateFilter(key, value) {
     state.filters[key] = value;
+    if (state.view === "profiles") {
+      renderProfilesResults();
+      return;
+    }
     renderShell();
+  }
+
+  function renderProfilesResults() {
+    const results = document.getElementById("profiles-results");
+    if (!results) {
+      renderShell();
+      return;
+    }
+    results.innerHTML = profilesResultsHtml();
+    bindStaffRowActions(results);
   }
 
   function updatePositionFilter(key, value) {
