@@ -504,3 +504,55 @@ CREATE TABLE IF NOT EXISTS edutrack_documents (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (collection_name, doc_id)
 );
+
+CREATE TABLE IF NOT EXISTS edutrack_relief_assignments (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  teacher_id VARCHAR(80),
+  teacher_name VARCHAR(190),
+  title VARCHAR(255) NOT NULL,
+  assignment_date DATE,
+  grade VARCHAR(50),
+  section VARCHAR(50),
+  subject_name VARCHAR(150),
+  period_label VARCHAR(80),
+  note TEXT,
+  pdf_file_path TEXT,
+  original_file_name VARCHAR(255),
+  status VARCHAR(50) DEFAULT 'pending_print',
+  uploaded_by_user_id VARCHAR(64),
+  uploaded_by_name VARCHAR(190),
+  uploaded_by_email VARCHAR(190),
+  uploaded_teacher_id VARCHAR(80),
+  uploaded_teacher_name VARCHAR(190),
+  uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  relief_teacher_id VARCHAR(80),
+  relief_teacher_name VARCHAR(190),
+  relief_teacher_position VARCHAR(150),
+  relief_teacher_subject VARCHAR(150),
+  print_count INT DEFAULT 0,
+  allowed_extra_prints INT DEFAULT 0,
+  printed_by_user_id VARCHAR(64),
+  printed_by_name VARCHAR(190),
+  printed_by_email VARCHAR(190),
+  printed_at TIMESTAMP NULL,
+  last_unlocked_by VARCHAR(64),
+  last_unlocked_at TIMESTAMP NULL,
+  last_unlock_reason TEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS edutrack_relief_assignment_audit_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  assignment_id INT,
+  action VARCHAR(100) NOT NULL,
+  actor_user_id VARCHAR(64),
+  actor_name VARCHAR(190),
+  actor_email VARCHAR(190),
+  uploaded_teacher_id VARCHAR(80),
+  uploaded_teacher_name VARCHAR(190),
+  relief_teacher_id VARCHAR(80),
+  relief_teacher_name VARCHAR(190),
+  details LONGTEXT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

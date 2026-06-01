@@ -4286,6 +4286,95 @@
           width: calc(100vw - 32px) !important;
         }
       }
+      .relief-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+        gap: 18px;
+        align-items: start;
+      }
+      .relief-copy {
+        color: var(--muted);
+        font-size: 13px;
+        margin: 8px 0 16px;
+      }
+      .relief-summary {
+        display: grid;
+        gap: 10px;
+      }
+      .relief-summary-tile {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 13px;
+        background: rgba(255, 255, 255, 0.035);
+      }
+      .relief-summary-tile small {
+        display: block;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .relief-summary-tile strong {
+        display: block;
+        margin-top: 4px;
+        color: var(--accent2);
+        font-family: "DM Mono", monospace;
+        font-size: 24px;
+      }
+      .relief-card-row {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.035);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: start;
+      }
+      .relief-card-row-title {
+        font-weight: 800;
+        color: var(--text);
+      }
+      .relief-card-row-meta {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 5px;
+        line-height: 1.55;
+      }
+      .relief-card-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 150px;
+      }
+      .relief-lock {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        padding: 5px 9px;
+        font-family: "DM Mono", monospace;
+        font-size: 11px;
+        font-weight: 800;
+        border: 1px solid rgba(59, 130, 246, 0.24);
+        color: #93c5fd;
+        background: rgba(59, 130, 246, 0.12);
+      }
+      .relief-lock.locked {
+        border-color: rgba(248, 113, 113, 0.28);
+        color: #fca5a5;
+        background: rgba(248, 113, 113, 0.13);
+      }
+      @media (max-width: 900px) {
+        .relief-grid,
+        .relief-card-row {
+          grid-template-columns: 1fr;
+        }
+        .relief-card-actions {
+          width: 100%;
+        }
+      }
     </style>
   </head>
   <body>
@@ -4435,6 +4524,10 @@
           <div class="nav-item" onclick="showPage('my-subjects')" id="nav-my-subjects">
             <span class="nav-icon"><i data-lucide="book-open"></i></span
             ><span class="nav-text"> My Syllabus</span>
+          </div>
+          <div class="nav-item" onclick="showPage('relief')" id="nav-relief">
+            <span class="nav-icon"><i data-lucide="file-up"></i></span
+            ><span class="nav-text"> Relief Work</span>
           </div>
         </div>
         <div class="nav-section" id="admin-nav" style="display: none">
@@ -4672,6 +4765,77 @@
             <div class="page-meta-line" id="my-syllabus-result-meta"></div>
           </div>
           <div id="my-subjects-list" class="page-stack"></div>
+        </div>
+
+        <!-- RELIEF WORK -->
+        <div class="page page-shell" id="page-relief">
+          <div class="page-header">
+            <div>
+              <h2>Relief Work</h2>
+              <p>Upload teacher relief PDFs, assign a relieving teacher, and control the official one-time print lock.</p>
+            </div>
+            <button class="btn secondary sm" onclick="loadReliefAssignments()">
+              <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
+            </button>
+          </div>
+          <div class="relief-grid">
+            <div class="card relief-upload-card">
+              <div class="section-title">Upload Relief Assignment</div>
+              <p class="relief-copy">
+                PDF uploads are stored in the Loyola backend and listed for admin printing.
+              </p>
+              <div class="form-grid-2">
+                <div class="field">
+                  <label>Title</label>
+                  <input id="relief-title" placeholder="e.g. Grade 10 Maths relief work" />
+                </div>
+                <div class="field">
+                  <label>Date</label>
+                  <input id="relief-date" type="date" />
+                </div>
+                <div class="field">
+                  <label>Grade</label>
+                  <input id="relief-grade" placeholder="Grade 10" />
+                </div>
+                <div class="field">
+                  <label>Section</label>
+                  <input id="relief-section" placeholder="A / bio-eng-a" />
+                </div>
+                <div class="field">
+                  <label>Subject</label>
+                  <input id="relief-subject" placeholder="Mathematics" />
+                </div>
+                <div class="field">
+                  <label>Period</label>
+                  <input id="relief-period" placeholder="Period 3 / 10:30" />
+                </div>
+              </div>
+              <div class="field">
+                <label>Notes</label>
+                <textarea id="relief-note" placeholder="Instructions for the relieving teacher or students"></textarea>
+              </div>
+              <div class="field">
+                <label>PDF File</label>
+                <input id="relief-pdf" type="file" accept="application/pdf" />
+                <div class="hint">PDF only. Maximum 10 MB.</div>
+              </div>
+              <div id="relief-form-error" class="error-msg"></div>
+              <button class="btn sm" onclick="submitReliefAssignment()">
+                <i data-lucide="upload" style="width: 14px; height: 14px"></i> Upload Relief PDF
+              </button>
+            </div>
+            <div class="card relief-admin-card">
+              <div class="section-title">Official Print Control</div>
+              <p class="relief-copy">
+                Admin print/download uses the 851dedc lock system: one official print, then locked unless unlocked.
+              </p>
+              <div id="relief-summary" class="relief-summary"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top: 18px">
+            <div class="section-title" style="margin-bottom: 12px">Relief Assignments</div>
+            <div id="relief-list" class="page-stack"></div>
+          </div>
         </div>
 
         <!-- USER ACCOUNTS -->
@@ -5687,7 +5851,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from localStorage loyola_token/loyola_user.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v4.2.1 • Loyola MySQL";
+      const APP_VERSION = "v4.2.1 + Relief • Loyola MySQL";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -10568,6 +10732,7 @@
         if (name === "yearly-reset" && cud && cud.role === "admin") renderYearlyReset();
         if (name === "subjects" && cud && cud.role === "admin") renderSubjects();
         if (name === "progress" && cud && cud.role === "admin") renderProgress();
+        if (name === "relief") loadReliefAssignments();
         if (name === "my-subjects" && cud && cud.role === "teacher") {
           refreshMySyllabusClassOptions();
           renderMySubjects();
@@ -12076,6 +12241,278 @@
           /* silent - localStorage is the fallback */
         }
       };
+
+      let reliefAssignments = [];
+
+      function isReliefAdmin() {
+        return !!(cud && cud.role === "admin");
+      }
+
+      async function reliefFetch(path, options = {}) {
+        const res = await fetch(`${API_BASE}${path}`, {
+          ...options,
+          headers: platformHeaders(options.headers || {}),
+        });
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || `API error ${res.status}`);
+          return data;
+        }
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        return res;
+      }
+
+      function reliefDate(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value).slice(0, 10);
+        return date.toLocaleDateString();
+      }
+
+      function reliefTeacherOptions() {
+        return (allTeachers || [])
+          .map((teacher) => {
+            const id = teacher.id || teacher.staffId || "";
+            const label = [teacher.name, teacher.subject, id].filter(Boolean).join(" - ");
+            return label ? label : id;
+          })
+          .filter(Boolean);
+      }
+
+      function renderReliefSummary() {
+        const box = document.getElementById("relief-summary");
+        if (!box) return;
+        const total = reliefAssignments.length;
+        const locked = reliefAssignments.filter((item) => item.isLocked).length;
+        const printed = reliefAssignments.filter((item) => Number(item.print_count || 0) > 0).length;
+        box.innerHTML =
+          '<div class="relief-summary-tile"><small>Total Assignments</small><strong>' +
+          total +
+          '</strong></div><div class="relief-summary-tile"><small>Printed</small><strong>' +
+          printed +
+          '</strong></div><div class="relief-summary-tile"><small>Locked</small><strong>' +
+          locked +
+          "</strong></div>";
+      }
+
+      function renderReliefAssignments() {
+        const list = document.getElementById("relief-list");
+        if (!list) return;
+        renderReliefSummary();
+        if (!reliefAssignments.length) {
+          list.innerHTML = '<div class="empty">No relief assignments uploaded yet.</div>';
+          return;
+        }
+        list.innerHTML = reliefAssignments
+          .map((item) => {
+            const locked = item.isLocked;
+            const adminActions = isReliefAdmin()
+              ? '<button class="btn sm" onclick="officialPrintRelief(' +
+                item.id +
+                ')"><i data-lucide="printer" style="width:13px;height:13px"></i> Official Print</button>' +
+                '<button class="btn secondary sm" onclick="unlockRelief(' +
+                item.id +
+                ')"><i data-lucide="unlock" style="width:13px;height:13px"></i> Unlock</button>' +
+                '<button class="btn secondary sm" onclick="showReliefAudit(' +
+                item.id +
+                ')"><i data-lucide="history" style="width:13px;height:13px"></i> Audit</button>' +
+                '<button class="btn secondary sm" onclick="deleteReliefAssignment(' +
+                item.id +
+                ')"><i data-lucide="trash-2" style="width:13px;height:13px"></i> Delete</button>'
+              : "";
+            return (
+              '<div class="relief-card-row"><div><div class="relief-card-row-title">' +
+              escapeHtml(item.title || "Relief Assignment") +
+              ' <span class="relief-lock ' +
+              (locked ? "locked" : "") +
+              '">' +
+              (locked ? "LOCKED" : "OPEN") +
+              '</span></div><div class="relief-card-row-meta">Date: ' +
+              escapeHtml(reliefDate(item.assignment_date)) +
+              " | Grade: " +
+              escapeHtml(item.grade || "-") +
+              " | Section: " +
+              escapeHtml(item.section || "-") +
+              " | Subject: " +
+              escapeHtml(item.subject_name || "-") +
+              "<br>Uploaded by " +
+              escapeHtml(item.uploaded_by_name || item.teacher_name || "-") +
+              " | PDF: " +
+              escapeHtml(item.original_file_name || "-") +
+              " | Print count: " +
+              Number(item.print_count || 0) +
+              " / " +
+              (1 + Number(item.allowed_extra_prints || 0)) +
+              (item.relief_teacher_name
+                ? "<br>Relief teacher: " + escapeHtml(item.relief_teacher_name)
+                : "") +
+              (item.note ? "<br>Note: " + escapeHtml(item.note) : "") +
+              '</div></div><div class="relief-card-actions"><button class="btn secondary sm" onclick="downloadReliefFile(' +
+              item.id +
+              ')"><i data-lucide="download" style="width:13px;height:13px"></i> Download PDF</button>' +
+              adminActions +
+              "</div></div>"
+            );
+          })
+          .join("");
+        if (window.lucide && typeof window.lucide.createIcons === "function") {
+          setTimeout(() => window.lucide.createIcons(), 0);
+        }
+      }
+
+      window.loadReliefAssignments = async function () {
+        const list = document.getElementById("relief-list");
+        if (list) list.innerHTML = '<div class="empty">Loading relief assignments...</div>';
+        try {
+          reliefAssignments = await apiFetch("/api/edutrack/relief-assignments");
+          renderReliefAssignments();
+        } catch (error) {
+          if (list)
+            list.innerHTML =
+              '<div class="empty">Could not load relief assignments: ' +
+              escapeHtml(error.message) +
+              "</div>";
+        }
+      };
+
+      window.submitReliefAssignment = async function () {
+        const errorBox = document.getElementById("relief-form-error");
+        if (errorBox) errorBox.textContent = "";
+        const fileInput = document.getElementById("relief-pdf");
+        const file = fileInput?.files?.[0];
+        const payload = new FormData();
+        const fields = {
+          title: document.getElementById("relief-title")?.value.trim(),
+          assignment_date: document.getElementById("relief-date")?.value,
+          grade: document.getElementById("relief-grade")?.value.trim(),
+          section: document.getElementById("relief-section")?.value.trim(),
+          subject_name: document.getElementById("relief-subject")?.value.trim(),
+          period_label: document.getElementById("relief-period")?.value.trim(),
+          note: document.getElementById("relief-note")?.value.trim(),
+        };
+        if (!fields.title || !fields.assignment_date || !fields.grade || !fields.section || !fields.subject_name) {
+          if (errorBox) errorBox.textContent = "Title, date, grade, section and subject are required.";
+          return;
+        }
+        if (!file) {
+          if (errorBox) errorBox.textContent = "Select a PDF file first.";
+          return;
+        }
+        Object.entries(fields).forEach(([key, value]) => payload.append(key, value || ""));
+        payload.append("pdf", file);
+        try {
+          await reliefFetch("/api/edutrack/relief-assignments", {
+            method: "POST",
+            body: payload,
+          });
+          ["relief-title", "relief-grade", "relief-section", "relief-subject", "relief-period", "relief-note"].forEach(
+            (id) => {
+              const el = document.getElementById(id);
+              if (el) el.value = "";
+            },
+          );
+          if (fileInput) fileInput.value = "";
+          showToast("Relief assignment uploaded", "success");
+          await loadReliefAssignments();
+        } catch (error) {
+          if (errorBox) errorBox.textContent = error.message;
+          showToast(error.message, "err");
+        }
+      };
+
+      window.downloadReliefFile = async function (id) {
+        try {
+          const assignment = reliefAssignments.find((item) => Number(item.id) === Number(id));
+          const res = await reliefFetch(`/api/edutrack/relief-assignments/${id}/file`);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = assignment?.original_file_name || "relief-assignment.pdf";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.officialPrintRelief = async function (id) {
+        if (!isReliefAdmin()) return;
+        const suggestions = reliefTeacherOptions().slice(0, 8).join("\n");
+        const reliefTeacherId = prompt(
+          "Enter relief teacher ID or staff ID" + (suggestions ? "\n\nKnown teachers:\n" + suggestions : ""),
+        );
+        if (!reliefTeacherId) return;
+        try {
+          await apiFetch(`/api/edutrack/relief-assignments/${id}/print`, {
+            method: "POST",
+            body: JSON.stringify({ relief_teacher_id: reliefTeacherId.trim() }),
+          });
+          showToast("Official print recorded", "success");
+          await downloadReliefFile(id);
+          await loadReliefAssignments();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.unlockRelief = async function (id) {
+        if (!isReliefAdmin()) return;
+        const reason = prompt("Unlock reason", "Approved extra print");
+        if (reason === null) return;
+        try {
+          await apiFetch(`/api/edutrack/relief-assignments/${id}/unlock`, {
+            method: "POST",
+            body: JSON.stringify({ reason }),
+          });
+          showToast("Relief assignment unlocked for one extra print", "success");
+          await loadReliefAssignments();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.showReliefAudit = async function (id) {
+        if (!isReliefAdmin()) return;
+        try {
+          const rows = await apiFetch(`/api/edutrack/relief-assignments/${id}/audit`);
+          const text = rows.length
+            ? rows
+                .map(
+                  (row) =>
+                    `${row.created_at || ""} | ${row.action} | ${row.actor_name || "-"} | ${
+                      row.details || ""
+                    }`,
+                )
+                .join("\n")
+            : "No audit records yet.";
+          alert(text);
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.deleteReliefAssignment = async function (id) {
+        if (!isReliefAdmin()) return;
+        if (!confirm("Delete this relief assignment record?")) return;
+        try {
+          await apiFetch(`/api/edutrack/relief-assignments/${id}`, { method: "DELETE" });
+          showToast("Relief assignment deleted", "success");
+          await loadReliefAssignments();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const reliefDateInput = document.getElementById("relief-date");
+        if (reliefDateInput && !reliefDateInput.value) {
+          reliefDateInput.value = new Date().toISOString().slice(0, 10);
+        }
+      });
 
       // Restore per-level terms from localStorage on boot
       (function () {

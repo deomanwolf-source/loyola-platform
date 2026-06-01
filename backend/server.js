@@ -30,6 +30,7 @@ function resolveUploadRoot() {
 
 const uploadRoot = resolveUploadRoot();
 const videoUploadDir = path.join(uploadRoot, "videos");
+const reliefUploadDir = path.join(uploadRoot, "edutrack");
 
 let sharp = null;
 let ffmpeg = null;
@@ -102,6 +103,7 @@ function copyMissingUploads(sourceRoot, targetRoot) {
 fs.mkdirSync(uploadRoot, { recursive: true });
 copyMissingUploads(legacyUploadRoot, uploadRoot);
 fs.mkdirSync(videoUploadDir, { recursive: true });
+fs.mkdirSync(reliefUploadDir, { recursive: true });
 app.disable("x-powered-by");
 app.set("trust proxy", true);
 
@@ -245,6 +247,40 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+const reliefUpload = multer({
+  storage: multer.diskStorage({
+    destination(req, file, cb) {
+      fs.mkdirSync(reliefUploadDir, { recursive: true });
+      cb(null, reliefUploadDir);
+    },
+    filename(req, file, cb) {
+      cb(null, `${Date.now()}-${safeFileName(file.originalname || "relief.pdf")}`);
+    },
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+  fileFilter(req, file, cb) {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const mimetype = String(file.mimetype || "").toLowerCase();
+    if (ext === ".pdf" && (!mimetype || mimetype === "application/pdf" || mimetype === "application/octet-stream")) {
+      return cb(null, true);
+    }
+    cb(new Error("PDF required"));
+  },
+});
+
+function handleReliefUpload(req, res, next) {
+  reliefUpload.single("pdf")(req, res, (error) => {
+    if (!error) return next();
+    const message =
+      error.code === "LIMIT_FILE_SIZE"
+        ? "PDF is too large. Relief PDFs are limited to 10 MB."
+        : error.message || "Relief upload failed.";
+    return res.status(400).json({ error: message });
+  });
+}
 
 function handleSingleUpload(req, res, next) {
   upload.single("file")(req, res, (error) => {
@@ -1015,6 +1051,62 @@ async function ensureContentTables() {
   `);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_relief_assignments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      teacher_id VARCHAR(80),
+      teacher_name VARCHAR(190),
+      title VARCHAR(255) NOT NULL,
+      assignment_date DATE,
+      grade VARCHAR(50),
+      section VARCHAR(50),
+      subject_name VARCHAR(150),
+      period_label VARCHAR(80),
+      note TEXT,
+      pdf_file_path TEXT,
+      original_file_name VARCHAR(255),
+      status VARCHAR(50) DEFAULT 'pending_print',
+      uploaded_by_user_id VARCHAR(64),
+      uploaded_by_name VARCHAR(190),
+      uploaded_by_email VARCHAR(190),
+      uploaded_teacher_id VARCHAR(80),
+      uploaded_teacher_name VARCHAR(190),
+      uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      relief_teacher_id VARCHAR(80),
+      relief_teacher_name VARCHAR(190),
+      relief_teacher_position VARCHAR(150),
+      relief_teacher_subject VARCHAR(150),
+      print_count INT DEFAULT 0,
+      allowed_extra_prints INT DEFAULT 0,
+      printed_by_user_id VARCHAR(64),
+      printed_by_name VARCHAR(190),
+      printed_by_email VARCHAR(190),
+      printed_at TIMESTAMP NULL,
+      last_unlocked_by VARCHAR(64),
+      last_unlocked_at TIMESTAMP NULL,
+      last_unlock_reason TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_relief_assignment_audit_logs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      assignment_id INT,
+      action VARCHAR(100) NOT NULL,
+      actor_user_id VARCHAR(64),
+      actor_name VARCHAR(190),
+      actor_email VARCHAR(190),
+      uploaded_teacher_id VARCHAR(80),
+      uploaded_teacher_name VARCHAR(190),
+      relief_teacher_id VARCHAR(80),
+      relief_teacher_name VARCHAR(190),
+      details LONGTEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS report_cards (
       id INT AUTO_INCREMENT PRIMARY KEY,
       student_id VARCHAR(50) NOT NULL,
@@ -1054,6 +1146,11 @@ async function ensureContentTables() {
   await addColumnIfMissing("media_files", "original_size", "INT");
   await addColumnIfMissing("media_files", "category", "VARCHAR(100)");
   await addColumnIfMissing("media_files", "warnings", "LONGTEXT");
+  await addColumnIfMissing("edutrack_relief_assignments", "uploaded_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+  await addColumnIfMissing("edutrack_relief_assignments", "allowed_extra_prints", "INT DEFAULT 0");
+  await addColumnIfMissing("edutrack_relief_assignments", "last_unlocked_by", "VARCHAR(64)");
+  await addColumnIfMissing("edutrack_relief_assignments", "last_unlocked_at", "TIMESTAMP NULL");
+  await addColumnIfMissing("edutrack_relief_assignments", "last_unlock_reason", "TEXT");
   await backfillMediaCategories();
   await addColumnIfMissing("teachers", "staff_id", "VARCHAR(50) NULL");
   await addColumnIfMissing("teachers", "slug", "VARCHAR(180) NULL");
@@ -3738,6 +3835,329 @@ app.get("/api/edutrack/warnings", teacherOrAdmin, async (req, res) => {
         })
         .filter((row) => row.warning),
     );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+function reliefActor(req) {
+  return {
+    id: String(req.user?.id || ""),
+    name: req.user?.name || req.user?.email || req.user?.id || "Unknown",
+    email: req.user?.email || "",
+  };
+}
+
+function normalizeReliefAssignment(row) {
+  return {
+    ...row,
+    fileUrl: `/api/edutrack/relief-assignments/${row.id}/file`,
+    isLocked: Number(row.print_count || 0) >= 1 + Number(row.allowed_extra_prints || 0),
+  };
+}
+
+function resolveReliefPdfPath(row) {
+  const rawPath = String(row?.pdf_file_path || "");
+  const candidates = [];
+  if (rawPath) candidates.push(path.resolve(rawPath));
+  if (rawPath) candidates.push(path.join(reliefUploadDir, path.basename(rawPath)));
+  if (row?.original_file_name) {
+    candidates.push(path.join(reliefUploadDir, safeFileName(row.original_file_name)));
+  }
+
+  const allowedRoots = [uploadRoot, legacyUploadRoot]
+    .filter(Boolean)
+    .map((root) => path.resolve(root));
+
+  return candidates.find((candidate) => {
+    const resolved = path.resolve(candidate);
+    return (
+      allowedRoots.some((root) => resolved === root || resolved.startsWith(`${root}${path.sep}`)) &&
+      fs.existsSync(resolved)
+    );
+  });
+}
+
+app.get("/api/edutrack/relief-assignments", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_relief_assignments ORDER BY created_at DESC",
+    );
+    res.json(rows.map(normalizeReliefAssignment));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post(
+  "/api/edutrack/relief-assignments",
+  teacherOrAdmin,
+  handleReliefUpload,
+  async (req, res) => {
+    try {
+      await ensureContentTables();
+      if (!req.file) return res.status(400).json({ error: "PDF required" });
+
+      const {
+        title,
+        assignment_date = null,
+        grade = "",
+        section = "",
+        subject_name = "",
+        period_label = "",
+        note = "",
+      } = req.body || {};
+
+      if (!title || !assignment_date || !grade || !section || !subject_name) {
+        return res
+          .status(400)
+          .json({ error: "title, assignment_date, grade, section and subject_name are required" });
+      }
+
+      const actor = reliefActor(req);
+      const [result] = await db.query(
+        `
+          INSERT INTO edutrack_relief_assignments
+            (teacher_id, teacher_name, title, assignment_date, grade, section, subject_name,
+             period_label, note, pdf_file_path, original_file_name, uploaded_by_user_id,
+             uploaded_by_name, uploaded_by_email, uploaded_teacher_id, uploaded_teacher_name)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          actor.id,
+          actor.name,
+          title,
+          assignment_date || null,
+          grade,
+          section,
+          subject_name,
+          period_label,
+          note,
+          req.file.path,
+          req.file.originalname,
+          actor.id,
+          actor.name,
+          actor.email,
+          actor.id,
+          actor.name,
+        ],
+      );
+
+      await db.query(
+        `
+          INSERT INTO edutrack_relief_assignment_audit_logs
+            (assignment_id, action, actor_user_id, actor_name, actor_email, uploaded_teacher_id,
+             uploaded_teacher_name, details)
+          VALUES (?, 'uploaded', ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          result.insertId,
+          actor.id,
+          actor.name,
+          actor.email,
+          actor.id,
+          actor.name,
+          `Uploaded ${req.file.originalname}`,
+        ],
+      );
+
+      res.status(201).json({ success: true, id: result.insertId });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.post(
+  "/api/edutrack/relief-assignments/:id/print",
+  eduzyncAdminOnly,
+  async (req, res) => {
+    const { relief_teacher_id } = req.body || {};
+    if (!relief_teacher_id) {
+      return res.status(400).json({ error: "relief_teacher_id required" });
+    }
+
+    const conn = await db.getConnection();
+    try {
+      await ensureContentTables();
+      const actor = reliefActor(req);
+      await conn.beginTransaction();
+      const [rows] = await conn.query(
+        "SELECT * FROM edutrack_relief_assignments WHERE id = ? FOR UPDATE",
+        [Number(req.params.id)],
+      );
+      const assignment = rows[0];
+      if (!assignment) throw new Error("Assignment not found");
+
+      if (Number(assignment.print_count || 0) >= 1 + Number(assignment.allowed_extra_prints || 0)) {
+        await conn.query(
+          `
+            INSERT INTO edutrack_relief_assignment_audit_logs
+              (assignment_id, action, actor_user_id, actor_name, actor_email, relief_teacher_id, details)
+            VALUES (?, 'blocked_attempt', ?, ?, ?, ?, ?)
+          `,
+          [
+            assignment.id,
+            actor.id,
+            actor.name,
+            actor.email,
+            relief_teacher_id,
+            "Print blocked because the assignment is locked",
+          ],
+        );
+        await conn.commit();
+        return res.status(403).json({ error: "Already printed and locked" });
+      }
+
+      const [[teacher]] = await conn.query(
+        `
+          SELECT id, staff_id, name, position, subject
+          FROM teachers
+          WHERE id = ? OR staff_id = ? OR account_user_id = ?
+          LIMIT 1
+        `,
+        [relief_teacher_id, relief_teacher_id, relief_teacher_id],
+      );
+      if (!teacher) throw new Error("Relief teacher not found");
+
+      await conn.query(
+        `
+          UPDATE edutrack_relief_assignments
+          SET relief_teacher_id = ?, relief_teacher_name = ?, relief_teacher_position = ?,
+            relief_teacher_subject = ?, print_count = print_count + 1, printed_by_user_id = ?,
+            printed_by_name = ?, printed_by_email = ?, printed_at = NOW(), status = 'printed'
+          WHERE id = ?
+        `,
+        [
+          teacher.id,
+          teacher.name,
+          teacher.position || "",
+          teacher.subject || "",
+          actor.id,
+          actor.name,
+          actor.email,
+          assignment.id,
+        ],
+      );
+
+      await conn.query(
+        `
+          INSERT INTO edutrack_relief_assignment_audit_logs
+            (assignment_id, action, actor_user_id, actor_name, actor_email, relief_teacher_id,
+             relief_teacher_name, details)
+          VALUES (?, 'print_used', ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          assignment.id,
+          actor.id,
+          actor.name,
+          actor.email,
+          teacher.id,
+          teacher.name,
+          "One official print used",
+        ],
+      );
+      await conn.commit();
+      res.json({
+        success: true,
+        printUrl: `/api/edutrack/relief-assignments/${assignment.id}/file`,
+      });
+    } catch (error) {
+      await conn.rollback();
+      res.status(400).json({ error: error.message });
+    } finally {
+      conn.release();
+    }
+  },
+);
+
+app.post(
+  "/api/edutrack/relief-assignments/:id/unlock",
+  eduzyncAdminOnly,
+  async (req, res) => {
+    try {
+      await ensureContentTables();
+      const actor = reliefActor(req);
+      const reason = String(req.body?.reason || "Manual unlock").trim();
+      const [result] = await db.query(
+        `
+          UPDATE edutrack_relief_assignments
+          SET allowed_extra_prints = allowed_extra_prints + 1,
+            last_unlocked_by = ?, last_unlocked_at = NOW(), last_unlock_reason = ?
+          WHERE id = ?
+        `,
+        [actor.id, reason, Number(req.params.id)],
+      );
+      if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
+      await db.query(
+        `
+          INSERT INTO edutrack_relief_assignment_audit_logs
+            (assignment_id, action, actor_user_id, actor_name, actor_email, details)
+          VALUES (?, 'unlocked', ?, ?, ?, ?)
+        `,
+        [Number(req.params.id), actor.id, actor.name, actor.email, reason],
+      );
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
+app.get("/api/edutrack/relief-assignments/:id/file", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
+      [Number(req.params.id)],
+    );
+    if (!rows.length) return res.status(404).json({ error: "Assignment not found" });
+    const filePath = resolveReliefPdfPath(rows[0]);
+    if (!filePath) return res.status(404).json({ error: "PDF file not found" });
+    res.download(filePath, rows[0].original_file_name || path.basename(filePath));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/relief-assignments/:id/audit", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      `
+        SELECT id, assignment_id, action, actor_user_id, actor_name, actor_email,
+          relief_teacher_id, relief_teacher_name, details, created_at
+        FROM edutrack_relief_assignment_audit_logs
+        WHERE assignment_id = ?
+        ORDER BY created_at DESC, id DESC
+      `,
+      [Number(req.params.id)],
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/edutrack/relief-assignments/:id", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = reliefActor(req);
+    const assignmentId = Number(req.params.id);
+    const [result] = await db.query("DELETE FROM edutrack_relief_assignments WHERE id = ?", [
+      assignmentId,
+    ]);
+    if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
+    await db.query(
+      `
+        INSERT INTO edutrack_relief_assignment_audit_logs
+          (assignment_id, action, actor_user_id, actor_name, actor_email, details)
+        VALUES (?, 'deleted', ?, ?, ?, ?)
+      `,
+      [assignmentId, actor.id, actor.name, actor.email, "Assignment record deleted"],
+    );
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

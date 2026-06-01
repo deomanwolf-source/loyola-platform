@@ -13,6 +13,8 @@ DELETE FROM report_cards;
 DELETE FROM syllabus_progress;
 DELETE FROM syllabus_items;
 DELETE FROM academic_terms;
+DELETE FROM edutrack_relief_assignment_audit_logs;
+DELETE FROM edutrack_relief_assignments;
 DELETE FROM edutrack_documents;
 DELETE FROM enrollments;
 DELETE FROM subjects;
