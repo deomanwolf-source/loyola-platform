@@ -8,6 +8,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
+const { registerStaffRoutes } = require("./routes/staff");
 
 dotenv.config();
 
@@ -264,6 +265,7 @@ const ROLE_ENUM_SQL = `
     'superadmin',
     'website_admin',
     'eduzync_admin',
+    'staff_admin',
     'teacher',
     'student',
     'parent'
@@ -276,6 +278,7 @@ const ROLE_ENUM_MIGRATION_SQL = `
     'superadmin',
     'website_admin',
     'eduzync_admin',
+    'staff_admin',
     'teacher',
     'student',
     'parent',
@@ -288,6 +291,7 @@ const ROLES = {
   super: "superadmin",
   website: "website_admin",
   eduzync: "eduzync_admin",
+  staff: "staff_admin",
   teacher: "teacher",
   student: "student",
   parent: "parent",
@@ -296,6 +300,7 @@ const ROLES = {
 const SYSTEM_OWNER_ROLES = [ROLES.master, ROLES.super];
 const WEBSITE_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.website];
 const EDUZYNC_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.eduzync];
+const STAFF_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.staff];
 const SCHOOL_DATA_READ_ROLES = [ROLES.master, ROLES.super, ROLES.eduzync, ROLES.teacher];
 const EDUTRACK_ROLES = [ROLES.master, ROLES.super, ROLES.eduzync, ROLES.teacher];
 const REPORT_CARD_VIEW_ROLES = [
@@ -313,13 +318,16 @@ const rolePermissionsSeed = [
   [ROLES.master, "edutrack", 1, 1, 1, 1],
   [ROLES.master, "elms", 1, 1, 1, 1],
   [ROLES.master, "report_cards", 1, 1, 1, 1],
+  [ROLES.master, "staff", 1, 1, 1, 1],
   [ROLES.master, "users", 1, 1, 1, 1],
   [ROLES.super, "website_admin", 1, 1, 1, 1],
   [ROLES.super, "eduzync", 1, 1, 1, 1],
   [ROLES.super, "edutrack", 1, 1, 1, 1],
   [ROLES.super, "elms", 1, 1, 1, 1],
   [ROLES.super, "report_cards", 1, 1, 1, 1],
+  [ROLES.super, "staff", 1, 1, 1, 1],
   [ROLES.super, "users", 1, 1, 1, 0],
+  [ROLES.staff, "staff", 1, 1, 1, 1],
   [ROLES.website, "website_admin", 1, 1, 1, 0],
   [ROLES.website, "media", 1, 1, 1, 0],
   [ROLES.website, "news", 1, 1, 1, 0],
@@ -560,6 +568,10 @@ function websiteAdminOnly(req, res, next) {
 
 function eduzyncAdminOnly(req, res, next) {
   return authRole(...EDUZYNC_ADMIN_ROLES)(req, res, next);
+}
+
+function staffAdminOnly(req, res, next) {
+  return authRole(...STAFF_ADMIN_ROLES)(req, res, next);
 }
 
 function schoolDataReadOnly(req, res, next) {
@@ -896,8 +908,14 @@ async function ensureContentTables() {
   await addColumnIfMissing("events", "source_id", "VARCHAR(50) UNIQUE");
   await addColumnIfMissing("media_files", "source_id", "VARCHAR(50) UNIQUE");
   await addColumnIfMissing("media_files", "webm_url", "TEXT");
+  await addColumnIfMissing("media_files", "original_url", "TEXT");
+  await addColumnIfMissing("media_files", "optimized_url", "TEXT");
+  await addColumnIfMissing("media_files", "thumb_url", "TEXT");
+  await addColumnIfMissing("media_files", "variant_urls", "LONGTEXT");
   await addColumnIfMissing("media_files", "duration_seconds", "DECIMAL(8,2)");
+  await addColumnIfMissing("media_files", "original_size", "INT");
   await addColumnIfMissing("media_files", "category", "VARCHAR(100)");
+  await addColumnIfMissing("media_files", "warnings", "LONGTEXT");
   await backfillMediaCategories();
   await addColumnIfMissing("teachers", "account_email", "VARCHAR(190)");
   await addColumnIfMissing("teachers", "account_user_id", "VARCHAR(50)");
@@ -1046,6 +1064,90 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+function removeStaffTeacherRows(siteDb, teacherId) {
+  if (!isPlainObject(siteDb) || !Array.isArray(siteDb.teachers)) {
+    return { changed: false, siteDb };
+  }
+
+  const normalizedTeacherId = String(teacherId || "").trim();
+  const teachers = siteDb.teachers.filter(
+    (teacher) =>
+      String(teacher?.id || "").trim() !== normalizedTeacherId &&
+      String(teacher?.staffId || teacher?.staff_id || "").trim() !== normalizedTeacherId,
+  );
+
+  if (teachers.length === siteDb.teachers.length) {
+    return { changed: false, siteDb };
+  }
+
+  return { changed: true, siteDb: { ...siteDb, teachers } };
+}
+
+async function removeTeacherFromSiteDatabaseContent(runner, teacherId) {
+  const normalizedTeacherId = String(teacherId || "").trim();
+  if (!normalizedTeacherId) return false;
+
+  const [rows] = await runner.query(
+    "SELECT content, draft_content FROM site_database WHERE id = ? LIMIT 1 FOR UPDATE",
+    ["main"],
+  );
+  if (!rows.length) return false;
+
+  const contentVersion = Date.now();
+  const publishedAt = new Date(contentVersion).toISOString();
+  const contentResult = removeStaffTeacherRows(
+    parseJsonField(rows[0].content, null),
+    normalizedTeacherId,
+  );
+  const draftResult = removeStaffTeacherRows(
+    parseJsonField(rows[0].draft_content, null),
+    normalizedTeacherId,
+  );
+
+  if (!contentResult.changed && !draftResult.changed) return false;
+
+  const updates = [];
+  const values = [];
+
+  if (contentResult.changed) {
+    updates.push("content = ?", "content_version = ?", "published_at = ?");
+    values.push(
+      JSON.stringify(
+        scrubUserPasswords({
+          ...contentResult.siteDb,
+          contentVersion,
+          publishedAt,
+        }),
+      ),
+      contentVersion,
+      publishedAt,
+    );
+  }
+
+  if (draftResult.changed) {
+    updates.push("draft_content = ?", "draft_content_version = ?", "draft_updated_at = ?");
+    values.push(
+      JSON.stringify(
+        scrubUserPasswords({
+          ...draftResult.siteDb,
+          contentVersion,
+          publishedAt: draftResult.siteDb.publishedAt || publishedAt,
+        }),
+      ),
+      contentVersion,
+      publishedAt,
+    );
+  }
+
+  values.push("main");
+  await runner.query(`UPDATE site_database SET ${updates.join(", ")} WHERE id = ?`, values);
+  return true;
+}
+
+async function syncTeacherAccountToEduTrack() {
+  return { ok: true, skipped: true };
+}
+
 function protectPageSnapshot(siteDb, existingDb) {
   const incomingPages = isPlainObject(siteDb.pages) ? siteDb.pages : {};
   const existingPages = isPlainObject(existingDb?.pages) ? existingDb.pages : {};
@@ -1141,12 +1243,11 @@ async function upsertPortalUserAccount(runner, user) {
 }
 
 async function upsertTeacherUserAccount(runner, { id, name, email, password, status = "Active" }) {
-  const accountId = String(id || "").trim();
+  const requestedAccountId = String(id || "").trim();
   const accountEmail = normalizeEmail(email);
   const accountName = String(name || accountEmail.split("@")[0] || "Teacher").trim();
   const accountStatus = normalizeAccountStatus(status);
 
-  if (!accountId) throw new Error("Teacher account id is required");
   if (!accountEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
     throw new Error("A valid teacher account email is required");
   }
@@ -1154,7 +1255,15 @@ async function upsertTeacherUserAccount(runner, { id, name, email, password, sta
   const [emailMatches] = await runner.query("SELECT id FROM users WHERE email = ? LIMIT 1", [
     accountEmail,
   ]);
-  if (emailMatches.length && String(emailMatches[0].id) !== accountId) {
+  const accountId =
+    (emailMatches.length && String(emailMatches[0].id)) ||
+    requestedAccountId ||
+    `T-${crypto.randomBytes(5).toString("hex").toUpperCase()}`;
+  if (
+    emailMatches.length &&
+    requestedAccountId &&
+    String(emailMatches[0].id) !== requestedAccountId
+  ) {
     throw new Error("This email is already used by another user account");
   }
 
@@ -1359,6 +1468,40 @@ async function processImageUpload(req, file, folder) {
     fileType: "image",
     mediaType: "image",
     fileSize: stat.size,
+    durationSeconds: null,
+  };
+}
+
+async function processStaffProfilePhotoUpload(req, file, folder) {
+  requireSharp();
+  const outputDirectory = path.join(uploadRoot, safePathSegment(folder));
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
+  const outputPath = path.join(outputDirectory, `${uniqueMediaBaseName(file)}-512.webp`);
+
+  try {
+    await sharp(file.path)
+      .rotate()
+      .resize({ width: 512, height: 512, fit: "cover", withoutEnlargement: true })
+      .webp({ quality: 84, effort: 5 })
+      .toFile(outputPath);
+  } finally {
+    await unlinkQuiet(file.path);
+  }
+
+  const stat = await fs.promises.stat(outputPath);
+  const fileUrl = publicUploadUrl(req, outputPath);
+  return {
+    fileName: path.basename(outputPath),
+    fileUrl,
+    originalUrl: fileUrl,
+    optimizedUrl: fileUrl,
+    thumbUrl: "",
+    webmUrl: "",
+    variants: { staffProfile: fileUrl },
+    fileType: "image",
+    mediaType: "image",
+    fileSize: stat.size,
+    originalSize: Number(file.size || 0),
     durationSeconds: null,
   };
 }
@@ -3641,7 +3784,7 @@ app.post(
 
 app.post(
   "/api/uploads",
-  authRole(ROLES.master, ROLES.super, ROLES.website, ROLES.eduzync),
+  authRole(ROLES.master, ROLES.super, ROLES.website, ROLES.eduzync, ROLES.staff),
   handleSingleUpload,
   async (req, res) => {
     try {
@@ -3840,6 +3983,24 @@ app.get("/api/me", auth, async (req, res) => {
   }
 });
 
+registerStaffRoutes(app, {
+  db,
+  ROLES,
+  authRole,
+  staffAdminOnly,
+  ensureContentTables,
+  upsertTeacherUserAccount,
+  removeTeacherFromSiteDatabaseContent,
+  syncTeacherAccountToEduTrack,
+  handleSingleUpload,
+  uploadSizeLimit,
+  unlinkQuiet,
+  safePathSegment,
+  mediaSourceId,
+  mediaCategoryFromFolder,
+  processStaffProfilePhotoUpload,
+});
+
 const frontendRoot = path.join(__dirname, "..", "public");
 const frontendIndex = path.join(frontendRoot, "index.html");
 const frontendAssets = path.join(frontendRoot, "assets");
@@ -3868,6 +4029,10 @@ if (fs.existsSync(frontendIndex)) {
 
   app.get(["/edutrack", "/edutrack/"], (req, res) => {
     res.sendFile(path.join(frontendRoot, "edutrack", "index.html"));
+  });
+
+  app.get(["/staff", "/staff/"], (req, res) => {
+    res.sendFile(path.join(frontendRoot, "staff", "index.html"));
   });
 
   if (fs.existsSync(frontendAssets)) {

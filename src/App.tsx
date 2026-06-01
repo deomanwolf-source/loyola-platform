@@ -68,6 +68,7 @@ const AdminPortal = lazy(() =>
 const MASTER_ROLES: Role[] = ["masteradmin", "superadmin"];
 const WEBSITE_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "website_admin"];
 const EDUZYNC_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "eduzync_admin"];
+const STAFF_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "staff_admin"];
 const EDUTRACK_ROLES: Role[] = ["masteradmin", "superadmin", "eduzync_admin", "teacher"];
 const ELMS_ROLES: Role[] = ["masteradmin", "superadmin", "teacher", "student"];
 const REPORT_CARD_ROLES: Role[] = [
@@ -85,6 +86,7 @@ function roleLabel(role: Role) {
     superadmin: "Super Admin",
     website_admin: "Website Admin",
     eduzync_admin: "EduTrack Admin",
+    staff_admin: "Staff Admin",
     teacher: "Teacher",
     student: "Student",
     parent: "Parent",
@@ -2989,11 +2991,11 @@ function CentralPortal() {
     },
     {
       title: "Staff Management",
-      href: "/admin?panel=staff",
+      href: "/staff",
       icon: Briefcase,
-      roles: MASTER_ROLES,
-      meta: "Staff profiles, photos, accounts",
-      lockedMeta: "Only Master Admin and Super Admin",
+      roles: STAFF_ADMIN_ROLES,
+      meta: "Legacy staff profiles, photos, attendance, leave",
+      lockedMeta: "Only staff admins and top admins",
     },
     {
       title: "EduZync",
@@ -4002,6 +4004,13 @@ function ModulePage({ moduleId }: { moduleId: string }) {
   );
 }
 
+function StaffPortalRedirect() {
+  useEffect(() => {
+    window.location.href = "/staff";
+  }, []);
+  return <BrandedLoader title="Opening staff system" subtitle="Loading staff management" />;
+}
+
 function PortalRouter({ role }: { role: Role }) {
   const loading = <BrandedLoader title="Opening portal" subtitle="Loading your Loyola workspace" />;
   const portals: Partial<Record<Role, React.ReactNode>> = {
@@ -4010,6 +4019,7 @@ function PortalRouter({ role }: { role: Role }) {
     teacher: <TeacherPortal />,
     website_admin: <AdminPortal />,
     eduzync_admin: <ModulePage moduleId="eduzync" />,
+    staff_admin: <StaffPortalRedirect />,
     superadmin: <AdminPortal />,
     masteradmin: <AdminPortal />,
   };

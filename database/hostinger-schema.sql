@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
     'superadmin',
     'website_admin',
     'eduzync_admin',
+    'staff_admin',
     'teacher',
     'student',
     'parent'
@@ -37,13 +38,16 @@ VALUES
 ('masteradmin', 'edutrack', 1, 1, 1, 1),
 ('masteradmin', 'elms', 1, 1, 1, 1),
 ('masteradmin', 'report_cards', 1, 1, 1, 1),
+('masteradmin', 'staff', 1, 1, 1, 1),
 ('masteradmin', 'users', 1, 1, 1, 1),
 ('superadmin', 'website_admin', 1, 1, 1, 1),
 ('superadmin', 'eduzync', 1, 1, 1, 1),
 ('superadmin', 'edutrack', 1, 1, 1, 1),
 ('superadmin', 'elms', 1, 1, 1, 1),
 ('superadmin', 'report_cards', 1, 1, 1, 1),
+('superadmin', 'staff', 1, 1, 1, 1),
 ('superadmin', 'users', 1, 1, 1, 0),
+('staff_admin', 'staff', 1, 1, 1, 1),
 ('website_admin', 'website_admin', 1, 1, 1, 0),
 ('website_admin', 'media', 1, 1, 1, 0),
 ('website_admin', 'news', 1, 1, 1, 0),
@@ -168,20 +172,158 @@ CREATE TABLE IF NOT EXISTS students (
 
 CREATE TABLE IF NOT EXISTS teachers (
   id VARCHAR(50) PRIMARY KEY,
+  staff_id VARCHAR(50) NULL,
   name VARCHAR(150) NOT NULL,
   subject VARCHAR(100),
   classes VARCHAR(100),
   status VARCHAR(30) DEFAULT 'Active',
   position VARCHAR(150),
+  website_place VARCHAR(120),
   type VARCHAR(100),
   category VARCHAR(100),
   section VARCHAR(100),
   qualifications TEXT,
   responsibilities TEXT,
   image TEXT,
+  positions_json LONGTEXT,
   account_email VARCHAR(190),
   account_user_id VARCHAR(50),
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_teachers_staff_id (staff_id)
+);
+
+CREATE TABLE IF NOT EXISTS staff_profiles (
+  id VARCHAR(50) PRIMARY KEY,
+  user_id VARCHAR(50) NULL,
+  teacher_id VARCHAR(50) NULL,
+  full_name VARCHAR(150) NOT NULL,
+  email VARCHAR(190) NULL,
+  phone VARCHAR(50) NULL,
+  nic VARCHAR(50) NULL,
+  staff_type VARCHAR(100) NOT NULL DEFAULT 'Academic Staff',
+  department VARCHAR(120) NULL,
+  position VARCHAR(150) NULL,
+  qualification TEXT NULL,
+  joined_date DATE NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'Active',
+  profile_image TEXT NULL,
+  photo_url TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_staff_profiles_user_id (user_id),
+  KEY idx_staff_profiles_teacher_id (teacher_id),
+  KEY idx_staff_profiles_status (status),
+  KEY idx_staff_profiles_type (staff_type)
+);
+
+CREATE TABLE IF NOT EXISTS staff_profile_photos (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_id VARCHAR(50) NOT NULL,
+  file_name VARCHAR(255) NULL,
+  file_url TEXT NOT NULL,
+  folder VARCHAR(120) NOT NULL,
+  media_source_id VARCHAR(50) NULL,
+  uploaded_by VARCHAR(50) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_staff_profile_photos_staff (staff_id)
+);
+
+CREATE TABLE IF NOT EXISTS staff_positions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_id VARCHAR(50) NOT NULL,
+  position_master_id INT NULL,
+  department VARCHAR(120) NOT NULL DEFAULT '',
+  position VARCHAR(150) NOT NULL DEFAULT '',
+  website_place VARCHAR(120) NOT NULL DEFAULT 'Subject Teachers',
+  subject VARCHAR(100) NOT NULL DEFAULT '',
+  classes VARCHAR(100) NOT NULL DEFAULT '',
+  is_primary TINYINT(1) NOT NULL DEFAULT 0,
+  display_order INT NOT NULL DEFAULT 0,
+  visible_on_website TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_staff_positions_staff (staff_id),
+  KEY idx_staff_positions_master (position_master_id),
+  KEY idx_staff_positions_place (website_place)
+);
+
+CREATE TABLE IF NOT EXISTS staff_position_master (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  position_title VARCHAR(150) NOT NULL,
+  category VARCHAR(120) NOT NULL DEFAULT '',
+  department VARCHAR(120) NOT NULL DEFAULT '',
+  website_place VARCHAR(120) NOT NULL DEFAULT 'Subject Teachers',
+  description TEXT NULL,
+  default_staff_type VARCHAR(100) NOT NULL DEFAULT 'Academic Staff',
+  visible_on_website TINYINT(1) NOT NULL DEFAULT 1,
+  status VARCHAR(40) NOT NULL DEFAULT 'Active',
+  display_order INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_staff_position_master (position_title, category, department, website_place)
+);
+
+CREATE TABLE IF NOT EXISTS staff_attendance (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_id VARCHAR(50) NOT NULL,
+  date DATE NOT NULL,
+  check_in TIME NULL,
+  check_out TIME NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'Present',
+  note TEXT NULL,
+  marked_by VARCHAR(50) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY unique_staff_date (staff_id, date)
+);
+
+CREATE TABLE IF NOT EXISTS staff_leave_requests (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_id VARCHAR(50) NOT NULL,
+  leave_type VARCHAR(80) NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  reason TEXT NULL,
+  status VARCHAR(40) NOT NULL DEFAULT 'Pending',
+  reviewed_by VARCHAR(50) NULL,
+  review_note TEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  KEY idx_staff_leave_staff (staff_id),
+  KEY idx_staff_leave_status (status)
+);
+
+CREATE TABLE IF NOT EXISTS staff_documents (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  staff_id VARCHAR(50) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  file_url TEXT NOT NULL,
+  document_type VARCHAR(100) NULL,
+  uploaded_by VARCHAR(50) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_staff_documents_staff (staff_id)
+);
+
+CREATE TABLE IF NOT EXISTS staff_notices (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  body TEXT NULL,
+  audience VARCHAR(100) NOT NULL DEFAULT 'All staff',
+  priority VARCHAR(40) NOT NULL DEFAULT 'Normal',
+  status VARCHAR(40) NOT NULL DEFAULT 'Published',
+  created_by VARCHAR(50) NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS staff_audit_logs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  actor_user_id VARCHAR(50) NULL,
+  action VARCHAR(120) NOT NULL,
+  target_type VARCHAR(80) NULL,
+  target_id VARCHAR(80) NULL,
+  details LONGTEXT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  KEY idx_staff_audit_target (target_type, target_id)
 );
 
 CREATE TABLE IF NOT EXISTS parents (
@@ -260,11 +402,17 @@ CREATE TABLE IF NOT EXISTS media_files (
   file_name VARCHAR(255),
   file_url TEXT,
   webm_url TEXT,
+  original_url TEXT,
+  optimized_url TEXT,
+  thumb_url TEXT,
+  variant_urls LONGTEXT,
   file_type VARCHAR(100),
   file_size INT,
+  original_size INT,
   duration_seconds DECIMAL(8,2),
   folder VARCHAR(100),
   category VARCHAR(100),
+  warnings LONGTEXT,
   uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

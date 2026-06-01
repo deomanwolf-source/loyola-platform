@@ -97,7 +97,13 @@ const crudSections: Partial<
   news: { collection: "news", kicker: "Content", title: "News & Blog" },
 };
 
-const adminRoles: Role[] = ["website_admin", "eduzync_admin", "superadmin", "masteradmin"];
+const adminRoles: Role[] = [
+  "website_admin",
+  "eduzync_admin",
+  "staff_admin",
+  "superadmin",
+  "masteradmin",
+];
 
 export function MasterAdminPortal() {
   const db = useDb();
@@ -242,6 +248,7 @@ function AdminUsersPanel() {
           >
             <option value="website_admin">Website Admin</option>
             <option value="eduzync_admin">EduTrack Admin</option>
+            <option value="staff_admin">Staff Admin</option>
             <option value="superadmin">Super Admin</option>
             <option value="masteradmin">Master Admin</option>
             <option value="teacher">Teacher</option>
@@ -526,6 +533,7 @@ function roleLabel(role: Role) {
     superadmin: "Super Admin",
     website_admin: "Website Admin",
     eduzync_admin: "EduTrack Admin",
+    staff_admin: "Staff Admin",
     student: "Student",
     parent: "Parent",
     teacher: "Teacher",

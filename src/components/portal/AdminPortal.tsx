@@ -2461,6 +2461,7 @@ function UsersPanel({ db }: { db: DB }) {
           >
             <option value="website_admin">Website Admin</option>
             <option value="eduzync_admin">EduTrack Admin</option>
+            <option value="staff_admin">Staff Admin</option>
             <option value="superadmin">Super Admin</option>
             <option value="masteradmin">Master Admin</option>
           </select>
@@ -2477,7 +2478,9 @@ function UsersPanel({ db }: { db: DB }) {
         <div className="space-y-3">
           {db.users
             .filter((u) =>
-              ["website_admin", "eduzync_admin", "superadmin", "masteradmin"].includes(u.role),
+              ["website_admin", "eduzync_admin", "staff_admin", "superadmin", "masteradmin"].includes(
+                u.role,
+              ),
             )
             .map((user) => (
               <div
@@ -2869,6 +2872,7 @@ function formatRole(role?: Role) {
     superadmin: "Super Admin",
     website_admin: "Website Admin",
     eduzync_admin: "EduTrack Admin",
+    staff_admin: "Staff Admin",
     teacher: "Teacher",
     student: "Student",
     parent: "Parent",
@@ -4094,6 +4098,13 @@ function StaffPanel({ db }: { db: DB }) {
         kicker="Team"
         action={
           <div className="flex gap-2">
+            <a
+              href="/staff"
+              target="_blank"
+              className="rounded-xl bg-navy px-4 py-2 text-sm font-black text-white inline-flex items-center gap-2"
+            >
+              <Briefcase className="h-4 w-4" /> Full Staff System
+            </a>
             <button
               type="button"
               onClick={() => {
