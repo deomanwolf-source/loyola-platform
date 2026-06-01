@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, GraduationCap, Mail, Phone, Search, User, Users } from "lucide-react";
-import { PageHeader, PublicLayout } from "@/components/site/PublicLayout";
+import { Briefcase, GraduationCap, Mail, Phone, User, Users } from "lucide-react";
+import { PublicLayout } from "@/components/site/PublicLayout";
 import { useDb, type Teacher } from "@/lib/store";
 import { API_URL } from "@/lib/api";
 import {
@@ -151,63 +151,93 @@ function makeAssignments(profiles: StaffProfile[]) {
     .sort(compareAssignments);
 }
 
-function assignmentMatchesSearch(assignment: StaffAssignment, query: string) {
-  if (!query) return true;
-  const haystack = [
-    assignment.profile.name,
-    assignment.profile.qualifications,
-    assignment.profile.bio,
-    assignment.position.position_code,
-    assignment.position.display_title,
-    assignment.position.main_category,
-    assignment.position.section,
-    assignment.position.subsection,
-    assignment.position.stream,
-    assignment.position.medium,
-    assignment.position.class_or_stream,
-  ]
-    .join(" ")
-    .toLowerCase();
-  return haystack.includes(query);
-}
-
 function StaffPhoto({ profile, size = "large" }: { profile: StaffProfile; size?: "small" | "large" }) {
-  const dimensions = size === "small" ? "h-14 w-14" : "h-24 w-24";
+  const dimensions = size === "small" ? "h-28 w-28" : "h-36 w-36";
   return (
-    <div className={`${dimensions} shrink-0 overflow-hidden rounded-full border border-black/20 bg-white`}>
+    <div className={`${dimensions} shrink-0 overflow-hidden rounded-full border border-slate-200 bg-slate-50 shadow-inner`}>
       {profile.image ? (
         <img src={profile.image} alt={profile.name} className="h-full w-full object-cover" />
       ) : (
-        <div className="grid h-full w-full place-items-center text-black/45">
-          <User className={size === "small" ? "h-6 w-6" : "h-10 w-10"} />
+        <div className="grid h-full w-full place-items-center text-slate-500">
+          <User className={size === "small" ? "h-10 w-10" : "h-12 w-12"} />
         </div>
       )}
     </div>
   );
 }
 
+const GROUP_SECTION_TITLES: Record<string, string> = {
+  "academic-1st": "1.1 College Administration",
+  "academic-2nd": "1.2 Assistant Sectional Heads and Subject Heads",
+  "grade-heads": "1.4 Grade Heads",
+  "stream-heads": "1.5 Advanced Level Stream Heads",
+  "subject-coordinators-primary": "1.6 Subject Co-ordinators - Primary School",
+  "subject-coordinators-middle": "1.7 Subject Co-ordinators - Middle School",
+  "subject-coordinators-upper": "1.8 Subject Co-ordinators - Upper School",
+  "subject-coordinators-aesthetic": "1.9 Aesthetic Subject Co-ordinators",
+  "subject-coordinators-al": "1.10 Subject Co-ordinators - Advanced Level",
+  "english-medium-coordinators": "1.11 English Medium Co-ordinators",
+  "class-teachers-primary": "1.12 Class Teachers - Primary School",
+  "class-teachers-middle": "1.13 Class Teachers - Middle School",
+  "class-teachers-upper": "1.14 Class Teachers - Upper School",
+  "class-teachers-al": "1.15 Class Teachers - Advanced Level Section",
+  "subject-teachers": "1.16 Subject Teachers",
+  "non-academic": "2.1 Non-Academic Staff",
+  "supportive": "3.1 Supportive Staff",
+  "academic-council": "4.1 General Academic Council",
+  "uncategorized": "Other Staff",
+};
+
+function sectionTitle(group: StaffDisplayGroup) {
+  return GROUP_SECTION_TITLES[group.id] || group.title;
+}
+
+function positionMeta(position: ParsedPositionCode) {
+  return [
+    position.subsection,
+    position.section,
+    position.class_or_stream,
+    position.medium,
+    position.stream,
+  ]
+    .filter(Boolean)
+    .filter((value, index, items) => items.indexOf(value) === index)
+    .join(" / ");
+}
+
 function GroupBlock({ group, assignments }: { group: StaffDisplayGroup; assignments: StaffAssignment[] }) {
   if (!assignments.length) return null;
   return (
-    <section className="staff-pdf-group">
-      <div className="staff-pdf-list">
+    <section className="mt-10">
+      <h2 className="font-serif text-2xl font-bold text-slate-950 md:text-[1.65rem]">
+        {sectionTitle(group)}
+      </h2>
+      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {assignments.map((assignment) => (
-          <a
+          <article
             key={assignment.key}
-            href={`/staff/${assignment.profile.slug}`}
-            className="staff-pdf-row"
+            className="flex min-h-[314px] flex-col items-center justify-between rounded-lg border border-slate-200 bg-white px-6 py-6 text-center shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
           >
-            <StaffPhoto profile={assignment.profile} size="small" />
-            <div>
-              <p className="staff-pdf-role">{assignment.position.display_title}</p>
-              <p className="staff-pdf-name">{assignment.profile.name}</p>
+            <div className="flex flex-col items-center">
+              <StaffPhoto profile={assignment.profile} size="small" />
+              <h3 className="mt-5 max-w-[220px] text-base font-extrabold leading-snug text-slate-950">
+                {assignment.profile.name}
+              </h3>
+              <p className="mt-2 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
+                {assignment.position.display_title}
+              </p>
+              <p className="mt-4 min-h-5 text-sm text-slate-500">
+                {positionMeta(assignment.position)}
+              </p>
             </div>
-          </a>
+            <a
+              href={`/staff/${assignment.profile.slug}`}
+              className="mt-5 inline-flex h-9 items-center justify-center rounded-md border border-slate-200 px-5 text-xs font-extrabold text-slate-950 transition hover:border-crimson hover:text-crimson"
+            >
+              View Profile
+            </a>
+          </article>
         ))}
-      </div>
-      <div className="staff-pdf-brace" aria-hidden="true" />
-      <div className="staff-pdf-title">
-        <span>{group.sideTitle || group.title}</span>
       </div>
     </section>
   );
@@ -272,9 +302,8 @@ export function CollegeStaffPage({
   profileSlug?: string;
 }) {
   const db = useDb();
-  const page = db.pages[pageId] || db.pages["about/college-staff"];
-  const [search, setSearch] = useState("");
   const [liveTeachers, setLiveTeachers] = useState<Teacher[] | null>(null);
+  void pageId;
 
   useEffect(() => {
     let cancelled = false;
@@ -301,11 +330,9 @@ export function CollegeStaffPage({
     : null;
 
   const assignments = useMemo(() => makeAssignments(profiles), [profiles]);
-  const query = normalize(search);
-  const filteredAssignments = assignments.filter((assignment) => assignmentMatchesSearch(assignment, query));
   const grouped = STAFF_DISPLAY_GROUPS.map((group) => ({
     group,
-    assignments: filteredAssignments
+    assignments: assignments
       .filter((assignment) => assignment.group.id === group.id)
       .sort(compareAssignments),
   })).filter((item) => item.assignments.length > 0);
@@ -314,31 +341,16 @@ export function CollegeStaffPage({
 
   return (
     <PublicLayout>
-      <PageHeader
-        pageId={pageId}
-        kicker={page?.kicker || "About"}
-        title={page?.title || "Staff Directory"}
-        subtitle={page?.body || "Meet our dedicated staff, teachers, and administrators."}
-        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
-      />
+      <section className="min-h-screen bg-slate-50 py-8 text-slate-950">
+        <div className="mx-auto max-w-[1110px] px-6">
+          <p className="text-[0.72rem] font-black uppercase tracking-[0.32em] text-crimson">
+            Staff Directory
+          </p>
+          <h1 className="mt-2 font-serif text-4xl font-bold text-slate-950 md:text-[2.5rem]">
+            Academic Staff
+          </h1>
+          <div className="mt-4 border-t border-slate-300" />
 
-      <section className="bg-white py-10 text-black">
-        <div className="mx-auto max-w-5xl px-6">
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search by name, qualification, position code, title, or section..."
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="w-full rounded border border-black/20 bg-white py-4 pl-12 pr-4 text-black outline-none focus:border-crimson"
-            />
-            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-black/45" />
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-white pb-20 text-black">
-        <div className="mx-auto max-w-6xl px-6">
           {grouped.length > 0 ? (
             grouped.map(({ group, assignments }) => (
               <GroupBlock key={group.id} group={group} assignments={assignments} />
@@ -352,7 +364,6 @@ export function CollegeStaffPage({
           )}
         </div>
       </section>
-
     </PublicLayout>
   );
 }
