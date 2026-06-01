@@ -560,6 +560,7 @@ export const seed: DB = {
     { id: "downloads", label: "Downloads", order: 9, visible: true },
     { id: "student-portal", label: "Student Portal", order: 10, visible: false },
     { id: "contact", label: "Contact", order: 11, visible: true },
+    { id: "calendar", label: "Calendar", order: 12, visible: true },
   ],
   pages: {
     home: {
@@ -640,6 +641,11 @@ export const seed: DB = {
       body: "",
     },
     contact: { kicker: "Contact", title: "Visit, write, or call us.", body: "" },
+    calendar: {
+      kicker: "Calendar",
+      title: "Calendar",
+      body: "School events, holidays, celebrations, meetings, and important academic dates.",
+    },
   },
   homeSections: {
     approachKicker: "",
@@ -1305,6 +1311,41 @@ function ensureCollegeAnthemPage(db: DB): DB {
   return changed ? { ...db, pages, navigation } : db;
 }
 
+function ensureCalendarPage(db: DB): DB {
+  const pageId = "calendar";
+  const pages = { ...db.pages };
+  const navigation = [...db.navigation];
+  let changed = false;
+
+  if (!pages[pageId]) {
+    pages[pageId] = {
+      kicker: "Calendar",
+      title: "Calendar",
+      body: "School events, holidays, celebrations, meetings, and important academic dates.",
+    };
+    changed = true;
+  }
+
+  const navIndex = navigation.findIndex((item) => item.id === pageId);
+  if (navIndex === -1) {
+    const maxTopLevelOrder = navigation
+      .filter((item) => !item.parentId)
+      .reduce((max, item) => Math.max(max, item.order || 0), 0);
+    navigation.push({
+      id: pageId,
+      label: "Calendar",
+      order: Math.max(12, maxTopLevelOrder + 1),
+      visible: true,
+    });
+    changed = true;
+  } else if (navigation[navIndex].visible === false) {
+    navigation[navIndex] = { ...navigation[navIndex], visible: true };
+    changed = true;
+  }
+
+  return changed ? { ...db, pages, navigation } : db;
+}
+
 function migrateLoginAccounts(db: DB): DB {
   const users = db.users
     .filter(
@@ -1375,8 +1416,10 @@ function prepareDb(db: DB): DB {
       normalizeImageFields(
         migrateLoginAccounts(
           stripDemoContent(
-            ensureCollegeAnthemPage(
-              ensureGallerySubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+            ensureCalendarPage(
+              ensureCollegeAnthemPage(
+                ensureGallerySubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+              ),
             ),
           ),
         ),

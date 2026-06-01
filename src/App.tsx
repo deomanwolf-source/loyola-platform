@@ -80,6 +80,29 @@ const REPORT_CARD_ROLES: Role[] = [
   "parent",
 ];
 
+const LOYOLA_CALENDAR_ID = "loyolacollegeng.official@gmail.com";
+const LOYOLA_CALENDAR_TIME_ZONE = "Asia/Colombo";
+
+function googleCalendarEmbedUrl(mode: "MONTH" | "AGENDA") {
+  const params = new URLSearchParams({
+    src: LOYOLA_CALENDAR_ID,
+    ctz: LOYOLA_CALENDAR_TIME_ZONE,
+    mode,
+    showTitle: "0",
+    showNav: "1",
+    showDate: "1",
+    showPrint: "0",
+    showTabs: mode === "MONTH" ? "1" : "0",
+    showCalendars: "0",
+    showTz: "1",
+    wkst: "1",
+    bgcolor: "#ffffff",
+    color: "#7986cb",
+  });
+
+  return `https://calendar.google.com/calendar/embed?${params.toString()}`;
+}
+
 function roleLabel(role: Role) {
   const labels: Record<Role, string> = {
     masteradmin: "Master Admin",
@@ -193,6 +216,8 @@ export function App() {
       />
     );
   }
+
+  if (path === "/calendar" && pageIsLive("calendar")) return <CalendarPage />;
 
   if (
     path !== "/login" &&
@@ -724,45 +749,31 @@ function HomePage() {
 
       {page.visualHtml?.trim() ? <HomeVisualBuilderSections /> : <HomeRequiredSections />}
 
-      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_420px]">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-            Welcome to Loyola College
-          </p>
-          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{home.approachTitle}</h2>
-          <p className="mt-5 max-w-3xl leading-relaxed text-muted-foreground">
-            {home.approachBody}
-          </p>
-          <div className="mt-8 grid gap-4 md:grid-cols-2 stagger-children">
-            {home.pillars.map((pillar) => (
-              <div
-                key={pillar.id}
-                className="rounded-lg border border-border bg-white p-5 shadow-soft hover-lift cursor-default"
-              >
-                <h3 className="font-bold text-ink">{pillar.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{pillar.body}</p>
-              </div>
-            ))}
+      <section className="bg-secondary/35 py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+                School Calendar
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                Upcoming school dates.
+              </h2>
+            </div>
+            {publicPageIsLive("/calendar") && (
+              <a href="/calendar" className="text-sm font-bold text-crimson">
+                Open full calendar
+              </a>
+            )}
+          </div>
+          <div className="overflow-hidden rounded-lg border border-border bg-white shadow-elegant">
+            <GoogleCalendarFrame
+              title="Loyola College calendar agenda"
+              mode="AGENDA"
+              className="h-[360px] sm:h-[390px]"
+            />
           </div>
         </div>
-        {db.media.campusImage || db.websiteContent.heroImage ? (
-          <img
-            src={db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE}
-            alt="Campus"
-            className="h-full min-h-[420px] rounded-lg object-cover shadow-elegant"
-          />
-        ) : (
-          <div className="flex h-full min-h-[420px] flex-col items-center justify-center rounded-lg border border-border bg-secondary text-center text-muted-foreground shadow-elegant">
-            <img
-              src="/loyola-crest.jpg"
-              alt="Loyola College"
-              className="mx-auto h-32 w-32 object-contain opacity-40"
-            />
-            <p className="mt-4 text-xs font-bold uppercase tracking-widest opacity-60">
-              Campus image
-            </p>
-          </div>
-        )}
       </section>
 
       <HomeVisionMissionIdentity />
@@ -1540,6 +1551,38 @@ function EventsPage() {
         </div>
       </section>
       <SubpagesSection parentId="events" />
+    </PublicLayout>
+  );
+}
+
+function CalendarPage() {
+  const db = useDb();
+  const page = db.pages.calendar;
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="calendar"
+        kicker={page?.kicker || "Calendar"}
+        title={page?.title || "Calendar"}
+        subtitle={
+          page?.body && page.body.trim() !== "New page content goes here."
+            ? page.body
+            : "School events, holidays, celebrations, meetings, and important academic dates."
+        }
+        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
+      <section className="bg-secondary/35 px-4 py-12 sm:px-6 md:py-16">
+        <div className="mx-auto max-w-[82rem]">
+          <div className="overflow-hidden rounded-lg border border-border bg-white shadow-elegant">
+            <GoogleCalendarFrame
+              title="Loyola College calendar"
+              mode="MONTH"
+              className="h-[680px] md:h-[760px]"
+            />
+          </div>
+        </div>
+      </section>
     </PublicLayout>
   );
 }
@@ -4059,6 +4102,26 @@ function NewsAndEventsPreview() {
         </div>
       </div>
     </section>
+  );
+}
+
+function GoogleCalendarFrame({
+  title,
+  mode,
+  className,
+}: {
+  title: string;
+  mode: "MONTH" | "AGENDA";
+  className: string;
+}) {
+  return (
+    <iframe
+      title={title}
+      src={googleCalendarEmbedUrl(mode)}
+      loading="lazy"
+      className={`w-full border-0 ${className}`}
+      referrerPolicy="no-referrer-when-downgrade"
+    />
   );
 }
 
