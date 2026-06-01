@@ -231,6 +231,15 @@ export function App() {
 
   if (path === "/" || path === "") return <HomePage />;
   if (
+    ["/about/college-history", "/college-history", "/pastrectors", "/past-rectors"].includes(path)
+  ) {
+    return (
+      <PastRectorsPage
+        pageId={path.startsWith("/about/") ? path.replace(/^\/+/, "") : "about/college-history"}
+      />
+    );
+  }
+  if (
     (path === "/about/college-administration" && pageIsLive("about/college-administration")) ||
     (path === "/college-administration" && pageIsLive("college-administration"))
   ) {
@@ -347,6 +356,116 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
       {page.visualCss && <style>{page.visualCss}</style>}
       <div className="visual-page" dangerouslySetInnerHTML={{ __html: page.visualHtml }} />
       {pageId !== "about" && <SubpagesSection parentId={pageId} />}
+    </PublicLayout>
+  );
+}
+
+const pastRectorProfiles = [
+  {
+    name: "S. V. Goonesekera Mahatha",
+    years: "1949 - 1987",
+    image: "/assets/past-rectors/sv-sir.jpeg",
+  },
+  {
+    name: "J. E. Noyel Dabare Mahatha",
+    years: "1987 - 1994",
+    image: "/assets/past-rectors/noyel-sir.jpeg",
+  },
+  {
+    name: "Rev. Fr. Leo Perera",
+    years: "1994 - 1999",
+    image: "/assets/past-rectors/fr-leo.jpeg",
+  },
+  {
+    name: "Rev. Fr. Thilakasiri Fernando",
+    years: "1995 - 1999",
+    image: "/assets/past-rectors/fr-thilakasiri.jpeg",
+  },
+  {
+    name: "Rev. Fr. Trevor G. Martin",
+    years: "2000 - 2014",
+    image: "/assets/past-rectors/fr-trevor.jpeg",
+  },
+  {
+    name: "Rev. Fr. Ranjith Andradi",
+    years: "2014 - 2015",
+    image: "/assets/past-rectors/fr-ranjith.jpeg",
+  },
+  {
+    name: "Rev. Fr. Sudath Gunetilleke",
+    years: "2015 - 2021",
+    image: "/assets/past-rectors/fr-sudath.jpeg",
+  },
+];
+
+function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string }) {
+  const db = useDb();
+  const page = db.pages[pageId] || {
+    kicker: "Faith, learning, discipline, and service.",
+    title: "Past Rectors & Vice Rectors",
+    body: "Remembering the leaders who shaped Loyola College Negombo.",
+    image: "",
+  };
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={pageId}
+        kicker={page.kicker || "Faith, learning, discipline, and service."}
+        title={page.title || "Past Rectors & Vice Rectors"}
+        subtitle={page.body || "Remembering the leaders who shaped Loyola College Negombo."}
+        image={page.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
+
+      <section className="bg-slate-50 py-16 text-navy">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="rounded-xl border border-border bg-white p-4 shadow-elegant md:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Legacy Wall
+            </p>
+            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
+              Past Rectors & Vice Rectors
+            </h2>
+            <div className="mt-6 overflow-hidden rounded-lg border border-border bg-white">
+              <img
+                src="/assets/past-rectors/past-rectors-collage.jpeg"
+                alt="Past Rectors and Vice Rectors collage"
+                className="w-full object-contain"
+              />
+            </div>
+          </div>
+
+          <div className="mt-14">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Profile Records
+            </p>
+            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
+              Rector Profiles
+            </h2>
+            <div className="mt-8 grid gap-8 lg:grid-cols-2">
+              {pastRectorProfiles.map((profile) => (
+                <article
+                  key={profile.image}
+                  className="overflow-hidden rounded-xl border border-border bg-white shadow-soft"
+                >
+                  <div className="border-b border-border px-5 py-4">
+                    <h3 className="font-serif text-2xl font-bold text-navy">{profile.name}</h3>
+                    <p className="mt-1 text-sm font-bold uppercase tracking-[0.16em] text-crimson">
+                      Service Period: {profile.years}
+                    </p>
+                  </div>
+                  <img
+                    src={profile.image}
+                    alt={`${profile.name} profile`}
+                    loading="lazy"
+                    className="mx-auto w-full max-w-[560px] bg-white object-contain"
+                  />
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
     </PublicLayout>
   );
 }
