@@ -732,6 +732,183 @@ function serializeTeacherRow(row) {
   };
 }
 
+function staffProfileTeacherRowId(staffId, position, index) {
+  if (index === 0) return String(staffId || "");
+  const suffix =
+    String(position.website_place || position.websitePlace || position.position || "position")
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 30) || "position";
+  return `${staffId}__${suffix}-${index}`.slice(0, 50);
+}
+
+function staffProfileWebsitePlace(profile) {
+  const text = [profile.position, profile.department, profile.staff_type]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (/rector|principal|prefect|priest|sectional head/.test(text)) {
+    return "College Administration";
+  }
+  return profile.department || profile.staff_type || "Subject Teachers";
+}
+
+function serializeStaffProfilePosition(row) {
+  const sortOrder = Number(row.sort_order || row.display_order || 0);
+  const visible = Number(row.visible_on_website ?? 1) !== 0;
+  const known = Number(row.is_known ?? 1) !== 0;
+  return {
+    position_master_id: row.position_master_id || null,
+    positionMasterId: row.position_master_id || null,
+    position_code: row.position_code || "",
+    positionCode: row.position_code || "",
+    display_title: row.display_title || row.position || "",
+    displayTitle: row.display_title || row.position || "",
+    main_category: row.main_category || "",
+    mainCategory: row.main_category || "",
+    section: row.section || "",
+    subsection: row.subsection || "",
+    grade: row.grade || null,
+    stream: row.stream || "",
+    medium: row.medium || "",
+    class_or_stream: row.class_or_stream || "",
+    classOrStream: row.class_or_stream || "",
+    department: row.department || "",
+    position: row.position || row.display_title || "",
+    website_place: row.website_place || "",
+    websitePlace: row.website_place || "",
+    subject: row.subject || "",
+    classes: row.classes || "",
+    is_primary: Number(row.is_primary || 0) === 1,
+    isPrimary: Number(row.is_primary || 0) === 1,
+    display_order: Number(row.display_order || 0),
+    displayOrder: Number(row.display_order || 0),
+    sort_order: sortOrder,
+    sortOrder,
+    visible_on_website: visible,
+    visibleOnWebsite: visible,
+    is_known: known,
+    isKnown: known,
+  };
+}
+
+async function readStaffProfileSiteRows(runner = db) {
+  if (!(await tableExists("staff_profiles", runner))) return [];
+
+  const [profiles] = await runner.query(`
+    SELECT
+      sp.id,
+      sp.user_id,
+      sp.teacher_id,
+      sp.full_name,
+      sp.slug,
+      sp.email,
+      sp.phone,
+      sp.staff_type,
+      sp.department,
+      sp.position,
+      sp.qualification,
+      sp.bio,
+      sp.status,
+      sp.sort_order,
+      sp.profile_image,
+      sp.photo_url,
+      u.email AS account_email
+    FROM staff_profiles sp
+    LEFT JOIN users u ON u.id = sp.user_id
+    WHERE sp.full_name IS NOT NULL
+      AND sp.full_name <> ''
+    ORDER BY sp.sort_order ASC, sp.full_name ASC
+  `);
+  if (!profiles.length) return [];
+
+  let positionRows = [];
+  if (await tableExists("staff_positions", runner)) {
+    const placeholders = profiles.map(() => "?").join(",");
+    [positionRows] = await runner.query(
+      `
+        SELECT *
+        FROM staff_positions
+        WHERE staff_id IN (${placeholders})
+        ORDER BY staff_id, is_primary DESC, sort_order ASC, display_order ASC, id ASC
+      `,
+      profiles.map((profile) => profile.id),
+    );
+  }
+
+  const positionsByStaff = new Map();
+  positionRows.forEach((row) => {
+    const position = serializeStaffProfilePosition(row);
+    if (!positionsByStaff.has(row.staff_id)) positionsByStaff.set(row.staff_id, []);
+    positionsByStaff.get(row.staff_id).push(position);
+  });
+
+  return profiles.flatMap((profile) => {
+    const staffId = String(profile.id || "");
+    const allPositions = positionsByStaff.get(staffId) || [];
+    const fallbackWebsitePlace = staffProfileWebsitePlace(profile);
+    const fallbackPosition = {
+      position_code: "",
+      positionCode: "",
+      display_title: profile.position || profile.staff_type || "Staff Member",
+      displayTitle: profile.position || profile.staff_type || "Staff Member",
+      main_category: profile.staff_type || "Academic Staff",
+      mainCategory: profile.staff_type || "Academic Staff",
+      section: fallbackWebsitePlace,
+      subsection: profile.department || "",
+      department: profile.department || "",
+      position: profile.position || "",
+      website_place: fallbackWebsitePlace,
+      websitePlace: fallbackWebsitePlace,
+      subject: "",
+      classes: "",
+      sort_order: Number(profile.sort_order || 0),
+      sortOrder: Number(profile.sort_order || 0),
+      visible_on_website: true,
+      visibleOnWebsite: true,
+      is_known: true,
+      isKnown: true,
+    };
+    const visiblePositions = allPositions.filter((position) => position.visibleOnWebsite !== false);
+    const rows = visiblePositions.length ? visiblePositions : [fallbackPosition];
+    const primary = rows[0] || fallbackPosition;
+    const positionCodes = allPositions
+      .map((position) => position.positionCode || position.position_code || "")
+      .filter(Boolean);
+    const positionsJson = JSON.stringify(allPositions.length ? allPositions : [fallbackPosition]);
+
+    return rows.map((position, index) =>
+      serializeTeacherRow({
+        id: staffProfileTeacherRowId(staffId, position, index),
+        staff_id: staffId,
+        slug: profile.slug || syncSlug(profile.full_name || staffId),
+        name: profile.full_name || "",
+        email: profile.email || "",
+        phone: profile.phone || "",
+        subject: position.subject || primary.subject || "",
+        classes: position.classes || primary.classes || "",
+        status: profile.status === "Active" ? "Active" : "Hidden",
+        image: profile.photo_url || profile.profile_image || "",
+        type: profile.staff_type || "Academic Staff",
+        category: position.mainCategory || position.websitePlace || fallbackWebsitePlace,
+        website_place: position.section || position.websitePlace || fallbackWebsitePlace,
+        qualifications: profile.qualification || "",
+        responsibilities: profile.bio || "",
+        bio: profile.bio || "",
+        section: position.department || primary.department || profile.department || "",
+        position: position.displayTitle || position.position || profile.position || "",
+        positions_json: positionsJson,
+        position_codes: JSON.stringify(positionCodes),
+        sort_order: Number(profile.sort_order || 0) + Number(position.sortOrder || 0),
+        account_email: profile.account_email || "",
+        account_user_id: profile.user_id || "",
+      }),
+    );
+  });
+}
+
 async function readTeacherSiteRows(runner = db) {
   const [rows] = await runner.query(`
     SELECT
@@ -775,7 +952,21 @@ async function readTeacherSiteRows(runner = db) {
       sort_order,
       name
   `);
-  return rows.map(serializeTeacherRow);
+  const teacherRows = rows.map(serializeTeacherRow);
+  const profileRows = await readStaffProfileSiteRows(runner);
+  const profileStaffIds = new Set(profileRows.map((row) => row.staffId).filter(Boolean));
+  const byId = new Map();
+  teacherRows.forEach((row) => {
+    if (!row.staffId || !profileStaffIds.has(row.staffId)) byId.set(row.id, row);
+  });
+  profileRows.forEach((row) => byId.set(row.id, row));
+  return [...byId.values()].sort(
+    (a, b) =>
+      (a.status === "Active" ? 0 : 1) - (b.status === "Active" ? 0 : 1) ||
+      a.category.localeCompare(b.category) ||
+      Number(a.sortOrder || 0) - Number(b.sortOrder || 0) ||
+      a.name.localeCompare(b.name),
+  );
 }
 
 async function withLiveTeacherRows(siteDb) {
@@ -1240,9 +1431,9 @@ async function addColumnIfMissing(table, column, definition) {
   await db.query(`ALTER TABLE ${safeTable} ADD COLUMN ${safeColumn} ${definition}`);
 }
 
-async function tableExists(table) {
+async function tableExists(table, runner = db) {
   const safeTable = table.replace(/[^a-z0-9_]/gi, "");
-  const [rows] = await db.query(
+  const [rows] = await runner.query(
     `
       SELECT TABLE_NAME
       FROM INFORMATION_SCHEMA.TABLES
