@@ -106,7 +106,7 @@ export const SiteHeader = memo(function SiteHeader() {
       <div className="mx-auto flex h-[76px] max-w-[110rem] items-center justify-between gap-3 px-4 pr-16 sm:px-6 sm:pr-20 xl:h-[82px] xl:pr-6">
         <a
           href="/"
-          className="group flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3 2xl:w-[300px] 2xl:flex-none"
+          className="group flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3 2xl:w-[365px] 2xl:flex-none"
         >
           <span className="grid h-[52px] w-[52px] shrink-0 place-items-center overflow-hidden rounded-full border-[3px] border-gold bg-navy p-1.5 font-serif text-lg font-bold text-gold shadow-[0_16px_32px_-22px_rgb(10_22_40_/0.9)] ring-4 ring-navy/5 xl:h-[58px] xl:w-[58px]">
             {db.websiteContent.logoImage ? (
@@ -119,8 +119,8 @@ export const SiteHeader = memo(function SiteHeader() {
               db.websiteContent.logoText
             )}
           </span>
-          <span className="min-w-0 max-w-[52vw] leading-tight sm:max-w-[260px] xl:max-w-[250px] 2xl:max-w-[225px]">
-            <span className="block truncate font-serif text-[18px] font-bold text-navy 2xl:text-[20px]">
+          <span className="min-w-0 max-w-[52vw] leading-tight sm:max-w-[260px] xl:max-w-[250px] 2xl:max-w-[295px]">
+            <span className="block truncate font-serif text-[18px] font-bold text-navy 2xl:text-[21px]">
               {db.websiteContent.schoolName}
             </span>
             <span className="mt-1 block truncate text-[9px] font-bold uppercase tracking-[0.18em] text-crimson 2xl:tracking-[0.22em]">
