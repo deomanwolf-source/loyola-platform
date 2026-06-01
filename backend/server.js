@@ -654,7 +654,10 @@ function serializeTeacherRow(row) {
   return {
     id: String(row.id || ""),
     staffId: row.staff_id || "",
+    slug: row.slug || "",
     name: row.name || "",
+    email: row.email || "",
+    phone: row.phone || "",
     subject: row.subject || "",
     classes: row.classes || "",
     status: row.status || "Active",
@@ -664,9 +667,12 @@ function serializeTeacherRow(row) {
     websitePlace: row.website_place || row.category || "",
     qualifications: row.qualifications || "",
     responsibilities: row.responsibilities || "",
+    bio: row.bio || row.responsibilities || "",
     section: row.section || "",
     position: row.position || "",
     positions: parseJsonField(row.positions_json, []),
+    positionCodes: parseJsonField(row.position_codes, []),
+    sortOrder: Number(row.sort_order || 0),
     accountEmail: row.account_email || "",
     accountUserId: row.account_user_id || "",
   };
@@ -677,7 +683,10 @@ async function readTeacherSiteRows(runner = db) {
     SELECT
       id,
       staff_id,
+      slug,
       name,
+      email,
+      phone,
       subject,
       classes,
       status,
@@ -687,9 +696,12 @@ async function readTeacherSiteRows(runner = db) {
       website_place,
       qualifications,
       responsibilities,
+      bio,
       section,
       position,
       positions_json,
+      position_codes,
+      sort_order,
       account_email,
       account_user_id,
       created_at
@@ -706,6 +718,7 @@ async function readTeacherSiteRows(runner = db) {
         ELSE 0
       END,
       category,
+      sort_order,
       name
   `);
   return rows.map(serializeTeacherRow);
@@ -812,17 +825,26 @@ async function ensureContentTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS teachers (
       id VARCHAR(50) PRIMARY KEY,
+      staff_id VARCHAR(50) NULL,
+      slug VARCHAR(180) NULL,
       name VARCHAR(150) NOT NULL,
+      email VARCHAR(190) NULL,
+      phone VARCHAR(50) NULL,
       subject VARCHAR(100),
       classes VARCHAR(100),
       status VARCHAR(30) DEFAULT 'Active',
       position VARCHAR(150),
+      website_place VARCHAR(120) NULL,
       type VARCHAR(100),
       category VARCHAR(100),
       section VARCHAR(100),
       qualifications TEXT,
       responsibilities TEXT,
+      bio TEXT NULL,
       image TEXT,
+      positions_json LONGTEXT NULL,
+      position_codes LONGTEXT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
       account_email VARCHAR(190),
       account_user_id VARCHAR(50),
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -1034,8 +1056,14 @@ async function ensureContentTables() {
   await addColumnIfMissing("media_files", "warnings", "LONGTEXT");
   await backfillMediaCategories();
   await addColumnIfMissing("teachers", "staff_id", "VARCHAR(50) NULL");
+  await addColumnIfMissing("teachers", "slug", "VARCHAR(180) NULL");
+  await addColumnIfMissing("teachers", "email", "VARCHAR(190) NULL");
+  await addColumnIfMissing("teachers", "phone", "VARCHAR(50) NULL");
   await addColumnIfMissing("teachers", "website_place", "VARCHAR(120) NULL");
   await addColumnIfMissing("teachers", "positions_json", "LONGTEXT NULL");
+  await addColumnIfMissing("teachers", "position_codes", "LONGTEXT NULL");
+  await addColumnIfMissing("teachers", "bio", "TEXT NULL");
+  await addColumnIfMissing("teachers", "sort_order", "INT NOT NULL DEFAULT 0");
   await addColumnIfMissing("teachers", "account_email", "VARCHAR(190)");
   await addColumnIfMissing("teachers", "account_user_id", "VARCHAR(50)");
   await ensureTableIndexes("teachers", [
@@ -2058,38 +2086,57 @@ async function syncPeople(connection, siteDb) {
     await connection.query(
       `
         INSERT INTO teachers (
-          id, name, subject, classes, status, position, type, category, section,
-          qualifications, responsibilities, image, account_email, account_user_id
+          id, staff_id, slug, name, email, phone, subject, classes, status, position,
+          website_place, type, category, section, qualifications, responsibilities, bio,
+          image, positions_json, position_codes, sort_order, account_email, account_user_id
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
+          staff_id = VALUES(staff_id),
+          slug = VALUES(slug),
           name = VALUES(name),
+          email = VALUES(email),
+          phone = VALUES(phone),
           subject = VALUES(subject),
           classes = VALUES(classes),
           status = VALUES(status),
           position = VALUES(position),
+          website_place = VALUES(website_place),
           type = VALUES(type),
           category = VALUES(category),
           section = VALUES(section),
           qualifications = VALUES(qualifications),
           responsibilities = VALUES(responsibilities),
+          bio = VALUES(bio),
           image = VALUES(image),
+          positions_json = VALUES(positions_json),
+          position_codes = VALUES(position_codes),
+          sort_order = VALUES(sort_order),
           account_email = VALUES(account_email),
           account_user_id = VALUES(account_user_id)
       `,
       [
         item.id,
+        item.staffId || item.staff_id || "",
+        item.slug || "",
         String(item.name || "Unnamed staff").slice(0, 150),
+        item.email || "",
+        item.phone || "",
         item.subject || "",
         item.classes || "",
         item.status || "Active",
         item.position || "",
+        item.websitePlace || item.website_place || item.category || "",
         item.type || "",
         item.category || "",
         item.section || "",
         item.qualifications || "",
         item.responsibilities || "",
+        item.bio || item.responsibilities || "",
         item.image || "",
+        JSON.stringify(Array.isArray(item.positions) ? item.positions : []),
+        JSON.stringify(Array.isArray(item.positionCodes) ? item.positionCodes : []),
+        Number(item.sortOrder || item.sort_order || 0),
         accountEmail,
         linkedAccountUserId,
       ],
@@ -2966,9 +3013,9 @@ app.get("/api/teachers", async (req, res) => {
   try {
     await ensureContentTables();
     const [rows] = await db.query(
-      "SELECT id, name, subject, classes, status, image, type, category, qualifications, responsibilities, section, position, created_at FROM teachers ORDER BY category, name",
+      "SELECT id, staff_id, slug, name, email, phone, subject, classes, status, image, type, category, website_place, qualifications, responsibilities, bio, section, position, positions_json, position_codes, sort_order, created_at FROM teachers ORDER BY category, sort_order, name",
     );
-    res.json(rows);
+    res.json(rows.map(serializeTeacherRow));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

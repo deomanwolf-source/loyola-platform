@@ -1,3 +1,11 @@
+const {
+  inferPositionCode,
+  normalizePositionCode,
+  normalizePositionCodes,
+  parsePositionCode,
+  parsePositionCodes,
+} = require("../lib/staff-position-codes");
+
 function registerStaffRoutes(app, context) {
   const {
     db,
@@ -700,6 +708,9 @@ function registerStaffRoutes(app, context) {
   function normalizeStatus(value) {
     const status = clean(value || "Active", 40);
     if (["Active", "Inactive", "On Leave", "Suspended"].includes(status)) return status;
+    const lower = status.toLowerCase();
+    if (lower === "active") return "Active";
+    if (lower === "inactive") return "Inactive";
     if (status === "Hidden") return "Inactive";
     return "Active";
   }
@@ -950,6 +961,106 @@ function registerStaffRoutes(app, context) {
     );
   }
 
+  function profileSlug(value) {
+    return (
+      clean(value, 150)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/(^-|-$)/g, "") || ""
+    );
+  }
+
+  function normalizeSortOrder(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.trunc(number) : fallback;
+  }
+
+  function staffTypeFromMainCategory(mainCategory) {
+    if (mainCategory === "Non-Academic Staff") return "Non-Academic Staff";
+    if (mainCategory === "Supportive Staff") return "Supportive Staff";
+    return "Academic Staff";
+  }
+
+  function positionRecordFromParsed(parsed, index = 0) {
+    const title = parsed.display_title || parsed.position_code || "Staff Member";
+    return {
+      positionMasterId: null,
+      positionCode: parsed.position_code || "",
+      displayTitle: title,
+      mainCategory: parsed.main_category || "Uncategorized Staff",
+      section: parsed.section || "Uncategorized Staff",
+      subsection: parsed.subsection || "",
+      grade: parsed.grade || null,
+      stream: parsed.stream || "",
+      medium: parsed.medium || "",
+      classOrStream: parsed.class_or_stream || "",
+      department: parsed.subsection || parsed.section || parsed.main_category || "",
+      position: title,
+      websitePlace: parsed.section || parsed.main_category || "Uncategorized Staff",
+      subject:
+        parsed.main_category === "Subject Coordinators" && parsed.subsection
+          ? parsed.subsection
+          : "",
+      classes: parsed.class_or_stream || "",
+      isPrimary: index === 0,
+      displayOrder: index,
+      sortOrder: Math.round(Number(parsed.sort_order || 0)),
+      visibleOnWebsite: true,
+      isKnown: parsed.is_known !== false,
+    };
+  }
+
+  function positionsFromPositionCodes(positionCodes) {
+    return parsePositionCodes(positionCodes).map(positionRecordFromParsed);
+  }
+
+  function legacyPositionRecord(entry = {}, index = 0) {
+    const inferred = inferPositionCode(entry);
+    if (inferred) return positionRecordFromParsed(parsePositionCode(inferred), index);
+
+    const fallbackCode = normalizePositionCode(
+      entry.position || entry.title || entry.website_place || entry.websitePlace || entry.category,
+    );
+    const parsed = parsePositionCode(fallbackCode);
+    const record = positionRecordFromParsed(parsed, index);
+    const position = clean(entry.position || entry.title || record.position, 150);
+    const department = clean(entry.department || entry.section || record.department, 120);
+    const websitePlace = normalizeWebsitePlace(
+      entry.website_place || entry.websitePlace || entry.category || record.websitePlace,
+      position,
+      entry.staffType || entry.staff_type || "",
+      department,
+    );
+    return {
+      ...record,
+      positionCode: parsed.position_code,
+      displayTitle: parsed.is_known ? parsed.display_title : position || parsed.display_title,
+      mainCategory:
+        parsed.is_known && parsed.main_category ? parsed.main_category : "Uncategorized Staff",
+      section: parsed.is_known && parsed.section ? parsed.section : "Uncategorized Staff",
+      department,
+      position: position || parsed.display_title,
+      websitePlace: websitePlace || parsed.section,
+      subject: clean(entry.subject || "", 100),
+      classes: clean(entry.classes || "", 100),
+      isPrimary: index === 0,
+      displayOrder: index,
+      sortOrder: Math.round(Number(parsed.sort_order || 0)),
+      visibleOnWebsite: true,
+      isKnown: parsed.is_known,
+    };
+  }
+
+  function positionCodesInput(body = {}) {
+    if (Object.prototype.hasOwnProperty.call(body, "position_codes")) return body.position_codes;
+    if (Object.prototype.hasOwnProperty.call(body, "positionCodes")) return body.positionCodes;
+    return null;
+  }
+
+  function positionCodesToText(codes) {
+    return normalizePositionCodes(codes).join("\n");
+  }
+
   async function ensureStaffTables() {
     if (staffSchemaReady) return;
     await ensureContentTables();
@@ -960,6 +1071,7 @@ function registerStaffRoutes(app, context) {
         user_id VARCHAR(50) NULL,
         teacher_id VARCHAR(50) NULL,
         full_name VARCHAR(150) NOT NULL,
+        slug VARCHAR(180) NULL,
         email VARCHAR(190) NULL,
         phone VARCHAR(50) NULL,
         nic VARCHAR(50) NULL,
@@ -967,8 +1079,10 @@ function registerStaffRoutes(app, context) {
         department VARCHAR(120) NULL,
         position VARCHAR(150) NULL,
         qualification TEXT NULL,
+        bio TEXT NULL,
         joined_date DATE NULL,
         status VARCHAR(40) NOT NULL DEFAULT 'Active',
+        sort_order INT NOT NULL DEFAULT 0,
         profile_image TEXT NULL,
         photo_url TEXT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -976,13 +1090,20 @@ function registerStaffRoutes(app, context) {
         KEY idx_staff_profiles_user_id (user_id),
         KEY idx_staff_profiles_teacher_id (teacher_id),
         KEY idx_staff_profiles_status (status),
-        KEY idx_staff_profiles_type (staff_type)
+        KEY idx_staff_profiles_type (staff_type),
+        KEY idx_staff_profiles_slug (slug),
+        KEY idx_staff_profiles_sort (sort_order)
       )
     `);
+    await addColumnIfMissing("staff_profiles", "slug", "VARCHAR(180) NULL");
+    await addColumnIfMissing("staff_profiles", "bio", "TEXT NULL");
+    await addColumnIfMissing("staff_profiles", "sort_order", "INT NOT NULL DEFAULT 0");
     await addColumnIfMissing("staff_profiles", "profile_image", "TEXT NULL");
     await addColumnIfMissing("staff_profiles", "photo_url", "TEXT NULL");
     await addIndexIfMissing("staff_profiles", "idx_staff_profiles_email", "(email)");
     await addIndexIfMissing("staff_profiles", "idx_staff_profiles_nic", "(nic)");
+    await addIndexIfMissing("staff_profiles", "idx_staff_profiles_slug", "(slug)");
+    await addIndexIfMissing("staff_profiles", "idx_staff_profiles_sort", "(sort_order)");
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS staff_profile_photos (
@@ -1000,8 +1121,14 @@ function registerStaffRoutes(app, context) {
     `);
 
     await addColumnIfMissing("teachers", "staff_id", "VARCHAR(50) NULL");
+    await addColumnIfMissing("teachers", "slug", "VARCHAR(180) NULL");
     await addColumnIfMissing("teachers", "website_place", "VARCHAR(120) NULL");
     await addColumnIfMissing("teachers", "positions_json", "LONGTEXT NULL");
+    await addColumnIfMissing("teachers", "position_codes", "LONGTEXT NULL");
+    await addColumnIfMissing("teachers", "email", "VARCHAR(190) NULL");
+    await addColumnIfMissing("teachers", "phone", "VARCHAR(50) NULL");
+    await addColumnIfMissing("teachers", "bio", "TEXT NULL");
+    await addColumnIfMissing("teachers", "sort_order", "INT NOT NULL DEFAULT 0");
     await addIndexIfMissing("teachers", "idx_teachers_staff_id", "(staff_id)");
 
     await db.query(`
@@ -1009,6 +1136,15 @@ function registerStaffRoutes(app, context) {
         id INT AUTO_INCREMENT PRIMARY KEY,
         staff_id VARCHAR(50) NOT NULL,
         position_master_id INT NULL,
+        position_code VARCHAR(180) NOT NULL DEFAULT '',
+        display_title VARCHAR(180) NOT NULL DEFAULT '',
+        main_category VARCHAR(120) NOT NULL DEFAULT '',
+        section VARCHAR(120) NOT NULL DEFAULT '',
+        subsection VARCHAR(120) NOT NULL DEFAULT '',
+        grade INT NULL,
+        stream VARCHAR(80) NOT NULL DEFAULT '',
+        medium VARCHAR(80) NOT NULL DEFAULT '',
+        class_or_stream VARCHAR(120) NOT NULL DEFAULT '',
         department VARCHAR(120) NOT NULL DEFAULT '',
         position VARCHAR(150) NOT NULL DEFAULT '',
         website_place VARCHAR(120) NOT NULL DEFAULT 'Subject Teachers',
@@ -1016,7 +1152,9 @@ function registerStaffRoutes(app, context) {
         classes VARCHAR(100) NOT NULL DEFAULT '',
         is_primary TINYINT(1) NOT NULL DEFAULT 0,
         display_order INT NOT NULL DEFAULT 0,
+        sort_order INT NOT NULL DEFAULT 0,
         visible_on_website TINYINT(1) NOT NULL DEFAULT 1,
+        is_known TINYINT(1) NOT NULL DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         UNIQUE KEY unique_staff_position (
@@ -1033,11 +1171,25 @@ function registerStaffRoutes(app, context) {
       )
     `);
     await addColumnIfMissing("staff_positions", "position_master_id", "INT NULL");
+    await addColumnIfMissing("staff_positions", "position_code", "VARCHAR(180) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "display_title", "VARCHAR(180) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "main_category", "VARCHAR(120) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "section", "VARCHAR(120) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "subsection", "VARCHAR(120) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "grade", "INT NULL");
+    await addColumnIfMissing("staff_positions", "stream", "VARCHAR(80) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "medium", "VARCHAR(80) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "class_or_stream", "VARCHAR(120) NOT NULL DEFAULT ''");
+    await addColumnIfMissing("staff_positions", "sort_order", "INT NOT NULL DEFAULT 0");
+    await addColumnIfMissing("staff_positions", "is_known", "TINYINT(1) NOT NULL DEFAULT 1");
     await addIndexIfMissing(
       "staff_positions",
       "idx_staff_positions_master",
       "(position_master_id)",
     );
+    await addIndexIfMissing("staff_positions", "idx_staff_positions_code", "(position_code)");
+    await addIndexIfMissing("staff_positions", "idx_staff_positions_category", "(main_category)");
+    await addIndexIfMissing("staff_positions", "idx_staff_positions_sort", "(sort_order)");
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS staff_position_master (
@@ -1266,10 +1418,22 @@ function registerStaffRoutes(app, context) {
     await db.query(
       "UPDATE staff_profiles SET photo_url = profile_image WHERE (photo_url IS NULL OR photo_url = '') AND profile_image IS NOT NULL",
     );
+    await ensureProfileSlugs();
     await sanitizeStaffProfileUserLinks();
     await backfillStaffPositions();
     await repairPublicPlacementProfiles();
     await seedStaffPositionMaster();
+  }
+
+  async function ensureProfileSlugs() {
+    const [rows] = await db.query(
+      "SELECT id, full_name, slug FROM staff_profiles WHERE slug IS NULL OR slug = ''",
+    );
+    for (const row of rows) {
+      const generated = profileSlug(row.full_name || row.id);
+      if (!generated) continue;
+      await db.query("UPDATE staff_profiles SET slug = ? WHERE id = ?", [generated, row.id]);
+    }
   }
 
   async function repairPublicPlacementProfiles() {
@@ -1294,13 +1458,13 @@ function registerStaffRoutes(app, context) {
           INSERT IGNORE INTO staff_profiles
             (
               id, user_id, teacher_id, full_name, email, phone, nic,
-              staff_type, department, position, qualification, joined_date,
-              status, profile_image, photo_url
+              slug, staff_type, department, position, qualification, bio, joined_date,
+              status, sort_order, profile_image, photo_url
             )
           SELECT
               ?, user_id, teacher_id, full_name, email, phone, nic,
-              staff_type, department, position, qualification, joined_date,
-              status, profile_image, photo_url
+              slug, staff_type, department, position, qualification, bio, joined_date,
+              status, sort_order, profile_image, photo_url
           FROM staff_profiles
           WHERE id = ?
         `,
@@ -1316,6 +1480,12 @@ function registerStaffRoutes(app, context) {
             target.email = COALESCE(NULLIF(target.email, ''), source.email),
             target.phone = COALESCE(NULLIF(target.phone, ''), source.phone),
             target.nic = COALESCE(NULLIF(target.nic, ''), source.nic),
+            target.slug = COALESCE(NULLIF(target.slug, ''), source.slug),
+            target.bio = COALESCE(NULLIF(target.bio, ''), source.bio),
+            target.sort_order = CASE
+              WHEN target.sort_order = 0 THEN source.sort_order
+              ELSE target.sort_order
+            END,
             target.profile_image = COALESCE(NULLIF(target.profile_image, ''), source.profile_image),
             target.photo_url = COALESCE(NULLIF(target.photo_url, ''), source.photo_url)
           WHERE target.id = ?
@@ -1326,12 +1496,16 @@ function registerStaffRoutes(app, context) {
         `
           INSERT IGNORE INTO staff_positions
             (
-              staff_id, position_master_id, department, position, website_place,
-              subject, classes, is_primary, display_order, visible_on_website
+              staff_id, position_master_id, position_code, display_title,
+              main_category, section, subsection, grade, stream, medium, class_or_stream,
+              department, position, website_place, subject, classes, is_primary,
+              display_order, sort_order, visible_on_website, is_known
             )
           SELECT
-              ?, position_master_id, department, position, website_place,
-              subject, classes, 0, display_order + 10, visible_on_website
+              ?, position_master_id, position_code, display_title,
+              main_category, section, subsection, grade, stream, medium, class_or_stream,
+              department, position, website_place, subject, classes, 0,
+              display_order + 10, sort_order, visible_on_website, is_known
           FROM staff_positions
           WHERE staff_id = ?
         `,
@@ -1363,20 +1537,41 @@ function registerStaffRoutes(app, context) {
       const department = clean(profile.department, 120);
       const position = clean(profile.position, 150);
       if (!department && !position) continue;
+      const record = legacyPositionRecord(
+        {
+          department,
+          position,
+          staffType: profile.staff_type,
+          website_place: normalizeWebsitePlace("", position, profile.staff_type, department),
+        },
+        0,
+      );
       await db.query(
         `
           INSERT IGNORE INTO staff_positions
             (
-              staff_id, department, position, website_place, subject, classes,
-              is_primary, display_order, visible_on_website
+              staff_id, position_code, display_title, main_category, section, subsection,
+              grade, stream, medium, class_or_stream, department, position, website_place,
+              subject, classes, is_primary, display_order, sort_order, visible_on_website, is_known
             )
-          VALUES (?, ?, ?, ?, '', '', 1, 0, 1)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', '', 1, 0, ?, 1, ?)
         `,
         [
           profile.id,
-          department,
-          position,
-          normalizeWebsitePlace("", position, profile.staff_type, department),
+          record.positionCode,
+          record.displayTitle,
+          record.mainCategory,
+          record.section,
+          record.subsection,
+          record.grade,
+          record.stream,
+          record.medium,
+          record.classOrStream,
+          record.department,
+          record.position,
+          record.websitePlace,
+          record.sortOrder,
+          record.isKnown ? 1 : 0,
         ],
       );
     }
@@ -1414,21 +1609,62 @@ function registerStaffRoutes(app, context) {
         department,
       );
       if (!position && !department && !subject && !classes) continue;
+      const record = legacyPositionRecord(
+        {
+          department,
+          position,
+          website_place: websitePlace,
+          subject,
+          classes,
+          staffType: teacher.type,
+        },
+        1,
+      );
 
       await db.query(
         `
           INSERT INTO staff_positions
             (
-              staff_id, department, position, website_place, subject, classes,
-              is_primary, display_order, visible_on_website
+              staff_id, position_code, display_title, main_category, section, subsection,
+              grade, stream, medium, class_or_stream, department, position, website_place,
+              subject, classes, is_primary, display_order, sort_order, visible_on_website, is_known
             )
-          VALUES (?, ?, ?, ?, ?, ?, 0, 10, 1)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 10, ?, 1, ?)
           ON DUPLICATE KEY UPDATE
+            position_code = VALUES(position_code),
+            display_title = VALUES(display_title),
+            main_category = VALUES(main_category),
+            section = VALUES(section),
+            subsection = VALUES(subsection),
+            grade = VALUES(grade),
+            stream = VALUES(stream),
+            medium = VALUES(medium),
+            class_or_stream = VALUES(class_or_stream),
             department = VALUES(department),
             display_order = LEAST(display_order, VALUES(display_order)),
-            visible_on_website = VALUES(visible_on_website)
+            sort_order = VALUES(sort_order),
+            visible_on_website = VALUES(visible_on_website),
+            is_known = VALUES(is_known)
         `,
-        [staffId, department, position, websitePlace, subject, classes],
+        [
+          staffId,
+          record.positionCode,
+          record.displayTitle,
+          record.mainCategory,
+          record.section,
+          record.subsection,
+          record.grade,
+          record.stream,
+          record.medium,
+          record.classOrStream,
+          record.department,
+          record.position,
+          record.websitePlace,
+          subject,
+          classes,
+          record.sortOrder,
+          record.isKnown ? 1 : 0,
+        ],
       );
     }
   }
@@ -1626,6 +1862,20 @@ function registerStaffRoutes(app, context) {
   }
 
   function normalizePositionEntry(entry = {}, index = 0, fallback = {}) {
+    const typedCode = normalizePositionCode(entry.position_code || entry.positionCode || "");
+    if (typedCode) {
+      const parsed = parsePositionCode(typedCode);
+      const record = positionRecordFromParsed(parsed, index);
+      return {
+        ...record,
+        positionMasterId: null,
+        displayOrder: Number.isFinite(Number(entry.display_order ?? entry.displayOrder))
+          ? Number(entry.display_order ?? entry.displayOrder)
+          : index,
+        visibleOnWebsite: booleanLike(entry.visible_on_website ?? entry.visibleOnWebsite, true),
+      };
+    }
+
     const position = clean(entry.position || entry.title || fallback.position || "", 150);
     const department = clean(entry.department || entry.section || fallback.department || "", 120);
     const staffType = fallback.staffType || fallback.staff_type || "";
@@ -1633,7 +1883,18 @@ function registerStaffRoutes(app, context) {
       entry.website_place || entry.websitePlace || entry.category || fallback.category;
     const masterId = Number(entry.position_master_id ?? entry.positionMasterId);
     const hiddenFromWebsite = clean(rawWebsitePlace, 120).toLowerCase() === "hidden from website";
+    const legacy = legacyPositionRecord(
+      {
+        ...entry,
+        position,
+        department,
+        website_place: normalizeWebsitePlace(rawWebsitePlace, position, staffType, department),
+        staffType,
+      },
+      index,
+    );
     return {
+      ...legacy,
       positionMasterId: Number.isFinite(masterId) && masterId > 0 ? masterId : null,
       department,
       position,
@@ -1644,6 +1905,7 @@ function registerStaffRoutes(app, context) {
       displayOrder: Number.isFinite(Number(entry.display_order ?? entry.displayOrder))
         ? Number(entry.display_order ?? entry.displayOrder)
         : index,
+      sortOrder: legacy.sortOrder || 0,
       visibleOnWebsite: hiddenFromWebsite
         ? false
         : booleanLike(entry.visible_on_website ?? entry.visibleOnWebsite, true),
@@ -1663,6 +1925,17 @@ function registerStaffRoutes(app, context) {
   }
 
   function normalizePositionPayload(body, payload) {
+    const typedCodes = positionCodesInput(body);
+    if (typedCodes !== null) {
+      const positions = positionsFromPositionCodes(typedCodes);
+      if (!positions.length) return [];
+      positions.forEach((position, index) => {
+        position.isPrimary = index === 0;
+        position.displayOrder = index;
+      });
+      return positions;
+    }
+
     const input = parsePositionsInput(body);
     const fallback = {
       department: payload.department,
@@ -1732,15 +2005,14 @@ function registerStaffRoutes(app, context) {
   function profilePayload(body = {}) {
     const id = clean(body.id || body.staff_id, 50);
     const fullName = clean(body.full_name || body.fullName || body.name, 150);
+    const requestedSlug = profileSlug(body.slug || "");
     const teacherId = clean(body.teacher_id || body.teacherId || id, 50);
     const userId = clean(
       body.user_id || body.userId || body.account_user_id || body.accountUserId,
       50,
     );
-    const staffType = clean(
-      body.staff_type || body.staffType || body.type || "Academic Staff",
-      100,
-    );
+    const providedStaffType = clean(body.staff_type || body.staffType || body.type || "", 100);
+    const staffType = providedStaffType || "Academic Staff";
     const department = clean(body.department || body.section || "", 120);
     const qualification = clean(body.qualification || body.qualifications || "", 3000);
     const profileImage = clean(
@@ -1759,6 +2031,7 @@ function registerStaffRoutes(app, context) {
 
     const payload = {
       id,
+      slug: requestedSlug || profileSlug(fullName || id),
       userId,
       teacherId,
       fullName,
@@ -1769,8 +2042,10 @@ function registerStaffRoutes(app, context) {
       department,
       position: clean(body.position, 150),
       qualification,
+      bio: clean(body.bio || body.responsibilities || "", 5000),
       joinedDate: normalizeDate(body.joined_date || body.joinedDate),
       status: normalizeStatus(body.status),
+      sortOrder: normalizeSortOrder(body.sort_order ?? body.sortOrder, 0),
       profileImage,
       photoUrl: profileImage,
       accountEnabled: booleanField(body, "accountEnabled", "account_enabled"),
@@ -1782,7 +2057,20 @@ function registerStaffRoutes(app, context) {
       responsibilities: clean(body.responsibilities, 3000),
     };
     payload.positions = normalizePositionPayload(body, payload);
-    payload.replacePositions = hasField(body, "positions", "staff_positions", "staffPositions");
+    payload.positionCodesProvided = positionCodesInput(body) !== null;
+    const primaryPosition = payload.positions[0];
+    if (primaryPosition && !providedStaffType) {
+      payload.staffType = staffTypeFromMainCategory(primaryPosition.mainCategory);
+    }
+    payload.positionCodes = payload.positions.map((position) => position.positionCode).filter(Boolean);
+    payload.replacePositions = hasField(
+      body,
+      "position_codes",
+      "positionCodes",
+      "positions",
+      "staff_positions",
+      "staffPositions",
+    );
     applyPrimaryPosition(payload);
     return payload;
   }
@@ -1796,6 +2084,19 @@ function registerStaffRoutes(app, context) {
       staff_id: row.staff_id,
       position_master_id: row.position_master_id || null,
       positionMasterId: row.position_master_id || null,
+      position_code: row.position_code || "",
+      positionCode: row.position_code || "",
+      display_title: row.display_title || position || "",
+      displayTitle: row.display_title || position || "",
+      main_category: row.main_category || "",
+      mainCategory: row.main_category || "",
+      section: row.section || "",
+      subsection: row.subsection || "",
+      grade: row.grade == null ? null : Number(row.grade),
+      stream: row.stream || "",
+      medium: row.medium || "",
+      class_or_stream: row.class_or_stream || "",
+      classOrStream: row.class_or_stream || "",
       department,
       position,
       website_place: websitePlace,
@@ -1806,8 +2107,12 @@ function registerStaffRoutes(app, context) {
       isPrimary: row.is_primary === 1 || row.is_primary === true,
       display_order: Number(row.display_order || 0),
       displayOrder: Number(row.display_order || 0),
+      sort_order: Number(row.sort_order || 0),
+      sortOrder: Number(row.sort_order || 0),
       visible_on_website: row.visible_on_website !== 0,
       visibleOnWebsite: row.visible_on_website !== 0,
+      is_known: row.is_known !== 0,
+      isKnown: row.is_known !== 0,
     };
   }
 
@@ -1858,6 +2163,7 @@ function registerStaffRoutes(app, context) {
     const image = row.photo_url || row.profile_image || row.teacher_image || "";
     return {
       id: row.id,
+      slug: row.slug || profileSlug(row.full_name || row.id),
       user_id: row.user_id || "",
       teacher_id: row.teacher_id || "",
       full_name: row.full_name || "",
@@ -1868,8 +2174,12 @@ function registerStaffRoutes(app, context) {
       department: primary?.department || row.department || "",
       position: primary?.position || row.position || "",
       qualification: row.qualification || "",
+      qualifications: row.qualification || "",
+      bio: row.bio || row.responsibilities || "",
       joined_date: row.joined_date,
       status: row.status || "Active",
+      sort_order: Number(row.sort_order || 0),
+      sortOrder: Number(row.sort_order || 0),
       photo_url: image,
       profile_image: image,
       image,
@@ -1879,6 +2189,8 @@ function registerStaffRoutes(app, context) {
       category: primary?.website_place || row.category || "",
       responsibilities: row.responsibilities || "",
       positions,
+      position_codes: positions.map((position) => position.position_code).filter(Boolean),
+      positionCodes: positions.map((position) => position.position_code).filter(Boolean),
       account_status: row.account_status || "",
       created_at: row.created_at,
       updated_at: row.updated_at,
@@ -2021,6 +2333,7 @@ function registerStaffRoutes(app, context) {
         LEFT JOIN teachers t ON t.id = COALESCE(NULLIF(sp.teacher_id, ''), sp.id)
         ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
         ORDER BY
+          sp.sort_order ASC,
           CASE
             WHEN sp.id REGEXP '^LCS-[0-9]+$' THEN 0
             ELSE 1
@@ -2044,7 +2357,7 @@ function registerStaffRoutes(app, context) {
         SELECT *
         FROM staff_positions
         WHERE staff_id IN (${placeholders})
-        ORDER BY staff_id, is_primary DESC, display_order ASC, id ASC
+        ORDER BY staff_id, is_primary DESC, sort_order ASC, display_order ASC, id ASC
       `,
       ids,
     );
@@ -2153,6 +2466,13 @@ function registerStaffRoutes(app, context) {
       if (rows.length) return { id: rows[0].id, matchType: "Staff ID" };
     }
 
+    if (payload.slug) {
+      const [rows] = await runner.query("SELECT id FROM staff_profiles WHERE slug = ? LIMIT 1", [
+        payload.slug,
+      ]);
+      if (rows.length) return { id: rows[0].id, matchType: "slug" };
+    }
+
     if (payload.nic) {
       const [rows] = await runner.query("SELECT id FROM staff_profiles WHERE nic = ? LIMIT 1", [
         payload.nic,
@@ -2167,6 +2487,14 @@ function registerStaffRoutes(app, context) {
       if (rows.length) return { id: rows[0].id, matchType: "email" };
     }
 
+    if (!id && payload.fullName) {
+      const [rows] = await runner.query(
+        "SELECT id FROM staff_profiles WHERE LOWER(full_name) = LOWER(?) LIMIT 1",
+        [payload.fullName],
+      );
+      if (rows.length) return { id: rows[0].id, matchType: "name" };
+    }
+
     return null;
   }
 
@@ -2176,7 +2504,7 @@ function registerStaffRoutes(app, context) {
         SELECT *
         FROM staff_positions
         WHERE staff_id = ?
-        ORDER BY is_primary DESC, display_order ASC, id ASC
+        ORDER BY is_primary DESC, sort_order ASC, display_order ASC, id ASC
       `,
       [staffId],
     );
@@ -2185,6 +2513,15 @@ function registerStaffRoutes(app, context) {
       const position = row.position || "";
       return {
         positionMasterId: row.position_master_id || null,
+        positionCode: row.position_code || "",
+        displayTitle: row.display_title || position || "",
+        mainCategory: row.main_category || "",
+        section: row.section || "",
+        subsection: row.subsection || "",
+        grade: row.grade == null ? null : Number(row.grade),
+        stream: row.stream || "",
+        medium: row.medium || "",
+        classOrStream: row.class_or_stream || "",
         department,
         position,
         websitePlace: normalizeWebsitePlace(row.website_place, position, "", department),
@@ -2192,7 +2529,9 @@ function registerStaffRoutes(app, context) {
         classes: row.classes || "",
         isPrimary: row.is_primary === 1,
         displayOrder: Number(row.display_order || 0),
+        sortOrder: Number(row.sort_order || 0),
         visibleOnWebsite: row.visible_on_website !== 0,
+        isKnown: row.is_known !== 0,
       };
     });
   }
@@ -2216,10 +2555,13 @@ function registerStaffRoutes(app, context) {
         db,
         {
           id: profile.id,
+          slug: profile.slug || profileSlug(profile.full_name || profile.id),
           teacherId: profile.teacher_id || profile.id,
           userId: profile.user_id || null,
           accountEmail: profile.account_email || profile.email || "",
           fullName: profile.full_name,
+          email: profile.email || "",
+          phone: profile.phone || "",
           staffType: profile.staff_type || "Academic Staff",
           department: profile.department || "",
           position: profile.position || "",
@@ -2230,7 +2572,9 @@ function registerStaffRoutes(app, context) {
           photoUrl: profile.photo_url || profile.profile_image || "",
           profileImage: profile.profile_image || profile.photo_url || "",
           qualification: profile.qualification || "",
-          responsibilities: profile.responsibilities || "",
+          bio: profile.bio || "",
+          sortOrder: Number(profile.sort_order || 0),
+          responsibilities: profile.bio || "",
         },
         positions,
       );
@@ -2242,7 +2586,8 @@ function registerStaffRoutes(app, context) {
       await runner.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId]);
     }
 
-    const normalized = positions.length ? positions : normalizePositionPayload({}, {});
+    if (!positions.length) return;
+    const normalized = positions;
     if (normalized.some((position) => position.isPrimary)) {
       await runner.query("UPDATE staff_positions SET is_primary = 0 WHERE staff_id = ?", [staffId]);
     }
@@ -2252,12 +2597,23 @@ function registerStaffRoutes(app, context) {
         `
           INSERT INTO staff_positions
             (
-              staff_id, position_master_id, department, position, website_place, subject, classes,
-              is_primary, display_order, visible_on_website
+              staff_id, position_master_id, position_code, display_title,
+              main_category, section, subsection, grade, stream, medium, class_or_stream,
+              department, position, website_place, subject, classes,
+              is_primary, display_order, sort_order, visible_on_website, is_known
             )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             position_master_id = VALUES(position_master_id),
+            position_code = VALUES(position_code),
+            display_title = VALUES(display_title),
+            main_category = VALUES(main_category),
+            section = VALUES(section),
+            subsection = VALUES(subsection),
+            grade = VALUES(grade),
+            stream = VALUES(stream),
+            medium = VALUES(medium),
+            class_or_stream = VALUES(class_or_stream),
             department = VALUES(department),
             position = VALUES(position),
             website_place = VALUES(website_place),
@@ -2265,11 +2621,22 @@ function registerStaffRoutes(app, context) {
             classes = VALUES(classes),
             is_primary = VALUES(is_primary),
             display_order = VALUES(display_order),
-            visible_on_website = VALUES(visible_on_website)
+            sort_order = VALUES(sort_order),
+            visible_on_website = VALUES(visible_on_website),
+            is_known = VALUES(is_known)
         `,
         [
           staffId,
           position.positionMasterId || null,
+          position.positionCode || "",
+          position.displayTitle || position.position || "",
+          position.mainCategory || "",
+          position.section || "",
+          position.subsection || "",
+          position.grade || null,
+          position.stream || "",
+          position.medium || "",
+          position.classOrStream || "",
           position.department,
           position.position,
           position.websitePlace,
@@ -2277,7 +2644,9 @@ function registerStaffRoutes(app, context) {
           position.classes,
           position.isPrimary ? 1 : 0,
           Number(position.displayOrder || 0),
+          Number(position.sortOrder || 0),
           position.visibleOnWebsite ? 1 : 0,
+          position.isKnown === false ? 0 : 1,
         ],
       );
     }
@@ -2303,6 +2672,10 @@ function registerStaffRoutes(app, context) {
 
   async function syncStaffPublicRows(runner, profile, positions) {
     const staffId = profile.id;
+    if (profile.positionCodesProvided && !positions.length) {
+      await runner.query("DELETE FROM teachers WHERE staff_id = ? OR id = ?", [staffId, staffId]);
+      return;
+    }
     const primary = positions.find((position) => position.isPrimary) ||
       positions[0] || {
         department: profile.department || "",
@@ -2338,6 +2711,19 @@ function registerStaffRoutes(app, context) {
       sourcePositions.map((position) => ({
         position_master_id: position.positionMasterId || null,
         positionMasterId: position.positionMasterId || null,
+        position_code: position.positionCode || "",
+        positionCode: position.positionCode || "",
+        display_title: position.displayTitle || position.position || "",
+        displayTitle: position.displayTitle || position.position || "",
+        main_category: position.mainCategory || "",
+        mainCategory: position.mainCategory || "",
+        section: position.section || "",
+        subsection: position.subsection || "",
+        grade: position.grade || null,
+        stream: position.stream || "",
+        medium: position.medium || "",
+        class_or_stream: position.classOrStream || "",
+        classOrStream: position.classOrStream || "",
         department: position.department,
         position: position.position,
         website_place: position.websitePlace,
@@ -2348,23 +2734,21 @@ function registerStaffRoutes(app, context) {
         isPrimary: position.isPrimary,
         display_order: position.displayOrder,
         displayOrder: position.displayOrder,
+        sort_order: position.sortOrder || 0,
+        sortOrder: position.sortOrder || 0,
         visible_on_website: position.visibleOnWebsite,
         visibleOnWebsite: position.visibleOnWebsite,
+        is_known: position.isKnown !== false,
+        isKnown: position.isKnown !== false,
       })),
     );
-    const publicStatus = active && visiblePositions.length ? "Active" : "Hidden";
-    const baseRow = {
-      ...primary,
-      websitePlace: "All Teachers Directory",
-      status: publicStatus,
-    };
-    const rows = [
-      baseRow,
-      ...visiblePositions.map((position) => ({
+    const rows = (visiblePositions.length ? visiblePositions : [primary]).map((position) => ({
         ...position,
         status: active ? "Active" : "Hidden",
-      })),
-    ];
+      }));
+    const positionCodes = normalizePositionCodes(
+      sourcePositions.map((position) => position.positionCode).filter(Boolean),
+    );
 
     await runner.query("DELETE FROM teachers WHERE staff_id = ? OR id = ?", [staffId, staffId]);
 
@@ -2373,14 +2757,17 @@ function registerStaffRoutes(app, context) {
         `
           INSERT INTO teachers
             (
-              id, staff_id, name, subject, classes, status, image, type, category,
+              id, staff_id, slug, name, email, phone, subject, classes, status, image, type, category,
               website_place, qualifications, responsibilities, section, position,
-              positions_json, account_email, account_user_id
+              positions_json, position_codes, bio, sort_order, account_email, account_user_id
             )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             staff_id = VALUES(staff_id),
+            slug = VALUES(slug),
             name = VALUES(name),
+            email = VALUES(email),
+            phone = VALUES(phone),
             subject = VALUES(subject),
             classes = VALUES(classes),
             status = VALUES(status),
@@ -2393,25 +2780,34 @@ function registerStaffRoutes(app, context) {
             section = VALUES(section),
             position = VALUES(position),
             positions_json = VALUES(positions_json),
+            position_codes = VALUES(position_codes),
+            bio = VALUES(bio),
+            sort_order = VALUES(sort_order),
             account_email = VALUES(account_email),
             account_user_id = VALUES(account_user_id)
         `,
         [
           publicTeacherId(staffId, position, index),
           staffId,
+          profile.slug || profileSlug(profile.fullName || staffId),
           profile.fullName,
+          profile.email || "",
+          profile.phone || "",
           position.subject || primary.subject || "",
           position.classes || primary.classes || "",
           position.status,
           publicPhoto,
           profile.staffType,
-          position.websitePlace,
-          position.websitePlace,
+          position.mainCategory || position.websitePlace,
+          position.section || position.websitePlace,
           profile.qualification,
-          profile.responsibilities || "",
+          profile.bio || profile.responsibilities || "",
           position.department || primary.department || "",
-          position.position || primary.position || "",
+          position.displayTitle || position.position || primary.position || "",
           positionsJson,
+          JSON.stringify(positionCodes),
+          profile.bio || profile.responsibilities || "",
+          Number(profile.sortOrder || 0) + Number(position.sortOrder || position.displayOrder || 0),
           profile.accountEmail || "",
           profile.userId || null,
         ],
@@ -2534,15 +2930,16 @@ function registerStaffRoutes(app, context) {
         `
           INSERT INTO staff_profiles
             (
-              id, user_id, teacher_id, full_name, email, phone, nic,
-              staff_type, department, position, qualification, joined_date,
-              status, profile_image, photo_url
+              id, user_id, teacher_id, full_name, slug, email, phone, nic,
+              staff_type, department, position, qualification, bio, joined_date,
+              status, sort_order, profile_image, photo_url
             )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE
             user_id = VALUES(user_id),
             teacher_id = VALUES(teacher_id),
             full_name = VALUES(full_name),
+            slug = VALUES(slug),
             email = VALUES(email),
             phone = VALUES(phone),
             nic = VALUES(nic),
@@ -2550,8 +2947,10 @@ function registerStaffRoutes(app, context) {
             department = VALUES(department),
             position = VALUES(position),
             qualification = VALUES(qualification),
+            bio = VALUES(bio),
             joined_date = VALUES(joined_date),
             status = VALUES(status),
+            sort_order = VALUES(sort_order),
             profile_image = VALUES(profile_image),
             photo_url = VALUES(photo_url)
         `,
@@ -2560,6 +2959,7 @@ function registerStaffRoutes(app, context) {
           userId,
           cleanNullable(existingTeacherId, 50),
           payload.fullName,
+          cleanNullable(payload.slug || profileSlug(payload.fullName), 180),
           cleanNullable(payload.email, 190),
           cleanNullable(payload.phone, 50),
           cleanNullable(payload.nic, 50),
@@ -2567,8 +2967,10 @@ function registerStaffRoutes(app, context) {
           cleanNullable(payload.department, 120),
           cleanNullable(payload.position, 150),
           cleanNullable(payload.qualification, 3000),
+          cleanNullable(payload.bio, 5000),
           payload.joinedDate,
           payload.status,
+          Number(payload.sortOrder || 0),
           cleanNullable(payload.profileImage, 2048),
           cleanNullable(payload.photoUrl || payload.profileImage, 2048),
         ],
@@ -2583,6 +2985,7 @@ function registerStaffRoutes(app, context) {
         {
           ...payload,
           id,
+          slug: payload.slug || profileSlug(payload.fullName),
           userId,
           accountEmail,
           photoUrl: payload.photoUrl || payload.profileImage,
@@ -2724,73 +3127,127 @@ function registerStaffRoutes(app, context) {
   }
 
   function csvRowToStaffBody(row) {
-    const position = csvField(row, "position", "role", "title");
-    const department = csvField(row, "department", "section");
-    const websitePlace = csvField(row, "website_place", "website place", "category", "placement");
+    const fullName = csvField(row, "full_name", "full name", "name");
+    const positionCodes =
+      csvField(row, "position_codes", "position codes", "position_code", "position code") ||
+      csvField(row, "position", "role", "title");
     return {
       id: csvField(row, "staff_id", "staff id", "id"),
-      full_name: csvField(row, "full_name", "full name", "name"),
+      full_name: fullName,
+      slug: csvField(row, "slug") || profileSlug(fullName),
       email: csvField(row, "email", "account_email", "account email"),
       phone: csvField(row, "phone", "mobile", "telephone"),
       nic: csvField(row, "nic", "NIC"),
       photo_url: csvField(row, "photo_url", "photo", "profile_image", "image"),
-      staff_type: csvField(row, "staff_type", "staff type", "type") || "Academic Staff",
+      staff_type: csvField(row, "staff_type", "staff type", "type"),
       status: csvField(row, "status") || "Active",
-      department,
-      position,
-      website_place: websitePlace,
-      subject: csvField(row, "subject"),
-      classes: csvField(row, "classes", "class"),
       qualification: csvField(row, "qualification", "qualifications"),
+      bio: csvField(row, "bio", "responsibilities"),
+      position_codes: positionCodes,
+      sort_order: csvField(row, "sort_order", "sort order") || 0,
       joined_date: csvField(row, "joined_date", "joined date"),
-      positions: [
-        {
-          department,
-          position,
-          website_place: websitePlace,
-          subject: csvField(row, "subject"),
-          classes: csvField(row, "classes", "class"),
-          is_primary: booleanLike(csvField(row, "is_primary", "primary"), true),
-          display_order: csvField(row, "display_order", "display order") || 0,
-          visible_on_website: booleanLike(
-            csvField(row, "visible_on_website", "visible", "website visible"),
-            true,
-          ),
-        },
-      ],
     };
   }
 
-  function csvRowsToStaffPayloads(rows, results) {
-    const byStaffId = new Map();
+  function csvSafeCell(value) {
+    const text = String(value || "");
+    return /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  }
 
-    rows.forEach((row, index) => {
+  function csvErrorReport(rows) {
+    const output = [["row", "name", "slug", "errors"]];
+    rows.forEach((row) => output.push([row.rowNumber, row.name, row.slug, row.errors.join("; ")]));
+    return output
+      .map((items) =>
+        items.map((item) => `"${csvSafeCell(item).replace(/"/g, '""')}"`).join(","),
+      )
+      .join("\n");
+  }
+
+  async function csvRowsToImportPlan(rows, { mode = "merge" } = {}) {
+    await ensureStaffTables();
+    const seen = new Set();
+    const plan = {
+      totalRows: rows.length,
+      newStaffProfiles: 0,
+      existingProfilesToUpdate: 0,
+      duplicateRows: [],
+      invalidRows: [],
+      unknownPositionCodes: [],
+      rows: [],
+      payloads: [],
+      errorReportCsv: "",
+    };
+    const unknownCodes = new Set();
+
+    for (const [index, row] of rows.entries()) {
       const body = csvRowToStaffBody(row);
+      const rowNumber = index + 2;
+      const normalizedCodes = normalizePositionCodes(body.position_codes);
+      const errors = [];
       if (!body.full_name) {
-        results.warnings.push(`Row ${index + 2}: full name is missing.`);
-        return;
+        errors.push("name is required");
       }
-      if (!body.id) {
-        results.warnings.push(`Row ${index + 2}: staff ID is missing; skipped for sync import.`);
-        return;
+      if (!normalizedCodes.length) {
+        errors.push("position_codes is required");
       }
+      if (body.status && !["active", "inactive"].includes(String(body.status).toLowerCase())) {
+        errors.push("status must be active or inactive");
+      }
+      const slugValue = profileSlug(body.slug || body.full_name);
+      const duplicateKey = slugValue || body.full_name.toLowerCase();
+      const duplicate = duplicateKey && seen.has(duplicateKey);
+      if (duplicate) {
+        plan.duplicateRows.push({ rowNumber, name: body.full_name, slug: slugValue });
+        errors.push("duplicate row in CSV");
+      }
+      if (duplicateKey) seen.add(duplicateKey);
 
-      const staffId = clean(body.id, 50);
-      if (!byStaffId.has(staffId)) {
-        byStaffId.set(staffId, {
-          ...body,
-          id: staffId,
-          positions: [],
+      normalizedCodes.forEach((code) => {
+        if (!parsePositionCode(code).is_known) unknownCodes.add(code);
+      });
+
+      if (errors.length) {
+        plan.invalidRows.push({
+          rowNumber,
+          name: body.full_name,
+          slug: slugValue,
+          errors,
         });
+        continue;
       }
-      byStaffId.get(staffId).positions.push(body.positions[0]);
-    });
 
-    return [...byStaffId.values()].map((body) => {
-      const payload = profilePayload(body);
-      payload.replacePositions = true;
-      return payload;
-    });
+      const payload = profilePayload({ ...body, slug: slugValue, position_codes: normalizedCodes });
+      payload.replacePositions = mode === "replace";
+      payload.positionCodesProvided = true;
+      const match = await findStaffIdentityMatch(db, payload, payload.id);
+      const action = match ? "update" : "create";
+      if (match) plan.existingProfilesToUpdate += 1;
+      else plan.newStaffProfiles += 1;
+
+      plan.rows.push({
+        rowNumber,
+        name: payload.fullName,
+        slug: payload.slug,
+        action,
+        normalizedPositionCodes: normalizedCodes,
+        unknownPositionCodes: normalizedCodes.filter((code) => !parsePositionCode(code).is_known),
+      });
+      plan.payloads.push(payload);
+    }
+
+    plan.unknownPositionCodes = [...unknownCodes];
+    plan.errorReportCsv = csvErrorReport(plan.invalidRows);
+    return plan;
+  }
+
+  function csvTemplate() {
+    return [
+      "name,slug,photo_url,qualifications,email,phone,bio,position_codes,status,sort_order",
+      'Mrs. Example Teacher,mrs-example-teacher,,,,,,"class-teacher-6-c",active,10',
+      'Mrs. Example Multi Role,mrs-example-multi-role,,,,,,"grade-head-6,class-teacher-6-c,subject-coordinator-middle-science",active,20',
+      'Mr. Example AL Teacher,mr-example-al-teacher,,,,,,"class-teacher-12-bio-eng-a",active,30',
+    ].join("\n");
   }
 
   async function pruneSiteDatabaseTeachersNotIn(runner, staffIds) {
@@ -3144,43 +3601,70 @@ function registerStaffRoutes(app, context) {
     }
   });
 
+  app.get("/api/staff/import-csv/template", staffManagerOnly, async (req, res) => {
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=\"staff-import-template.csv\"");
+    res.send(csvTemplate());
+  });
+
+  app.post("/api/staff/import-csv/preview", staffManagerOnly, async (req, res) => {
+    try {
+      const csv = String(req.body?.csv || req.body?.content || "");
+      const fileName = clean(req.body?.fileName || req.body?.filename || "", 255);
+      if (fileName && !fileName.toLowerCase().endsWith(".csv")) {
+        return res.status(400).json({ error: "Only .csv files can be imported." });
+      }
+      if (Buffer.byteLength(csv, "utf8") > 2 * 1024 * 1024) {
+        return res.status(400).json({ error: "CSV file is too large. Limit is 2 MB." });
+      }
+      const rows = parseCsv(csv);
+      if (!rows.length) return res.status(400).json({ error: "CSV file has no importable rows" });
+      const plan = await csvRowsToImportPlan(rows, { mode: req.body?.mode || "merge" });
+      const { payloads, ...preview } = plan;
+      res.json({ success: true, preview });
+    } catch (error) {
+      res.status(error.status || 500).json({ error: error.message });
+    }
+  });
+
   app.post("/api/staff/import-csv", staffManagerOnly, async (req, res) => {
     try {
-      const rows = parseCsv(req.body?.csv || req.body?.content || "");
+      const csv = String(req.body?.csv || req.body?.content || "");
+      const fileName = clean(req.body?.fileName || req.body?.filename || "", 255);
+      if (fileName && !fileName.toLowerCase().endsWith(".csv")) {
+        return res.status(400).json({ error: "Only .csv files can be imported." });
+      }
+      if (Buffer.byteLength(csv, "utf8") > 2 * 1024 * 1024) {
+        return res.status(400).json({ error: "CSV file is too large. Limit is 2 MB." });
+      }
+      const rows = parseCsv(csv);
       if (!rows.length) return res.status(400).json({ error: "CSV file has no importable rows" });
-      const syncImport = booleanLike(req.body?.sync || req.body?.replace || req.query.sync, false);
+      const mode = req.body?.mode === "replace" ? "replace" : "merge";
+      const syncImport = booleanLike(req.body?.sync || req.query.sync, false);
+      const plan = await csvRowsToImportPlan(rows, { mode });
 
       const results = {
         success: true,
         rows: rows.length,
-        profiles: 0,
+        profiles: plan.payloads.length,
         created: 0,
         updated: 0,
+        skipped: plan.invalidRows.length,
+        errors: plan.invalidRows.length,
         removedProfiles: 0,
         removedTeachers: 0,
         removedSiteTeachers: 0,
+        unknownPositionCodes: plan.unknownPositionCodes,
+        invalidRows: plan.invalidRows,
+        duplicateRows: plan.duplicateRows,
+        errorReportCsv: plan.errorReportCsv,
         warnings: [],
       };
 
-      const payloads = syncImport
-        ? csvRowsToStaffPayloads(rows, results)
-        : rows
-            .map((row, index) => {
-              const body = csvRowToStaffBody(row);
-              if (!body.full_name) {
-                results.warnings.push(`Row ${index + 2}: full name is missing.`);
-                return null;
-              }
-              const payload = profilePayload(body);
-              payload.replacePositions = false;
-              return payload;
-            })
-            .filter(Boolean);
-
-      results.profiles = payloads.length;
-
-      for (const payload of payloads) {
+      const importedIds = [];
+      for (const payload of plan.payloads) {
         const result = await saveProfile(req, payload, { isUpdate: false });
+        importedIds.push(result.id);
         if (result.created) results.created += 1;
         else results.updated += 1;
         if (result.duplicateWarning) {
@@ -3191,7 +3675,7 @@ function registerStaffRoutes(app, context) {
       if (syncImport) {
         const pruned = await pruneStaffDataNotInCsv(
           req,
-          payloads.map((payload) => payload.id),
+          importedIds,
         );
         results.removedProfiles = pruned.removedProfiles;
         results.removedTeachers = pruned.removedTeachers;

@@ -29,6 +29,12 @@
       websitePlace: "All",
       status: "All",
     },
+    csvImport: {
+      fileName: "",
+      csv: "",
+      mode: "merge",
+      preview: null,
+    },
   };
 
   const staffTypes = ["Academic Staff", "Non-Academic Staff", "Supportive Staff"];
@@ -368,6 +374,54 @@
     return person.id || person.teacher_id || person.user_id || "";
   }
 
+  function normalizePositionCode(value) {
+    return String(value || "")
+      .toLowerCase()
+      .trim()
+      .replace(/[_\s]+/g, "-")
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "");
+  }
+
+  function normalizePositionCodes(input) {
+    const rawItems = Array.isArray(input)
+      ? input.flatMap((item) => String(item || "").split(/[,;\n]/))
+      : String(input || "").split(/[,;\n]/);
+    const seen = new Set();
+    const codes = [];
+    rawItems.forEach((item) => {
+      const code = normalizePositionCode(item);
+      if (!code || seen.has(code)) return;
+      seen.add(code);
+      codes.push(code);
+    });
+    return codes;
+  }
+
+  function positionCodesForProfile(person = {}) {
+    const explicit = person.position_codes || person.positionCodes;
+    const fromExplicit = normalizePositionCodes(explicit);
+    if (fromExplicit.length) return fromExplicit;
+    return normalizePositionCodes(
+      (person.positions || [])
+        .map((position) => position.position_code || position.positionCode)
+        .filter(Boolean),
+    );
+  }
+
+  function positionCodesText(person = {}) {
+    return positionCodesForProfile(person).join("\n");
+  }
+
+  function positionBadgesHtml(person = {}) {
+    const codes = positionCodesForProfile(person);
+    if (!codes.length) return `<span class="muted">No position codes</span>`;
+    return `<div class="code-badges">${codes
+      .map((code) => `<span class="code-badge">${esc(code)}</span>`)
+      .join("")}</div>`;
+  }
+
   function isWebsitePositionVisible(position = {}) {
     const place = position.website_place || position.websitePlace || "";
     return (
@@ -516,9 +570,17 @@
         person.staff_type,
         person.department,
         person.position,
+        person.slug,
+        person.bio,
+        positionCodesForProfile(person).join(" "),
         (person.positions || [])
           .map((position) =>
             [
+              position.position_code || position.positionCode,
+              position.display_title || position.displayTitle,
+              position.main_category || position.mainCategory,
+              position.section,
+              position.subsection,
               position.department,
               position.position,
               position.website_place || position.websitePlace,
@@ -628,6 +690,64 @@
     `;
   }
 
+  function csvImportPreviewHtml() {
+    const preview = state.csvImport.preview;
+    if (!preview) return "";
+    const invalid = preview.invalidRows || [];
+    const unknown = preview.unknownPositionCodes || [];
+    return panel(
+      "CSV Import Preview",
+      `${preview.totalRows || 0} rows scanned`,
+      `
+        <div class="import-preview">
+          <div class="summary-list import-summary">
+            <div><span>New staff profiles</span><strong>${esc(preview.newStaffProfiles || 0)}</strong></div>
+            <div><span>Existing profiles to update</span><strong>${esc(preview.existingProfilesToUpdate || 0)}</strong></div>
+            <div><span>Duplicate rows</span><strong>${esc((preview.duplicateRows || []).length)}</strong></div>
+            <div><span>Invalid rows</span><strong>${esc(invalid.length)}</strong></div>
+          </div>
+          <div class="import-mode">
+            <label class="check">
+              <input type="radio" name="import-mode" value="merge" ${state.csvImport.mode !== "replace" ? "checked" : ""} />
+              <span>Merge with existing position codes</span>
+            </label>
+            <label class="check">
+              <input type="radio" name="import-mode" value="replace" ${state.csvImport.mode === "replace" ? "checked" : ""} />
+              <span>Replace existing position codes</span>
+            </label>
+          </div>
+          ${
+            unknown.length
+              ? `<p class="inline-warning">Unknown codes will import and appear under Uncategorized Staff: ${unknown
+                  .map(esc)
+                  .join(", ")}</p>`
+              : ""
+          }
+          ${
+            invalid.length
+              ? `<div class="error-list">${invalid
+                  .slice(0, 5)
+                  .map(
+                    (row) =>
+                      `<div>Row ${esc(row.rowNumber)}: ${esc((row.errors || []).join(", "))}</div>`,
+                  )
+                  .join("")}</div>`
+              : ""
+          }
+          <div class="form-actions">
+            <button class="button ghost" type="button" data-action="cancel-import">Cancel Import</button>
+            ${
+              invalid.length
+                ? `<button class="button ghost" type="button" data-action="download-error-report">${icon("download")} Error Report</button>`
+                : ""
+            }
+            <button class="button primary" type="button" data-action="confirm-import">${icon("plus")} Confirm Import</button>
+          </div>
+        </div>
+      `,
+    );
+  }
+
   function profilesHtml() {
     const rows = filteredStaff();
     return `
@@ -648,11 +768,13 @@
           </label>
         </div>
         <div class="toolbar-actions">
-          <label class="button ghost import-button">${icon("download")} Import CSV<input id="import-csv-file" type="file" accept=".csv,text/csv" /></label>
+          <button class="button ghost" data-action="download-template">${icon("download")} Download CSV Template</button>
+          <label class="button ghost import-button">${icon("download")} Import Staff CSV<input id="import-csv-file" type="file" accept=".csv,text/csv" /></label>
           <button class="button" data-action="export">${icon("download")} Export CSV</button>
           <button class="button gold" data-action="new-staff">${icon("plus")} Add Staff</button>
         </div>
       </div>
+      ${csvImportPreviewHtml()}
       ${panel(
         "Staff Profiles",
         `${rows.length} record${rows.length === 1 ? "" : "s"} visible`,
@@ -662,10 +784,7 @@
               <tr>
                 <th>Staff</th>
                 <th>Contact</th>
-                <th>Login Account</th>
-                <th>Department</th>
-                <th>Position</th>
-                <th>Website Position</th>
+                <th>Position Codes</th>
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -688,12 +807,9 @@
                             </td>
                             <td data-label="Contact">
                               <strong>${esc(person.email || "-")}</strong>
-                              <small>${esc(person.duplicate_warning || person.phone || person.nic || "")}</small>
+                              <small>${esc(person.duplicate_warning || person.phone || "")}</small>
                             </td>
-                            <td data-label="Login Account">${loginAccountHtml(person)}</td>
-                            <td data-label="Department">${esc(person.staff_type)}<small>${esc(person.department || "")}</small></td>
-                            <td data-label="Position">${esc(person.position || "-")}</td>
-                            <td data-label="Website Position">${websitePositionHtml(person)}</td>
+                            <td data-label="Position Codes">${positionBadgesHtml(person)}</td>
                             <td data-label="Status"><span class="status ${esc(statusClass(person.status))}">${esc(person.status || "Active")}</span></td>
                             <td class="right">
                               <button class="icon-button" title="Edit staff" data-edit="${esc(person.id)}">${icon("file")} Edit</button>
@@ -703,7 +819,7 @@
                         `,
                       )
                       .join("")
-                  : `<tr><td colspan="8"><div class="empty">No staff match your filters.</div></td></tr>`
+                  : `<tr><td colspan="5"><div class="empty">No staff match your filters.</div></td></tr>`
               }
             </tbody>
           </table>
@@ -1006,16 +1122,6 @@
     const person = state.editingId ? state.staff.find((item) => item.id === state.editingId) : null;
     const isEdit = Boolean(person);
     const id = isEdit ? person.id : state.nextId;
-    const positionRows = staffPositions(person);
-    const primaryPosition = positionRows.find((item) => item.is_primary) || positionRows[0] || {};
-    const additionalPositions = positionRows.filter((item) => !item.is_primary);
-    const staffType = person?.staff_type || "Academic Staff";
-    const position = primaryPosition.position || person?.position || "Subject Teacher";
-    const department = primaryPosition.department || person?.department || "";
-    const websitePlace =
-      primaryPosition.website_place ||
-      person?.category ||
-      autoWebsitePlace(position, staffType, department);
     const hasAccount = Boolean(person?.user_id);
     const profileImage = person?.photo_url || person?.profile_image || person?.image || "";
 
@@ -1049,64 +1155,34 @@
                   <small>${isEdit ? "Staff ID cannot be changed while editing." : "Auto generated. Type an old deleted Staff ID here only when re-adding the same person."}</small>
                 </label>
                 ${field("Full Name", "full_name", person?.full_name || "", "required")}
+                ${field("Slug", "slug", person?.slug || "")}
                 ${field("Email", "email", person?.email || "", 'type="email"')}
                 ${field("Phone", "phone", person?.phone || "")}
-                ${field("NIC", "nic", person?.nic || "")}
-                ${field("Joined Date", "joined_date", person?.joined_date ? String(person.joined_date).slice(0, 10) : "", 'type="date"')}
-              </div>
-            </div>
-            <div class="form-section">
-              <h3>Work Details</h3>
-              <div class="form-grid">
-                <label class="field">
-                  <span>Staff Type</span>
-                  <select id="staff-type" name="staff_type">${optionList(staffTypes, staffType)}</select>
-                </label>
-                <label class="field">
-                  <span>Primary Department</span>
-                  <select name="department">${optionList(departments, primaryPosition.department || person?.department || "Middle School")}</select>
-                </label>
-                <label class="field">
-                  <span>Primary Position</span>
-                  <select id="position" name="position">${positionOptionList(position, primaryPosition.position_master_id || primaryPosition.positionMasterId || "", isEdit)}</select>
-                </label>
-                <label class="field">
-                  <span>Website Place</span>
-                  <select id="category" name="category">${optionList(positionWebsitePlaces, websitePlace)}</select>
-                </label>
-                ${field("Subject", "subject", primaryPosition.subject || person?.subject || "")}
-                ${field("Classes", "classes", primaryPosition.classes || person?.classes || "")}
                 <label class="field">
                   <span>Status</span>
-                  <select name="status">${optionList(statuses, person?.status || "Active")}</select>
+                  <select name="status">${optionList(["Active", "Inactive"], person?.status || "Active")}</select>
                 </label>
+                ${field("Sort Order", "sort_order", person?.sort_order ?? person?.sortOrder ?? 0, 'type="number" step="1"')}
               </div>
             </div>
             <div class="form-section">
-              <div class="section-title-row">
-                <h3>Additional Positions</h3>
-                <button class="button ghost" type="button" data-action="add-position">${icon("plus")} Add Another Position</button>
-              </div>
-              <div id="positions-list" class="positions-list">
-                ${
-                  additionalPositions.length
-                    ? additionalPositions
-                        .map((item, index) => additionalPositionRowHtml(item, index))
-                        .join("")
-                    : `<div class="empty small">No additional positions added.</div>`
-                }
-              </div>
+              <h3>Position Codes</h3>
+              <label class="field">
+                <span>Position Codes</span>
+                <textarea name="position_codes" rows="6" required placeholder="class-teacher-6-c&#10;grade-head-6">${esc(positionCodesText(person))}</textarea>
+                <small>Type one or more position codes. Use one per line or separate by commas. Example: class-teacher-6-c, grade-head-6, subject-coordinator-middle-science.</small>
+              </label>
             </div>
             <div class="form-section">
               <h3>Professional Information</h3>
               <div class="form-grid two">
                 <label class="field">
-                  <span>Qualification</span>
+                  <span>Qualifications</span>
                   <textarea name="qualification">${esc(person?.qualification || "")}</textarea>
                 </label>
                 <label class="field">
-                  <span>Responsibilities</span>
-                  <textarea name="responsibilities">${esc(person?.responsibilities || "")}</textarea>
+                  <span>Bio</span>
+                  <textarea name="bio">${esc(person?.bio || person?.responsibilities || "")}</textarea>
                 </label>
               </div>
             </div>
@@ -1483,6 +1559,27 @@
     document.querySelectorAll("[data-action='export']").forEach((button) => {
       button.addEventListener("click", exportStaffCsv);
     });
+    document.querySelectorAll("[data-action='download-template']").forEach((button) => {
+      button.addEventListener("click", downloadCsvTemplate);
+    });
+    document.querySelectorAll("[data-action='cancel-import']").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.csvImport = { fileName: "", csv: "", mode: "merge", preview: null };
+        renderShell();
+      });
+    });
+    document.querySelectorAll("[data-action='confirm-import']").forEach((button) => {
+      button.addEventListener("click", confirmStaffCsvImport);
+    });
+    document.querySelectorAll("[data-action='download-error-report']").forEach((button) => {
+      button.addEventListener("click", downloadImportErrorReport);
+    });
+    document.querySelectorAll("[name='import-mode']").forEach((radio) => {
+      radio.addEventListener("change", async () => {
+        state.csvImport.mode = radio.value;
+        if (state.csvImport.csv) await previewStaffCsvImport();
+      });
+    });
     const importCsvFile = document.getElementById("import-csv-file");
     if (importCsvFile) importCsvFile.addEventListener("change", importStaffCsv);
     document.querySelectorAll("[data-edit]").forEach((button) => {
@@ -1796,11 +1893,9 @@
     const payload = Object.fromEntries(data.entries());
     payload.accountEnabled = data.get("accountEnabled") === "on";
     payload.profile_image = document.getElementById("profile-image").value;
-    payload.category =
-      payload.category ||
-      autoWebsitePlace(payload.position, payload.staff_type, payload.department);
     payload.photo_url = payload.profile_image;
-    payload.positions = collectStaffPositions(payload);
+    payload.position_codes = normalizePositionCodes(payload.position_codes).join("\n");
+    payload.sort_order = Number(payload.sort_order || 0);
 
     button.disabled = true;
     try {
@@ -1988,82 +2083,128 @@
   async function importStaffCsv(event) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;
-    const syncImport = confirm(
-      "Replace staff data with this CSV? Staff profiles not listed in the CSV will be removed from the database and public website.",
-    );
-    if (!syncImport) {
+    if (!file.name.toLowerCase().endsWith(".csv")) {
+      setNotice("Choose a .csv file.", "error");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setNotice("CSV file is too large. Limit is 2 MB.", "error");
       event.target.value = "";
       return;
     }
     try {
-      const csv = await file.text();
-      const result = await api("/api/staff/import-csv", {
-        method: "POST",
-        body: JSON.stringify({ csv, sync: true }),
-      });
-      await loadCore();
-      renderShell();
-      const warning =
-        Array.isArray(result.warnings) && result.warnings.length
-          ? ` ${result.warnings.slice(0, 3).join(" ")}`
-          : "";
-      setNotice(
-        `CSV sync complete. Kept ${result.keptStaff || result.profiles || 0} profiles. Created ${result.created || 0}, updated ${result.updated || 0}, removed ${result.removedProfiles || 0} old profiles and ${result.removedSiteTeachers || 0} public records.${warning}`,
-        warning ? "warning" : "success",
-      );
+      state.csvImport.csv = await file.text();
+      state.csvImport.fileName = file.name;
+      state.csvImport.mode = "merge";
+      await previewStaffCsvImport();
     } catch (error) {
-      setNotice(error.message || "CSV import failed.", "error");
+      setNotice(error.message || "CSV preview failed.", "error");
     } finally {
       event.target.value = "";
     }
   }
 
+  async function previewStaffCsvImport() {
+    const result = await api("/api/staff/import-csv/preview", {
+      method: "POST",
+      body: JSON.stringify({
+        csv: state.csvImport.csv,
+        fileName: state.csvImport.fileName,
+        mode: state.csvImport.mode,
+      }),
+    });
+    state.csvImport.preview = result.preview;
+    renderShell();
+    setNotice("CSV preview ready. Review it before confirming.", "success");
+  }
+
+  async function confirmStaffCsvImport() {
+    if (!state.csvImport.csv) return;
+    try {
+      const result = await api("/api/staff/import-csv", {
+        method: "POST",
+        body: JSON.stringify({
+          csv: state.csvImport.csv,
+          fileName: state.csvImport.fileName,
+          mode: state.csvImport.mode,
+        }),
+      });
+      state.csvImport = { fileName: "", csv: "", mode: "merge", preview: null };
+      await loadCore();
+      renderShell();
+      setNotice(
+        `CSV import complete. Created ${result.created || 0}, updated ${result.updated || 0}, skipped ${result.skipped || 0}.`,
+        result.errors ? "warning" : "success",
+      );
+    } catch (error) {
+      setNotice(error.message || "CSV import failed.", "error");
+    }
+  }
+
+  function downloadBlob(content, fileName, type = "text/csv;charset=utf-8") {
+    const url = URL.createObjectURL(new Blob([content], { type }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function downloadCsvTemplate() {
+    try {
+      const response = await fetch("/api/staff/import-csv/template", {
+        headers: headers(),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("Template download failed.");
+      downloadBlob(await response.text(), "staff-import-template.csv");
+    } catch (error) {
+      setNotice(error.message || "Template download failed.", "error");
+    }
+  }
+
+  function downloadImportErrorReport() {
+    const csv = state.csvImport.preview?.errorReportCsv || "";
+    if (!csv) return setNotice("There are no invalid rows to export.", "warning");
+    downloadBlob(csv, `staff-import-errors-${today()}.csv`);
+  }
+
   function exportStaffCsv() {
     const rows = [
       [
-        "Staff ID",
-        "Full Name",
-        "Email",
-        "Phone",
-        "NIC",
-        "Staff Type",
-        "Department",
-        "Position",
-        "Website Place",
-        "Subject",
-        "Classes",
-        "Is Primary",
-        "Display Order",
-        "Visible On Website",
-        "Joined Date",
-        "Status",
-        "Photo URL",
+        "name",
+        "slug",
+        "photo_url",
+        "qualifications",
+        "email",
+        "phone",
+        "bio",
+        "position_codes",
+        "status",
+        "sort_order",
       ],
-      ...filteredStaff().flatMap((person) => {
-        const rows = staffPositions(person);
-        return rows.map((position, index) => [
-          person.id,
-          person.full_name,
-          person.email,
-          person.phone,
-          person.nic,
-          person.staff_type,
-          position.department || person.department,
-          position.position || person.position,
-          position.website_place || person.website_place || person.category,
-          position.subject || "",
-          position.classes || "",
-          index === 0 || position.is_primary ? "yes" : "no",
-          position.display_order || index,
-          position.visible_on_website === false ? "no" : "yes",
-          person.joined_date ? String(person.joined_date).slice(0, 10) : "",
-          person.status,
-          person.photo_url || person.profile_image || "",
-        ]);
-      }),
+      ...filteredStaff().map((person) => [
+        person.full_name,
+        person.slug || "",
+        person.photo_url || person.profile_image || "",
+        person.qualification || "",
+        person.email || "",
+        person.phone || "",
+        person.bio || person.responsibilities || "",
+        positionCodesForProfile(person).join(","),
+        String(person.status || "Active").toLowerCase(),
+        person.sort_order || person.sortOrder || 0,
+      ]),
     ];
+    const safeCell = (cell) => {
+      const value = String(cell || "");
+      return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+    };
     const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell || "").replace(/"/g, '""')}"`).join(","))
+      .map((row) => row.map((cell) => `"${safeCell(cell).replace(/"/g, '""')}"`).join(","))
       .join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");

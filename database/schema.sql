@@ -175,7 +175,10 @@ CREATE TABLE IF NOT EXISTS students (
 CREATE TABLE IF NOT EXISTS teachers (
   id VARCHAR(50) PRIMARY KEY,
   staff_id VARCHAR(50) NULL,
+  slug VARCHAR(180) NULL,
   name VARCHAR(150) NOT NULL,
+  email VARCHAR(190) NULL,
+  phone VARCHAR(50) NULL,
   subject VARCHAR(100),
   classes VARCHAR(100),
   status VARCHAR(30) DEFAULT 'Active',
@@ -186,8 +189,11 @@ CREATE TABLE IF NOT EXISTS teachers (
   section VARCHAR(100),
   qualifications TEXT,
   responsibilities TEXT,
+  bio TEXT NULL,
   image TEXT,
   positions_json LONGTEXT,
+  position_codes LONGTEXT,
+  sort_order INT NOT NULL DEFAULT 0,
   account_email VARCHAR(190),
   account_user_id VARCHAR(50),
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -199,6 +205,7 @@ CREATE TABLE IF NOT EXISTS staff_profiles (
   user_id VARCHAR(50) NULL,
   teacher_id VARCHAR(50) NULL,
   full_name VARCHAR(150) NOT NULL,
+  slug VARCHAR(180) NULL,
   email VARCHAR(190) NULL,
   phone VARCHAR(50) NULL,
   nic VARCHAR(50) NULL,
@@ -206,8 +213,10 @@ CREATE TABLE IF NOT EXISTS staff_profiles (
   department VARCHAR(120) NULL,
   position VARCHAR(150) NULL,
   qualification TEXT NULL,
+  bio TEXT NULL,
   joined_date DATE NULL,
   status VARCHAR(40) NOT NULL DEFAULT 'Active',
+  sort_order INT NOT NULL DEFAULT 0,
   profile_image TEXT NULL,
   photo_url TEXT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -215,7 +224,9 @@ CREATE TABLE IF NOT EXISTS staff_profiles (
   KEY idx_staff_profiles_user_id (user_id),
   KEY idx_staff_profiles_teacher_id (teacher_id),
   KEY idx_staff_profiles_status (status),
-  KEY idx_staff_profiles_type (staff_type)
+  KEY idx_staff_profiles_type (staff_type),
+  KEY idx_staff_profiles_slug (slug),
+  KEY idx_staff_profiles_sort (sort_order)
 );
 
 CREATE TABLE IF NOT EXISTS staff_profile_photos (
@@ -234,6 +245,15 @@ CREATE TABLE IF NOT EXISTS staff_positions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   staff_id VARCHAR(50) NOT NULL,
   position_master_id INT NULL,
+  position_code VARCHAR(180) NOT NULL DEFAULT '',
+  display_title VARCHAR(180) NOT NULL DEFAULT '',
+  main_category VARCHAR(120) NOT NULL DEFAULT '',
+  section VARCHAR(120) NOT NULL DEFAULT '',
+  subsection VARCHAR(120) NOT NULL DEFAULT '',
+  grade INT NULL,
+  stream VARCHAR(80) NOT NULL DEFAULT '',
+  medium VARCHAR(80) NOT NULL DEFAULT '',
+  class_or_stream VARCHAR(120) NOT NULL DEFAULT '',
   department VARCHAR(120) NOT NULL DEFAULT '',
   position VARCHAR(150) NOT NULL DEFAULT '',
   website_place VARCHAR(120) NOT NULL DEFAULT 'Subject Teachers',
@@ -241,12 +261,17 @@ CREATE TABLE IF NOT EXISTS staff_positions (
   classes VARCHAR(100) NOT NULL DEFAULT '',
   is_primary TINYINT(1) NOT NULL DEFAULT 0,
   display_order INT NOT NULL DEFAULT 0,
+  sort_order INT NOT NULL DEFAULT 0,
   visible_on_website TINYINT(1) NOT NULL DEFAULT 1,
+  is_known TINYINT(1) NOT NULL DEFAULT 1,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_staff_positions_staff (staff_id),
   KEY idx_staff_positions_master (position_master_id),
-  KEY idx_staff_positions_place (website_place)
+  KEY idx_staff_positions_place (website_place),
+  KEY idx_staff_positions_code (position_code),
+  KEY idx_staff_positions_category (main_category),
+  KEY idx_staff_positions_sort (sort_order)
 );
 
 CREATE TABLE IF NOT EXISTS staff_position_master (

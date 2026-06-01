@@ -242,6 +242,9 @@ export function App() {
   ) {
     return <CollegeStaffPage pageId={path.replace(/^\/+/, "")} />;
   }
+  if (path.startsWith("/staff/")) {
+    return <CollegeStaffPage pageId="about/college-staff" profileSlug={path.split("/").filter(Boolean)[1] || ""} />;
+  }
   if (
     (path === "/about/college-anthem-hymn" && pageIsLive("about/college-anthem-hymn")) ||
     (path === "/college-anthem-hymn" &&

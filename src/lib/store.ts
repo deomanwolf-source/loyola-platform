@@ -144,7 +144,10 @@ export interface Student {
 export interface Teacher {
   id: string;
   staffId?: string;
+  slug?: string;
   name: string;
+  email?: string;
+  phone?: string;
   subject: string;
   classes: string;
   status: string;
@@ -153,10 +156,30 @@ export interface Teacher {
   category?: string;
   qualifications?: string;
   responsibilities?: string;
+  bio?: string;
   section?: string;
   position?: string;
   websitePlace?: string;
+  positionCodes?: string[];
+  sortOrder?: number;
   positions?: Array<{
+    position_code?: string;
+    positionCode?: string;
+    display_title?: string;
+    displayTitle?: string;
+    main_category?: string;
+    mainCategory?: string;
+    section?: string;
+    subsection?: string;
+    grade?: number | null;
+    stream?: string;
+    medium?: string;
+    class_or_stream?: string;
+    classOrStream?: string;
+    sort_order?: number;
+    sortOrder?: number;
+    is_known?: boolean;
+    isKnown?: boolean;
     position?: string;
     websitePlace?: string;
     website_place?: string;
