@@ -17,32 +17,59 @@ function registerStaffRoutes(app, context) {
     processStaffProfilePhotoUpload,
   } = context;
 
-  const staffManagerOnly =
-    staffAdminOnly || authRole(ROLES.master, ROLES.super, ROLES.staff);
+  const staffManagerOnly = staffAdminOnly || authRole(ROLES.master, ROLES.super, ROLES.staff);
   const staffSelfOrManager = authRole(ROLES.master, ROLES.super, ROLES.staff, ROLES.teacher);
 
   let staffSchemaReady = false;
   const websitePlaces = [
-    "Top Administration",
-    "Sectional Heads",
+    "College Administration",
+    "Assistant Sectional Heads",
+    "Subject Heads",
     "Grade Heads",
-    "Stream Heads",
-    "Subject Coordinators",
-    "Class Teachers",
-    "Subject Teachers",
-    "Non-Academic Staff",
+    "Advanced Level Stream Heads",
+    "Subject Coordinators - Primary School",
+    "Subject Coordinators - Middle School",
+    "Subject Coordinators - Upper School",
+    "Aesthetic Subject Coordinators",
+    "Subject Coordinators - Advanced Level",
+    "English Medium Coordinators",
+    "Class Teachers - Primary School",
+    "Class Teachers - Middle School",
+    "Class Teachers - Upper School",
+    "Class Teachers - Advanced Level",
+    "Subject Teachers - Primary School",
+    "Subject Teachers - Middle School",
+    "Subject Teachers - Upper School",
+    "Subject Teachers - Advanced Level",
+    "Special Need Resource Unit",
+    "Visiting Teachers",
+    "Counsellor",
+    "Administrative Department",
+    "Academic Department",
+    "Financial Department",
+    "IT Department",
+    "Front Office / Bookstore / Office Support",
+    "Maintenance Department",
+    "Health & Library Services",
     "Supportive Staff",
+    "General Academic Council - Advanced Level Section",
+    "General Academic Council - Upper School",
+    "General Academic Council - Middle School",
+    "General Academic Council - Primary School",
   ];
   const positionCategories = [
-    "Academic Leadership / Administration",
+    "College Administration",
+    "Assistant Sectional Heads",
+    "Subject Heads",
     "Grade Heads",
-    "Stream Heads",
+    "Advanced Level Stream Heads",
     "Subject Coordinators",
     "Class Teachers",
     "Subject Teachers",
-    "Special / Other Academic Positions",
+    "Special Academic Positions",
     "Non-Academic Staff",
     "Supportive Staff",
+    "General Academic Council",
   ];
   const positionMasterWebsitePlaces = [
     ...websitePlaces,
@@ -50,36 +77,606 @@ function registerStaffRoutes(app, context) {
     "Hidden from Website",
   ];
   const staffTypes = ["Academic Staff", "Non-Academic Staff", "Supportive Staff"];
-  const defaultPositionMaster = [
-    ["Rector / Principal", "Academic Leadership / Administration", "Administration", "Top Administration", "Academic Staff"],
-    ["Vice Principal", "Academic Leadership / Administration", "Administration", "Top Administration", "Academic Staff"],
-    ["Sectional Head", "Academic Leadership / Administration", "Administration", "Sectional Heads", "Academic Staff"],
-    ["Grade Head", "Grade Heads", "Academic Department", "Grade Heads", "Academic Staff"],
-    ["Stream Head", "Stream Heads", "Advanced Level", "Stream Heads", "Academic Staff"],
-    ["Subject Coordinator", "Subject Coordinators", "Academic Department", "Subject Coordinators", "Academic Staff"],
-    ["Coordinator", "Subject Coordinators", "Academic Department", "Subject Coordinators", "Academic Staff"],
-    ["Class Teacher", "Class Teachers", "Academic Department", "Class Teachers", "Academic Staff"],
-    ["Subject Teacher", "Subject Teachers", "Academic Department", "Subject Teachers", "Academic Staff"],
-    ["Counsellor", "Special / Other Academic Positions", "Academic Department", "Subject Coordinators", "Academic Staff"],
-    ["Librarian", "Non-Academic Staff", "Library", "Non-Academic Staff", "Non-Academic Staff"],
-    ["Accountant", "Non-Academic Staff", "Financial Department", "Non-Academic Staff", "Non-Academic Staff"],
-    ["Manager - IT", "Non-Academic Staff", "IT Department", "Non-Academic Staff", "Non-Academic Staff"],
-    ["Administrative Secretary", "Non-Academic Staff", "Office", "Non-Academic Staff", "Non-Academic Staff"],
-    ["Office Assistant", "Non-Academic Staff", "Office", "Non-Academic Staff", "Non-Academic Staff"],
-    ["Maintenance Supervisor", "Supportive Staff", "Maintenance", "Supportive Staff", "Supportive Staff"],
-    ["Supportive Staff Member", "Supportive Staff", "Supportive Staff", "Supportive Staff", "Supportive Staff"],
-    ["Other", "Special / Other Academic Positions", "Academic Department", "All Teachers Directory only", "Academic Staff"],
-  ].map(([positionTitle, category, department, websitePlace, defaultStaffType], index) => ({
-    positionTitle,
-    category,
-    department,
-    websitePlace,
-    defaultStaffType,
-    displayOrder: index + 1,
-  }));
+  const defaultPositionMasterEntries = [
+    [
+      "Rector / Principal",
+      "College Administration",
+      "Administration",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Vice Rector",
+      "College Administration",
+      "Administration",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Prefect of Games",
+      "College Administration",
+      "Administration",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Principal of Primary School",
+      "College Administration",
+      "Primary School",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Priest in Charge",
+      "College Administration",
+      "Administration",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Sectional Head of Upper School",
+      "College Administration",
+      "Upper School",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Vice Principal - Advanced Level",
+      "College Administration",
+      "Advanced Level",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Vice Principal - Primary School",
+      "College Administration",
+      "Primary School",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Vice Principal - Middle School",
+      "College Administration",
+      "Middle School",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Vice Principal - Upper School",
+      "College Administration",
+      "Upper School",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
+      "Assistant Sectional Head - Primary School",
+      "Assistant Sectional Heads",
+      "Primary School",
+      "Assistant Sectional Heads",
+      "Academic Staff",
+    ],
+    [
+      "Assistant Sectional Head - Middle School",
+      "Assistant Sectional Heads",
+      "Middle School",
+      "Assistant Sectional Heads",
+      "Academic Staff",
+    ],
+    [
+      "Assistant Sectional Head - Advanced Level",
+      "Assistant Sectional Heads",
+      "Advanced Level",
+      "Assistant Sectional Heads",
+      "Academic Staff",
+    ],
+    [
+      "Subject Head - Primary School",
+      "Subject Heads",
+      "Primary School",
+      "Subject Heads",
+      "Academic Staff",
+    ],
+    [
+      "Subject Head - Middle School",
+      "Subject Heads",
+      "Middle School",
+      "Subject Heads",
+      "Academic Staff",
+    ],
+    [
+      "Subject Head - Upper School",
+      "Subject Heads",
+      "Upper School",
+      "Subject Heads",
+      "Academic Staff",
+    ],
+    [
+      "Subject Head - Advanced Level",
+      "Subject Heads",
+      "Advanced Level",
+      "Subject Heads",
+      "Academic Staff",
+    ],
+    ...Array.from({ length: 11 }, (_, index) => [
+      `Grade ${index + 1} Head`,
+      "Grade Heads",
+      `Grade ${index + 1}`,
+      "Grade Heads",
+      "Academic Staff",
+    ]),
+    [
+      "Science / Mathematics Stream Head",
+      "Advanced Level Stream Heads",
+      "Advanced Level",
+      "Advanced Level Stream Heads",
+      "Academic Staff",
+    ],
+    [
+      "Commerce Stream Head",
+      "Advanced Level Stream Heads",
+      "Advanced Level",
+      "Advanced Level Stream Heads",
+      "Academic Staff",
+    ],
+    [
+      "Arts Stream Head",
+      "Advanced Level Stream Heads",
+      "Advanced Level",
+      "Advanced Level Stream Heads",
+      "Academic Staff",
+    ],
+    [
+      "Technology Stream Head",
+      "Advanced Level Stream Heads",
+      "Advanced Level",
+      "Advanced Level Stream Heads",
+      "Academic Staff",
+    ],
+    [
+      "Sinhala Subject Coordinator",
+      "Subject Coordinators",
+      "Primary School",
+      "Subject Coordinators - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "Mathematics Subject Coordinator",
+      "Subject Coordinators",
+      "Primary School",
+      "Subject Coordinators - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "Environmental Studies Subject Coordinator",
+      "Subject Coordinators",
+      "Primary School",
+      "Subject Coordinators - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "English Subject Coordinator",
+      "Subject Coordinators",
+      "Primary School",
+      "Subject Coordinators - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "Roman Catholicism Subject Coordinator",
+      "Subject Coordinators",
+      "Primary School",
+      "Subject Coordinators - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "Sinhala Subject Coordinator",
+      "Subject Coordinators",
+      "Middle School",
+      "Subject Coordinators - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Mathematics Subject Coordinator",
+      "Subject Coordinators",
+      "Middle School",
+      "Subject Coordinators - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Science Subject Coordinator",
+      "Subject Coordinators",
+      "Middle School",
+      "Subject Coordinators - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "English Subject Coordinator",
+      "Subject Coordinators",
+      "Middle School",
+      "Subject Coordinators - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "History / Geography / Civics Subject Coordinator",
+      "Subject Coordinators",
+      "Middle School",
+      "Subject Coordinators - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Health Science & Physical Education Coordinator",
+      "Subject Coordinators",
+      "Middle School",
+      "Subject Coordinators - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Practical & Technical Skills Coordinator",
+      "Subject Coordinators",
+      "Middle School",
+      "Subject Coordinators - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Sinhala Subject Coordinator",
+      "Subject Coordinators",
+      "Upper School",
+      "Subject Coordinators - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "Mathematics Subject Coordinator",
+      "Subject Coordinators",
+      "Upper School",
+      "Subject Coordinators - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "Science Subject Coordinator",
+      "Subject Coordinators",
+      "Upper School",
+      "Subject Coordinators - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "English Subject Coordinator",
+      "Subject Coordinators",
+      "Upper School",
+      "Subject Coordinators - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "Roman Catholicism Subject Coordinator",
+      "Subject Coordinators",
+      "Upper School",
+      "Subject Coordinators - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "Art Coordinator",
+      "Subject Coordinators",
+      "Aesthetic",
+      "Aesthetic Subject Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "Dancing Coordinator",
+      "Subject Coordinators",
+      "Aesthetic",
+      "Aesthetic Subject Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "Eastern Music Coordinator",
+      "Subject Coordinators",
+      "Aesthetic",
+      "Aesthetic Subject Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "Western Music Coordinator",
+      "Subject Coordinators",
+      "Aesthetic",
+      "Aesthetic Subject Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "Science / Mathematics Subject Coordinator",
+      "Subject Coordinators",
+      "Advanced Level",
+      "Subject Coordinators - Advanced Level",
+      "Academic Staff",
+    ],
+    [
+      "Commerce Subject Coordinator",
+      "Subject Coordinators",
+      "Advanced Level",
+      "Subject Coordinators - Advanced Level",
+      "Academic Staff",
+    ],
+    [
+      "Arts Subject Coordinator",
+      "Subject Coordinators",
+      "Advanced Level",
+      "Subject Coordinators - Advanced Level",
+      "Academic Staff",
+    ],
+    [
+      "English Medium Coordinator - Primary School",
+      "Subject Coordinators",
+      "Primary School",
+      "English Medium Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "English Medium Coordinator - Middle School",
+      "Subject Coordinators",
+      "Middle School",
+      "English Medium Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "English Medium Coordinator - Upper School",
+      "Subject Coordinators",
+      "Upper School",
+      "English Medium Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "English Medium Coordinator - Advanced Level",
+      "Subject Coordinators",
+      "Advanced Level",
+      "English Medium Coordinators",
+      "Academic Staff",
+    ],
+    [
+      "Class Teacher - Primary School",
+      "Class Teachers",
+      "Primary School",
+      "Class Teachers - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "Class Teacher - Middle School",
+      "Class Teachers",
+      "Middle School",
+      "Class Teachers - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Class Teacher - Upper School",
+      "Class Teachers",
+      "Upper School",
+      "Class Teachers - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "Class Teacher - Advanced Level",
+      "Class Teachers",
+      "Advanced Level",
+      "Class Teachers - Advanced Level",
+      "Academic Staff",
+    ],
+    [
+      "Subject Teacher - Primary School",
+      "Subject Teachers",
+      "Primary School",
+      "Subject Teachers - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "Subject Teacher - Middle School",
+      "Subject Teachers",
+      "Middle School",
+      "Subject Teachers - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Subject Teacher - Upper School",
+      "Subject Teachers",
+      "Upper School",
+      "Subject Teachers - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "Subject Teacher - Advanced Level",
+      "Subject Teachers",
+      "Advanced Level",
+      "Subject Teachers - Advanced Level",
+      "Academic Staff",
+    ],
+    [
+      "Special Need Resource Teacher",
+      "Special Academic Positions",
+      "Special Need Resource Unit",
+      "Special Need Resource Unit",
+      "Academic Staff",
+    ],
+    [
+      "Visiting Teacher",
+      "Special Academic Positions",
+      "Academic Department",
+      "Visiting Teachers",
+      "Academic Staff",
+    ],
+    [
+      "Counsellor",
+      "Special Academic Positions",
+      "Academic Department",
+      "Counsellor",
+      "Academic Staff",
+    ],
+    [
+      "Administrative Secretary",
+      "Non-Academic Staff",
+      "Administrative Department",
+      "Administrative Department",
+      "Non-Academic Staff",
+    ],
+    [
+      "Secretary",
+      "Non-Academic Staff",
+      "Administrative Department",
+      "Administrative Department",
+      "Non-Academic Staff",
+    ],
+    [
+      "Head - Academic Office",
+      "Non-Academic Staff",
+      "Academic Department",
+      "Academic Department",
+      "Non-Academic Staff",
+    ],
+    [
+      "Academic Officer",
+      "Non-Academic Staff",
+      "Academic Department",
+      "Academic Department",
+      "Non-Academic Staff",
+    ],
+    [
+      "Accountant",
+      "Non-Academic Staff",
+      "Financial Department",
+      "Financial Department",
+      "Non-Academic Staff",
+    ],
+    [
+      "Accounts Assistant",
+      "Non-Academic Staff",
+      "Financial Department",
+      "Financial Department",
+      "Non-Academic Staff",
+    ],
+    ["Manager - IT", "Non-Academic Staff", "IT Department", "IT Department", "Non-Academic Staff"],
+    ["Assistant IT", "Non-Academic Staff", "IT Department", "IT Department", "Non-Academic Staff"],
+    [
+      "Receptionist",
+      "Non-Academic Staff",
+      "Front Office",
+      "Front Office / Bookstore / Office Support",
+      "Non-Academic Staff",
+    ],
+    [
+      "Bookstore Clerk",
+      "Non-Academic Staff",
+      "Bookstore",
+      "Front Office / Bookstore / Office Support",
+      "Non-Academic Staff",
+    ],
+    [
+      "Office Assistant",
+      "Non-Academic Staff",
+      "Office",
+      "Front Office / Bookstore / Office Support",
+      "Non-Academic Staff",
+    ],
+    [
+      "Bookstore Assistant",
+      "Non-Academic Staff",
+      "Bookstore",
+      "Front Office / Bookstore / Office Support",
+      "Non-Academic Staff",
+    ],
+    [
+      "Maintenance Supervisor",
+      "Non-Academic Staff",
+      "Maintenance Department",
+      "Maintenance Department",
+      "Non-Academic Staff",
+    ],
+    [
+      "Nursing Officer",
+      "Non-Academic Staff",
+      "Health Services",
+      "Health & Library Services",
+      "Non-Academic Staff",
+    ],
+    [
+      "Librarian",
+      "Non-Academic Staff",
+      "Library",
+      "Health & Library Services",
+      "Non-Academic Staff",
+    ],
+    [
+      "Supportive Staff Member",
+      "Supportive Staff",
+      "Supportive Staff",
+      "Supportive Staff",
+      "Supportive Staff",
+    ],
+    [
+      "President",
+      "General Academic Council",
+      "Advanced Level",
+      "General Academic Council - Advanced Level Section",
+      "Academic Staff",
+    ],
+    [
+      "Vice President",
+      "General Academic Council",
+      "Advanced Level",
+      "General Academic Council - Advanced Level Section",
+      "Academic Staff",
+    ],
+    [
+      "Secretary",
+      "General Academic Council",
+      "Advanced Level",
+      "General Academic Council - Advanced Level Section",
+      "Academic Staff",
+    ],
+    [
+      "Council Member",
+      "General Academic Council",
+      "Advanced Level",
+      "General Academic Council - Advanced Level Section",
+      "Academic Staff",
+    ],
+    [
+      "Council Member",
+      "General Academic Council",
+      "Upper School",
+      "General Academic Council - Upper School",
+      "Academic Staff",
+    ],
+    [
+      "Council Member",
+      "General Academic Council",
+      "Middle School",
+      "General Academic Council - Middle School",
+      "Academic Staff",
+    ],
+    [
+      "Council Member",
+      "General Academic Council",
+      "Primary School",
+      "General Academic Council - Primary School",
+      "Academic Staff",
+    ],
+    [
+      "Other",
+      "Special Academic Positions",
+      "Academic Department",
+      "All Teachers Directory only",
+      "Academic Staff",
+    ],
+  ];
+  const defaultPositionMaster = defaultPositionMasterEntries.map(
+    ([positionTitle, category, department, websitePlace, defaultStaffType], index) => ({
+      positionTitle,
+      category,
+      department,
+      websitePlace,
+      defaultStaffType,
+      displayOrder: index + 1,
+    }),
+  );
 
   function clean(value, maxLength = 255) {
-    return String(value || "").trim().slice(0, maxLength);
+    return String(value || "")
+      .trim()
+      .slice(0, maxLength);
   }
 
   function cleanNullable(value, maxLength = 255) {
@@ -152,57 +749,105 @@ function registerStaffRoutes(app, context) {
     await db.query(`ALTER TABLE ${safeTable} ADD INDEX ${safeIndex} ${definition}`);
   }
 
-  function normalizeWebsitePlace(value, position = "", staffType = "") {
+  function schoolSectionFromText(value) {
+    const text = String(value || "").toLowerCase();
+    if (/primary|grade [1-5]\b/.test(text)) return "Primary School";
+    if (/middle|grade [6-8]\b/.test(text)) return "Middle School";
+    if (/upper|grade (9|10|11)\b/.test(text)) return "Upper School";
+    if (/advanced|advance|a\/l|grade (12|13)\b|commerce|arts|biology|technology/.test(text)) {
+      return "Advanced Level";
+    }
+    return "";
+  }
+
+  function sectionedWebsitePlace(prefix, context) {
+    return `${prefix} - ${schoolSectionFromText(context) || "Primary School"}`;
+  }
+
+  function normalizeWebsitePlace(value, position = "", staffType = "", department = "") {
     const raw = clean(value, 120);
     const special = raw.toLowerCase();
     if (special === "hidden from website" || special === "all teachers directory only") return "";
     if (websitePlaces.includes(raw)) return raw;
+    const context = `${raw} ${position} ${staffType} ${department}`;
+    if (special === "subject coordinators") {
+      return sectionedWebsitePlace("Subject Coordinators", context);
+    }
+    if (special === "class teachers") {
+      return sectionedWebsitePlace("Class Teachers", context);
+    }
+    if (special === "subject teachers") {
+      return sectionedWebsitePlace("Subject Teachers", context);
+    }
 
     const aliases = new Map([
-      ["vice principals", "Top Administration"],
-      ["administration", "Top Administration"],
-      ["subject heads", "Subject Coordinators"],
-      ["a/l stream heads", "Stream Heads"],
-      ["al stream heads", "Stream Heads"],
-      ["primary school subject coordinators", "Subject Coordinators"],
-      ["middle school subject coordinators", "Subject Coordinators"],
-      ["upper school subject coordinators", "Subject Coordinators"],
-      ["aesthetic subject coordinators", "Subject Coordinators"],
-      ["advanced level subject coordinators", "Subject Coordinators"],
-      ["english medium coordinators", "Subject Coordinators"],
-      ["class teachers - primary school", "Class Teachers"],
-      ["class teachers - middle school", "Class Teachers"],
-      ["class teachers - upper school", "Class Teachers"],
-      ["class teachers - advance level section", "Class Teachers"],
-      ["class teachers - advanced level", "Class Teachers"],
-      ["subject teachers - primary school", "Subject Teachers"],
-      ["subject teachers - middle school", "Subject Teachers"],
-      ["subject teachers - upper school", "Subject Teachers"],
-      ["subject teachers - advanced level", "Subject Teachers"],
-      ["special academic positions", "Subject Coordinators"],
-      ["administrative department", "Non-Academic Staff"],
-      ["academic department", "Non-Academic Staff"],
-      ["financial department", "Non-Academic Staff"],
-      ["it department", "Non-Academic Staff"],
-      ["other non-academic positions", "Non-Academic Staff"],
+      ["top administration", "College Administration"],
+      ["vice principals", "College Administration"],
+      ["administration", "College Administration"],
+      ["college administration", "College Administration"],
+      ["assistant sectional heads", "Assistant Sectional Heads"],
+      ["subject heads", "Subject Heads"],
+      ["a/l stream heads", "Advanced Level Stream Heads"],
+      ["al stream heads", "Advanced Level Stream Heads"],
+      ["stream heads", "Advanced Level Stream Heads"],
+      ["primary school subject coordinators", "Subject Coordinators - Primary School"],
+      ["middle school subject coordinators", "Subject Coordinators - Middle School"],
+      ["upper school subject coordinators", "Subject Coordinators - Upper School"],
+      ["aesthetic subject coordinators", "Aesthetic Subject Coordinators"],
+      ["advanced level subject coordinators", "Subject Coordinators - Advanced Level"],
+      ["english medium coordinators", "English Medium Coordinators"],
+      ["class teachers - primary school", "Class Teachers - Primary School"],
+      ["class teachers - middle school", "Class Teachers - Middle School"],
+      ["class teachers - upper school", "Class Teachers - Upper School"],
+      ["class teachers - advance level section", "Class Teachers - Advanced Level"],
+      ["class teachers - advanced level", "Class Teachers - Advanced Level"],
+      ["subject teachers - primary school", "Subject Teachers - Primary School"],
+      ["subject teachers - middle school", "Subject Teachers - Middle School"],
+      ["subject teachers - upper school", "Subject Teachers - Upper School"],
+      ["subject teachers - advanced level", "Subject Teachers - Advanced Level"],
+      ["special academic positions", "Special Need Resource Unit"],
+      ["administrative department", "Administrative Department"],
+      ["academic department", "Academic Department"],
+      ["financial department", "Financial Department"],
+      ["it department", "IT Department"],
+      ["front office", "Front Office / Bookstore / Office Support"],
+      ["bookstore", "Front Office / Bookstore / Office Support"],
+      ["office support", "Front Office / Bookstore / Office Support"],
+      ["maintenance department", "Maintenance Department"],
+      ["health & library services", "Health & Library Services"],
+      ["other non-academic positions", "Administrative Department"],
       ["all teachers directory", ""],
     ]);
-    const mapped = aliases.get(raw.toLowerCase());
-    if (mapped) return mapped;
+    if (aliases.has(special)) return aliases.get(special);
 
-    const role = `${position} ${staffType}`.toLowerCase();
-    if (/rector|principal|archbishop|general manager|vice principal/.test(role)) return "Top Administration";
-    if (/sectional head/.test(role)) return "Sectional Heads";
+    const role = `${position} ${staffType} ${department}`.toLowerCase();
+    if (/assistant sectional head/.test(role)) return "Assistant Sectional Heads";
+    if (
+      /rector|principal|archbishop|general manager|vice principal|vice rector|prefect|priest in charge|sectional head/.test(
+        role,
+      )
+    )
+      return "College Administration";
+    if (/subject head/.test(role)) return "Subject Heads";
     if (/grade head/.test(role)) return "Grade Heads";
-    if (/stream head|a\/l/.test(role)) return "Stream Heads";
-    if (/coordinator|subject head/.test(role)) return "Subject Coordinators";
-    if (/class teacher/.test(role)) return "Class Teachers";
-    if (/subject teacher|teacher/.test(role)) return "Subject Teachers";
+    if (/stream head|a\/l/.test(role)) return "Advanced Level Stream Heads";
+    if (/english medium/.test(role)) return "English Medium Coordinators";
+    if (/coordinator/.test(role)) return sectionedWebsitePlace("Subject Coordinators", role);
+    if (/class teacher/.test(role)) return sectionedWebsitePlace("Class Teachers", role);
+    if (/special need|resource/.test(role)) return "Special Need Resource Unit";
+    if (/visiting/.test(role)) return "Visiting Teachers";
+    if (/counsellor|counselor/.test(role)) return "Counsellor";
+    if (/subject teacher|teacher/.test(role))
+      return sectionedWebsitePlace("Subject Teachers", role);
     if (/supportive/.test(role)) return "Supportive Staff";
-    if (/non-academic|office|secretary|account|library|maintenance|it/.test(role)) {
-      return "Non-Academic Staff";
+    if (/account|financial/.test(role)) return "Financial Department";
+    if (/\bit\b|technology/.test(role)) return "IT Department";
+    if (/library|nursing|health/.test(role)) return "Health & Library Services";
+    if (/maintenance/.test(role)) return "Maintenance Department";
+    if (/non-academic|office|secretary|bookstore|reception/.test(role)) {
+      return "Administrative Department";
     }
-    return "Subject Teachers";
+    return sectionedWebsitePlace("Subject Teachers", role);
   }
 
   function booleanLike(value, fallback = false) {
@@ -228,11 +873,13 @@ function registerStaffRoutes(app, context) {
     const category = clean(value, 120);
     if (category) return category;
     const role = `${position} ${staffType}`.toLowerCase();
-    if (/rector|principal|vice principal|sectional head/.test(role)) {
-      return "Academic Leadership / Administration";
+    if (/assistant sectional head/.test(role)) return "Assistant Sectional Heads";
+    if (/rector|principal|vice principal|vice rector|prefect|priest|sectional head/.test(role)) {
+      return "College Administration";
     }
+    if (/subject head/.test(role)) return "Subject Heads";
     if (/grade head/.test(role)) return "Grade Heads";
-    if (/stream head|a\/l/.test(role)) return "Stream Heads";
+    if (/stream head|a\/l/.test(role)) return "Advanced Level Stream Heads";
     if (/coordinator|subject head/.test(role)) return "Subject Coordinators";
     if (/class teacher/.test(role)) return "Class Teachers";
     if (/subject teacher|teacher/.test(role)) return "Subject Teachers";
@@ -240,13 +887,13 @@ function registerStaffRoutes(app, context) {
     if (/non-academic|office|secretary|account|library|maintenance|it/.test(role)) {
       return "Non-Academic Staff";
     }
-    return "Special / Other Academic Positions";
+    return "Special Academic Positions";
   }
 
-  function normalizeMasterWebsitePlace(value, position = "", staffType = "") {
+  function normalizeMasterWebsitePlace(value, position = "", staffType = "", department = "") {
     const raw = clean(value, 120);
     if (positionMasterWebsitePlaces.includes(raw)) return raw;
-    const normalized = normalizeWebsitePlace(raw, position, staffType);
+    const normalized = normalizeWebsitePlace(raw, position, staffType, department);
     return normalized || "All Teachers Directory only";
   }
 
@@ -272,6 +919,7 @@ function registerStaffRoutes(app, context) {
       body.website_place || body.websitePlace,
       positionTitle,
       defaultStaffType,
+      body.department || body.section,
     );
     const visibleDefault = websitePlace !== "Hidden from Website";
 
@@ -282,9 +930,10 @@ function registerStaffRoutes(app, context) {
       websitePlace,
       description: clean(body.description, 1000),
       defaultStaffType,
-      visibleOnWebsite: websitePlace === "Hidden from Website"
-        ? false
-        : booleanLike(body.visible_on_website ?? body.visibleOnWebsite, visibleDefault),
+      visibleOnWebsite:
+        websitePlace === "Hidden from Website"
+          ? false
+          : booleanLike(body.visible_on_website ?? body.visibleOnWebsite, visibleDefault),
       status: normalizePositionMasterStatus(body.status),
       displayOrder: Number.isFinite(Number(body.display_order ?? body.displayOrder))
         ? Number(body.display_order ?? body.displayOrder)
@@ -384,7 +1033,11 @@ function registerStaffRoutes(app, context) {
       )
     `);
     await addColumnIfMissing("staff_positions", "position_master_id", "INT NULL");
-    await addIndexIfMissing("staff_positions", "idx_staff_positions_master", "(position_master_id)");
+    await addIndexIfMissing(
+      "staff_positions",
+      "idx_staff_positions_master",
+      "(position_master_id)",
+    );
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS staff_position_master (
@@ -539,6 +1192,7 @@ function registerStaffRoutes(app, context) {
         row.website_place,
         positionTitle,
         "",
+        department,
       );
       const category = normalizePositionCategory("", positionTitle, "");
       const defaultStaffType = normalizeDefaultStaffType("", category);
@@ -608,7 +1262,9 @@ function registerStaffRoutes(app, context) {
         AND t.name IS NOT NULL
         AND t.name <> ''
     `);
-    await db.query("UPDATE staff_profiles SET photo_url = profile_image WHERE (photo_url IS NULL OR photo_url = '') AND profile_image IS NOT NULL");
+    await db.query(
+      "UPDATE staff_profiles SET photo_url = profile_image WHERE (photo_url IS NULL OR photo_url = '') AND profile_image IS NOT NULL",
+    );
     await sanitizeStaffProfileUserLinks();
     await backfillStaffPositions();
     await repairPublicPlacementProfiles();
@@ -719,7 +1375,7 @@ function registerStaffRoutes(app, context) {
           profile.id,
           department,
           position,
-          normalizeWebsitePlace("", position, profile.staff_type),
+          normalizeWebsitePlace("", position, profile.staff_type, department),
         ],
       );
     }
@@ -754,6 +1410,7 @@ function registerStaffRoutes(app, context) {
         teacher.website_place || teacher.category,
         position,
         teacher.type,
+        department,
       );
       if (!position && !department && !subject && !classes) continue;
 
@@ -823,7 +1480,9 @@ function registerStaffRoutes(app, context) {
     const url = clean(fileUrl, 2048);
     if (!id || id === "pending" || !url) return false;
 
-    const [profiles] = await runner.query("SELECT id FROM staff_profiles WHERE id = ? LIMIT 1", [id]);
+    const [profiles] = await runner.query("SELECT id FROM staff_profiles WHERE id = ? LIMIT 1", [
+      id,
+    ]);
     if (!profiles.length) return false;
 
     await runner.query("UPDATE staff_profiles SET profile_image = ?, photo_url = ? WHERE id = ?", [
@@ -835,7 +1494,10 @@ function registerStaffRoutes(app, context) {
     return true;
   }
 
-  async function recordStaffProfilePhoto(req, { staffId, folder, fileUrl, fileName, fileSize, sourceId }) {
+  async function recordStaffProfilePhoto(
+    req,
+    { staffId, folder, fileUrl, fileName, fileSize, sourceId },
+  ) {
     const category = mediaCategoryFromFolder(folder, "image");
     await db.query(
       `
@@ -928,18 +1590,15 @@ function registerStaffRoutes(app, context) {
     const position = clean(entry.position || entry.title || fallback.position || "", 150);
     const department = clean(entry.department || entry.section || fallback.department || "", 120);
     const staffType = fallback.staffType || fallback.staff_type || "";
-    const rawWebsitePlace = entry.website_place || entry.websitePlace || entry.category || fallback.category;
+    const rawWebsitePlace =
+      entry.website_place || entry.websitePlace || entry.category || fallback.category;
     const masterId = Number(entry.position_master_id ?? entry.positionMasterId);
     const hiddenFromWebsite = clean(rawWebsitePlace, 120).toLowerCase() === "hidden from website";
     return {
       positionMasterId: Number.isFinite(masterId) && masterId > 0 ? masterId : null,
       department,
       position,
-      websitePlace: normalizeWebsitePlace(
-        rawWebsitePlace,
-        position,
-        staffType,
-      ),
+      websitePlace: normalizeWebsitePlace(rawWebsitePlace, position, staffType, department),
       subject: clean(entry.subject || fallback.subject || "", 100),
       classes: clean(entry.classes || fallback.classes || "", 100),
       isPrimary: booleanLike(entry.is_primary ?? entry.isPrimary, index === 0),
@@ -1021,7 +1680,8 @@ function registerStaffRoutes(app, context) {
   }
 
   function applyPrimaryPosition(payload) {
-    const primary = payload.positions.find((position) => position.isPrimary) || payload.positions[0];
+    const primary =
+      payload.positions.find((position) => position.isPrimary) || payload.positions[0];
     if (!primary) return;
     payload.department = primary.department;
     payload.position = primary.position;
@@ -1034,15 +1694,29 @@ function registerStaffRoutes(app, context) {
     const id = clean(body.id || body.staff_id, 50);
     const fullName = clean(body.full_name || body.fullName || body.name, 150);
     const teacherId = clean(body.teacher_id || body.teacherId || id, 50);
-    const userId = clean(body.user_id || body.userId || body.account_user_id || body.accountUserId, 50);
-    const staffType = clean(body.staff_type || body.staffType || body.type || "Academic Staff", 100);
+    const userId = clean(
+      body.user_id || body.userId || body.account_user_id || body.accountUserId,
+      50,
+    );
+    const staffType = clean(
+      body.staff_type || body.staffType || body.type || "Academic Staff",
+      100,
+    );
     const department = clean(body.department || body.section || "", 120);
     const qualification = clean(body.qualification || body.qualifications || "", 3000);
     const profileImage = clean(
-      body.photo_url || body.photoUrl || body.profile_image || body.profileImage || body.image || "",
+      body.photo_url ||
+        body.photoUrl ||
+        body.profile_image ||
+        body.profileImage ||
+        body.image ||
+        "",
       2048,
     );
-    const email = clean(body.email || body.accountEmail || body.account_email || "", 190).toLowerCase();
+    const email = clean(
+      body.email || body.accountEmail || body.account_email || "",
+      190,
+    ).toLowerCase();
 
     const payload = {
       id,
@@ -1353,7 +2027,9 @@ function registerStaffRoutes(app, context) {
     profiles.forEach((profile) => {
       const nicMatches = profile.nic ? byNic.get(profile.nic.toLowerCase()) || [] : [];
       const emailMatches = profile.email ? byEmail.get(profile.email.toLowerCase()) || [] : [];
-      const matches = [...new Set([...nicMatches, ...emailMatches])].filter((id) => id !== profile.id);
+      const matches = [...new Set([...nicMatches, ...emailMatches])].filter(
+        (id) => id !== profile.id,
+      );
       profile.duplicate_warning = matches.length
         ? `Duplicate NIC/email also appears on ${matches.join(", ")}`
         : "";
@@ -1365,10 +2041,9 @@ function registerStaffRoutes(app, context) {
     const cleanUserId = clean(userId, 50);
     if (!cleanUserId) return null;
 
-    const [rows] = await runner.query(
-      "SELECT id, email FROM users WHERE id = ? LIMIT 1",
-      [cleanUserId],
-    );
+    const [rows] = await runner.query("SELECT id, email FROM users WHERE id = ? LIMIT 1", [
+      cleanUserId,
+    ]);
     return rows[0] || null;
   }
 
@@ -1435,18 +2110,16 @@ function registerStaffRoutes(app, context) {
     }
 
     if (payload.nic) {
-      const [rows] = await runner.query(
-        "SELECT id FROM staff_profiles WHERE nic = ? LIMIT 1",
-        [payload.nic],
-      );
+      const [rows] = await runner.query("SELECT id FROM staff_profiles WHERE nic = ? LIMIT 1", [
+        payload.nic,
+      ]);
       if (rows.length) return { id: rows[0].id, matchType: "NIC" };
     }
 
     if (payload.email) {
-      const [rows] = await runner.query(
-        "SELECT id FROM staff_profiles WHERE email = ? LIMIT 1",
-        [payload.email],
-      );
+      const [rows] = await runner.query("SELECT id FROM staff_profiles WHERE email = ? LIMIT 1", [
+        payload.email,
+      ]);
       if (rows.length) return { id: rows[0].id, matchType: "email" };
     }
 
@@ -1538,14 +2211,20 @@ function registerStaffRoutes(app, context) {
 
   async function syncStaffPublicRows(runner, profile, positions) {
     const staffId = profile.id;
-    const primary = positions.find((position) => position.isPrimary) || positions[0] || {
-      department: profile.department || "",
-      position: profile.position || "",
-      websitePlace: normalizeWebsitePlace(profile.category, profile.position, profile.staffType),
-      subject: profile.subject || "",
-      classes: profile.classes || "",
-      visibleOnWebsite: true,
-    };
+    const primary = positions.find((position) => position.isPrimary) ||
+      positions[0] || {
+        department: profile.department || "",
+        position: profile.position || "",
+        websitePlace: normalizeWebsitePlace(
+          profile.category,
+          profile.position,
+          profile.staffType,
+          profile.department,
+        ),
+        subject: profile.subject || "",
+        classes: profile.classes || "",
+        visibleOnWebsite: true,
+      };
     const active = profile.status === "Active";
     const visiblePositions = positions.filter((position) => position.visibleOnWebsite !== false);
     const positionsJson = JSON.stringify(
@@ -1572,7 +2251,13 @@ function registerStaffRoutes(app, context) {
       websitePlace: "All Teachers Directory",
       status: publicStatus,
     };
-    const rows = [baseRow, ...visiblePositions.map((position) => ({ ...position, status: active ? "Active" : "Hidden" }))];
+    const rows = [
+      baseRow,
+      ...visiblePositions.map((position) => ({
+        ...position,
+        status: active ? "Active" : "Hidden",
+      })),
+    ];
 
     await runner.query("DELETE FROM teachers WHERE staff_id = ? OR id = ?", [staffId, staffId]);
 
@@ -1716,7 +2401,8 @@ function registerStaffRoutes(app, context) {
       const accountEmail = linkedUser?.email || null;
 
       if (!payload.profileImage && !payload.photoUrl) {
-        const existingPhoto = existingProfiles[0]?.photo_url || existingProfiles[0]?.profile_image || "";
+        const existingPhoto =
+          existingProfiles[0]?.photo_url || existingProfiles[0]?.profile_image || "";
         const latestPhoto =
           existingPhoto ||
           (await latestStaffProfilePhoto(connection, id)) ||
@@ -1725,10 +2411,10 @@ function registerStaffRoutes(app, context) {
           payload.profileImage = latestPhoto;
           payload.photoUrl = latestPhoto;
           if (requestedId !== id) {
-            await connection.query("UPDATE staff_profile_photos SET staff_id = ? WHERE staff_id = ?", [
-              id,
-              requestedId,
-            ]);
+            await connection.query(
+              "UPDATE staff_profile_photos SET staff_id = ? WHERE staff_id = ?",
+              [id, requestedId],
+            );
           }
         }
       }
@@ -1816,17 +2502,23 @@ function registerStaffRoutes(app, context) {
       const eduTrackSync = eduTrackPayload
         ? await syncSavedProfileToEduTrack(eduTrackPayload)
         : null;
-      await logStaffAction(req, isUpdate || wasExisting ? "staff.updated" : "staff.created", "staff", id, {
-        fullName: payload.fullName,
-        teacherId,
-        userId,
-        eduTrackSync: eduTrackSync
-          ? {
-              ok: Boolean(eduTrackSync.ok),
-              queued: Boolean(eduTrackSync.queued),
-            }
-          : null,
-      });
+      await logStaffAction(
+        req,
+        isUpdate || wasExisting ? "staff.updated" : "staff.created",
+        "staff",
+        id,
+        {
+          fullName: payload.fullName,
+          teacherId,
+          userId,
+          eduTrackSync: eduTrackSync
+            ? {
+                ok: Boolean(eduTrackSync.ok),
+                queued: Boolean(eduTrackSync.queued),
+              }
+            : null,
+        },
+      );
 
       return {
         id,
@@ -1849,7 +2541,9 @@ function registerStaffRoutes(app, context) {
     let row = [];
     let cell = "";
     let quoted = false;
-    const source = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+    const source = String(text || "")
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n");
 
     for (let index = 0; index < source.length; index += 1) {
       const char = source[index];
@@ -2113,7 +2807,10 @@ function registerStaffRoutes(app, context) {
           teacherValues.push(...staleTeacherStaffIds);
         }
         if (teacherConditions.length) {
-          await connection.query(`DELETE FROM teachers WHERE ${teacherConditions.join(" OR ")}`, teacherValues);
+          await connection.query(
+            `DELETE FROM teachers WHERE ${teacherConditions.join(" OR ")}`,
+            teacherValues,
+          );
         }
       }
 
@@ -2401,7 +3098,8 @@ function registerStaffRoutes(app, context) {
     "/api/staff/profile-photo",
     staffManagerOnly,
     (req, res, next) => {
-      const staffId = clean(req.query.staff_id || req.query.staffId || req.query.id || "", 50) || "pending";
+      const staffId =
+        clean(req.query.staff_id || req.query.staffId || req.query.id || "", 50) || "pending";
       const folder = staffProfilePhotoFolder();
       req.query.folder = folder;
       req.staffProfilePhotoUpload = { staffId, folder };
@@ -2459,7 +3157,9 @@ function registerStaffRoutes(app, context) {
         });
       } catch (error) {
         if (req.file?.path) await unlinkQuiet(req.file.path);
-        res.status(error.status || 500).json({ error: error.message || "Profile photo upload failed." });
+        res
+          .status(error.status || 500)
+          .json({ error: error.message || "Profile photo upload failed." });
       }
     },
   );
@@ -2499,7 +3199,11 @@ function registerStaffRoutes(app, context) {
         }
         return res.status(404).json({ error: "Staff member not found" });
       }
-      if (!hasManageAccess(req) && profile.user_id !== req.user.id && profile.teacher_id !== req.user.id) {
+      if (
+        !hasManageAccess(req) &&
+        profile.user_id !== req.user.id &&
+        profile.teacher_id !== req.user.id
+      ) {
         return res.status(403).json({ error: "Access denied" });
       }
       res.json(profile);
@@ -2547,7 +3251,10 @@ function registerStaffRoutes(app, context) {
       const profile = profiles[0];
       await connection.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId]);
       await connection.query("DELETE FROM staff_profiles WHERE id = ?", [staffId]);
-      await connection.query("DELETE FROM teachers WHERE staff_id = ? OR id = ?", [staffId, staffId]);
+      await connection.query("DELETE FROM teachers WHERE staff_id = ? OR id = ?", [
+        staffId,
+        staffId,
+      ]);
       await removeTeacherFromSiteDatabaseContent(connection, staffId);
       if (profile.teacher_id && profile.teacher_id !== staffId) {
         await connection.query("DELETE FROM teachers WHERE id = ?", [profile.teacher_id]);
@@ -2581,9 +3288,10 @@ function registerStaffRoutes(app, context) {
         [accountId],
       );
       await db.query("UPDATE staff_profiles SET user_id = NULL WHERE user_id = ?", [accountId]);
-      await db.query("UPDATE teachers SET account_user_id = NULL, account_email = NULL WHERE account_user_id = ?", [
-        accountId,
-      ]);
+      await db.query(
+        "UPDATE teachers SET account_user_id = NULL, account_email = NULL WHERE account_user_id = ?",
+        [accountId],
+      );
       await logStaffAction(req, "account.disabled", "user", accountId);
       res.json({ success: true, disabled: result.affectedRows > 0 });
     } catch (error) {
@@ -2618,7 +3326,8 @@ function registerStaffRoutes(app, context) {
       await ensureStaffTables();
       const staffId = clean(req.body.staff_id || req.body.staffId, 50);
       const date = normalizeDate(req.body.date);
-      if (!staffId || !date) return res.status(400).json({ error: "staff_id and date are required" });
+      if (!staffId || !date)
+        return res.status(400).json({ error: "staff_id and date are required" });
 
       await db.query(
         `
@@ -2715,9 +3424,15 @@ function registerStaffRoutes(app, context) {
           SET status = ?, reviewed_by = ?, review_note = ?
           WHERE id = ?
         `,
-        [status, actorId(req), cleanNullable(req.body.review_note || req.body.reviewNote, 1000), req.params.id],
+        [
+          status,
+          actorId(req),
+          cleanNullable(req.body.review_note || req.body.reviewNote, 1000),
+          req.params.id,
+        ],
       );
-      if (result.affectedRows === 0) return res.status(404).json({ error: "Leave request not found" });
+      if (result.affectedRows === 0)
+        return res.status(404).json({ error: "Leave request not found" });
       await logStaffAction(req, `leave.${status.toLowerCase()}`, "leave", req.params.id);
       res.json({ success: true });
     } catch (error) {
@@ -2756,9 +3471,18 @@ function registerStaffRoutes(app, context) {
             (staff_id, title, file_url, document_type, uploaded_by)
           VALUES (?, ?, ?, ?, ?)
         `,
-        [staffId, title, fileUrl, cleanNullable(req.body.document_type || req.body.documentType, 100), actorId(req)],
+        [
+          staffId,
+          title,
+          fileUrl,
+          cleanNullable(req.body.document_type || req.body.documentType, 100),
+          actorId(req),
+        ],
       );
-      await logStaffAction(req, "document.uploaded", "document", result.insertId, { staffId, title });
+      await logStaffAction(req, "document.uploaded", "document", result.insertId, {
+        staffId,
+        title,
+      });
       res.status(201).json({ success: true, id: result.insertId });
     } catch (error) {
       res.status(500).json({ error: error.message });

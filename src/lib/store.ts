@@ -143,6 +143,7 @@ export interface Student {
 }
 export interface Teacher {
   id: string;
+  staffId?: string;
   name: string;
   subject: string;
   classes: string;
@@ -154,6 +155,17 @@ export interface Teacher {
   responsibilities?: string;
   section?: string;
   position?: string;
+  websitePlace?: string;
+  positions?: Array<{
+    position?: string;
+    websitePlace?: string;
+    website_place?: string;
+    department?: string;
+    subject?: string;
+    classes?: string;
+    visibleOnWebsite?: boolean;
+    visible_on_website?: boolean;
+  }>;
   accountEmail?: string;
   accountUserId?: string;
   accountStatus?: string;
@@ -1349,8 +1361,7 @@ function ensureRequiredHomeSections(db: DB): DB {
         ? db.homeSections.stats
         : seed.homeSections.stats,
     leadershipCards:
-      Array.isArray(db.homeSections?.leadershipCards) &&
-      db.homeSections.leadershipCards.length > 0
+      Array.isArray(db.homeSections?.leadershipCards) && db.homeSections.leadershipCards.length > 0
         ? db.homeSections.leadershipCards
         : seed.homeSections.leadershipCards,
   };
@@ -1597,10 +1608,7 @@ async function sendDbToServer(
       return {
         local,
         remote: false,
-        error:
-          caught instanceof Error
-            ? caught.message
-            : `Server ${actionLabel} request failed.`,
+        error: caught instanceof Error ? caught.message : `Server ${actionLabel} request failed.`,
       };
     }
   }
@@ -1608,17 +1616,11 @@ async function sendDbToServer(
   return { local, remote: false, error: "Server sync is only available in the browser." };
 }
 
-async function saveDraftDbToServer(
-  db: DB,
-  options: { updateDraft?: boolean; sourceDb?: DB } = {},
-) {
+async function saveDraftDbToServer(db: DB, options: { updateDraft?: boolean; sourceDb?: DB } = {}) {
   return sendDbToServer(db, SITE_DB_DRAFT_API, "draft save", options);
 }
 
-async function publishDbToServer(
-  db: DB,
-  options: { updateDraft?: boolean; sourceDb?: DB } = {},
-) {
+async function publishDbToServer(db: DB, options: { updateDraft?: boolean; sourceDb?: DB } = {}) {
   return sendDbToServer(db, SITE_DB_PUBLISH_API, "publish", options);
 }
 

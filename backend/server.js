@@ -666,6 +666,7 @@ function serializeTeacherRow(row) {
     responsibilities: row.responsibilities || "",
     section: row.section || "",
     position: row.position || "",
+    positions: parseJsonField(row.positions_json, []),
     accountEmail: row.account_email || "",
     accountUserId: row.account_user_id || "",
   };
@@ -688,6 +689,7 @@ async function readTeacherSiteRows(runner = db) {
       responsibilities,
       section,
       position,
+      positions_json,
       account_email,
       account_user_id,
       created_at

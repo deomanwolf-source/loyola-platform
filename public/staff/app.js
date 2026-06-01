@@ -68,26 +68,54 @@
     "Other",
   ];
   const positionCategories = [
-    "Academic Leadership / Administration",
+    "College Administration",
+    "Assistant Sectional Heads",
+    "Subject Heads",
     "Grade Heads",
-    "Stream Heads",
+    "Advanced Level Stream Heads",
     "Subject Coordinators",
     "Class Teachers",
     "Subject Teachers",
-    "Special / Other Academic Positions",
+    "Special Academic Positions",
     "Non-Academic Staff",
     "Supportive Staff",
+    "General Academic Council",
   ];
   const websitePlaces = [
-    "Top Administration",
-    "Sectional Heads",
+    "College Administration",
+    "Assistant Sectional Heads",
+    "Subject Heads",
     "Grade Heads",
-    "Stream Heads",
-    "Subject Coordinators",
-    "Class Teachers",
-    "Subject Teachers",
-    "Non-Academic Staff",
+    "Advanced Level Stream Heads",
+    "Subject Coordinators - Primary School",
+    "Subject Coordinators - Middle School",
+    "Subject Coordinators - Upper School",
+    "Aesthetic Subject Coordinators",
+    "Subject Coordinators - Advanced Level",
+    "English Medium Coordinators",
+    "Class Teachers - Primary School",
+    "Class Teachers - Middle School",
+    "Class Teachers - Upper School",
+    "Class Teachers - Advanced Level",
+    "Subject Teachers - Primary School",
+    "Subject Teachers - Middle School",
+    "Subject Teachers - Upper School",
+    "Subject Teachers - Advanced Level",
+    "Special Need Resource Unit",
+    "Visiting Teachers",
+    "Counsellor",
+    "Administrative Department",
+    "Academic Department",
+    "Financial Department",
+    "IT Department",
+    "Front Office / Bookstore / Office Support",
+    "Maintenance Department",
+    "Health & Library Services",
     "Supportive Staff",
+    "General Academic Council - Advanced Level Section",
+    "General Academic Council - Upper School",
+    "General Academic Council - Middle School",
+    "General Academic Council - Primary School",
   ];
   const positionWebsitePlaces = [
     ...websitePlaces,
@@ -138,7 +166,8 @@
     activity: '<path d="M3 12h4l3-8 4 16 3-8h4" />',
     arrow: '<path d="M5 12h14" /><path d="m13 6 6 6-6 6" />',
     bell: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" /><path d="M10 21h4" />',
-    calendar: '<path d="M8 3v4" /><path d="M16 3v4" /><path d="M4 9h16" /><rect x="4" y="5" width="16" height="16" rx="2" />',
+    calendar:
+      '<path d="M8 3v4" /><path d="M16 3v4" /><path d="M4 9h16" /><rect x="4" y="5" width="16" height="16" rx="2" />',
     clock: '<circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />',
     download: '<path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" />',
     file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" />',
@@ -148,7 +177,8 @@
     search: '<circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" />',
     shield: '<path d="M12 3 5 6v6c0 4.5 2.8 7.4 7 9 4.2-1.6 7-4.5 7-9V6z" />',
     trash: '<path d="M3 6h18" /><path d="M8 6V4h8v2" /><path d="M6 6l1 15h10l1-15" />',
-    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />',
+    users:
+      '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />',
   };
 
   function icon(name) {
@@ -184,7 +214,9 @@
     const text = await response.text();
     const data = text ? JSON.parse(text) : null;
     if (!response.ok) {
-      const error = new Error((data && data.error) || `Request failed with status ${response.status}`);
+      const error = new Error(
+        (data && data.error) || `Request failed with status ${response.status}`,
+      );
       error.status = response.status;
       throw error;
     }
@@ -233,7 +265,9 @@
   }
 
   function optionList(items, current) {
-    return items.map((item) => `<option ${selected(current, item)}>${esc(item)}</option>`).join("");
+    return uniqueOptions(items, current)
+      .map((item) => `<option ${selected(current, item)}>${esc(item)}</option>`)
+      .join("");
   }
 
   function uniqueOptions(items, current = "") {
@@ -257,8 +291,12 @@
         return item.status === "Active" || sameId || (includeCurrent && sameTitle);
       })
       .sort((a, b) => {
-        const order = Number(a.display_order || a.displayOrder || 0) - Number(b.display_order || b.displayOrder || 0);
-        return order || String(a.position_title || "").localeCompare(String(b.position_title || ""));
+        const order =
+          Number(a.display_order || a.displayOrder || 0) -
+          Number(b.display_order || b.displayOrder || 0);
+        return (
+          order || String(a.position_title || "").localeCompare(String(b.position_title || ""))
+        );
       });
   }
 
@@ -269,7 +307,9 @@
       const label = item.category ? `${title} - ${item.category}` : title;
       return `<option value="${esc(title)}" data-position-id="${esc(item.id)}" ${selected(String(currentId || ""), String(item.id)) || selected(currentTitle, title)}>${esc(label)}</option>`;
     });
-    const usedTitles = new Set(master.map((item) => String(item.position_title || item.positionTitle || "").toLowerCase()));
+    const usedTitles = new Set(
+      master.map((item) => String(item.position_title || item.positionTitle || "").toLowerCase()),
+    );
     const fallbackTitles = state.positionMaster.length
       ? includeCurrent
         ? [currentTitle]
@@ -278,7 +318,9 @@
     uniqueOptions(fallbackTitles, includeCurrent ? currentTitle : "")
       .filter((title) => title && !usedTitles.has(title.toLowerCase()))
       .forEach((title) => {
-        options.push(`<option value="${esc(title)}" ${selected(currentTitle, title)}>${esc(title)}</option>`);
+        options.push(
+          `<option value="${esc(title)}" ${selected(currentTitle, title)}>${esc(title)}</option>`,
+        );
       });
     return options.join("");
   }
@@ -288,7 +330,11 @@
     const id = selectedOption?.dataset.positionId || "";
     if (id) return state.positionMaster.find((item) => String(item.id) === String(id)) || null;
     const title = select?.value || "";
-    return activePositionMaster(title).find((item) => item.position_title === title || item.positionTitle === title) || null;
+    return (
+      activePositionMaster(title).find(
+        (item) => item.position_title === title || item.positionTitle === title,
+      ) || null
+    );
   }
 
   function selectedPositionMasterId(select) {
@@ -324,19 +370,29 @@
 
   function isWebsitePositionVisible(position = {}) {
     const place = position.website_place || position.websitePlace || "";
-    return place !== "Hidden from Website" && position.visible_on_website !== false && position.visibleOnWebsite !== false;
+    return (
+      place !== "Hidden from Website" &&
+      position.visible_on_website !== false &&
+      position.visibleOnWebsite !== false
+    );
   }
 
   function websitePositionHtml(person = {}) {
     const positions = staffPositions(person);
     const primary = positions.find((position) => position.is_primary) || positions[0] || {};
-    const place = primary.website_place || primary.websitePlace || person.website_place || person.category || "-";
+    const place =
+      primary.website_place ||
+      primary.websitePlace ||
+      person.website_place ||
+      person.category ||
+      "-";
     const visible = isWebsitePositionVisible(primary);
     const visibleCount = positions.filter(isWebsitePositionVisible).length;
     const hiddenCount = Math.max(0, positions.length - visibleCount);
-    const summary = positions.length > 1
-      ? `${visibleCount} show / ${hiddenCount} hidden`
-      : primary.position || person.position || "";
+    const summary =
+      positions.length > 1
+        ? `${visibleCount} show / ${hiddenCount} hidden`
+        : primary.position || person.position || "";
 
     return `
       <div class="website-position-cell">
@@ -347,19 +403,51 @@
     `;
   }
 
-  function autoWebsitePlace(position, type) {
-    if (/Rector|Principal|Archbishop|General Manager/i.test(position)) return "Top Administration";
-    if (/Vice Principal/i.test(position)) return "Top Administration";
+  function schoolSectionFromText(value) {
+    const text = String(value || "").toLowerCase();
+    if (/primary|grade [1-5]\b/.test(text)) return "Primary School";
+    if (/middle|grade [6-8]\b/.test(text)) return "Middle School";
+    if (/upper|grade (9|10|11)\b/.test(text)) return "Upper School";
+    if (/advanced|advance|a\/l|grade (12|13)\b|commerce|arts|biology|technology/.test(text)) {
+      return "Advanced Level";
+    }
+    return "";
+  }
+
+  function sectionedWebsitePlace(prefix, context) {
+    return `${prefix} - ${schoolSectionFromText(context) || "Primary School"}`;
+  }
+
+  function autoWebsitePlace(position, type, department = "") {
+    const context = `${position || ""} ${type || ""} ${department || ""}`;
+    if (/Assistant Sectional Head/i.test(position)) return "Assistant Sectional Heads";
+    if (
+      /Rector|Principal|Archbishop|General Manager|Vice Rector|Vice Principal|Prefect|Priest in Charge|Sectional Head/i.test(
+        position,
+      )
+    )
+      return "College Administration";
+    if (/Subject Head/i.test(position)) return "Subject Heads";
     if (/Grade Head/i.test(position)) return "Grade Heads";
-    if (/Stream Head|A\/L/i.test(position)) return "Stream Heads";
-    if (/Coordinator|Subject Head/i.test(position)) return "Subject Coordinators";
-    if (/Sectional Head/i.test(position)) return "Sectional Heads";
-    if (/Class Teacher/i.test(position)) return "Class Teachers";
-    if (/Subject Teacher/i.test(position)) return "Subject Teachers";
+    if (/Stream Head|A\/L/i.test(position)) return "Advanced Level Stream Heads";
+    if (/English Medium/i.test(position)) return "English Medium Coordinators";
+    if (/Coordinator/i.test(position))
+      return sectionedWebsitePlace("Subject Coordinators", context);
+    if (/Class Teacher/i.test(position)) return sectionedWebsitePlace("Class Teachers", context);
+    if (/Special Need|Resource/i.test(position)) return "Special Need Resource Unit";
+    if (/Visiting/i.test(position)) return "Visiting Teachers";
+    if (/Counsellor|Counselor/i.test(position)) return "Counsellor";
+    if (/Subject Teacher/i.test(position))
+      return sectionedWebsitePlace("Subject Teachers", context);
     if (type === "Supportive Staff") return "Supportive Staff";
-    if (type === "Non-Academic Staff") return "Non-Academic Staff";
-    if (/Counsellor|Librarian|Account|IT|Secretary|Office|Maintenance/i.test(position)) return "Non-Academic Staff";
-    return "Subject Teachers";
+    if (/Account|Financial/i.test(position)) return "Financial Department";
+    if (/\bIT\b|Technology/i.test(position)) return "IT Department";
+    if (/Library|Librarian|Nursing|Health/i.test(position)) return "Health & Library Services";
+    if (/Maintenance/i.test(position)) return "Maintenance Department";
+    if (type === "Non-Academic Staff" || /Secretary|Office|Bookstore|Reception/i.test(position)) {
+      return "Administrative Department";
+    }
+    return sectionedWebsitePlace("Subject Teachers", context);
   }
 
   async function loadCore() {
@@ -384,7 +472,9 @@
 
   async function loadViewData(view) {
     if (view === "attendance") {
-      state.attendance = await api(`/api/staff-attendance?date=${encodeURIComponent(state.filters.date || today())}`);
+      state.attendance = await api(
+        `/api/staff-attendance?date=${encodeURIComponent(state.filters.date || today())}`,
+      );
     }
     if (view === "leave") state.leave = await api("/api/staff-leave");
     if (view === "documents") state.documents = await api("/api/staff-documents");
@@ -440,7 +530,8 @@
       ]
         .join(" ")
         .toLowerCase();
-      if (state.filters.search && !haystack.includes(state.filters.search.toLowerCase())) return false;
+      if (state.filters.search && !haystack.includes(state.filters.search.toLowerCase()))
+        return false;
       if (state.filters.type !== "All" && person.staff_type !== state.filters.type) return false;
       if (state.filters.status !== "All" && person.status !== state.filters.status) return false;
       return true;
@@ -637,7 +728,8 @@
       if (filters.search && !haystack.includes(filters.search.toLowerCase())) return false;
       if (filters.category !== "All" && position.category !== filters.category) return false;
       if (filters.department !== "All" && position.department !== filters.department) return false;
-      if (filters.websitePlace !== "All" && position.website_place !== filters.websitePlace) return false;
+      if (filters.websitePlace !== "All" && position.website_place !== filters.websitePlace)
+        return false;
       if (filters.status !== "All" && position.status !== filters.status) return false;
       return true;
     });
@@ -650,21 +742,21 @@
       ? state.positionMaster.find((item) => String(item.id) === String(state.editingPositionId))
       : null;
     const categoryOptions = uniqueOptions(
-      [
-        ...positionCategories,
-        ...state.positionMaster.map((item) => item.category),
-      ],
+      [...positionCategories, ...state.positionMaster.map((item) => item.category)],
       editing?.category || "",
     );
     const departmentOptions = uniqueOptions(
-      [
-        ...departments,
-        ...state.positionMaster.map((item) => item.department),
-      ],
+      [...departments, ...state.positionMaster.map((item) => item.department)],
       editing?.department || "",
     );
-    const filterCategories = uniqueOptions(["All", ...positionCategories, ...state.positionMaster.map((item) => item.category)], filters.category);
-    const filterDepartments = uniqueOptions(["All", ...departments, ...state.positionMaster.map((item) => item.department)], filters.department);
+    const filterCategories = uniqueOptions(
+      ["All", ...positionCategories, ...state.positionMaster.map((item) => item.category)],
+      filters.category,
+    );
+    const filterDepartments = uniqueOptions(
+      ["All", ...departments, ...state.positionMaster.map((item) => item.department)],
+      filters.department,
+    );
     const filterPlaces = uniqueOptions(["All", ...positionWebsitePlaces], filters.websitePlace);
 
     return `
@@ -818,7 +910,8 @@
           classes: position.classes || "",
           is_primary: position.is_primary === true || position.isPrimary === true || index === 0,
           display_order: Number(position.display_order || position.displayOrder || index),
-          visible_on_website: position.visible_on_website !== false && position.visibleOnWebsite !== false,
+          visible_on_website:
+            position.visible_on_website !== false && position.visibleOnWebsite !== false,
         }))
         .sort((a, b) => {
           if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
@@ -887,7 +980,11 @@
     const additionalPositions = positionRows.filter((item) => !item.is_primary);
     const staffType = person?.staff_type || "Academic Staff";
     const position = primaryPosition.position || person?.position || "Subject Teacher";
-    const websitePlace = primaryPosition.website_place || person?.category || autoWebsitePlace(position, staffType);
+    const department = primaryPosition.department || person?.department || "";
+    const websitePlace =
+      primaryPosition.website_place ||
+      person?.category ||
+      autoWebsitePlace(position, staffType, department);
     const hasAccount = Boolean(person?.user_id);
     const profileImage = person?.photo_url || person?.profile_image || "";
 
@@ -962,7 +1059,9 @@
               <div id="positions-list" class="positions-list">
                 ${
                   additionalPositions.length
-                    ? additionalPositions.map((item, index) => additionalPositionRowHtml(item, index)).join("")
+                    ? additionalPositions
+                        .map((item, index) => additionalPositionRowHtml(item, index))
+                        .join("")
                     : `<div class="empty small">No additional positions added.</div>`
                 }
               </div>
@@ -1132,13 +1231,18 @@
         ${panel(
           "Staff Documents",
           `${state.documents.length} files`,
-          tableHtml(["Staff", "Title", "Type", "Uploaded", ""], state.documents, (row) => [
-            row.full_name || row.staff_id,
-            `<a href="${esc(row.file_url)}" target="_blank" rel="noreferrer">${esc(row.title)}</a>`,
-            row.document_type || "-",
-            String(row.created_at || "").slice(0, 10),
-            `<button class="icon-button danger" data-delete-document="${esc(row.id)}">${icon("trash")} Delete</button>`,
-          ], true),
+          tableHtml(
+            ["Staff", "Title", "Type", "Uploaded", ""],
+            state.documents,
+            (row) => [
+              row.full_name || row.staff_id,
+              `<a href="${esc(row.file_url)}" target="_blank" rel="noreferrer">${esc(row.title)}</a>`,
+              row.document_type || "-",
+              String(row.created_at || "").slice(0, 10),
+              `<button class="icon-button danger" data-delete-document="${esc(row.id)}">${icon("trash")} Delete</button>`,
+            ],
+            true,
+          ),
         )}
       </div>
     `;
@@ -1213,7 +1317,9 @@
       "Audit History",
       "Latest staff system changes",
       tableHtml(["When", "Actor", "Action", "Target", "Details"], state.audit, (row) => [
-        String(row.created_at || "").replace("T", " ").slice(0, 19),
+        String(row.created_at || "")
+          .replace("T", " ")
+          .slice(0, 19),
         row.actor_user_id || "-",
         row.action,
         [row.target_type, row.target_id].filter(Boolean).join(" / "),
@@ -1363,23 +1469,33 @@
     if (status) status.addEventListener("change", () => updateFilter("status", status.value));
     const positionSearch = document.getElementById("position-filter-search");
     if (positionSearch) {
-      positionSearch.addEventListener("input", () => updatePositionFilter("search", positionSearch.value));
+      positionSearch.addEventListener("input", () =>
+        updatePositionFilter("search", positionSearch.value),
+      );
     }
     const positionCategory = document.getElementById("position-filter-category");
     if (positionCategory) {
-      positionCategory.addEventListener("change", () => updatePositionFilter("category", positionCategory.value));
+      positionCategory.addEventListener("change", () =>
+        updatePositionFilter("category", positionCategory.value),
+      );
     }
     const positionDepartment = document.getElementById("position-filter-department");
     if (positionDepartment) {
-      positionDepartment.addEventListener("change", () => updatePositionFilter("department", positionDepartment.value));
+      positionDepartment.addEventListener("change", () =>
+        updatePositionFilter("department", positionDepartment.value),
+      );
     }
     const positionPlace = document.getElementById("position-filter-place");
     if (positionPlace) {
-      positionPlace.addEventListener("change", () => updatePositionFilter("websitePlace", positionPlace.value));
+      positionPlace.addEventListener("change", () =>
+        updatePositionFilter("websitePlace", positionPlace.value),
+      );
     }
     const positionStatus = document.getElementById("position-filter-status");
     if (positionStatus) {
-      positionStatus.addEventListener("change", () => updatePositionFilter("status", positionStatus.value));
+      positionStatus.addEventListener("change", () =>
+        updatePositionFilter("status", positionStatus.value),
+      );
     }
     const positionMasterForm = document.getElementById("position-master-form");
     if (positionMasterForm) positionMasterForm.addEventListener("submit", submitPositionMasterForm);
@@ -1423,8 +1539,10 @@
     });
     const position = document.getElementById("position");
     const staffType = document.getElementById("staff-type");
+    const primaryDepartment = document.querySelector("#staff-form [name='department']");
     if (position) position.addEventListener("change", syncPrimaryPositionDefaults);
     if (staffType) staffType.addEventListener("change", syncWebsitePlace);
+    if (primaryDepartment) primaryDepartment.addEventListener("change", syncWebsitePlace);
     document.querySelectorAll("[data-position-field='position']").forEach((select) => {
       select.addEventListener("change", () => syncAdditionalPositionDefaults(select));
     });
@@ -1469,9 +1587,12 @@
     const category = document.getElementById("category");
     const position = document.getElementById("position");
     const staffType = document.getElementById("staff-type");
+    const department = document.querySelector("[name='department']");
     const master = positionMasterBySelection(position);
     if (category && position && staffType) {
-      category.value = master?.website_place || autoWebsitePlace(position.value, staffType.value);
+      category.value =
+        master?.website_place ||
+        autoWebsitePlace(position.value, staffType.value, department?.value || "");
     }
   }
 
@@ -1500,7 +1621,8 @@
     if (department && master.department) department.value = master.department;
     if (websitePlace && master.website_place) websitePlace.value = master.website_place;
     if (visible) {
-      visible.checked = master.visible_on_website !== false && master.website_place !== "Hidden from Website";
+      visible.checked =
+        master.visible_on_website !== false && master.website_place !== "Hidden from Website";
     }
   }
 
@@ -1552,7 +1674,8 @@
 
   function clearProfilePhoto() {
     document.getElementById("profile-image").value = "";
-    document.getElementById("photo-box").innerHTML = `<div><strong>No Photo</strong><span>Upload JPG or PNG</span></div>`;
+    document.getElementById("photo-box").innerHTML =
+      `<div><strong>No Photo</strong><span>Upload JPG or PNG</span></div>`;
   }
 
   function addAdditionalPosition() {
@@ -1560,12 +1683,18 @@
     if (!list) return;
     list.querySelector(".empty")?.remove();
     const wrapper = document.createElement("div");
-    wrapper.innerHTML = additionalPositionRowHtml({}, list.querySelectorAll("[data-position-row]").length);
+    wrapper.innerHTML = additionalPositionRowHtml(
+      {},
+      list.querySelectorAll("[data-position-row]").length,
+    );
     const row = wrapper.firstElementChild;
     list.appendChild(row);
-    row.querySelector("[data-action='remove-position']").addEventListener("click", () => removeAdditionalPosition(row));
+    row
+      .querySelector("[data-action='remove-position']")
+      .addEventListener("click", () => removeAdditionalPosition(row));
     const position = row.querySelector("[data-position-field='position']");
-    if (position) position.addEventListener("change", () => syncAdditionalPositionDefaults(position));
+    if (position)
+      position.addEventListener("change", () => syncAdditionalPositionDefaults(position));
   }
 
   function removeAdditionalPosition(target) {
@@ -1586,7 +1715,9 @@
         position_master_id: selectedPositionMasterId(primaryPositionSelect),
         department: payload.department || "",
         position: payload.position || "",
-        website_place: payload.category || autoWebsitePlace(payload.position, payload.staff_type),
+        website_place:
+          payload.category ||
+          autoWebsitePlace(payload.position, payload.staff_type, payload.department),
         subject: payload.subject || "",
         classes: payload.classes || "",
         is_primary: true,
@@ -1607,7 +1738,10 @@
         classes: read("classes")?.value || "",
         is_primary: false,
         display_order: index + 1,
-        visible_on_website: websitePlace === "Hidden from Website" ? false : Boolean(read("visible_on_website")?.checked),
+        visible_on_website:
+          websitePlace === "Hidden from Website"
+            ? false
+            : Boolean(read("visible_on_website")?.checked),
       };
       if (
         position.department ||
@@ -1631,20 +1765,26 @@
     const payload = Object.fromEntries(data.entries());
     payload.accountEnabled = data.get("accountEnabled") === "on";
     payload.profile_image = document.getElementById("profile-image").value;
-    payload.category = payload.category || autoWebsitePlace(payload.position, payload.staff_type);
+    payload.category =
+      payload.category ||
+      autoWebsitePlace(payload.position, payload.staff_type, payload.department);
     payload.photo_url = payload.profile_image;
     payload.positions = collectStaffPositions(payload);
 
     button.disabled = true;
     try {
-      const result = await api(state.editingId ? `/api/staff/${encodeURIComponent(state.editingId)}` : "/api/staff", {
-        method: state.editingId ? "PUT" : "POST",
-        body: JSON.stringify(payload),
-      });
+      const result = await api(
+        state.editingId ? `/api/staff/${encodeURIComponent(state.editingId)}` : "/api/staff",
+        {
+          method: state.editingId ? "PUT" : "POST",
+          body: JSON.stringify(payload),
+        },
+      );
       await loadCore();
       await setView("profiles");
       setNotice(
-        result.duplicateWarning || (state.editingId ? "Staff profile updated." : "Staff profile created."),
+        result.duplicateWarning ||
+          (state.editingId ? "Staff profile updated." : "Staff profile created."),
         result.duplicateWarning ? "warning" : "success",
       );
     } catch (error) {
@@ -1704,7 +1844,11 @@
   }
 
   async function deletePositionMaster(id) {
-    if (!id || !confirm("Delete this position? If it is assigned to staff, delete will be blocked.")) return;
+    if (
+      !id ||
+      !confirm("Delete this position? If it is assigned to staff, delete will be blocked.")
+    )
+      return;
     try {
       await api(`/api/staff-position-master/${encodeURIComponent(id)}`, { method: "DELETE" });
       if (String(state.editingPositionId) === String(id)) state.editingPositionId = "";
@@ -1828,9 +1972,10 @@
       });
       await loadCore();
       renderShell();
-      const warning = Array.isArray(result.warnings) && result.warnings.length
-        ? ` ${result.warnings.slice(0, 3).join(" ")}`
-        : "";
+      const warning =
+        Array.isArray(result.warnings) && result.warnings.length
+          ? ` ${result.warnings.slice(0, 3).join(" ")}`
+          : "";
       setNotice(
         `CSV sync complete. Kept ${result.keptStaff || result.profiles || 0} profiles. Created ${result.created || 0}, updated ${result.updated || 0}, removed ${result.removedProfiles || 0} old profiles and ${result.removedSiteTeachers || 0} public records.${warning}`,
         warning ? "warning" : "success",
@@ -1924,7 +2069,10 @@
     try {
       state.user = await api("/api/me");
       if (!isManager()) {
-        locked("Staff system is locked", "Use a Master Admin, Super Admin, or Staff Admin account.");
+        locked(
+          "Staff system is locked",
+          "Use a Master Admin, Super Admin, or Staff Admin account.",
+        );
         return;
       }
       const hashView = location.hash.replace("#", "");

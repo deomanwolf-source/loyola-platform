@@ -18,9 +18,14 @@ export function CollegeAdministrationPage({
 
   const allStaff = (db.teachers || []).filter((s) => s.status === "Active");
 
-  const topAdmin = allStaff.filter((s) => s.category === "Top Administration");
-  const vicePrincipals = allStaff.filter((s) => s.category === "Vice Principals");
-  const sectionalHeads = allStaff.filter((s) => s.category === "Sectional Heads");
+  const categoryOf = (staff: Teacher) => staff.websitePlace || staff.category || "";
+  const topAdmin = allStaff.filter((staff) =>
+    ["Top Administration", "College Administration"].includes(categoryOf(staff)),
+  );
+  const vicePrincipals = allStaff.filter((staff) => /vice principal/i.test(staff.position || ""));
+  const sectionalHeads = allStaff.filter((staff) =>
+    ["Sectional Heads", "Assistant Sectional Heads"].includes(categoryOf(staff)),
+  );
 
   return (
     <PublicLayout>
