@@ -92,8 +92,7 @@ type PanelId =
   | "security"
   | "activity"
   | "backup"
-  | "settings"
-  | "staff";
+  | "settings";
 
 const navGroups: {
   label: string;
@@ -116,7 +115,6 @@ const navGroups: {
     label: "Management",
     items: [
       { id: "messages", label: "Messages", icon: MessageSquare },
-      { id: "staff", label: "Staff Management", icon: Briefcase },
       { id: "users", label: "Users & Roles", icon: Users },
       { id: "security", label: "Security", icon: ShieldCheck },
       { id: "activity", label: "Activity Logs", icon: ClipboardList },
@@ -156,7 +154,12 @@ const allPanelIds = new Set<PanelId>(navGroups.flatMap((group) => group.items.ma
 
 function getInitialAdminPanel(): PanelId {
   if (typeof window === "undefined") return "dashboard";
-  const panel = new URLSearchParams(window.location.search).get("panel") as PanelId | null;
+  const requestedPanel = new URLSearchParams(window.location.search).get("panel");
+  if (requestedPanel === "staff") {
+    window.location.href = "/staff";
+    return "dashboard";
+  }
+  const panel = requestedPanel as PanelId | null;
   return panel && allPanelIds.has(panel) ? panel : "dashboard";
 }
 
@@ -3238,7 +3241,6 @@ export function AdminPortal() {
           {active === "storage" && <StoragePanel />}
           {active === "design" && <DesignPanel db={db} />}
           {active === "messages" && <MessagesPanel db={db} />}
-          {active === "staff" && <StaffPanel db={db} />}
           {active === "users" && <UsersPanel db={db} />}
           {active === "security" && <SecurityPanel db={db} />}
           {active === "activity" && <ActivityPanel db={db} />}
