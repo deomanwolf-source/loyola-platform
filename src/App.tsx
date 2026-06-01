@@ -1165,6 +1165,36 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
     };
   }, [mediaOpen]);
 
+  const anthemVerses = [
+    [
+      "සමරමු බැතිනි සදා",
+      "මීපුර ලොයොලා විදුහල් මැණී //",
+      "ඔබගෙන් අප ලද යශෝ ප්‍රවාහය",
+      "සදා දෙරණ මත පැතිරී සිටී //",
+    ],
+    [
+      "පුදා පුදා අප භක්ති ප්‍රණාමය",
+      "සදා රකිමු විදුහල් මෑණී",
+      "දේශ දේශ ගත කීර්ති රාවයට",
+      "නිවාස වූ රස නිධාන වූ //",
+    ],
+    [
+      "ඔබේ උදාර වූ නුවන් යොමා",
+      "රැකගනු මැන අප සදා සදා",
+      "සිසු සිත් විදුණැන බලයෙන් සතපා",
+      "සත්‍ය මැදින් ආලෝකෙ කරා //",
+    ],
+    [
+      "පහන් ටැඹක් සේ මඟ එළි කළ ඔබ",
+      "සදා අපගේ ආලෝකය වුව මැන",
+      "සැරදේ වොරැඳේ සැරදේ !!!!!",
+    ],
+  ];
+
+  const anthemTextBlocks = hasCustomText
+    ? customTextBlocks
+    : anthemVerses.map((verse) => verse.join("\n"));
+
   const hymnVerses = [
     [
       "Sons and daughters of Negombo we sing",
@@ -1256,16 +1286,16 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
                     Official Text
                   </p>
-                  <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Anthem Notes</h2>
+                  <h2 className="mt-3 font-serif text-4xl font-bold text-navy">College Anthem</h2>
                 </div>
                 <Trophy className="h-10 w-10 text-gold" />
               </div>
-              {customTextBlocks.length > 0 ? (
+              {anthemTextBlocks.length > 0 ? (
                 <div className="mt-7 space-y-6">
-                  {customTextBlocks.map((block, index) => (
+                  {anthemTextBlocks.map((block, index) => (
                     <p
                       key={index}
-                      className="whitespace-pre-line rounded-lg bg-background p-5 text-center text-base leading-9 text-muted-foreground"
+                      className="whitespace-pre-line rounded-lg bg-background p-5 text-center text-lg font-semibold leading-9 text-muted-foreground"
                     >
                       {block}
                     </p>
@@ -1282,7 +1312,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
                 College Hymn
               </p>
-              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Words of Loyalty</h2>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">College Hymn</h2>
               <div className="mt-7 space-y-6">
                 {hymnVerses.map((verse, index) => (
                   <div key={index} className="rounded-lg bg-background p-5 text-center">
