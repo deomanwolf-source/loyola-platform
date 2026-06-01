@@ -1146,6 +1146,7 @@ function registerStaffRoutes(app, context) {
 
     await seedStaffPositionMaster();
     await backfillStaffProfiles();
+    await repairStaffPublicRows();
     staffSchemaReady = true;
   }
 
@@ -2189,6 +2190,46 @@ function registerStaffRoutes(app, context) {
     }));
   }
 
+  async function repairStaffPublicRows() {
+    const [profiles] = await db.query(`
+      SELECT
+        sp.*,
+        COALESCE(NULLIF(sp.email, ''), u.email) AS account_email
+      FROM staff_profiles sp
+      LEFT JOIN users u ON u.id = sp.user_id
+      WHERE sp.id IS NOT NULL
+        AND sp.id <> ''
+        AND sp.full_name IS NOT NULL
+        AND sp.full_name <> ''
+    `);
+
+    for (const profile of profiles) {
+      const positions = await readStaffPositions(db, profile.id);
+      await syncStaffPublicRows(
+        db,
+        {
+          id: profile.id,
+          teacherId: profile.teacher_id || profile.id,
+          userId: profile.user_id || null,
+          accountEmail: profile.account_email || profile.email || "",
+          fullName: profile.full_name,
+          staffType: profile.staff_type || "Academic Staff",
+          department: profile.department || "",
+          position: profile.position || "",
+          category: profile.category || "",
+          subject: "",
+          classes: "",
+          status: profile.status || "Active",
+          photoUrl: profile.photo_url || profile.profile_image || "",
+          profileImage: profile.profile_image || profile.photo_url || "",
+          qualification: profile.qualification || "",
+          responsibilities: profile.responsibilities || "",
+        },
+        positions,
+      );
+    }
+  }
+
   async function upsertStaffPositions(runner, staffId, positions, { replace = false } = {}) {
     if (replace) {
       await runner.query("DELETE FROM staff_positions WHERE staff_id = ?", [staffId]);
@@ -2211,6 +2252,10 @@ function registerStaffRoutes(app, context) {
           ON DUPLICATE KEY UPDATE
             position_master_id = VALUES(position_master_id),
             department = VALUES(department),
+            position = VALUES(position),
+            website_place = VALUES(website_place),
+            subject = VALUES(subject),
+            classes = VALUES(classes),
             is_primary = VALUES(is_primary),
             display_order = VALUES(display_order),
             visible_on_website = VALUES(visible_on_website)
@@ -2265,10 +2310,17 @@ function registerStaffRoutes(app, context) {
         classes: profile.classes || "",
         visibleOnWebsite: true,
       };
+    const sourcePositions = positions.length ? positions : [primary];
     const active = profile.status === "Active";
-    const visiblePositions = positions.filter((position) => position.visibleOnWebsite !== false);
+    const visiblePositions = sourcePositions.filter(
+      (position) => position.visibleOnWebsite !== false,
+    );
+    const publicPhoto =
+      profile.photoUrl ||
+      profile.profileImage ||
+      (await existingPublicTeacherPhoto(runner, staffId, profile.teacherId));
     const positionsJson = JSON.stringify(
-      positions.map((position) => ({
+      sourcePositions.map((position) => ({
         position_master_id: position.positionMasterId || null,
         positionMasterId: position.positionMasterId || null,
         department: position.department,
@@ -2336,14 +2388,14 @@ function registerStaffRoutes(app, context) {
           position.subject || primary.subject || "",
           position.classes || primary.classes || "",
           position.status,
-          profile.photoUrl || profile.profileImage || "",
+          publicPhoto,
           profile.staffType,
           position.websitePlace,
           position.websitePlace,
           profile.qualification,
           profile.responsibilities || "",
           position.department || primary.department || "",
-          primary.position || position.position || "",
+          position.position || primary.position || "",
           positionsJson,
           profile.accountEmail || "",
           profile.userId || null,

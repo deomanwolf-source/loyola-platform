@@ -897,34 +897,65 @@
     `;
   }
 
+  function resolvedPositionWebsitePlace(
+    position = {},
+    person = {},
+    fallbackPosition = "",
+    fallbackDepartment = "",
+  ) {
+    const explicit = position.website_place || position.websitePlace;
+    if (explicit) return explicit;
+    if (position.visible_on_website === false || position.visibleOnWebsite === false) {
+      return "Hidden from Website";
+    }
+    const profilePlace = person.website_place || person.websitePlace || person.category;
+    if (profilePlace) return profilePlace;
+    const role = position.position || fallbackPosition || person.position || "";
+    const type = person.staff_type || person.staffType || "Academic Staff";
+    const department = position.department || fallbackDepartment || person.department || "";
+    return role ? autoWebsitePlace(role, type, department) : "All Teachers Directory only";
+  }
+
   function staffPositions(person) {
     const rows = Array.isArray(person?.positions) ? person.positions : [];
     if (rows.length) {
       return rows
-        .map((position, index) => ({
-          position_master_id: position.position_master_id || position.positionMasterId || "",
-          department: position.department || "",
-          position: position.position || "",
-          website_place: position.website_place || position.websitePlace || "",
-          subject: position.subject || "",
-          classes: position.classes || "",
-          is_primary: position.is_primary === true || position.isPrimary === true || index === 0,
-          display_order: Number(position.display_order || position.displayOrder || index),
-          visible_on_website:
-            position.visible_on_website !== false && position.visibleOnWebsite !== false,
-        }))
+        .map((position, index) => {
+          const department = position.department || person?.department || "";
+          const role = position.position || person?.position || "";
+          const visible =
+            position.visible_on_website !== false && position.visibleOnWebsite !== false;
+          return {
+            position_master_id: position.position_master_id || position.positionMasterId || "",
+            department,
+            position: role,
+            website_place: resolvedPositionWebsitePlace(position, person, role, department),
+            subject: position.subject || "",
+            classes: position.classes || "",
+            is_primary: position.is_primary === true || position.isPrimary === true || index === 0,
+            display_order: Number(position.display_order || position.displayOrder || index),
+            visible_on_website: visible,
+          };
+        })
         .sort((a, b) => {
           if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1;
           return a.display_order - b.display_order;
         });
     }
     if (!person) return [];
+    const department = person.department || "";
+    const role = person.position || "";
     return [
       {
         position_master_id: "",
-        department: person.department || "",
-        position: person.position || "",
-        website_place: person.website_place || person.category || "",
+        department,
+        position: role,
+        website_place: resolvedPositionWebsitePlace(
+          { website_place: person.website_place || person.category },
+          person,
+          role,
+          department,
+        ),
         subject: person.subject || "",
         classes: person.classes || "",
         is_primary: true,
