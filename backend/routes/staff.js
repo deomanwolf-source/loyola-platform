@@ -1475,6 +1475,44 @@ function registerStaffRoutes(app, context) {
     return rows[0]?.file_url || "";
   }
 
+  async function existingPublicTeacherPhoto(runner, staffId, teacherId = "") {
+    const id = clean(staffId, 50);
+    const linkedTeacherId = clean(teacherId, 50);
+    const values = [];
+    const conditions = [];
+
+    if (id) {
+      conditions.push("staff_id = ?");
+      values.push(id);
+      conditions.push("id = ?");
+      values.push(id);
+    }
+    if (linkedTeacherId && linkedTeacherId !== id) {
+      conditions.push("id = ?");
+      values.push(linkedTeacherId);
+    }
+    if (!conditions.length) return "";
+
+    const [rows] = await runner.query(
+      `
+        SELECT image
+        FROM teachers
+        WHERE (${conditions.join(" OR ")})
+          AND image IS NOT NULL
+          AND image <> ''
+        ORDER BY
+          CASE
+            WHEN staff_id = ? THEN 0
+            WHEN id = ? THEN 1
+            ELSE 2
+          END
+        LIMIT 1
+      `,
+      [...values, id, linkedTeacherId || id],
+    );
+    return rows[0]?.image || "";
+  }
+
   async function applyStaffProfilePhoto(runner, staffId, fileUrl) {
     const id = clean(staffId, 50);
     const url = clean(fileUrl, 2048);
@@ -1813,7 +1851,7 @@ function registerStaffRoutes(app, context) {
 
   function serializeProfile(row, positions = []) {
     const primary = positions.find((position) => position.is_primary) || positions[0] || null;
-    const image = row.photo_url || row.profile_image || "";
+    const image = row.photo_url || row.profile_image || row.teacher_image || "";
     return {
       id: row.id,
       user_id: row.user_id || "",
@@ -1830,6 +1868,7 @@ function registerStaffRoutes(app, context) {
       status: row.status || "Active",
       photo_url: image,
       profile_image: image,
+      image,
       subject: primary?.subject || row.subject || "",
       classes: primary?.classes || row.classes || "",
       website_place: primary?.website_place || row.category || "",
@@ -1968,6 +2007,7 @@ function registerStaffRoutes(app, context) {
           sp.*,
           u.email AS user_email,
           u.status AS account_status,
+          t.image AS teacher_image,
           t.subject,
           t.classes,
           t.category,
@@ -2406,7 +2446,11 @@ function registerStaffRoutes(app, context) {
         const latestPhoto =
           existingPhoto ||
           (await latestStaffProfilePhoto(connection, id)) ||
-          (requestedId !== id ? await latestStaffProfilePhoto(connection, requestedId) : "");
+          (requestedId !== id ? await latestStaffProfilePhoto(connection, requestedId) : "") ||
+          (await existingPublicTeacherPhoto(connection, id, teacherId)) ||
+          (requestedId !== id
+            ? await existingPublicTeacherPhoto(connection, requestedId, teacherId)
+            : "");
         if (latestPhoto) {
           payload.profileImage = latestPhoto;
           payload.photoUrl = latestPhoto;

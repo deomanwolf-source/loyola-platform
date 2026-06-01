@@ -986,7 +986,7 @@
       person?.category ||
       autoWebsitePlace(position, staffType, department);
     const hasAccount = Boolean(person?.user_id);
-    const profileImage = person?.photo_url || person?.profile_image || "";
+    const profileImage = person?.photo_url || person?.profile_image || person?.image || "";
 
     return panel(
       isEdit ? "Edit Staff Profile" : "Create Staff Profile",

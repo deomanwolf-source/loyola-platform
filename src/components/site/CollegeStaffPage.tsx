@@ -287,7 +287,9 @@ function normalize(value?: string) {
 }
 
 function personKey(staff: Teacher) {
-  return normalize(staff.staffId || staff.id.split("__")[0] || staff.name);
+  const canonicalId = normalize(staff.staffId || staff.id.split("__")[0]);
+  if (/^lcs-\d+/.test(canonicalId)) return canonicalId;
+  return normalize(staff.name) || canonicalId;
 }
 
 function schoolSection(staff: Teacher) {
@@ -393,6 +395,45 @@ function displayPosition(staff: Teacher) {
   return staff.subject || staff.type || "Staff Member";
 }
 
+function visiblePositionAssignments(staff: Teacher) {
+  const positions = Array.isArray(staff.positions) ? staff.positions : [];
+  const visiblePositions = positions.filter((position) => {
+    const websitePlace = normalize(position.websitePlace || position.website_place);
+    return (
+      websitePlace !== "hidden from website" &&
+      position.visibleOnWebsite !== false &&
+      position.visible_on_website !== false
+    );
+  });
+
+  if (!visiblePositions.length) return [staff];
+
+  return visiblePositions.map((position, index) => {
+    const websitePlace = position.websitePlace || position.website_place || staff.websitePlace;
+    return {
+      ...staff,
+      id: `${staff.id || staff.staffId || staff.name}__assignment_${index}`,
+      section: position.department || staff.section,
+      position: position.position || staff.position,
+      websitePlace,
+      category: websitePlace || staff.category,
+      subject: position.subject || staff.subject,
+      classes: position.classes || staff.classes,
+    };
+  });
+}
+
+function assignmentDedupKey(staff: StaffAssignment) {
+  return [
+    personKey(staff),
+    normalize(staff.directoryCategory),
+    normalize(staff.displayPosition),
+    normalize(staff.subject),
+    normalize(staff.classes),
+    normalize(staff.section),
+  ].join("|");
+}
+
 function matchesFilter(staff: StaffAssignment, activeFilter: string) {
   if (activeFilter === "All") return true;
   if (activeFilter === "Academic Staff") {
@@ -459,6 +500,7 @@ export function CollegeStaffPage({ pageId = "about/college-staff" }: { pageId?: 
         }
         return Boolean(staff.name?.trim());
       })
+      .flatMap((staff) => visiblePositionAssignments(staff))
       .map((staff, index) => ({
         ...staff,
         directoryCategory: directoryCategory(staff),
@@ -466,13 +508,22 @@ export function CollegeStaffPage({ pageId = "about/college-staff" }: { pageId?: 
         assignmentKey: `${staff.id || staff.name}-${index}`,
       }));
 
+    const dedupedRows: StaffAssignment[] = [];
+    const seenAssignments = new Set<string>();
+    visibleRows.forEach((staff) => {
+      const key = assignmentDedupKey(staff);
+      if (seenAssignments.has(key)) return;
+      seenAssignments.add(key);
+      dedupedRows.push(staff);
+    });
+
     const peopleWithSpecificRows = new Set(
-      visibleRows
+      dedupedRows
         .filter((staff) => staff.directoryCategory !== "All Teachers Directory")
         .map((staff) => personKey(staff)),
     );
 
-    return visibleRows.filter(
+    return dedupedRows.filter(
       (staff) =>
         staff.directoryCategory !== "All Teachers Directory" ||
         !peopleWithSpecificRows.has(personKey(staff)),
