@@ -605,6 +605,75 @@ function publicDb(dbPayload) {
   return output;
 }
 
+function serializeTeacherRow(row) {
+  return {
+    id: String(row.id || ""),
+    staffId: row.staff_id || "",
+    name: row.name || "",
+    subject: row.subject || "",
+    classes: row.classes || "",
+    status: row.status || "Active",
+    image: row.image || "",
+    type: row.type || "",
+    category: row.category || row.website_place || "",
+    websitePlace: row.website_place || row.category || "",
+    qualifications: row.qualifications || "",
+    responsibilities: row.responsibilities || "",
+    section: row.section || "",
+    position: row.position || "",
+    accountEmail: row.account_email || "",
+    accountUserId: row.account_user_id || "",
+  };
+}
+
+async function readTeacherSiteRows(runner = db) {
+  const [rows] = await runner.query(`
+    SELECT
+      id,
+      staff_id,
+      name,
+      subject,
+      classes,
+      status,
+      image,
+      type,
+      category,
+      website_place,
+      qualifications,
+      responsibilities,
+      section,
+      position,
+      account_email,
+      account_user_id,
+      created_at
+    FROM teachers
+    WHERE name IS NOT NULL
+      AND name <> ''
+    ORDER BY
+      CASE
+        WHEN status = 'Active' THEN 0
+        ELSE 1
+      END,
+      CASE
+        WHEN id = COALESCE(NULLIF(staff_id, ''), id) THEN 1
+        ELSE 0
+      END,
+      category,
+      name
+  `);
+  return rows.map(serializeTeacherRow);
+}
+
+async function withLiveTeacherRows(siteDb) {
+  if (!isPlainObject(siteDb)) return siteDb;
+  const teachers = await readTeacherSiteRows();
+  if (!teachers.length) return siteDb;
+  return {
+    ...siteDb,
+    teachers,
+  };
+}
+
 function canReadPrivateDb(req) {
   const header = req.headers.authorization || "";
   const token = header.replace("Bearer ", "");
@@ -917,8 +986,17 @@ async function ensureContentTables() {
   await addColumnIfMissing("media_files", "category", "VARCHAR(100)");
   await addColumnIfMissing("media_files", "warnings", "LONGTEXT");
   await backfillMediaCategories();
+  await addColumnIfMissing("teachers", "staff_id", "VARCHAR(50) NULL");
+  await addColumnIfMissing("teachers", "website_place", "VARCHAR(120) NULL");
+  await addColumnIfMissing("teachers", "positions_json", "LONGTEXT NULL");
   await addColumnIfMissing("teachers", "account_email", "VARCHAR(190)");
   await addColumnIfMissing("teachers", "account_user_id", "VARCHAR(50)");
+  await ensureTableIndexes("teachers", [
+    {
+      name: "idx_teachers_staff_id",
+      sql: "CREATE INDEX idx_teachers_staff_id ON teachers (staff_id)",
+    },
+  ]);
   await ensureSiteDatabaseSchema();
   await ensureWebsitePagesSchema();
 
@@ -2231,14 +2309,28 @@ app.delete("/api/staff-accounts/:id", eduzyncAdminOnly, async (req, res) => {
 
 app.get("/api/site-db", async (req, res) => {
   try {
+    const requesterCanReadPrivate = canReadPrivateDb(req);
     const useDraft =
-      canReadPrivateDb(req) &&
+      requesterCanReadPrivate &&
       (req.query.draft === "1" || req.headers["x-loyola-draft"] === "true");
     const siteDb = await readSiteDb({ draft: useDraft });
-    if (!siteDb) return res.json({ db: null, found: false, storage: "mysql" });
+    if (!siteDb) {
+      const staffOnlyDb = await withLiveTeacherRows({});
+      return res.json({
+        db: staffOnlyDb.teachers?.length
+          ? requesterCanReadPrivate
+            ? staffOnlyDb
+            : publicDb(staffOnlyDb)
+          : null,
+        found: Boolean(staffOnlyDb.teachers?.length),
+        storage: "mysql",
+        mode: useDraft ? "draft" : "published",
+      });
+    }
+    const dbWithStaff = await withLiveTeacherRows(siteDb);
 
     res.json({
-      db: canReadPrivateDb(req) ? siteDb : publicDb(siteDb),
+      db: requesterCanReadPrivate ? dbWithStaff : publicDb(dbWithStaff),
       found: true,
       storage: "mysql",
       mode: useDraft ? "draft" : "published",
