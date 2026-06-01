@@ -785,9 +785,10 @@
             <thead>
               <tr>
                 <th>Staff</th>
-                <th>Contact</th>
-                <th>Position Codes</th>
+                <th>Email</th>
+                <th>Website Position</th>
                 <th>Status</th>
+                <th>Login Account</th>
                 <th></th>
               </tr>
             </thead>
@@ -807,12 +808,12 @@
                                 </span>
                               </div>
                             </td>
-                            <td data-label="Contact">
-                              <strong>${esc(person.email || "-")}</strong>
-                              <small>${esc(person.duplicate_warning || person.phone || "")}</small>
+                            <td data-label="Email">
+                              <strong>${esc(person.email || person.account_email || "-")}</strong>
                             </td>
-                            <td data-label="Position Codes">${positionBadgesHtml(person)}</td>
+                            <td data-label="Website Position">${websitePositionHtml(person)}</td>
                             <td data-label="Status"><span class="status ${esc(statusClass(person.status))}">${esc(person.status || "Active")}</span></td>
+                            <td data-label="Login Account">${loginAccountHtml(person)}</td>
                             <td class="right">
                               <button class="icon-button" title="Edit staff" data-edit="${esc(person.id)}">${icon("file")} Edit</button>
                               <button class="icon-button danger" title="Delete staff" data-delete="${esc(person.id)}">${icon("trash")} Delete</button>
@@ -821,7 +822,7 @@
                         `,
                       )
                       .join("")
-                  : `<tr><td colspan="5"><div class="empty">No staff match your filters.</div></td></tr>`
+                  : `<tr><td colspan="6"><div class="empty">No staff match your filters.</div></td></tr>`
               }
             </tbody>
           </table>
