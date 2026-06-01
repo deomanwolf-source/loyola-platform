@@ -638,7 +638,7 @@
           <h2>Professional staff control center</h2>
           <p>Today's staff overview for HR, attendance, documents, and internal notices.</p>
         </div>
-        <button class="button gold" data-action="new-staff">${icon("plus")} Add Staff</button>
+        <button class="button gold" type="button" data-action="new-staff">${icon("plus")} Add Staff</button>
       </div>
       <div class="metric-grid">
         ${metric("Total Staff", d.total || state.staff.length, "", "users", "Master profile count")}
@@ -768,10 +768,10 @@
           </label>
         </div>
         <div class="toolbar-actions">
-          <button class="button ghost" data-action="download-template">${icon("download")} Download CSV Template</button>
+          <button class="button ghost" type="button" data-action="download-template">${icon("download")} Download CSV Template</button>
           <label class="button ghost import-button">${icon("download")} Import Staff CSV<input id="import-csv-file" type="file" accept=".csv,text/csv" /></label>
-          <button class="button" data-action="export">${icon("download")} Export CSV</button>
-          <button class="button gold" data-action="new-staff">${icon("plus")} Add Staff</button>
+          <button class="button" type="button" data-action="export">${icon("download")} Export CSV</button>
+          <button class="button gold" type="button" data-action="new-staff">${icon("plus")} Add Staff</button>
         </div>
       </div>
       ${csvImportPreviewHtml()}
@@ -1169,8 +1169,8 @@
               <h3>Position Codes</h3>
               <label class="field">
                 <span>Position Codes</span>
-                <textarea name="position_codes" rows="6" required placeholder="class-teacher-6-c&#10;grade-head-6">${esc(positionCodesText(person))}</textarea>
-                <small>Type one or more position codes. Use one per line or separate by commas. Example: class-teacher-6-c, grade-head-6, subject-coordinator-middle-science.</small>
+                <textarea name="position_codes" rows="6" placeholder="class-teacher-6-c&#10;grade-head-6">${esc(positionCodesText(person))}</textarea>
+                <small>Optional while creating a draft profile. Add one or more position codes to show this staff member on the public staff page.</small>
               </label>
             </div>
             <div class="form-section">
@@ -1543,12 +1543,20 @@
     bindActions();
   }
 
+  async function openNewStaffForm(event) {
+    if (event) event.preventDefault();
+    await setView("form", { newRecord: true });
+  }
+
   function bindActions() {
     document.querySelectorAll("[data-view]").forEach((button) => {
-      button.addEventListener("click", () => setView(button.dataset.view));
+      button.addEventListener("click", (event) => {
+        if (button.dataset.view === "form") return openNewStaffForm(event);
+        return setView(button.dataset.view);
+      });
     });
     document.querySelectorAll("[data-action='new-staff']").forEach((button) => {
-      button.addEventListener("click", () => setView("form", { newRecord: true }));
+      button.addEventListener("click", openNewStaffForm);
     });
     document.querySelectorAll("[data-action='profiles']").forEach((button) => {
       button.addEventListener("click", () => setView("profiles"));
@@ -1896,6 +1904,8 @@
     payload.photo_url = payload.profile_image;
     payload.position_codes = normalizePositionCodes(payload.position_codes).join("\n");
     payload.sort_order = Number(payload.sort_order || 0);
+    const hasPositionCodes = Boolean(payload.position_codes);
+    const wasEditing = Boolean(state.editingId);
 
     button.disabled = true;
     try {
@@ -1910,7 +1920,11 @@
       await setView("profiles");
       setNotice(
         result.duplicateWarning ||
-          (state.editingId ? "Staff profile updated." : "Staff profile created."),
+          (wasEditing
+            ? "Staff profile updated."
+            : hasPositionCodes
+              ? "Staff profile created."
+              : "Staff profile created as a draft. Add position codes to show it on the public staff page."),
         result.duplicateWarning ? "warning" : "success",
       );
     } catch (error) {
