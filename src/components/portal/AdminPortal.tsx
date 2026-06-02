@@ -2417,7 +2417,473 @@ function MessagesPanel({ db }: { db: DB }) {
   );
 }
 
+type ManagedUser = {
+  id: string;
+  external_staff_id?: string | null;
+  name: string;
+  email: string;
+  role: Role;
+  status: string;
+  created_at?: string | null;
+};
+
+type UserFormState = {
+  name: string;
+  email: string;
+  password: string;
+  role: Role;
+  status: "Active" | "Disabled";
+};
+
+const userRoleOptions: Role[] = [
+  "masteradmin",
+  "superadmin",
+  "website_admin",
+  "eduzync_admin",
+  "staff_admin",
+  "teacher",
+  "student",
+  "parent",
+];
+
+const rolePermissionRows: { role: Role; access: string; scope: string }[] = [
+  { role: "masteradmin", access: "Full control", scope: "All portals, users, publishing" },
+  { role: "superadmin", access: "Full control", scope: "All portals except owner-only locks" },
+  { role: "website_admin", access: "Website", scope: "Pages, media, news, notices, events" },
+  { role: "eduzync_admin", access: "School data", scope: "Students, classes, teachers, EduTrack" },
+  { role: "staff_admin", access: "Staff", scope: "Staff profiles, documents, leave, notices" },
+  { role: "teacher", access: "Teacher", scope: "EduTrack, classes, report cards" },
+  { role: "student", access: "Student", scope: "ELMS, profile, reports" },
+  { role: "parent", access: "Parent", scope: "Child profile and reports" },
+];
+
+function emptyUserForm(): UserFormState {
+  return {
+    name: "",
+    email: "",
+    password: "",
+    role: "website_admin",
+    status: "Active",
+  };
+}
+
+function normalizeManagedUser(row: Partial<ManagedUser> & Record<string, unknown>): ManagedUser {
+  const role = userRoleOptions.includes(row.role as Role) ? (row.role as Role) : "website_admin";
+  return {
+    id: String(row.id || ""),
+    external_staff_id:
+      typeof row.external_staff_id === "string" ? row.external_staff_id : row.external_staff_id || null,
+    name: String(row.name || ""),
+    email: String(row.email || ""),
+    role,
+    status: String(row.status || "Active"),
+    created_at: typeof row.created_at === "string" ? row.created_at : null,
+  };
+}
+
+async function readUserApiError(response: Response) {
+  const payload = await response.json().catch(() => null);
+  return payload?.error || `User request failed with status ${response.status}.`;
+}
+
+function userStatusTone(status: string) {
+  return String(status).toLowerCase() === "active"
+    ? "bg-emerald-100 text-emerald-800"
+    : "bg-slate-100 text-slate-600";
+}
+
 function UsersPanel({ db }: { db: DB }) {
+  const auth = useAuth();
+  const [users, setUsers] = useState<ManagedUser[]>(() =>
+    db.users.map((user) => normalizeManagedUser(user as ManagedUser & Record<string, unknown>)),
+  );
+  const [form, setForm] = useState<UserFormState>(() => emptyUserForm());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const canManageUsers = auth.user
+    ? ["masteradmin", "superadmin"].includes(auth.user.role)
+    : false;
+
+  const loadUsers = useCallback(async () => {
+    if (!canManageUsers) return;
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/api/users`, {
+        headers: authHeaders(),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      const payload = await response.json();
+      const rows = Array.isArray(payload) ? payload : payload?.users || [];
+      setUsers(rows.map((row: ManagedUser & Record<string, unknown>) => normalizeManagedUser(row)));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load users.");
+    } finally {
+      setLoading(false);
+    }
+  }, [canManageUsers]);
+
+  useEffect(() => {
+    void loadUsers();
+  }, [loadUsers]);
+
+  const resetForm = () => {
+    setForm(emptyUserForm());
+    setEditingId(null);
+  };
+
+  const editUser = (user: ManagedUser) => {
+    setForm({
+      name: user.name,
+      email: user.email,
+      password: "",
+      role: user.role,
+      status: user.status === "Active" ? "Active" : "Disabled",
+    });
+    setEditingId(user.id);
+  };
+
+  const submitUser = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canManageUsers) return;
+    const trimmedName = form.name.trim();
+    const trimmedEmail = form.email.trim().toLowerCase();
+
+    if (!trimmedName || !trimmedEmail) {
+      setError("Name and email are required.");
+      return;
+    }
+    if (!editingId && form.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (editingId && form.password && form.password.length < 8) {
+      setError("New password must be at least 8 characters.");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    try {
+      const payload: Record<string, string> = {
+        name: trimmedName,
+        email: trimmedEmail,
+        role: form.role,
+        status: form.status,
+      };
+      if (form.password) payload.password = form.password;
+
+      const response = await fetch(
+        `${API_URL}/api/users${editingId ? `/${encodeURIComponent(editingId)}` : ""}`,
+        {
+          method: editingId ? "PUT" : "POST",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      const savedPayload = await response.json().catch(() => null);
+      const savedUser = savedPayload?.user
+        ? normalizeManagedUser(savedPayload.user)
+        : normalizeManagedUser({ id: editingId || "", ...payload });
+
+      setUsers((current) =>
+        editingId
+          ? current.map((user) => (user.id === editingId ? savedUser : user))
+          : [savedUser, ...current],
+      );
+      audit(
+        `${editingId ? "Updated" : "Created"} user account: ${trimmedEmail}`,
+        auth.user?.email || "Admin",
+      );
+      resetForm();
+      void loadUsers();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not save user.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const setUserStatus = async (user: ManagedUser, status: "Active" | "Disabled") => {
+    if (!canManageUsers) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(user.id)}`, {
+        method: "PUT",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          status,
+        }),
+      });
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      setUsers((current) =>
+        current.map((item) => (item.id === user.id ? { ...item, status } : item)),
+      );
+      audit(
+        `${status === "Active" ? "Activated" : "Disabled"} user account: ${user.email}`,
+        auth.user?.email || "Admin",
+      );
+      void loadUsers();
+    } catch (statusError) {
+      setError(statusError instanceof Error ? statusError.message : "Could not update status.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const disableUser = async (user: ManagedUser) => {
+    if (!canManageUsers) return;
+    if (!confirm(`Disable ${user.email}?`)) return;
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(user.id)}`, {
+        method: "DELETE",
+        headers: authHeaders(),
+      });
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      setUsers((current) =>
+        current.map((item) => (item.id === user.id ? { ...item, status: "Disabled" } : item)),
+      );
+      audit(`Disabled user account: ${user.email}`, auth.user?.email || "Admin");
+      void loadUsers();
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : "Could not disable user.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredUsers = users.filter((user) => {
+    const haystack = `${user.name} ${user.email} ${user.role} ${user.status}`.toLowerCase();
+    return haystack.includes(query.trim().toLowerCase());
+  });
+  const activeUsers = users.filter((user) => user.status === "Active").length;
+  const adminUsers = users.filter((user) =>
+    ["masteradmin", "superadmin", "website_admin", "eduzync_admin", "staff_admin"].includes(
+      user.role,
+    ),
+  ).length;
+
+  if (!canManageUsers) {
+    return (
+      <PanelShell title="Users & Roles" kicker="Access control">
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-800">
+          User management is available only for Master Admin and Super Admin accounts.
+        </div>
+      </PanelShell>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard icon={Users} label="Total accounts" value={users.length} />
+        <StatCard icon={CheckCircle2} label="Active accounts" value={activeUsers} accent />
+        <StatCard icon={ShieldCheck} label="Admin roles" value={adminUsers} />
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
+        <PanelShell
+          title={editingId ? "Edit account" : "Create account"}
+          kicker="Users & Roles"
+          action={
+            editingId ? (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-xs font-black text-navy"
+              >
+                <X className="h-4 w-4" /> Cancel
+              </button>
+            ) : null
+          }
+        >
+          <form onSubmit={submitUser} className="space-y-3">
+            <TextInput
+              placeholder="Full name"
+              value={form.name}
+              onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
+            />
+            <TextInput
+              placeholder="Email"
+              type="email"
+              value={form.email}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, email: event.target.value }))
+              }
+            />
+            <TextInput
+              placeholder={editingId ? "New password optional" : "Temporary password"}
+              type="password"
+              value={form.password}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, password: event.target.value }))
+              }
+            />
+            <select
+              value={form.role}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, role: event.target.value as Role }))
+              }
+              className="input-line"
+            >
+              {userRoleOptions.map((option) => (
+                <option key={option} value={option}>
+                  {formatRole(option)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={form.status}
+              onChange={(event) =>
+                setForm((current) => ({
+                  ...current,
+                  status: event.target.value as UserFormState["status"],
+                }))
+              }
+              className="input-line"
+            >
+              <option value="Active">Active</option>
+              <option value="Disabled">Disabled</option>
+            </select>
+            {error && (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+                {error}
+              </p>
+            )}
+            <button
+              type="submit"
+              disabled={saving}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-4 py-3 text-sm font-black text-navy disabled:opacity-60"
+            >
+              {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+              {saving ? "Saving" : editingId ? "Save Account" : "Create Account"}
+            </button>
+          </form>
+        </PanelShell>
+
+        <PanelShell
+          title="Portal accounts"
+          kicker="Access control"
+          action={
+            <button
+              type="button"
+              onClick={() => void loadUsers()}
+              disabled={loading}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-3 py-2 text-xs font-black text-navy disabled:opacity-60"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Refresh
+            </button>
+          }
+        >
+          <label className="mb-4 flex items-center gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-2">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search accounts"
+              className="w-full bg-transparent text-sm font-semibold outline-none"
+            />
+          </label>
+          <div className="overflow-hidden rounded-2xl border border-border">
+            <div className="hidden grid-cols-[1.5fr_1fr_0.8fr_0.8fr] gap-3 border-b border-border bg-secondary/50 px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-muted-foreground lg:grid">
+              <span>Account</span>
+              <span>Role</span>
+              <span>Status</span>
+              <span className="text-right">Actions</span>
+            </div>
+            <div className="divide-y divide-border">
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className="grid gap-3 px-4 py-4 lg:grid-cols-[1.5fr_1fr_0.8fr_0.8fr] lg:items-center"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-black text-navy">{user.name}</p>
+                    <p className="truncate text-xs font-semibold text-muted-foreground">
+                      {user.email}
+                    </p>
+                    {user.external_staff_id && (
+                      <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                        Staff ID: {user.external_staff_id}
+                      </p>
+                    )}
+                  </div>
+                  <span className="text-sm font-bold text-slate-700">{formatRole(user.role)}</span>
+                  <span
+                    className={`w-fit rounded-full px-3 py-1 text-xs font-black ${userStatusTone(
+                      user.status,
+                    )}`}
+                  >
+                    {user.status}
+                  </span>
+                  <div className="flex flex-wrap justify-start gap-2 lg:justify-end">
+                    <button
+                      type="button"
+                      onClick={() => editUser(user)}
+                      className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-black text-navy"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void setUserStatus(user, user.status === "Active" ? "Disabled" : "Active")
+                      }
+                      disabled={saving || auth.user?.id === user.id}
+                      className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-black text-navy disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {user.status === "Active" ? "Disable" : "Activate"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void disableUser(user)}
+                      disabled={saving || user.status !== "Active" || auth.user?.id === user.id}
+                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-crimson disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {filteredUsers.length === 0 && (
+                <p className="px-4 py-6 text-sm font-semibold text-muted-foreground">
+                  {loading ? "Loading accounts..." : "No accounts found."}
+                </p>
+              )}
+            </div>
+          </div>
+        </PanelShell>
+      </div>
+
+      <PanelShell title="Role permissions" kicker="Access model">
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {rolePermissionRows.map((row) => (
+            <div key={row.role} className="rounded-2xl border border-border bg-secondary/35 p-4">
+              <p className="text-sm font-black text-navy">{formatRole(row.role)}</p>
+              <p className="mt-2 text-xs font-black uppercase tracking-[0.12em] text-crimson">
+                {row.access}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{row.scope}</p>
+            </div>
+          ))}
+        </div>
+      </PanelShell>
+    </div>
+  );
+}
+
+function LocalUsersPanel({ db }: { db: DB }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

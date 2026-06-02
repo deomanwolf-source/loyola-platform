@@ -3923,11 +3923,11 @@ function CentralPortal() {
       lockedMeta: "Available by profile relationship",
     },
     {
-      title: "Users",
+      title: "User Management",
       href: "/admin?panel=users",
       icon: Users,
       roles: MASTER_ROLES,
-      meta: "Accounts and permissions",
+      meta: "Accounts, roles, and permissions",
       lockedMeta: "Only Master Admin and Super Admin",
     },
   ];
