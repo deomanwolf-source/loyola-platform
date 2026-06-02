@@ -4705,6 +4705,10 @@
             <span class="nav-icon"><i data-lucide="bar-chart-3"></i></span
             ><span class="nav-text"> Progress Reports</span>
           </div>
+          <div class="nav-item" onclick="showPage('staff-attendance')">
+            <span class="nav-icon"><i data-lucide="calendar-check"></i></span
+            ><span class="nav-text"> Staff Attendance</span>
+          </div>
           <div class="nav-item" onclick="showPage('teachers')">
             <span class="nav-icon"><i data-lucide="building-2"></i></span
             ><span class="nav-text"> Teachers</span>
@@ -5024,6 +5028,81 @@
                   </tr>
                 </thead>
                 <tbody id="year-plan-report-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- STAFF ATTENDANCE INSIDE EDUTRACK -->
+        <div class="page page-shell" id="page-staff-attendance">
+          <div class="page-header page-header-row">
+            <div>
+              <h2>Staff Attendance</h2>
+              <p>One-click daily attendance marking for all staff, inside EduTrack.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="loadEduTrackStaffAttendance()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Load Staff
+              </button>
+              <button class="btn secondary sm" onclick="markEduTrackAllPresent()">
+                <i data-lucide="check-check" style="width: 14px; height: 14px"></i> Mark All Present
+              </button>
+              <button class="btn sm" onclick="saveEduTrackStaffAttendance()">
+                <i data-lucide="save" style="width: 14px; height: 14px"></i> Save Attendance
+              </button>
+              <button class="btn secondary sm" onclick="printEduTrackStaffAttendance()">
+                <i data-lucide="printer" style="width: 14px; height: 14px"></i> Print
+              </button>
+              <button class="btn secondary sm" onclick="exportEduTrackStaffAttendanceCSV()">
+                <i data-lucide="download" style="width: 14px; height: 14px"></i> CSV
+              </button>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom: 18px">
+            <div class="quick-finder-grid">
+              <input id="esa-date" class="quick-input" type="date" />
+              <select id="esa-section" class="quick-select" onchange="loadEduTrackStaffAttendance()">
+                <option>All Sections</option>
+                <option>Primary School</option>
+                <option>Middle School</option>
+                <option>Upper School</option>
+                <option>A/L Section</option>
+                <option>Administration</option>
+                <option>Non-Academic Staff</option>
+                <option>Supportive Staff</option>
+              </select>
+              <select id="esa-staff-type" class="quick-select" onchange="loadEduTrackStaffAttendance()">
+                <option>All</option>
+                <option>Academic Staff</option>
+                <option>Non-Academic Staff</option>
+                <option>Supportive Staff</option>
+              </select>
+              <input id="esa-search" class="quick-input" placeholder="Search name, staff ID, NIC, position" oninput="loadEduTrackStaffAttendanceDebounced()" />
+            </div>
+          </div>
+          <div id="esa-summary" class="stats-grid" style="margin-bottom: 18px"></div>
+          <div class="card" style="margin-bottom: 18px">
+            <div class="section-title" style="margin-bottom: 12px">Status Legend</div>
+            <div id="esa-legend" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom: 12px">Daily Attendance Register</div>
+            <div style="overflow-x: auto; max-height: 68vh">
+              <table class="accounts-table" style="min-width: 1240px">
+                <thead>
+                  <tr>
+                    <th>Staff ID</th>
+                    <th>Teacher / Staff Name</th>
+                    <th>Section</th>
+                    <th>Position</th>
+                    <th>Status Buttons</th>
+                    <th>Note / Reason</th>
+                    <th>Last Updated</th>
+                  </tr>
+                </thead>
+                <tbody id="esa-tbody">
+                  <tr><td colspan="7">Load staff to begin marking attendance.</td></tr>
+                </tbody>
               </table>
             </div>
           </div>
@@ -6473,6 +6552,19 @@
       let yearPlans = [];
       let currentYearPlan = null;
       let yearPlanReport = { records: [], summary: {} };
+      let eduTrackStaffAttendance = [];
+      let eduTrackStaffAttendanceDebounceTimer = null;
+      const eduTrackAttendanceStatuses = [
+        ["Present", "P"],
+        ["Absent", "A"],
+        ["Duty Leave", "DL"],
+        ["Maternity Leave", "ML"],
+        ["Short Leave", "SL"],
+        ["Half Day", "HD"],
+        ["Leave Approved", "LA"],
+        ["Informed", "I"],
+        ["Late to Come", "LT"],
+      ];
 
       // Expose to window so upgrade-pack scripts can access them
       Object.defineProperty(window, "allSubjects", {
@@ -11232,6 +11324,7 @@
           "teachers",
           "teacher-assignments",
           "year-plans",
+          "staff-attendance",
           "terms",
           "yearly-reset",
           "subjects",
@@ -11269,6 +11362,7 @@
         if (name === "teacher-assignments" && cud && cud.role === "admin") loadTeacherAssignments();
         if (name === "year-plans" && cud && cud.role === "admin") loadYearPlans();
         if (name === "year-plan-reports") loadYearPlanReports();
+        if (name === "staff-attendance" && cud && cud.role === "admin") loadEduTrackStaffAttendance();
         if (name === "relief") loadReliefAssignments();
         if (name === "daily-progress") loadDailyProgress();
         closeSidebar();
@@ -13759,6 +13853,275 @@
             (summary.completionPercentage || 0) +
             '%</div><table><thead><tr><th>Term</th><th>Unit No.</th><th>Unit Title</th><th>Main Topic</th><th>Subtopic</th><th>Status</th><th>Completed Date</th><th>Note</th></tr></thead><tbody>' +
             (rows || '<tr><td colspan="8">No records</td></tr>') +
+            '</tbody></table><div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div></body></html>',
+        );
+        win.document.close();
+        win.focus();
+        win.print();
+      };
+
+      function eduTrackAttendanceDate() {
+        const input = document.getElementById("esa-date");
+        if (input && !input.value) input.value = new Date().toISOString().slice(0, 10);
+        return input?.value || new Date().toISOString().slice(0, 10);
+      }
+
+      function eduTrackAttendanceParams() {
+        const params = new URLSearchParams({
+          date: eduTrackAttendanceDate(),
+          section: document.getElementById("esa-section")?.value || "All Sections",
+          staff_type: document.getElementById("esa-staff-type")?.value || "All",
+          search: document.getElementById("esa-search")?.value || "",
+        });
+        return params.toString();
+      }
+
+      function eduTrackAttendanceStatusBadge(status) {
+        const color =
+          status === "Present" || status === "Leave Approved"
+            ? "var(--accent2)"
+            : status === "Absent"
+              ? "#f87171"
+              : "var(--warn)";
+        return (
+          '<span class="badge" style="border-color:' +
+          color +
+          ";color:" +
+          color +
+          '">' +
+          escapeHtml(status || "Unmarked") +
+          "</span>"
+        );
+      }
+
+      function renderEduTrackAttendanceLegend() {
+        const box = document.getElementById("esa-legend");
+        if (!box) return;
+        box.innerHTML = eduTrackAttendanceStatuses
+          .map(
+            ([status, code]) =>
+              '<span class="badge" style="min-height:30px;display:inline-flex;align-items:center;gap:7px"><strong>' +
+              escapeHtml(code) +
+              "</strong> " +
+              escapeHtml(status) +
+              "</span>",
+          )
+          .join("");
+      }
+
+      function renderEduTrackAttendanceSummary() {
+        const box = document.getElementById("esa-summary");
+        if (!box) return;
+        const count = (status) => eduTrackStaffAttendance.filter((row) => row.status === status).length;
+        const unmarked = eduTrackStaffAttendance.filter((row) => !row.status).length;
+        box.innerHTML =
+          '<div class="stat-card"><div class="stat-label">Total Staff</div><div class="stat-val">' +
+          eduTrackStaffAttendance.length +
+          '</div></div><div class="stat-card"><div class="stat-label">Present</div><div class="stat-val">' +
+          count("Present") +
+          '</div></div><div class="stat-card"><div class="stat-label">Absent</div><div class="stat-val">' +
+          count("Absent") +
+          '</div></div><div class="stat-card"><div class="stat-label">Late</div><div class="stat-val">' +
+          count("Late to Come") +
+          '</div></div><div class="stat-card"><div class="stat-label">Unmarked</div><div class="stat-val">' +
+          unmarked +
+          "</div></div>";
+      }
+
+      function renderEduTrackStaffAttendance() {
+        renderEduTrackAttendanceLegend();
+        renderEduTrackAttendanceSummary();
+        const tbody = document.getElementById("esa-tbody");
+        if (!tbody) return;
+        if (!eduTrackStaffAttendance.length) {
+          tbody.innerHTML = '<tr><td colspan="7">No staff found for these filters.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = eduTrackStaffAttendance
+          .map((row) => {
+            const staffId = row.staff_profile_id || row.staff_id || "";
+            const buttons = eduTrackAttendanceStatuses
+              .map(([status, code]) => {
+                const selected = row.status === status;
+                const color =
+                  status === "Present" || status === "Leave Approved"
+                    ? "var(--accent2)"
+                    : status === "Absent"
+                      ? "#f87171"
+                      : "var(--warn)";
+                return (
+                  '<button class="btn secondary sm" title="' +
+                  escapeHtml(status) +
+                  '" onclick="setEduTrackStaffAttendanceStatus(\'' +
+                  String(staffId).replace(/'/g, "\\'") +
+                  "', '" +
+                  String(status).replace(/'/g, "\\'") +
+                  '\')" style="height:30px;min-width:34px;padding:0 8px;border-color:' +
+                  (selected ? color : "var(--border-med)") +
+                  ";background:" +
+                  (selected ? color : "transparent") +
+                  ";color:" +
+                  (selected ? "#061221" : "var(--text)") +
+                  '">' +
+                  escapeHtml(code) +
+                  "</button>"
+                );
+              })
+              .join("");
+            return (
+              "<tr><td><strong>" +
+              escapeHtml(row.staff_id || row.staff_profile_id || "-") +
+              "</strong></td><td><strong>" +
+              escapeHtml(row.staff_name || row.full_name || "-") +
+              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
+              escapeHtml(row.staff_type || "-") +
+              "</span></td><td>" +
+              escapeHtml(row.section || "-") +
+              "</td><td>" +
+              escapeHtml(row.position || "-") +
+              '</td><td><div style="display:flex;gap:5px;flex-wrap:wrap;min-width:390px">' +
+              buttons +
+              "</div><div style=\"margin-top:6px\">" +
+              eduTrackAttendanceStatusBadge(row.status) +
+              '</div></td><td><input class="quick-input" style="min-width:180px" value="' +
+              escapeHtml(row.note || row.reason || "") +
+              '" oninput="setEduTrackStaffAttendanceNote(\'' +
+              String(staffId).replace(/'/g, "\\'") +
+              "', this.value)\" placeholder=\"Optional\"></td><td>" +
+              escapeHtml(row.last_updated ? new Date(row.last_updated).toLocaleString() : "-") +
+              "</td></tr>"
+            );
+          })
+          .join("");
+      }
+
+      window.loadEduTrackStaffAttendance = async function () {
+        const tbody = document.getElementById("esa-tbody");
+        if (tbody) tbody.innerHTML = '<tr><td colspan="7">Loading staff attendance...</td></tr>';
+        try {
+          eduTrackStaffAttendance = await apiFetch("/api/staff/attendance?" + eduTrackAttendanceParams());
+          renderEduTrackStaffAttendance();
+        } catch (error) {
+          if (tbody) {
+            tbody.innerHTML =
+              '<tr><td colspan="7">Could not load attendance: ' +
+              escapeHtml(error.message) +
+              "</td></tr>";
+          }
+          showToast(error.message, "err");
+        }
+      };
+
+      window.loadEduTrackStaffAttendanceDebounced = function () {
+        clearTimeout(eduTrackStaffAttendanceDebounceTimer);
+        eduTrackStaffAttendanceDebounceTimer = setTimeout(() => loadEduTrackStaffAttendance(), 300);
+      };
+
+      window.setEduTrackStaffAttendanceStatus = function (staffId, status) {
+        eduTrackStaffAttendance = eduTrackStaffAttendance.map((row) =>
+          String(row.staff_profile_id || row.staff_id) === String(staffId)
+            ? { ...row, status }
+            : row,
+        );
+        renderEduTrackStaffAttendance();
+      };
+
+      window.setEduTrackStaffAttendanceNote = function (staffId, note) {
+        eduTrackStaffAttendance = eduTrackStaffAttendance.map((row) =>
+          String(row.staff_profile_id || row.staff_id) === String(staffId)
+            ? { ...row, note }
+            : row,
+        );
+      };
+
+      window.markEduTrackAllPresent = function () {
+        eduTrackStaffAttendance = eduTrackStaffAttendance.map((row) => ({ ...row, status: "Present" }));
+        renderEduTrackStaffAttendance();
+        showToast("All loaded staff marked Present. Click Save Attendance to store it.", "success");
+      };
+
+      window.saveEduTrackStaffAttendance = async function () {
+        const records = eduTrackStaffAttendance
+          .filter((row) => row.status || row.note)
+          .map((row) => ({
+            staff_profile_id: row.staff_profile_id || row.staff_id,
+            staff_id: row.staff_id || row.staff_profile_id,
+            attendance_date: eduTrackAttendanceDate(),
+            section: row.section || "",
+            staff_type: row.staff_type || "",
+            position: row.position || "",
+            status: row.status || "Present",
+            note: row.note || "",
+          }));
+        if (!records.length) {
+          showToast("Select at least one status before saving.", "err");
+          return;
+        }
+        try {
+          await apiFetch("/api/staff/attendance/bulk-mark", {
+            method: "POST",
+            body: JSON.stringify({ date: eduTrackAttendanceDate(), records }),
+          });
+          showToast("Staff attendance saved.", "success");
+          await loadEduTrackStaffAttendance();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.exportEduTrackStaffAttendanceCSV = async function () {
+        try {
+          const res = await fetch(
+            API_BASE + "/api/staff/attendance/export/csv?" + eduTrackAttendanceParams(),
+            { headers: platformHeaders() },
+          );
+          if (!res.ok) throw new Error("CSV export failed");
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "staff-attendance-" + eduTrackAttendanceDate() + ".csv";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.printEduTrackStaffAttendance = function () {
+        const rows = eduTrackStaffAttendance
+          .map(
+            (row) =>
+              "<tr><td>" +
+              escapeHtml(row.staff_id || row.staff_profile_id || "") +
+              "</td><td>" +
+              escapeHtml(row.staff_name || row.full_name || "") +
+              "</td><td>" +
+              escapeHtml(row.section || "") +
+              "</td><td>" +
+              escapeHtml(row.position || "") +
+              "</td><td>" +
+              escapeHtml(row.status || "Unmarked") +
+              "</td><td>" +
+              escapeHtml(row.note || row.reason || "") +
+              "</td></tr>",
+          )
+          .join("");
+        const win = window.open("", "_blank");
+        if (!win) return;
+        win.document.write(
+          "<!doctype html><html><head><title>Daily Staff Attendance Report</title><style>body{font-family:Arial,sans-serif;color:#111827;padding:24px}h1{font-size:20px;margin:0}h2{font-size:16px;margin:4px 0 18px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #d1d5db;padding:6px;vertical-align:top}th{background:#f3f4f6}.sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}.sig div{border-top:1px solid #111827;padding-top:8px}</style></head><body><h1>Loyola College Negombo</h1><h2>Daily Staff Attendance Report</h2><p>Date: " +
+            escapeHtml(eduTrackAttendanceDate()) +
+            "<br>Section: " +
+            escapeHtml(document.getElementById("esa-section")?.value || "All Sections") +
+            "<br>Generated by: " +
+            escapeHtml(cud?.name || "-") +
+            "<br>Generated at: " +
+            escapeHtml(new Date().toLocaleString()) +
+            '</p><table><thead><tr><th>Staff ID</th><th>Name</th><th>Section</th><th>Position</th><th>Status</th><th>Note</th></tr></thead><tbody>' +
+            (rows || '<tr><td colspan="6">No records</td></tr>') +
             '</tbody></table><div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div></body></html>',
         );
         win.document.close();
