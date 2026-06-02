@@ -568,6 +568,14 @@ export const seed: DB = {
       visible: true,
       parentId: "academics",
     },
+    { id: "the-college", label: "The College", order: 4, visible: true },
+    {
+      id: "the-college/facilities-services",
+      label: "Facilities & Services",
+      order: 1,
+      visible: true,
+      parentId: "the-college",
+    },
     { id: "admissions", label: "Admissions", order: 4, visible: true },
     { id: "news", label: "News & Notices", order: 5, visible: true },
     { id: "events", label: "Events", order: 6, visible: true },
@@ -634,6 +642,16 @@ export const seed: DB = {
       kicker: "Academics",
       title: "Loyolian Cambridge English Academy",
       body: "Cambridge-standard English learning for Loyolian students and learners from other schools.",
+    },
+    "the-college": {
+      kicker: "The College",
+      title: "The College",
+      body: "Explore Loyola College campus life, facilities, services, sections, and student formation.",
+    },
+    "the-college/facilities-services": {
+      kicker: "The College",
+      title: "Facilities & Services",
+      body: "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life.",
     },
     events: {
       kicker: "Events",
@@ -1285,6 +1303,53 @@ function ensureAcademicsSubpages(db: DB): DB {
   return changed ? { ...db, pages, navigation } : db;
 }
 
+function ensureTheCollegePages(db: DB): DB {
+  const pages = db.pages && typeof db.pages === "object" ? { ...db.pages } : {};
+  const navigation = Array.isArray(db.navigation) ? [...db.navigation] : [...seed.navigation];
+  let changed = false;
+
+  if (!pages["the-college"]) {
+    pages["the-college"] = {
+      kicker: "The College",
+      title: "The College",
+      body: "Explore Loyola College campus life, facilities, services, sections, and student formation.",
+    };
+    changed = true;
+  }
+
+  if (!navigation.some((item) => item.id === "the-college")) {
+    navigation.push({
+      id: "the-college",
+      label: "The College",
+      order: 4,
+      visible: true,
+    });
+    changed = true;
+  }
+
+  if (!pages["the-college/facilities-services"]) {
+    pages["the-college/facilities-services"] = {
+      kicker: "The College",
+      title: "Facilities & Services",
+      body: "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life.",
+    };
+    changed = true;
+  }
+
+  if (!navigation.some((item) => item.id === "the-college/facilities-services")) {
+    navigation.push({
+      id: "the-college/facilities-services",
+      label: "Facilities & Services",
+      order: 1,
+      visible: true,
+      parentId: "the-college",
+    });
+    changed = true;
+  }
+
+  return changed ? { ...db, pages, navigation } : db;
+}
+
 function ensureGallerySubpages(db: DB): DB {
   const subpages: {
     id: string;
@@ -1500,7 +1565,9 @@ function prepareDb(db: DB): DB {
             ensureCalendarPage(
               ensureCollegeAnthemPage(
                 ensureGallerySubpages(
-                  ensureAcademicsSubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+                  ensureTheCollegePages(
+                    ensureAcademicsSubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+                  ),
                 ),
               ),
             ),

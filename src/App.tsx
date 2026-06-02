@@ -80,6 +80,7 @@ const REPORT_CARD_ROLES: Role[] = [
   "parent",
 ];
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
+const FACILITIES_PAGE_ID = "the-college/facilities-services";
 
 const LOYOLA_CALENDAR_ID = "loyolacollegeng.official@gmail.com";
 const LOYOLA_CALENDAR_TIME_ZONE = "Asia/Colombo";
@@ -221,6 +222,12 @@ export function App() {
   if (path === "/calendar" && pageIsLive("calendar")) return <CalendarPage />;
   if ([`/${LCEA_PAGE_ID}`, "/academics/cambridge"].includes(path) && pageIsLive(LCEA_PAGE_ID)) {
     return <LoyolianCambridgeEnglishAcademyPage />;
+  }
+  if (
+    [`/${FACILITIES_PAGE_ID}`, "/facilities", "/facilities-services"].includes(path) &&
+    pageIsLive(FACILITIES_PAGE_ID)
+  ) {
+    return <FacilitiesServicesPage />;
   }
 
   if (
@@ -1817,6 +1824,304 @@ function LoyolianCambridgeEnglishAcademyPage() {
                 </ul>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+    </PublicLayout>
+  );
+}
+
+const facilityImageBase = "https://www.loyolacollege.lk/frontend/assets/img/facilities";
+
+const facilitiesServices = [
+  {
+    title: "Audio Visual Room",
+    category: "Learning & Media",
+    image: `${facilityImageBase}/AUDIO-VISUAL-ROOM-300x250.jpg`,
+    body: "A presentation-ready learning space for conferences, seminars, screenings, and media-assisted teaching.",
+    highlights: ["Presentations", "Workshops", "Media learning"],
+    icon: Film,
+  },
+  {
+    title: "SV Fonseka Hall",
+    category: "Assembly & Events",
+    image: `${facilityImageBase}/SV-FONSEKA-300x250.jpg`,
+    body: "A central college hall for assemblies, formal gatherings, celebrations, and student programmes.",
+    highlights: ["Assemblies", "Ceremonies", "College events"],
+    icon: Landmark,
+  },
+  {
+    title: "Library",
+    category: "Study & Reading",
+    image: `${facilityImageBase}/LIBRARY-300x250.jpg`,
+    body: "A quiet academic resource space that supports reading habits, research, reference work, and independent study.",
+    highlights: ["Reading", "Reference", "Research"],
+    icon: BookOpen,
+  },
+  {
+    title: "Smart Class Room",
+    category: "Digital Learning",
+    image: `${facilityImageBase}/SMART-CLASS-ROOM-300x250.jpg`,
+    body: "A technology-enabled classroom that helps teachers deliver clear, visual, and interactive lessons.",
+    highlights: ["Smart lessons", "Digital tools", "Interactive teaching"],
+    icon: GraduationCap,
+  },
+  {
+    title: "Canteen",
+    category: "Student Service",
+    image: `${facilityImageBase}/CANTEEN-300x250.jpg`,
+    body: "A daily service point for students, supporting refreshment, routine, and practical campus life.",
+    highlights: ["Refreshments", "Daily service", "Student care"],
+    icon: Users,
+  },
+  {
+    title: "St. Ignatius Chapel",
+    category: "Faith Formation",
+    image: `${facilityImageBase}/ST-IGNATIUS-CHAPEL-300x250.jpg`,
+    body: "A sacred space for prayer, reflection, Catholic formation, and the spiritual life of the college community.",
+    highlights: ["Prayer", "Reflection", "Faith life"],
+    icon: ShieldCheck,
+  },
+  {
+    title: "Cadet Billet",
+    category: "Discipline & Leadership",
+    image: `${facilityImageBase}/CADET-BILLET-300x250.jpg`,
+    body: "A dedicated space that supports cadet activities, discipline, leadership training, and student responsibility.",
+    highlights: ["Cadets", "Leadership", "Discipline"],
+    icon: Award,
+  },
+  {
+    title: "Scout Den",
+    category: "Clubs & Leadership",
+    image: `${facilityImageBase}/SCOUT-DEN-300x250.jpg`,
+    body: "A home base for scouts to organize equipment, plan activities, and build practical leadership skills.",
+    highlights: ["Scouts", "Planning", "Teamwork"],
+    icon: Trophy,
+  },
+  {
+    title: "Auditorium",
+    category: "Performance & Meetings",
+    image: `${facilityImageBase}/auditorium-300x250.jpg`,
+    body: "A refined venue for meetings, conferences, performances, presentations, and large school gatherings.",
+    highlights: ["Performances", "Meetings", "Conferences"],
+    icon: Camera,
+  },
+];
+
+const facilityGroups = [
+  {
+    title: "Learning & Technology",
+    body: "Spaces that support digital teaching, reading, presentations, and focused academic work.",
+    items: ["Audio Visual Room", "Library", "Smart Class Room"],
+    icon: BookOpen,
+  },
+  {
+    title: "Gathering & Performance",
+    body: "Venues for assemblies, stage work, ceremonies, conferences, and shared college occasions.",
+    items: ["SV Fonseka Hall", "Auditorium"],
+    icon: Landmark,
+  },
+  {
+    title: "Service, Faith & Leadership",
+    body: "Daily services and formation spaces that support wellbeing, discipline, faith, and student leadership.",
+    items: ["Canteen", "St. Ignatius Chapel", "Cadet Billet", "Scout Den"],
+    icon: ShieldCheck,
+  },
+];
+
+function FacilitiesServicesPage() {
+  const db = useDb();
+  const page = db.pages[FACILITIES_PAGE_ID];
+  const pageBody =
+    page?.body && page.body.trim() !== "New page content goes here." ? page.body : "";
+  const heroImage =
+    page?.image ||
+    facilitiesServices[8]?.image ||
+    db.media.campusImage ||
+    db.websiteContent.heroImage;
+  const imageFallback = db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE;
+
+  const handleFacilityImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
+    event.currentTarget.src = imageFallback;
+  };
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={FACILITIES_PAGE_ID}
+        kicker={page?.kicker || "The College"}
+        title={page?.title || "Facilities & Services"}
+        subtitle={
+          pageBody ||
+          "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life."
+        }
+        image={heroImage}
+      />
+
+      <section className="bg-page-soft py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_410px]">
+            <article className="min-w-0 rounded-lg border border-border bg-white p-7 shadow-soft md:p-9">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Campus Facilities
+              </p>
+              <h2 className="mt-4 max-w-3xl break-words font-serif text-2xl font-bold leading-tight text-navy sm:text-3xl md:text-4xl">
+                Purpose-built spaces for study, service, worship, and school life.
+              </h2>
+              <p className="mt-6 max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
+                Loyola College Negombo provides facilities that support classroom learning,
+                co-curricular formation, spiritual life, leadership development, student service,
+                and major school gatherings.
+              </p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-3">
+                {[
+                  ["9", "Featured facilities"],
+                  ["3", "Learning zones"],
+                  ["4", "Formation spaces"],
+                ].map(([value, label]) => (
+                  <div key={label} className="rounded-lg bg-background p-4">
+                    <p className="font-serif text-3xl font-bold text-navy">{value}</p>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-crimson">
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </article>
+
+            <aside className="min-w-0 overflow-hidden rounded-lg border border-border bg-navy text-white shadow-elegant">
+              <div className="grid grid-cols-2 gap-1 p-1">
+                {facilitiesServices.slice(0, 4).map((facility) => (
+                  <img
+                    key={facility.title}
+                    src={facility.image}
+                    alt=""
+                    onError={handleFacilityImageError}
+                    className="aspect-[4/3] w-full object-cover"
+                  />
+                ))}
+              </div>
+              <div className="p-6">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
+                  Facilities Network
+                </p>
+                <h3 className="mt-3 font-serif text-3xl font-bold leading-tight">
+                  Every space has a clear role in student life.
+                </h3>
+                <p className="mt-4 text-sm leading-7 text-white/72">
+                  The page below brings each facility into a clearer, image-led presentation for
+                  parents, students, staff, and visitors.
+                </p>
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div className="max-w-3xl">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Explore Facilities
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                Campus facilities and student services
+              </h2>
+            </div>
+            <a
+              href="/contact"
+              className="inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+            >
+              Contact office <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+
+          <div className="stagger-children mt-9 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+            {facilitiesServices.map((facility) => {
+              const Icon = facility.icon;
+              return (
+                <article
+                  key={facility.title}
+                  className="group min-w-0 overflow-hidden rounded-lg border border-border bg-white shadow-soft"
+                >
+                  <div className="relative overflow-hidden bg-navy">
+                    <img
+                      src={facility.image}
+                      alt={`${facility.title} facility`}
+                      onError={handleFacilityImageError}
+                      className="aspect-[16/10] w-full object-cover transition-smooth group-hover:scale-105"
+                    />
+                    <span className="absolute left-4 top-4 inline-flex rounded-full bg-white/92 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-navy shadow-soft">
+                      {facility.category}
+                    </span>
+                  </div>
+                  <div className="p-6">
+                    <div className="flex items-start gap-4">
+                      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-gold/15 text-gold">
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0">
+                        <h3 className="break-words font-serif text-2xl font-bold text-navy">
+                          {facility.title}
+                        </h3>
+                        <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                          {facility.body}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      {facility.highlights.map((highlight) => (
+                        <span
+                          key={highlight}
+                          className="rounded-full border border-border bg-background px-3 py-1 text-xs font-bold text-navy"
+                        >
+                          {highlight}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-page-soft py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Service Areas
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Organized around how students use the campus.
+            </h2>
+          </div>
+          <div className="stagger-children mt-9 grid gap-5 lg:grid-cols-3">
+            {facilityGroups.map((group) => {
+              const Icon = group.icon;
+              return (
+                <article
+                  key={group.title}
+                  className="min-w-0 rounded-lg border border-border bg-white p-6 shadow-soft"
+                >
+                  <Icon className="h-8 w-8 text-gold" />
+                  <h3 className="mt-5 break-words font-serif text-3xl font-bold text-navy">
+                    {group.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">{group.body}</p>
+                  <ul className="mt-6 space-y-2">
+                    {group.items.map((item) => (
+                      <li key={item} className="flex gap-2 text-sm font-semibold text-navy">
+                        <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </article>
+              );
+            })}
           </div>
         </div>
       </section>
