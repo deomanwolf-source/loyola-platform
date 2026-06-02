@@ -10,7 +10,7 @@ export const DEFAULT_MAP_EMBED_URL =
 export const DEFAULT_FOOTER_COPYRIGHT_LINE =
   "\u00a9 2026 Loyola College, Negombo. All Rights Reserved.";
 export const DEFAULT_DEVELOPER_CREDIT =
-  "Developed by Hasintha Arunalu Niroshan | 12 - Technology Stream | 2027 Batch | Website Development / Technical Support";
+  "Developed by Hasintha Arunalu Niroshan | 12 - Technology Stream | 2027 Batch | Website Development";
 const BUNDLED_STATIC_ASSETS = new Set(["/flag1.png", "/loyola-crest.jpg"]);
 
 export type Role =
