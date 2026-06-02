@@ -385,16 +385,44 @@ function normalizeVisualPageHtml(html: string) {
   const main = doc.querySelector("main");
   if (!main) return fallback;
 
-  const firstElement = Array.from(main.children).find((child) => child instanceof HTMLElement) as
+  const cleanPlaceholder = (value?: string) => {
+    const text = value?.trim() || "";
+    return text === "New page content goes here." ? "" : text;
+  };
+  const isCapturedHero = (element: HTMLElement) => {
+    const className = element.getAttribute("class") || "";
+    return (
+      element.classList.contains("hero") ||
+      (Boolean(element.querySelector("h1")) &&
+        (className.includes("bg-navy") ||
+          className.includes("text-white") ||
+          className.includes("relative overflow-hidden") ||
+          Boolean(element.querySelector(".hero-media")) ||
+          Boolean(element.querySelector(".premium-grid"))))
+    );
+  };
+
+  let kicker = "";
+  let title = "";
+  let subtitle = "";
+  let image = "";
+  let firstElement = Array.from(main.children).find((child) => child instanceof HTMLElement) as
     | HTMLElement
     | undefined;
-  if (!firstElement?.classList.contains("hero")) return fallback;
 
-  const kicker = firstElement.querySelector(".eyebrow")?.textContent?.trim() || "";
-  const title = firstElement.querySelector("h1")?.textContent?.trim() || "";
-  const subtitle = firstElement.querySelector("p:not(.eyebrow)")?.textContent?.trim() || "";
-  const image = firstElement.querySelector("img")?.getAttribute("src") || "";
-  firstElement.remove();
+  while (firstElement && isCapturedHero(firstElement)) {
+    const paragraphs = Array.from(firstElement.querySelectorAll("p"))
+      .map((node) => cleanPlaceholder(node.textContent || ""))
+      .filter(Boolean);
+    kicker ||= firstElement.querySelector(".eyebrow")?.textContent?.trim() || paragraphs[0] || "";
+    title ||= firstElement.querySelector("h1")?.textContent?.trim() || "";
+    subtitle ||= paragraphs.find((text) => text !== kicker) || "";
+    image ||= firstElement.querySelector("img")?.getAttribute("src") || "";
+    firstElement.remove();
+    firstElement = Array.from(main.children).find((child) => child instanceof HTMLElement) as
+      | HTMLElement
+      | undefined;
+  }
 
   return {
     bodyHtml: main.innerHTML.trim(),
