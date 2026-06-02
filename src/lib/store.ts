@@ -18,6 +18,7 @@ export type Role =
   | "superadmin"
   | "website_admin"
   | "eduzync_admin"
+  | "master_edutrack_admin"
   | "staff_admin"
   | "teacher"
   | "student"
@@ -828,6 +829,11 @@ export const seed: DB = {
       { id: "teacher", label: "Teacher", desc: "Classes, grading, planning" },
       { id: "website_admin", label: "Website Admin", desc: "Website, media, news" },
       { id: "eduzync_admin", label: "EduTrack Admin", desc: "EduTrack and school data management" },
+      {
+        id: "master_edutrack_admin",
+        label: "Master EduTrack Admin",
+        desc: "EduTrack unlocks, reports, and audit control",
+      },
       { id: "staff_admin", label: "Staff Admin", desc: "Staff profiles and records" },
       { id: "superadmin", label: "Super Admin", desc: "Full school system access" },
       { id: "masteradmin", label: "Master Admin", desc: "Full system access" },

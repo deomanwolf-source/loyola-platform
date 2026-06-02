@@ -349,6 +349,7 @@ const ROLE_ENUM_SQL = `
     'superadmin',
     'website_admin',
     'eduzync_admin',
+    'master_edutrack_admin',
     'staff_admin',
     'teacher',
     'student',
@@ -362,6 +363,7 @@ const ROLE_ENUM_MIGRATION_SQL = `
     'superadmin',
     'website_admin',
     'eduzync_admin',
+    'master_edutrack_admin',
     'staff_admin',
     'teacher',
     'student',
@@ -375,6 +377,7 @@ const ROLES = {
   super: "superadmin",
   website: "website_admin",
   eduzync: "eduzync_admin",
+  masterEduTrack: "master_edutrack_admin",
   staff: "staff_admin",
   teacher: "teacher",
   student: "student",
@@ -383,13 +386,26 @@ const ROLES = {
 
 const SYSTEM_OWNER_ROLES = [ROLES.master, ROLES.super];
 const WEBSITE_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.website];
-const EDUZYNC_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.eduzync];
+const EDUZYNC_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync];
 const STAFF_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.staff];
-const SCHOOL_DATA_READ_ROLES = [ROLES.master, ROLES.super, ROLES.eduzync, ROLES.teacher];
-const EDUTRACK_ROLES = [ROLES.master, ROLES.super, ROLES.eduzync, ROLES.teacher];
+const SCHOOL_DATA_READ_ROLES = [
+  ROLES.master,
+  ROLES.super,
+  ROLES.masterEduTrack,
+  ROLES.eduzync,
+  ROLES.teacher,
+];
+const EDUTRACK_ROLES = [
+  ROLES.master,
+  ROLES.super,
+  ROLES.masterEduTrack,
+  ROLES.eduzync,
+  ROLES.teacher,
+];
 const REPORT_CARD_VIEW_ROLES = [
   ROLES.master,
   ROLES.super,
+  ROLES.masterEduTrack,
   ROLES.eduzync,
   ROLES.teacher,
   ROLES.student,
@@ -411,6 +427,9 @@ const rolePermissionsSeed = [
   [ROLES.super, "report_cards", 1, 1, 1, 1],
   [ROLES.super, "staff", 1, 1, 1, 1],
   [ROLES.super, "users", 1, 1, 1, 0],
+  [ROLES.masterEduTrack, "eduzync", 1, 1, 1, 1],
+  [ROLES.masterEduTrack, "edutrack", 1, 1, 1, 1],
+  [ROLES.masterEduTrack, "report_cards", 1, 1, 1, 0],
   [ROLES.staff, "staff", 1, 1, 1, 1],
   [ROLES.website, "website_admin", 1, 1, 1, 0],
   [ROLES.website, "media", 1, 1, 1, 0],
@@ -667,6 +686,10 @@ function websiteAdminOnly(req, res, next) {
 
 function eduzyncAdminOnly(req, res, next) {
   return authRole(...EDUZYNC_ADMIN_ROLES)(req, res, next);
+}
+
+function edutrackMasterOnly(req, res, next) {
+  return authRole(ROLES.master, ROLES.super, ROLES.masterEduTrack)(req, res, next);
 }
 
 function staffAdminOnly(req, res, next) {
@@ -1261,6 +1284,51 @@ async function ensureContentTables() {
   `);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_daily_syllabus_progress (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      teacher_user_id VARCHAR(64),
+      teacher_id VARCHAR(80),
+      teacher_name VARCHAR(190),
+      record_date DATE NOT NULL,
+      grade VARCHAR(50),
+      section VARCHAR(50),
+      subject VARCHAR(150),
+      period_label VARCHAR(80),
+      unit_number VARCHAR(80),
+      main_topic VARCHAR(255),
+      subtopic VARCHAR(255),
+      completed_work TEXT,
+      page_reference VARCHAR(255),
+      notes TEXT,
+      completion_status VARCHAR(40) DEFAULT 'Completed',
+      next_planned_lesson TEXT,
+      status VARCHAR(50) DEFAULT 'submitted',
+      created_by_user_id VARCHAR(64),
+      created_by_name VARCHAR(190),
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_by_user_id VARCHAR(64),
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      locked_at TIMESTAMP NULL,
+      locked_by_user_id VARCHAR(64)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_syllabus_audit_logs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      syllabus_record_id INT,
+      action VARCHAR(100) NOT NULL,
+      old_value_json LONGTEXT,
+      new_value_json LONGTEXT,
+      actor_user_id VARCHAR(64),
+      actor_name VARCHAR(190),
+      ip_address VARCHAR(80),
+      user_agent TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS edutrack_relief_assignments (
       id INT AUTO_INCREMENT PRIMARY KEY,
       teacher_id VARCHAR(80),
@@ -1274,7 +1342,7 @@ async function ensureContentTables() {
       note TEXT,
       pdf_file_path TEXT,
       original_file_name VARCHAR(255),
-      status VARCHAR(50) DEFAULT 'pending_print',
+      status VARCHAR(50) DEFAULT 'pending_download',
       uploaded_by_user_id VARCHAR(64),
       uploaded_by_name VARCHAR(190),
       uploaded_by_email VARCHAR(190),
@@ -1286,11 +1354,19 @@ async function ensureContentTables() {
       relief_teacher_position VARCHAR(150),
       relief_teacher_subject VARCHAR(150),
       print_count INT DEFAULT 0,
+      download_count INT DEFAULT 0,
       allowed_extra_prints INT DEFAULT 0,
+      allowed_extra_downloads INT DEFAULT 0,
+      locked_at TIMESTAMP NULL,
+      locked_by_user_id VARCHAR(64),
       printed_by_user_id VARCHAR(64),
       printed_by_name VARCHAR(190),
       printed_by_email VARCHAR(190),
       printed_at TIMESTAMP NULL,
+      downloaded_by_user_id VARCHAR(64),
+      downloaded_by_name VARCHAR(190),
+      downloaded_by_email VARCHAR(190),
+      downloaded_at TIMESTAMP NULL,
       last_unlocked_by VARCHAR(64),
       last_unlocked_at TIMESTAMP NULL,
       last_unlock_reason TEXT,
@@ -1312,6 +1388,9 @@ async function ensureContentTables() {
       relief_teacher_id VARCHAR(80),
       relief_teacher_name VARCHAR(190),
       details LONGTEXT,
+      details_json LONGTEXT,
+      ip_address VARCHAR(80),
+      user_agent TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -1362,9 +1441,46 @@ async function ensureContentTables() {
     "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
   );
   await addColumnIfMissing("edutrack_relief_assignments", "allowed_extra_prints", "INT DEFAULT 0");
+  await addColumnIfMissing("edutrack_relief_assignments", "download_count", "INT DEFAULT 0");
+  await addColumnIfMissing("edutrack_relief_assignments", "allowed_extra_downloads", "INT DEFAULT 0");
+  await addColumnIfMissing("edutrack_relief_assignments", "locked_at", "TIMESTAMP NULL");
+  await addColumnIfMissing("edutrack_relief_assignments", "locked_by_user_id", "VARCHAR(64)");
+  await addColumnIfMissing("edutrack_relief_assignments", "downloaded_by_user_id", "VARCHAR(64)");
+  await addColumnIfMissing("edutrack_relief_assignments", "downloaded_by_name", "VARCHAR(190)");
+  await addColumnIfMissing("edutrack_relief_assignments", "downloaded_by_email", "VARCHAR(190)");
+  await addColumnIfMissing("edutrack_relief_assignments", "downloaded_at", "TIMESTAMP NULL");
   await addColumnIfMissing("edutrack_relief_assignments", "last_unlocked_by", "VARCHAR(64)");
   await addColumnIfMissing("edutrack_relief_assignments", "last_unlocked_at", "TIMESTAMP NULL");
   await addColumnIfMissing("edutrack_relief_assignments", "last_unlock_reason", "TEXT");
+  await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "details_json", "LONGTEXT");
+  await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "ip_address", "VARCHAR(80)");
+  await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "user_agent", "TEXT");
+  await ensureTableIndexes("edutrack_daily_syllabus_progress", [
+    {
+      name: "idx_daily_syllabus_teacher_id",
+      sql: "CREATE INDEX idx_daily_syllabus_teacher_id ON edutrack_daily_syllabus_progress (teacher_id)",
+    },
+    {
+      name: "idx_daily_syllabus_record_date",
+      sql: "CREATE INDEX idx_daily_syllabus_record_date ON edutrack_daily_syllabus_progress (record_date)",
+    },
+    {
+      name: "idx_daily_syllabus_subject",
+      sql: "CREATE INDEX idx_daily_syllabus_subject ON edutrack_daily_syllabus_progress (subject)",
+    },
+    {
+      name: "idx_daily_syllabus_grade",
+      sql: "CREATE INDEX idx_daily_syllabus_grade ON edutrack_daily_syllabus_progress (grade)",
+    },
+    {
+      name: "idx_daily_syllabus_section",
+      sql: "CREATE INDEX idx_daily_syllabus_section ON edutrack_daily_syllabus_progress (section)",
+    },
+    {
+      name: "idx_daily_syllabus_unit_number",
+      sql: "CREATE INDEX idx_daily_syllabus_unit_number ON edutrack_daily_syllabus_progress (unit_number)",
+    },
+  ]);
   await backfillMediaCategories();
   await addColumnIfMissing("teachers", "staff_id", "VARCHAR(50) NULL");
   await addColumnIfMissing("teachers", "external_staff_id", "VARCHAR(80) NULL");
@@ -4514,6 +4630,464 @@ app.get("/api/edutrack/warnings", teacherOrAdmin, async (req, res) => {
   }
 });
 
+const DAILY_COMPLETION_STATUSES = new Set(["Completed", "Partially Completed", "Not Completed"]);
+
+function isEduTrackAdminUser(req) {
+  return EDUZYNC_ADMIN_ROLES.includes(req.user?.role);
+}
+
+function isEduTrackMasterUser(req) {
+  return [ROLES.master, ROLES.super, ROLES.masterEduTrack].includes(req.user?.role);
+}
+
+function requestAuditMeta(req) {
+  return {
+    ip: String(req.ip || req.headers["x-forwarded-for"] || "").slice(0, 80),
+    userAgent: String(req.headers["user-agent"] || "").slice(0, 1000),
+  };
+}
+
+function dateOnly(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  const text = String(value);
+  const match = text.match(/\d{4}-\d{2}-\d{2}/);
+  return match ? match[0] : text.slice(0, 10);
+}
+
+async function eduTrackActor(req) {
+  const [users] = await db.query(
+    "SELECT id, external_staff_id, name, email, role, status, created_at FROM users WHERE id = ? LIMIT 1",
+    [req.user?.id],
+  );
+  const row = users[0] || {
+    id: req.user?.id || "",
+    external_staff_id: "",
+    name: req.user?.name || req.user?.email || req.user?.id || "Unknown",
+    email: req.user?.email || "",
+    role: req.user?.role || "",
+  };
+  const extra = (await readEduTrackDoc("users", row.id).catch(() => null)) || {};
+  const teacherId =
+    extra.teacherId ||
+    extra.teacher_id ||
+    extra.staffId ||
+    extra.staff_id ||
+    row.external_staff_id ||
+    row.id;
+  return {
+    id: String(row.id || ""),
+    name: row.name || extra.name || row.email || row.id || "Unknown",
+    email: row.email || "",
+    role: row.role || req.user?.role || "",
+    teacherId: String(teacherId || ""),
+    teacherName: extra.name || row.name || row.email || row.id || "Unknown",
+    extra,
+  };
+}
+
+function normalizeDailyProgressInput(body = {}, actor, existing = null) {
+  const record = {
+    teacher_user_id: String(body.teacher_user_id || existing?.teacher_user_id || actor.id || ""),
+    teacher_id: String(body.teacher_id || existing?.teacher_id || actor.teacherId || actor.id || ""),
+    teacher_name: String(
+      body.teacher_name || existing?.teacher_name || actor.teacherName || actor.name || "",
+    ),
+    record_date: dateOnly(body.record_date || body.date || existing?.record_date),
+    grade: String(body.grade || existing?.grade || "").trim(),
+    section: String(body.section || body.class_section || existing?.section || "").trim(),
+    subject: String(body.subject || body.subject_name || existing?.subject || "").trim(),
+    period_label: String(body.period_label || body.period || existing?.period_label || "").trim(),
+    unit_number: String(body.unit_number || body.unit || existing?.unit_number || "").trim(),
+    main_topic: String(body.main_topic || existing?.main_topic || "").trim(),
+    subtopic: String(body.subtopic || existing?.subtopic || "").trim(),
+    completed_work: String(body.completed_work || existing?.completed_work || "").trim(),
+    page_reference: String(body.page_reference || body.pages || existing?.page_reference || "").trim(),
+    notes: String(body.notes || body.note || existing?.notes || "").trim(),
+    completion_status: String(
+      body.completion_status || existing?.completion_status || "Completed",
+    ).trim(),
+    next_planned_lesson: String(
+      body.next_planned_lesson || existing?.next_planned_lesson || "",
+    ).trim(),
+    status: String(body.status || existing?.status || "submitted").trim(),
+  };
+  if (!DAILY_COMPLETION_STATUSES.has(record.completion_status)) {
+    record.completion_status = "Completed";
+  }
+  return record;
+}
+
+function assertDailyProgressRequired(record) {
+  const missing = [];
+  ["record_date", "grade", "section", "subject", "unit_number", "main_topic", "completed_work"].forEach(
+    (field) => {
+      if (!record[field]) missing.push(field);
+    },
+  );
+  if (missing.length) {
+    const error = new Error(`Missing required fields: ${missing.join(", ")}`);
+    error.status = 400;
+    throw error;
+  }
+}
+
+function canAccessDailyRecord(req, actor, row, action) {
+  if (isEduTrackMasterUser(req)) return true;
+  if (req.user?.role === ROLES.eduzync) return action !== "delete";
+  const ownsRecord =
+    String(row.teacher_user_id || "") === actor.id || String(row.teacher_id || "") === actor.teacherId;
+  if (!ownsRecord) return false;
+  if (action === "read" || action === "create") return true;
+  if (action === "delete") return false;
+  const today = new Date().toISOString().slice(0, 10);
+  const recordDate = dateOnly(row.record_date);
+  return !row.locked_at && recordDate === today;
+}
+
+async function insertDailySyllabusAudit(conn, req, recordId, action, oldValue, newValue, actor) {
+  const meta = requestAuditMeta(req);
+  await conn.query(
+    `
+      INSERT INTO edutrack_syllabus_audit_logs
+        (syllabus_record_id, action, old_value_json, new_value_json, actor_user_id,
+         actor_name, ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      recordId,
+      action,
+      oldValue ? JSON.stringify(oldValue) : null,
+      newValue ? JSON.stringify(newValue) : null,
+      actor.id,
+      actor.name,
+      meta.ip,
+      meta.userAgent,
+    ],
+  );
+}
+
+function dailyProgressWhere(query, req, actor) {
+  const conditions = [];
+  const params = [];
+  if (!isEduTrackAdminUser(req)) {
+    conditions.push("(teacher_user_id = ? OR teacher_id = ?)");
+    params.push(actor.id, actor.teacherId);
+  }
+  const addEq = (column, value) => {
+    if (value == null || String(value).trim() === "") return;
+    conditions.push(`${column} = ?`);
+    params.push(String(value).trim());
+  };
+  addEq("record_date", query.date || query.record_date);
+  addEq("teacher_id", query.teacher_id);
+  addEq("subject", query.subject);
+  addEq("grade", query.grade);
+  addEq("section", query.section);
+  addEq("unit_number", query.unit_number);
+  addEq("completion_status", query.completion_status);
+  if (query.date_from) {
+    conditions.push("record_date >= ?");
+    params.push(String(query.date_from).slice(0, 10));
+  }
+  if (query.date_to) {
+    conditions.push("record_date <= ?");
+    params.push(String(query.date_to).slice(0, 10));
+  }
+  if (query.teacher_name) {
+    conditions.push("teacher_name LIKE ?");
+    params.push(`%${String(query.teacher_name).trim()}%`);
+  }
+  if (query.search) {
+    const like = `%${String(query.search).trim()}%`;
+    conditions.push(
+      "(teacher_name LIKE ? OR teacher_id LIKE ? OR subject LIKE ? OR grade LIKE ? OR section LIKE ? OR unit_number LIKE ? OR main_topic LIKE ? OR subtopic LIKE ? OR completed_work LIKE ?)",
+    );
+    params.push(like, like, like, like, like, like, like, like, like);
+  }
+  return {
+    sql: conditions.length ? `WHERE ${conditions.join(" AND ")}` : "",
+    params,
+  };
+}
+
+async function listDailyProgressRecords(req, actor) {
+  const { sql, params } = dailyProgressWhere(req.query || {}, req, actor);
+  const limit = Math.min(Math.max(Number(req.query.limit || 300), 1), 1000);
+  const [rows] = await db.query(
+    `
+      SELECT *
+      FROM edutrack_daily_syllabus_progress
+      ${sql}
+      ORDER BY record_date DESC, created_at DESC, id DESC
+      LIMIT ${limit}
+    `,
+    params,
+  );
+  return rows;
+}
+
+function csvEscape(value) {
+  const text = value == null ? "" : String(value);
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+app.get("/api/edutrack/daily-syllabus-progress", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    res.json(await listDailyProgressRecords(req, actor));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/edutrack/daily-syllabus-progress", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const record = normalizeDailyProgressInput(req.body || {}, actor);
+    if (!isEduTrackAdminUser(req)) {
+      record.teacher_user_id = actor.id;
+      record.teacher_id = actor.teacherId || actor.id;
+      record.teacher_name = actor.teacherName || actor.name;
+    }
+    assertDailyProgressRequired(record);
+    await conn.beginTransaction();
+    const [result] = await conn.query(
+      `
+        INSERT INTO edutrack_daily_syllabus_progress
+          (teacher_user_id, teacher_id, teacher_name, record_date, grade, section, subject,
+           period_label, unit_number, main_topic, subtopic, completed_work, page_reference,
+           notes, completion_status, next_planned_lesson, status, created_by_user_id,
+           created_by_name, updated_by_user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        record.teacher_user_id,
+        record.teacher_id,
+        record.teacher_name,
+        record.record_date,
+        record.grade,
+        record.section,
+        record.subject,
+        record.period_label,
+        record.unit_number,
+        record.main_topic,
+        record.subtopic,
+        record.completed_work,
+        record.page_reference,
+        record.notes,
+        record.completion_status,
+        record.next_planned_lesson,
+        record.status,
+        actor.id,
+        actor.name,
+        actor.id,
+      ],
+    );
+    await insertDailySyllabusAudit(conn, req, result.insertId, "created", null, record, actor);
+    await conn.commit();
+    res.status(201).json({ success: true, id: result.insertId });
+  } catch (error) {
+    await conn.rollback();
+    res.status(error.status || 500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/api/edutrack/daily-syllabus-progress/:id", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      "SELECT * FROM edutrack_daily_syllabus_progress WHERE id = ? FOR UPDATE",
+      [Number(req.params.id)],
+    );
+    const existing = rows[0];
+    if (!existing) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Daily progress record not found" });
+    }
+    if (!canAccessDailyRecord(req, actor, existing, "edit")) {
+      await insertDailySyllabusAudit(conn, req, existing.id, "blocked_edit", existing, req.body, actor);
+      await conn.commit();
+      return res.status(403).json({ error: "You cannot edit this progress record" });
+    }
+    const record = normalizeDailyProgressInput(req.body || {}, actor, existing);
+    if (!isEduTrackAdminUser(req)) {
+      record.teacher_user_id = existing.teacher_user_id || actor.id;
+      record.teacher_id = existing.teacher_id || actor.teacherId || actor.id;
+      record.teacher_name = existing.teacher_name || actor.teacherName || actor.name;
+    }
+    assertDailyProgressRequired(record);
+    await conn.query(
+      `
+        UPDATE edutrack_daily_syllabus_progress
+        SET teacher_user_id = ?, teacher_id = ?, teacher_name = ?, record_date = ?, grade = ?,
+          section = ?, subject = ?, period_label = ?, unit_number = ?, main_topic = ?,
+          subtopic = ?, completed_work = ?, page_reference = ?, notes = ?,
+          completion_status = ?, next_planned_lesson = ?, status = ?,
+          updated_by_user_id = ?, updated_at = NOW()
+        WHERE id = ?
+      `,
+      [
+        record.teacher_user_id,
+        record.teacher_id,
+        record.teacher_name,
+        record.record_date,
+        record.grade,
+        record.section,
+        record.subject,
+        record.period_label,
+        record.unit_number,
+        record.main_topic,
+        record.subtopic,
+        record.completed_work,
+        record.page_reference,
+        record.notes,
+        record.completion_status,
+        record.next_planned_lesson,
+        record.status,
+        actor.id,
+        existing.id,
+      ],
+    );
+    await insertDailySyllabusAudit(conn, req, existing.id, "updated", existing, record, actor);
+    await conn.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await conn.rollback();
+    res.status(error.status || 500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.delete("/api/edutrack/daily-syllabus-progress/:id", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      "SELECT * FROM edutrack_daily_syllabus_progress WHERE id = ? FOR UPDATE",
+      [Number(req.params.id)],
+    );
+    const existing = rows[0];
+    if (!existing) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Daily progress record not found" });
+    }
+    if (!isEduTrackMasterUser(req)) {
+      await insertDailySyllabusAudit(conn, req, existing.id, "blocked_delete", existing, null, actor);
+      await conn.commit();
+      return res.status(403).json({ error: "Master EduTrack access required to delete records" });
+    }
+    await conn.query("DELETE FROM edutrack_daily_syllabus_progress WHERE id = ?", [existing.id]);
+    await insertDailySyllabusAudit(conn, req, existing.id, "deleted", existing, null, actor);
+    await conn.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.get("/api/edutrack/daily-syllabus-progress/report", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const records = await listDailyProgressRecords(req, actor);
+    const summary = records.reduce(
+      (acc, row) => {
+        acc.total += 1;
+        acc.byStatus[row.completion_status || "Unknown"] =
+          (acc.byStatus[row.completion_status || "Unknown"] || 0) + 1;
+        acc.byTeacher[row.teacher_name || row.teacher_id || "Unknown"] =
+          (acc.byTeacher[row.teacher_name || row.teacher_id || "Unknown"] || 0) + 1;
+        acc.bySubject[row.subject || "Unknown"] = (acc.bySubject[row.subject || "Unknown"] || 0) + 1;
+        return acc;
+      },
+      { total: 0, byStatus: {}, byTeacher: {}, bySubject: {} },
+    );
+    res.json({
+      title: "EduTrack Daily Syllabus Progress Report",
+      generatedBy: actor.name,
+      generatedAt: new Date().toISOString(),
+      records,
+      summary,
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/daily-syllabus-progress/export/csv", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const records = await listDailyProgressRecords(req, actor);
+    const headers = [
+      "Teacher",
+      "Teacher ID",
+      "Date",
+      "Grade",
+      "Section",
+      "Subject",
+      "Period",
+      "Unit Number",
+      "Main Topic",
+      "Subtopic",
+      "Completed Work",
+      "Completion Status",
+      "Page Reference",
+      "Notes",
+      "Next Planned Lesson",
+    ];
+    const lines = [
+      headers.join(","),
+      ...records.map((row) =>
+        [
+          row.teacher_name,
+          row.teacher_id,
+          dateOnly(row.record_date),
+          row.grade,
+          row.section,
+          row.subject,
+          row.period_label,
+          row.unit_number,
+          row.main_topic,
+          row.subtopic,
+          row.completed_work,
+          row.completion_status,
+          row.page_reference,
+          row.notes,
+          row.next_planned_lesson,
+        ]
+          .map(csvEscape)
+          .join(","),
+      ),
+    ];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="edutrack-daily-syllabus-progress-${new Date()
+        .toISOString()
+        .slice(0, 10)}.csv"`,
+    );
+    res.send(lines.join("\r\n"));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 function reliefActor(req) {
   return {
     id: String(req.user?.id || ""),
@@ -4522,11 +5096,90 @@ function reliefActor(req) {
   };
 }
 
+async function reliefActorInfo(req) {
+  const actor = await eduTrackActor(req);
+  return {
+    id: actor.id,
+    name: actor.name,
+    email: actor.email,
+    role: actor.role,
+    teacherId: actor.teacherId,
+    teacherName: actor.teacherName,
+  };
+}
+
+async function lookupEduTrackTeacher(teacherId, conn = db) {
+  const value = String(teacherId || "").trim();
+  if (!value) return null;
+  const [rows] = await conn.query(
+    `
+      SELECT id, staff_id, external_staff_id, name, position, subject, section, classes,
+        account_user_id, account_email
+      FROM teachers
+      WHERE id = ? OR staff_id = ? OR external_staff_id = ? OR account_user_id = ?
+      LIMIT 1
+    `,
+    [value, value, value, value],
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    id: row.staff_id || row.external_staff_id || row.id,
+    userId: row.account_user_id || "",
+    name: row.name || "",
+    position: row.position || "",
+    subject: row.subject || "",
+    section: row.section || row.classes || "",
+    classes: row.classes || "",
+    email: row.account_email || "",
+  };
+}
+
+async function insertReliefAudit(conn, req, assignment, action, details = {}, actor = null) {
+  const resolvedActor = actor || (await reliefActorInfo(req));
+  const meta = requestAuditMeta(req);
+  const detailsJson = typeof details === "string" ? { message: details } : details || {};
+  await conn.query(
+    `
+      INSERT INTO edutrack_relief_assignment_audit_logs
+        (assignment_id, action, actor_user_id, actor_name, actor_email, uploaded_teacher_id,
+         uploaded_teacher_name, relief_teacher_id, relief_teacher_name, details, details_json,
+         ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      Number(assignment?.id || assignment || 0),
+      action,
+      resolvedActor.id,
+      resolvedActor.name,
+      resolvedActor.email,
+      assignment?.uploaded_teacher_id || assignment?.teacher_id || "",
+      assignment?.uploaded_teacher_name || assignment?.teacher_name || "",
+      detailsJson.relief_teacher_id || assignment?.relief_teacher_id || "",
+      detailsJson.relief_teacher_name || assignment?.relief_teacher_name || "",
+      detailsJson.message || action,
+      JSON.stringify(detailsJson),
+      meta.ip,
+      meta.userAgent,
+    ],
+  );
+}
+
 function normalizeReliefAssignment(row) {
+  const downloadCount = Number(row.download_count ?? row.print_count ?? 0);
+  const allowedDownloads = 1 + Number(row.allowed_extra_downloads ?? row.allowed_extra_prints ?? 0);
+  const printCount = Number(row.print_count || 0);
+  const allowedPrints = 1 + Number(row.allowed_extra_prints || 0);
   return {
     ...row,
     fileUrl: `/api/edutrack/relief-assignments/${row.id}/file`,
-    isLocked: Number(row.print_count || 0) >= 1 + Number(row.allowed_extra_prints || 0),
+    download_count: downloadCount,
+    allowed_extra_downloads: Number(row.allowed_extra_downloads ?? row.allowed_extra_prints ?? 0),
+    print_count: printCount,
+    allowed_extra_prints: Number(row.allowed_extra_prints || 0),
+    isLocked: downloadCount >= allowedDownloads || printCount >= allowedPrints,
+    isDownloadLocked: downloadCount >= allowedDownloads,
+    isPrintLocked: printCount >= allowedPrints,
   };
 }
 
@@ -4555,10 +5208,33 @@ function resolveReliefPdfPath(row) {
 app.get("/api/edutrack/relief-assignments", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
-    const [rows] = await db.query(
-      "SELECT * FROM edutrack_relief_assignments ORDER BY created_at DESC",
-    );
+    const actor = await reliefActorInfo(req);
+    const canSeeAll = isEduTrackAdminUser(req);
+    const [rows] = canSeeAll
+      ? await db.query(
+          "SELECT * FROM edutrack_relief_assignments WHERE status <> 'deleted' ORDER BY created_at DESC",
+        )
+      : await db.query(
+          `
+            SELECT *
+            FROM edutrack_relief_assignments
+            WHERE status <> 'deleted' AND (uploaded_by_user_id = ? OR teacher_id = ? OR uploaded_teacher_id = ?)
+            ORDER BY created_at DESC
+          `,
+          [actor.id, actor.teacherId, actor.teacherId],
+        );
     res.json(rows.map(normalizeReliefAssignment));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/teachers/lookup/:teacherId", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const teacher = await lookupEduTrackTeacher(req.params.teacherId);
+    if (!teacher) return res.status(404).json({ error: "Teacher not found" });
+    res.json(teacher);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -4589,18 +5265,18 @@ app.post(
           .json({ error: "title, assignment_date, grade, section and subject_name are required" });
       }
 
-      const actor = reliefActor(req);
+      const actor = await reliefActorInfo(req);
       const [result] = await db.query(
         `
           INSERT INTO edutrack_relief_assignments
             (teacher_id, teacher_name, title, assignment_date, grade, section, subject_name,
              period_label, note, pdf_file_path, original_file_name, uploaded_by_user_id,
-             uploaded_by_name, uploaded_by_email, uploaded_teacher_id, uploaded_teacher_name)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             uploaded_by_name, uploaded_by_email, uploaded_teacher_id, uploaded_teacher_name, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
-          actor.id,
-          actor.name,
+          actor.teacherId || actor.id,
+          actor.teacherName || actor.name,
           title,
           assignment_date || null,
           grade,
@@ -4613,27 +5289,23 @@ app.post(
           actor.id,
           actor.name,
           actor.email,
-          actor.id,
-          actor.name,
+          actor.teacherId || actor.id,
+          actor.teacherName || actor.name,
+          "pending_download",
         ],
       );
 
-      await db.query(
-        `
-          INSERT INTO edutrack_relief_assignment_audit_logs
-            (assignment_id, action, actor_user_id, actor_name, actor_email, uploaded_teacher_id,
-             uploaded_teacher_name, details)
-          VALUES (?, 'uploaded', ?, ?, ?, ?, ?, ?)
-        `,
-        [
-          result.insertId,
-          actor.id,
-          actor.name,
-          actor.email,
-          actor.id,
-          actor.name,
-          `Uploaded ${req.file.originalname}`,
-        ],
+      await insertReliefAudit(
+        db,
+        req,
+        {
+          id: result.insertId,
+          uploaded_teacher_id: actor.teacherId || actor.id,
+          uploaded_teacher_name: actor.teacherName || actor.name,
+        },
+        "uploaded",
+        { message: `Uploaded ${req.file.originalname}` },
+        actor,
       );
 
       res.status(201).json({ success: true, id: result.insertId });
@@ -4643,16 +5315,150 @@ app.post(
   },
 );
 
+app.get("/api/edutrack/relief-assignments/:id", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_relief_assignments WHERE id = ? AND status <> 'deleted' LIMIT 1",
+      [Number(req.params.id)],
+    );
+    const assignment = rows[0];
+    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+    const canRead =
+      isEduTrackAdminUser(req) ||
+      assignment.uploaded_by_user_id === actor.id ||
+      assignment.teacher_id === actor.teacherId ||
+      assignment.uploaded_teacher_id === actor.teacherId;
+    if (!canRead) return res.status(403).json({ error: "Access denied" });
+    res.json(normalizeReliefAssignment(assignment));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post(
+  "/api/edutrack/relief-assignments/:id/official-download",
+  eduzyncAdminOnly,
+  async (req, res) => {
+    const { relief_teacher_id, reason = "" } = req.body || {};
+    if (!relief_teacher_id) {
+      return res.status(400).json({ error: "relief_teacher_id required" });
+    }
+
+    const conn = await db.getConnection();
+    let committed = false;
+    try {
+      await ensureContentTables();
+      const actor = await reliefActorInfo(req);
+      await conn.beginTransaction();
+      const [rows] = await conn.query(
+        "SELECT * FROM edutrack_relief_assignments WHERE id = ? FOR UPDATE",
+        [Number(req.params.id)],
+      );
+      const assignment = rows[0];
+      if (!assignment) throw new Error("Assignment not found");
+
+      const downloadCount = Number(assignment.download_count ?? assignment.print_count ?? 0);
+      const allowedDownloads = 1 + Number(assignment.allowed_extra_downloads ?? 0);
+      if (downloadCount >= allowedDownloads) {
+        await insertReliefAudit(
+          conn,
+          req,
+          assignment,
+          "blocked_download_attempt",
+          {
+            message: "Download blocked because the assignment is locked",
+            relief_teacher_id,
+          },
+          actor,
+        );
+        await conn.commit();
+        committed = true;
+        return res.status(403).json({ error: "Already downloaded and locked" });
+      }
+
+      const downloadReason = String(reason || "").trim();
+      if (downloadCount > 0 && !downloadReason) {
+        throw new Error("Reason required for an extra download");
+      }
+
+      const filePath = resolveReliefPdfPath(assignment);
+      if (!filePath) throw new Error("PDF file not found");
+
+      const teacher = await lookupEduTrackTeacher(relief_teacher_id, conn);
+      if (!teacher) throw new Error("Relief teacher not found");
+
+      const nextDownloadCount = downloadCount + 1;
+      const willLock = nextDownloadCount >= allowedDownloads;
+      await conn.query(
+        `
+          UPDATE edutrack_relief_assignments
+          SET relief_teacher_id = ?, relief_teacher_name = ?, relief_teacher_position = ?,
+            relief_teacher_subject = ?, download_count = ?, downloaded_by_user_id = ?,
+            downloaded_by_name = ?, downloaded_by_email = ?, downloaded_at = NOW(),
+            locked_at = CASE WHEN ? THEN NOW() ELSE locked_at END,
+            locked_by_user_id = CASE WHEN ? THEN ? ELSE locked_by_user_id END,
+            status = CASE WHEN ? THEN 'locked' ELSE 'downloaded' END
+          WHERE id = ?
+        `,
+        [
+          teacher.id,
+          teacher.name,
+          teacher.position || "",
+          teacher.subject || "",
+          nextDownloadCount,
+          actor.id,
+          actor.name,
+          actor.email,
+          willLock ? 1 : 0,
+          willLock ? 1 : 0,
+          actor.id,
+          willLock ? 1 : 0,
+          assignment.id,
+        ],
+      );
+
+      await insertReliefAudit(
+        conn,
+        req,
+        assignment,
+        downloadCount > 0 ? "extra_download_used" : "first_download",
+        {
+          message:
+            downloadCount > 0
+              ? `Extra official download used. Reason: ${downloadReason}`
+              : "First official download used",
+          relief_teacher_id: teacher.id,
+          relief_teacher_name: teacher.name,
+          download_count: nextDownloadCount,
+          locked: willLock,
+        },
+        actor,
+      );
+      await conn.commit();
+      committed = true;
+      res.download(filePath, assignment.original_file_name || path.basename(filePath));
+    } catch (error) {
+      if (!committed) await conn.rollback();
+      res.status(400).json({ error: error.message });
+    } finally {
+      conn.release();
+    }
+  },
+);
+
 app.post("/api/edutrack/relief-assignments/:id/print", eduzyncAdminOnly, async (req, res) => {
-  const { relief_teacher_id } = req.body || {};
+  const { relief_teacher_id, reason = "" } = req.body || {};
   if (!relief_teacher_id) {
     return res.status(400).json({ error: "relief_teacher_id required" });
   }
 
   const conn = await db.getConnection();
+  let committed = false;
   try {
     await ensureContentTables();
-    const actor = reliefActor(req);
+    const actor = await reliefActorInfo(req);
     await conn.beginTransaction();
     const [rows] = await conn.query(
       "SELECT * FROM edutrack_relief_assignments WHERE id = ? FOR UPDATE",
@@ -4661,43 +5467,47 @@ app.post("/api/edutrack/relief-assignments/:id/print", eduzyncAdminOnly, async (
     const assignment = rows[0];
     if (!assignment) throw new Error("Assignment not found");
 
-    if (Number(assignment.print_count || 0) >= 1 + Number(assignment.allowed_extra_prints || 0)) {
-      await conn.query(
-        `
-            INSERT INTO edutrack_relief_assignment_audit_logs
-              (assignment_id, action, actor_user_id, actor_name, actor_email, relief_teacher_id, details)
-            VALUES (?, 'blocked_attempt', ?, ?, ?, ?, ?)
-          `,
-        [
-          assignment.id,
-          actor.id,
-          actor.name,
-          actor.email,
+    const printCount = Number(assignment.print_count || 0);
+    const allowedPrints = 1 + Number(assignment.allowed_extra_prints || 0);
+    if (printCount >= allowedPrints) {
+      await insertReliefAudit(
+        conn,
+        req,
+        assignment,
+        "blocked_print_attempt",
+        {
+          message: "Print blocked because the assignment is locked",
           relief_teacher_id,
-          "Print blocked because the assignment is locked",
-        ],
+        },
+        actor,
       );
       await conn.commit();
+      committed = true;
       return res.status(403).json({ error: "Already printed and locked" });
     }
 
-    const [[teacher]] = await conn.query(
-      `
-          SELECT id, staff_id, name, position, subject
-          FROM teachers
-          WHERE id = ? OR staff_id = ? OR account_user_id = ?
-          LIMIT 1
-        `,
-      [relief_teacher_id, relief_teacher_id, relief_teacher_id],
-    );
+    const printReason = String(reason || "").trim();
+    if (printCount > 0 && !printReason) {
+      throw new Error("Reason required for an extra print");
+    }
+
+    const filePath = resolveReliefPdfPath(assignment);
+    if (!filePath) throw new Error("PDF file not found");
+
+    const teacher = await lookupEduTrackTeacher(relief_teacher_id, conn);
     if (!teacher) throw new Error("Relief teacher not found");
 
+    const nextPrintCount = printCount + 1;
+    const willLock = nextPrintCount >= allowedPrints;
     await conn.query(
       `
           UPDATE edutrack_relief_assignments
           SET relief_teacher_id = ?, relief_teacher_name = ?, relief_teacher_position = ?,
-            relief_teacher_subject = ?, print_count = print_count + 1, printed_by_user_id = ?,
-            printed_by_name = ?, printed_by_email = ?, printed_at = NOW(), status = 'printed'
+            relief_teacher_subject = ?, print_count = ?, printed_by_user_id = ?,
+            printed_by_name = ?, printed_by_email = ?, printed_at = NOW(),
+            locked_at = CASE WHEN ? THEN NOW() ELSE locked_at END,
+            locked_by_user_id = CASE WHEN ? THEN ? ELSE locked_by_user_id END,
+            status = CASE WHEN ? THEN 'locked' ELSE 'printed' END
           WHERE id = ?
         `,
       [
@@ -4705,83 +5515,95 @@ app.post("/api/edutrack/relief-assignments/:id/print", eduzyncAdminOnly, async (
         teacher.name,
         teacher.position || "",
         teacher.subject || "",
+        nextPrintCount,
         actor.id,
         actor.name,
         actor.email,
+        willLock ? 1 : 0,
+        willLock ? 1 : 0,
+        actor.id,
+        willLock ? 1 : 0,
         assignment.id,
       ],
     );
 
-    await conn.query(
-      `
-          INSERT INTO edutrack_relief_assignment_audit_logs
-            (assignment_id, action, actor_user_id, actor_name, actor_email, relief_teacher_id,
-             relief_teacher_name, details)
-          VALUES (?, 'print_used', ?, ?, ?, ?, ?, ?)
-        `,
-      [
-        assignment.id,
-        actor.id,
-        actor.name,
-        actor.email,
-        teacher.id,
-        teacher.name,
-        "One official print used",
-      ],
+    await insertReliefAudit(
+      conn,
+      req,
+      assignment,
+      printCount > 0 ? "extra_print_used" : "first_print",
+      {
+        message:
+          printCount > 0
+            ? `Extra official print used. Reason: ${printReason}`
+            : "First official print used",
+        relief_teacher_id: teacher.id,
+        relief_teacher_name: teacher.name,
+        print_count: nextPrintCount,
+        locked: willLock,
+      },
+      actor,
     );
     await conn.commit();
-    res.json({
-      success: true,
-      printUrl: `/api/edutrack/relief-assignments/${assignment.id}/file`,
-    });
+    committed = true;
+    res.download(filePath, assignment.original_file_name || path.basename(filePath));
   } catch (error) {
-    await conn.rollback();
+    if (!committed) await conn.rollback();
     res.status(400).json({ error: error.message });
   } finally {
     conn.release();
   }
 });
 
-app.post("/api/edutrack/relief-assignments/:id/unlock", eduzyncAdminOnly, async (req, res) => {
+async function unlockReliefExtra(req, res, kind) {
   try {
     await ensureContentTables();
-    const actor = reliefActor(req);
-    const reason = String(req.body?.reason || "Manual unlock").trim();
+    const actor = await reliefActorInfo(req);
+    const reason = String(req.body?.reason || "").trim();
+    if (!reason) return res.status(400).json({ error: "Unlock reason required" });
     const [result] = await db.query(
       `
           UPDATE edutrack_relief_assignments
-          SET allowed_extra_prints = allowed_extra_prints + 1,
+          SET ${kind === "print" ? "allowed_extra_prints" : "allowed_extra_downloads"} =
+            ${kind === "print" ? "allowed_extra_prints" : "allowed_extra_downloads"} + 1,
             last_unlocked_by = ?, last_unlocked_at = NOW(), last_unlock_reason = ?
           WHERE id = ?
         `,
       [actor.id, reason, Number(req.params.id)],
     );
     if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
-    await db.query(
-      `
-          INSERT INTO edutrack_relief_assignment_audit_logs
-            (assignment_id, action, actor_user_id, actor_name, actor_email, details)
-          VALUES (?, 'unlocked', ?, ?, ?, ?)
-        `,
-      [Number(req.params.id), actor.id, actor.name, actor.email, reason],
+    await insertReliefAudit(
+      db,
+      req,
+      { id: Number(req.params.id) },
+      kind === "print" ? "one_more_print_unlocked" : "one_more_download_unlocked",
+      { message: reason, unlock_kind: kind },
+      actor,
     );
     res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
+}
+
+app.post("/api/edutrack/relief-assignments/:id/unlock-one-download", edutrackMasterOnly, (req, res) => {
+  unlockReliefExtra(req, res, "download");
+});
+
+app.post("/api/edutrack/relief-assignments/:id/unlock-one-print", edutrackMasterOnly, (req, res) => {
+  unlockReliefExtra(req, res, "print");
+});
+
+app.post("/api/edutrack/relief-assignments/:id/unlock", edutrackMasterOnly, (req, res) => {
+  unlockReliefExtra(req, res, "download");
 });
 
 app.get("/api/edutrack/relief-assignments/:id/file", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
-    const [rows] = await db.query(
-      "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
-      [Number(req.params.id)],
-    );
-    if (!rows.length) return res.status(404).json({ error: "Assignment not found" });
-    const filePath = resolveReliefPdfPath(rows[0]);
-    if (!filePath) return res.status(404).json({ error: "PDF file not found" });
-    res.download(filePath, rows[0].original_file_name || path.basename(filePath));
+    return res.status(403).json({
+      error: "Use the official download or print endpoint so access can be audited and locked.",
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -4793,7 +5615,8 @@ app.get("/api/edutrack/relief-assignments/:id/audit", eduzyncAdminOnly, async (r
     const [rows] = await db.query(
       `
         SELECT id, assignment_id, action, actor_user_id, actor_name, actor_email,
-          relief_teacher_id, relief_teacher_name, details, created_at
+          relief_teacher_id, relief_teacher_name, details, details_json, ip_address, user_agent,
+          created_at
         FROM edutrack_relief_assignment_audit_logs
         WHERE assignment_id = ?
         ORDER BY created_at DESC, id DESC
@@ -4806,22 +5629,133 @@ app.get("/api/edutrack/relief-assignments/:id/audit", eduzyncAdminOnly, async (r
   }
 });
 
-app.delete("/api/edutrack/relief-assignments/:id", eduzyncAdminOnly, async (req, res) => {
+app.post("/api/edutrack/relief-assignments/:id/delete-request", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureContentTables();
-    const actor = reliefActor(req);
+    const actor = await reliefActorInfo(req);
     const assignmentId = Number(req.params.id);
-    const [result] = await db.query("DELETE FROM edutrack_relief_assignments WHERE id = ?", [
-      assignmentId,
-    ]);
+    const reason = String(req.body?.reason || "Delete requested").trim();
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_relief_assignments WHERE id = ? AND status <> 'deleted' LIMIT 1",
+      [assignmentId],
+    );
+    const assignment = rows[0];
+    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+    const [result] = await db.query(
+      "UPDATE edutrack_relief_assignments SET status = 'delete_requested', updated_at = NOW() WHERE id = ?",
+      [assignmentId],
+    );
     if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
+    await insertReliefAudit(
+      db,
+      req,
+      assignment,
+      "delete_requested",
+      { message: reason },
+      actor,
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/edutrack/relief-assignments/:id/approve-delete", edutrackMasterOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const assignmentId = Number(req.params.id);
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
+      [assignmentId],
+    );
+    const assignment = rows[0];
+    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+    const filePath = resolveReliefPdfPath(assignment);
+    let fileDeleted = false;
+    if (filePath && fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      fileDeleted = true;
+    }
     await db.query(
-      `
-        INSERT INTO edutrack_relief_assignment_audit_logs
-          (assignment_id, action, actor_user_id, actor_name, actor_email, details)
-        VALUES (?, 'deleted', ?, ?, ?, ?)
-      `,
-      [assignmentId, actor.id, actor.name, actor.email, "Assignment record deleted"],
+      "UPDATE edutrack_relief_assignments SET status = 'deleted', pdf_file_path = NULL, updated_at = NOW() WHERE id = ?",
+      [assignmentId],
+    );
+    await insertReliefAudit(
+      db,
+      req,
+      assignment,
+      "delete_approved",
+      { message: String(req.body?.reason || "Delete approved").trim(), file_deleted: fileDeleted },
+      actor,
+    );
+    if (fileDeleted) {
+      await insertReliefAudit(
+        db,
+        req,
+        assignment,
+        "file_deleted",
+        { message: "PDF file deleted from protected storage" },
+        actor,
+      );
+    }
+    res.json({ success: true, fileDeleted });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/edutrack/relief-assignments/:id/reject-delete", edutrackMasterOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const assignmentId = Number(req.params.id);
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
+      [assignmentId],
+    );
+    const assignment = rows[0];
+    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+    await db.query(
+      "UPDATE edutrack_relief_assignments SET status = 'pending_download', updated_at = NOW() WHERE id = ?",
+      [assignmentId],
+    );
+    await insertReliefAudit(
+      db,
+      req,
+      assignment,
+      "delete_rejected",
+      { message: String(req.body?.reason || "Delete rejected").trim() },
+      actor,
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/edutrack/relief-assignments/:id", edutrackMasterOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const assignmentId = Number(req.params.id);
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
+      [assignmentId],
+    );
+    const assignment = rows[0];
+    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+    await db.query(
+      "UPDATE edutrack_relief_assignments SET status = 'deleted', updated_at = NOW() WHERE id = ?",
+      [assignmentId],
+    );
+    await insertReliefAudit(
+      db,
+      req,
+      assignment,
+      "delete_approved",
+      { message: "Master direct delete marked the assignment as deleted" },
+      actor,
     );
     res.json({ success: true });
   } catch (error) {
@@ -4830,7 +5764,7 @@ app.delete("/api/edutrack/relief-assignments/:id", eduzyncAdminOnly, async (req,
 });
 
 function eduTrackRole(role) {
-  if ([ROLES.master, ROLES.super, ROLES.eduzync].includes(role)) return "admin";
+  if ([ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync].includes(role)) return "admin";
   if (role === "teacher") return "teacher";
   return role || "teacher";
 }
@@ -4840,10 +5774,12 @@ function fromPlatformUser(row, extra = {}) {
     id: row.id,
     name: row.name,
     email: row.email,
+    ...extra,
     role: eduTrackRole(row.role),
+    platformRole: row.role,
+    isMasterAdmin: [ROLES.master, ROLES.super, ROLES.masterEduTrack].includes(row.role),
     status: row.status,
     createdAt: row.created_at,
-    ...extra,
   };
   return { id: row.id, data };
 }
@@ -4893,7 +5829,7 @@ async function listEduTrackDocs(collectionName) {
 
 async function platformUsersForEduTrack() {
   const [users] = await db.query(
-    "SELECT id, name, email, role, status, created_at FROM users WHERE role IN ('teacher','eduzync_admin','superadmin','masteradmin') ORDER BY name",
+    "SELECT id, name, email, role, status, created_at FROM users WHERE role IN ('teacher','eduzync_admin','master_edutrack_admin','superadmin','masteradmin') ORDER BY name",
   );
   const docs = await listEduTrackDocs("users");
   const extraById = new Map(docs.map((item) => [item.id, item.data]));
@@ -5224,7 +6160,7 @@ app.post(
       }
 
       const [adminRows] = await db.query(
-        "SELECT COUNT(*) AS total FROM users WHERE role IN ('website_admin', 'eduzync_admin', 'superadmin', 'masteradmin')",
+        "SELECT COUNT(*) AS total FROM users WHERE role IN ('website_admin', 'eduzync_admin', 'master_edutrack_admin', 'superadmin', 'masteradmin')",
       );
       if (Number(adminRows[0]?.total || 0) > 0 && !canManageSystemUsers(req)) {
         return res.status(403).json({ error: "Setup is locked because an admin already exists." });

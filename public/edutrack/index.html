@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EduTrack – Syllabus Tracker</title>
+    <title>EduTrack - Daily Syllabus Progress</title>
     <link rel="icon" type="image/png" href="Loyala Badge.png" />
     <link rel="apple-touch-icon" href="Loyala Badge.png" />
     <link
@@ -2129,6 +2129,141 @@
         text-decoration: line-through;
         color: var(--muted);
       }
+      .year-plan-shell {
+        margin-top: 16px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.025);
+      }
+      .year-plan-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.035);
+        flex-wrap: wrap;
+      }
+      .year-plan-title {
+        color: var(--text);
+        font-weight: 800;
+      }
+      .year-plan-meta {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .year-plan-form {
+        display: grid;
+        grid-template-columns: minmax(88px, 0.45fr) minmax(180px, 1fr) minmax(220px, 1.25fr) auto;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        align-items: start;
+      }
+      .year-plan-input,
+      .year-plan-textarea {
+        width: 100%;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        padding: 10px 12px;
+        font-size: 13px;
+        outline: none;
+      }
+      .year-plan-textarea {
+        min-height: 42px;
+        resize: vertical;
+      }
+      .year-plan-input:focus,
+      .year-plan-textarea:focus {
+        border-color: var(--accent);
+        background: rgba(255, 255, 255, 0.065);
+      }
+      .year-plan-table-wrap {
+        overflow-x: auto;
+      }
+      .year-plan-table {
+        width: 100%;
+        min-width: 720px;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      .year-plan-table th {
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid var(--border);
+        padding: 10px 12px;
+        text-align: left;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .year-plan-table td {
+        border-bottom: 1px solid var(--border);
+        padding: 11px 12px;
+        vertical-align: top;
+      }
+      .year-plan-table tr:last-child td {
+        border-bottom: none;
+      }
+      .year-plan-unit {
+        color: var(--accent2);
+        font-family: "DM Mono", monospace;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .year-plan-topic {
+        color: var(--text);
+        font-weight: 700;
+      }
+      .year-plan-subtopic {
+        color: var(--text-2);
+        font-size: 12px;
+        margin-top: 3px;
+        word-break: break-word;
+      }
+      .year-plan-date {
+        color: var(--muted);
+        font-family: "DM Mono", monospace;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+      .year-plan-status-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 7px 10px;
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .year-plan-status-btn.done {
+        border-color: rgba(16, 217, 160, 0.36);
+        background: rgba(16, 217, 160, 0.12);
+        color: var(--accent2);
+      }
+      .year-plan-status-btn.pending {
+        border-color: rgba(248, 113, 113, 0.32);
+        background: rgba(248, 113, 113, 0.11);
+        color: #fca5a5;
+      }
+      .year-plan-empty {
+        padding: 18px 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
       .chkbox {
         border-radius: 5px;
         border: 2px solid var(--border-med);
@@ -3334,11 +3469,26 @@
       body.light-mode .teacher-profile-subject-row,
       body.light-mode .subject-topic-card,
       body.light-mode .subtopic-item,
+      body.light-mode .year-plan-shell,
       body.light-mode .auth-side-card,
       body.light-mode .term-card,
       body.light-mode .yearly-reset-stat {
         background: #fff;
         border-color: var(--border);
+      }
+      body.light-mode .year-plan-head,
+      body.light-mode .year-plan-table th {
+        background: #f5f8ff;
+      }
+      body.light-mode .year-plan-input,
+      body.light-mode .year-plan-textarea {
+        background: #f5f8ff;
+        border-color: var(--border-med);
+        color: var(--text);
+      }
+      body.light-mode .year-plan-input:focus,
+      body.light-mode .year-plan-textarea:focus {
+        background: #fff;
       }
       body.light-mode .subject-subtopic-item {
         background: rgba(0, 0, 0, 0.02);
@@ -4374,6 +4524,9 @@
         .relief-card-actions {
           width: 100%;
         }
+        .year-plan-form {
+          grid-template-columns: 1fr;
+        }
       }
     </style>
   </head>
@@ -4521,20 +4674,20 @@
             <span class="nav-icon"><i data-lucide="layout-dashboard"></i></span
             ><span class="nav-text"> Dashboard</span>
           </div>
-          <div class="nav-item" onclick="showPage('my-subjects')" id="nav-my-subjects">
-            <span class="nav-icon"><i data-lucide="book-open"></i></span
-            ><span class="nav-text"> My Syllabus</span>
+          <div class="nav-item" onclick="showPage('daily-progress')" id="nav-daily-progress">
+            <span class="nav-icon"><i data-lucide="book-open-check"></i></span
+            ><span class="nav-text"> Daily Syllabus Progress</span>
           </div>
           <div class="nav-item" onclick="showPage('relief')" id="nav-relief">
             <span class="nav-icon"><i data-lucide="file-up"></i></span
-            ><span class="nav-text"> Relief Work</span>
+            ><span class="nav-text"> Relief Assignments</span>
           </div>
         </div>
         <div class="nav-section" id="admin-nav" style="display: none">
           <div class="nav-label">Admin</div>
           <div class="nav-item" onclick="showPage('progress')">
             <span class="nav-icon"><i data-lucide="bar-chart-3"></i></span
-            ><span class="nav-text"> All Progress</span>
+            ><span class="nav-text"> Reports</span>
           </div>
           <div class="nav-item" onclick="showPage('teachers')">
             <span class="nav-icon"><i data-lucide="building-2"></i></span
@@ -4542,7 +4695,7 @@
           </div>
           <div class="nav-item" onclick="showPage('subjects')">
             <span class="nav-icon"><i data-lucide="library"></i></span
-            ><span class="nav-text"> Subjects</span>
+            ><span class="nav-text"> Subject Assignments</span>
           </div>
           <div class="nav-item" onclick="showPage('terms')">
             <span class="nav-icon"><i data-lucide="calendar"></i></span
@@ -4697,8 +4850,110 @@
           </div>
         </div>
 
-        <!-- MY SYLLABUS -->
-        <div class="page page-shell" id="page-my-subjects">
+        <!-- DAILY SYLLABUS PROGRESS -->
+        <div class="page page-shell" id="page-daily-progress">
+          <div class="page-header page-header-row">
+            <div>
+              <h2>Daily Syllabus Progress</h2>
+              <p>Record the unit, topic, subtopic, and completed work from the school year plan.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="printDailyProgressReport()">
+                <i data-lucide="printer" style="width: 14px; height: 14px"></i> Print
+              </button>
+              <button class="btn secondary sm" onclick="exportDailyProgressCSV()">
+                <i data-lucide="download" style="width: 14px; height: 14px"></i> CSV
+              </button>
+              <button class="btn secondary sm" onclick="loadDailyProgress()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div class="card" style="margin-bottom: 18px">
+            <div class="section-title" id="daily-progress-form-title">Add Daily Record</div>
+            <div class="form-grid-2">
+              <div class="field"><label>Date</label><input id="daily-date" type="date" /></div>
+              <div class="field"><label>Period / Time Slot</label><input id="daily-period" placeholder="Period 3 / 10:30" /></div>
+              <div class="field"><label>Teacher ID</label><input id="daily-teacher-id" placeholder="Auto-filled for teachers" /></div>
+              <div class="field"><label>Teacher Name</label><input id="daily-teacher-name" placeholder="Auto-filled for teachers" /></div>
+              <div class="field"><label>Grade</label><input id="daily-grade" placeholder="Grade 10" /></div>
+              <div class="field"><label>Class / Section</label><input id="daily-section" placeholder="A / GRADE-10-A" /></div>
+              <div class="field"><label>Subject</label><input id="daily-subject" placeholder="Mathematics" /></div>
+              <div class="field"><label>Unit Number</label><input id="daily-unit" placeholder="Unit 1" /></div>
+              <div class="field"><label>Main Topic</label><input id="daily-main-topic" placeholder="Main topic from year plan" /></div>
+              <div class="field"><label>Subtopic</label><input id="daily-subtopic" placeholder="Subtopic" /></div>
+            </div>
+            <div class="field">
+              <label>What was completed today</label>
+              <textarea id="daily-completed-work" placeholder="Write the actual lesson progress completed today"></textarea>
+            </div>
+            <div class="form-grid-2">
+              <div class="field"><label>Page numbers / lesson reference</label><input id="daily-page-reference" placeholder="Optional" /></div>
+              <div class="field">
+                <label>Completion Status</label>
+                <select id="daily-completion-status">
+                  <option>Completed</option>
+                  <option>Partially Completed</option>
+                  <option>Not Completed</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-grid-2">
+              <div class="field"><label>Notes</label><textarea id="daily-notes" placeholder="Optional notes"></textarea></div>
+              <div class="field"><label>Next planned lesson</label><textarea id="daily-next-lesson" placeholder="Optional"></textarea></div>
+            </div>
+            <div id="daily-form-error" class="error-msg"></div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="resetDailyProgressForm()">Clear</button>
+              <button class="btn sm" onclick="submitDailyProgress()">
+                <i data-lucide="save" style="width: 14px; height: 14px"></i> Save Record
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom: 12px">Records</div>
+            <div class="quick-finder-grid" style="margin-bottom: 12px">
+              <input id="daily-filter-search" class="quick-input" placeholder="Search records" oninput="loadDailyProgressDebounced()" />
+              <input id="daily-filter-date" class="quick-input" type="date" onchange="loadDailyProgress()" />
+              <input id="daily-filter-from" class="quick-input" type="date" onchange="loadDailyProgress()" />
+              <input id="daily-filter-to" class="quick-input" type="date" onchange="loadDailyProgress()" />
+              <input id="daily-filter-teacher-id" class="quick-input" placeholder="Teacher ID" oninput="loadDailyProgressDebounced()" />
+              <input id="daily-filter-teacher-name" class="quick-input" placeholder="Teacher name" oninput="loadDailyProgressDebounced()" />
+              <input id="daily-filter-subject" class="quick-input" placeholder="Subject" oninput="loadDailyProgressDebounced()" />
+              <input id="daily-filter-grade" class="quick-input" placeholder="Grade" oninput="loadDailyProgressDebounced()" />
+              <input id="daily-filter-section" class="quick-input" placeholder="Section" oninput="loadDailyProgressDebounced()" />
+              <input id="daily-filter-unit" class="quick-input" placeholder="Unit" oninput="loadDailyProgressDebounced()" />
+              <select id="daily-filter-status" class="quick-select" onchange="loadDailyProgress()">
+                <option value="">All statuses</option>
+                <option>Completed</option>
+                <option>Partially Completed</option>
+                <option>Not Completed</option>
+              </select>
+            </div>
+            <div class="page-meta-line" id="daily-progress-meta"></div>
+            <div style="overflow-x: auto">
+              <table class="accounts-table" style="min-width: 1120px">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Teacher</th>
+                    <th>Grade / Section</th>
+                    <th>Subject</th>
+                    <th>Unit</th>
+                    <th>Topic</th>
+                    <th>Completed Work</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="daily-progress-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- LEGACY SYLLABUS VIEW - retained only for backward compatibility -->
+        <div class="page page-shell" id="page-my-subjects" style="display: none">
           <div class="page-header">
             <h2>My Syllabus</h2>
             <p>Track your topic and subtopic coverage progress</p>
@@ -4771,8 +5026,8 @@
         <div class="page page-shell" id="page-relief">
           <div class="page-header">
             <div>
-              <h2>Relief Work</h2>
-              <p>Upload teacher relief PDFs, assign a relieving teacher, and control the official one-time print lock.</p>
+              <h2>Relief Assignments</h2>
+              <p>Upload relief PDFs, record the relieving teacher, and control the official one-time download lock.</p>
             </div>
             <button class="btn secondary sm" onclick="loadReliefAssignments()">
               <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
@@ -4782,7 +5037,7 @@
             <div class="card relief-upload-card">
               <div class="section-title">Upload Relief Assignment</div>
               <p class="relief-copy">
-                PDF uploads are stored in the Loyola backend and listed for admin printing.
+                PDF uploads are stored with the sender teacher details for admin download.
               </p>
               <div class="form-grid-2">
                 <div class="field">
@@ -4825,15 +5080,22 @@
               </button>
             </div>
             <div class="card relief-admin-card">
-              <div class="section-title">Official Print Control</div>
+              <div class="section-title">Official Download Control</div>
               <p class="relief-copy">
-                Admin print/download uses the 851dedc lock system: one official print, then locked unless unlocked.
+                Admin download uses the lock system: one official download, then locked unless a master admin unlocks it.
               </p>
               <div id="relief-summary" class="relief-summary"></div>
             </div>
           </div>
           <div class="card" style="margin-top: 18px">
             <div class="section-title" style="margin-bottom: 12px">Relief Assignments</div>
+            <input
+              id="relief-search"
+              class="quick-input"
+              style="margin-bottom: 12px"
+              placeholder="Search by teacher, teacher ID, subject, grade, section, or date"
+              oninput="setReliefSearch(this.value)"
+            />
             <div id="relief-list" class="page-stack"></div>
           </div>
         </div>
@@ -5181,8 +5443,8 @@
         <div class="page page-shell" id="page-subjects">
           <div class="page-header page-header-row">
             <div>
-              <h2>Subjects & Syllabus</h2>
-              <p>Add subjects and define topics</p>
+              <h2>Subject Assignments</h2>
+              <p>Assign subjects to teachers and classes. Teachers enter daily progress separately.</p>
             </div>
             <button class="btn sm" onclick="openAddSubjectModal()">+ Add Subject</button>
           </div>
@@ -5190,7 +5452,7 @@
             <div class="quick-finder-head">
               <div>
                 <h3>Subject Organizer</h3>
-                <p>Use search and filters to find any syllabus quickly.</p>
+                <p>Use search and filters to find assigned subjects quickly.</p>
               </div>
               <button class="btn secondary sm" onclick="clearSubjectFilters()">
                 Reset Filters
@@ -5216,7 +5478,7 @@
                   id="subjects-search-input"
                   class="quick-input"
                   style="padding-left: 36px"
-                  placeholder="Search by subject, teacher, grade, class, or topic…"
+                  placeholder="Search by subject, teacher, grade, or class..."
                   oninput="setSubjectSearch(this.value)"
                 />
               </div>
@@ -5252,8 +5514,8 @@
               "
             >
               <div>
-                <h2>All Progress</h2>
-                <p>Live syllabus coverage across all teachers and subjects</p>
+                <h2>Reports</h2>
+                <p>Daily syllabus progress exports and school-wide summaries</p>
               </div>
               <div style="display: flex; gap: 8px; align-items: center">
                 <button class="export-btn" onclick="exportProgressCSV()" title="Export to CSV">
@@ -5276,8 +5538,8 @@
         <button class="mnav-item active" data-page="dashboard" onclick="showPage('dashboard')">
           <i data-lucide="layout-grid"></i><span>Dashboard</span>
         </button>
-        <button class="mnav-item" data-page="my-subjects" onclick="showPage('my-subjects')">
-          <i data-lucide="book-open"></i><span>Syllabus</span>
+        <button class="mnav-item" data-page="daily-progress" onclick="showPage('daily-progress')">
+          <i data-lucide="book-open-check"></i><span>Daily</span>
         </button>
         <button class="mnav-item" data-page="profile" onclick="openMyProfile()">
           <i data-lucide="user-round"></i><span>Profile</span>
@@ -5388,7 +5650,7 @@
           <div>
             <h3>Add Subject</h3>
             <p class="msub" style="margin-bottom: 0">
-              Fill in details, assign teachers, then build or import topics
+              Fill in details and assign teachers. Teachers enter their year-plan units.
             </p>
           </div>
           <button class="asmodal-close" onclick="closeModal('add-subject-modal')" title="Close">
@@ -5405,10 +5667,6 @@
           <button class="asmodal-tab" data-tab="1" onclick="switchASTab(1)">
             <span class="astab-num">2</span><span class="astab-label">Assignment</span>
           </button>
-          <div class="astab-connector"></div>
-          <button class="asmodal-tab" data-tab="2" onclick="switchASTab(2)">
-            <span class="astab-num">3</span><span class="astab-label">Topics</span>
-          </button>
         </div>
 
         <!-- Step 1: Details -->
@@ -5424,7 +5682,7 @@
           </div>
           <div class="form-grid-2">
             <div class="field">
-              <label>Syllabus Grade</label>
+              <label>Grade</label>
               <select id="s-grade" onchange="syncSubjectGrade()"></select>
             </div>
             <div class="field">
@@ -5530,18 +5788,21 @@
             <button class="btn secondary sm" onclick="switchASTab(0)">
               <i data-lucide="arrow-left" style="width: 14px; height: 14px"></i> Back
             </button>
-            <button
-              class="btn sm"
-              onclick="switchASTab(2)"
-              style="display: flex; align-items: center; gap: 6px"
-            >
-              Next <i data-lucide="arrow-right" style="width: 14px; height: 14px"></i>
-            </button>
+            <div style="display: flex; gap: 8px; align-items: center">
+              <div id="s-error" class="error-msg" style="margin: 0; text-align: right"></div>
+              <button
+                class="btn sm"
+                onclick="addSubject()"
+                style="display: flex; align-items: center; gap: 6px; white-space: nowrap"
+              >
+                <i data-lucide="save" style="width: 14px; height: 14px"></i> Save Subject
+              </button>
+            </div>
           </div>
         </div>
 
         <!-- Step 3: Topics -->
-        <div class="asmodal-step" id="asstep-2">
+        <div class="asmodal-step" id="asstep-2" aria-hidden="true" style="display: none">
           <!-- Sub-tabs: Builder vs Import -->
           <div class="asmodal-subtabs">
             <button
@@ -5608,7 +5869,7 @@
               <i data-lucide="arrow-left" style="width: 14px; height: 14px"></i> Back
             </button>
             <div style="display: flex; gap: 8px; align-items: center">
-              <div id="s-error" class="error-msg" style="margin: 0; text-align: right"></div>
+              <div id="s-error-legacy" class="error-msg" style="margin: 0; text-align: right"></div>
               <button
                 class="btn sm"
                 onclick="addSubject()"
@@ -5659,7 +5920,7 @@
 
         <!-- Assignment section -->
         <div style="padding: 20px 28px 0; overflow-y: auto; flex: 1">
-          <div class="vsm-section-head">Syllabus Assignment</div>
+          <div class="vsm-section-head">Subject Assignment</div>
           <div class="form-grid-2">
             <div class="field">
               <label>Grade</label
@@ -5733,8 +5994,8 @@
             </button>
           </div>
 
-          <div class="vsm-section-head" style="margin-top: 6px">Topics</div>
-          <div id="vsm-topics" style="margin-bottom: 14px"></div>
+          <div class="vsm-section-head" style="margin-top: 6px; display: none">Legacy Topics</div>
+          <div id="vsm-topics" style="margin-bottom: 14px; display: none"></div>
 
           <div
             style="
@@ -5743,6 +6004,7 @@
               border-radius: 12px;
               padding: 14px;
               margin-bottom: 24px;
+              display: none;
             "
           >
             <div
@@ -5851,7 +6113,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from localStorage loyola_token/loyola_user.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v4.2.1 + Relief • Loyola MySQL";
+      const APP_VERSION = "v4.3.0 + Daily Progress + Relief Lock";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -6358,7 +6620,7 @@
         document.getElementById("app").style.display = "block";
         const isAdmin = cud.role === "admin";
         document.getElementById("admin-nav").style.display = isAdmin ? "" : "none";
-        document.getElementById("nav-my-subjects").style.display = isAdmin ? "none" : "";
+        document.getElementById("nav-daily-progress").style.display = "";
         const mobileNav = document.getElementById("mobile-bottom-nav");
         if (mobileNav) mobileNav.style.display = isAdmin ? "none" : "";
         document.getElementById("sidebar-name").textContent = cud.name;
@@ -6408,7 +6670,8 @@
           updateAuthActiveTermCard(allTerms);
           refreshMySyllabusClassOptions();
           renderDashboard();
-          if (cud.role === "teacher") renderMySubjects();
+          setupDailyProgressFormDefaults();
+          loadDailyProgress();
           if (cud.role === "admin") {
             renderUserAccounts();
             renderTeachers();
@@ -6885,7 +7148,6 @@
           .map((subject) => {
             const stats = subjStats(subject);
             const color = lvlColorVar(subject.level);
-            const topics = subject.topics || [];
             const topicStart = subjectTopicStartNumber(subject);
             const tInfo =
               subject.term && allTerms[subject.term] && allTerms[subject.term].startDate
@@ -6926,94 +7188,76 @@
               stats.pct +
               "%;background:" +
               color +
-              ';"></div></div><div>';
-            topics.forEach((topic, topicIndex) => {
-              const mainNumber = topicStart + topicIndex;
-              const subtopics = Array.isArray(topic.subtopics) ? topic.subtopics : [];
-              const hasSubs = subtopics.length > 0;
-              const doneSubs = hasSubs ? subtopics.filter((item) => item.done).length : 0;
-              html += '<div class="main-topic-block"><div class="main-topic-label">';
-              if (!hasSubs)
-                html +=
-                  '<div class="chkbox lg' +
-                  (topic.done ? " done" : "") +
-                  '" onclick="toggleMainTopic(\'' +
-                  subject.id +
-                  "'," +
-                  topicIndex +
-                  ')">' +
-                  (topic.done
-                    ? '<i data-lucide="check" style="width:14px;height:14px;display:inline-block;"></i>'
-                    : "") +
-                  "</div>";
-              html +=
-                '<span style="font-weight:600;font-size:14px;' +
-                (topic.done && !hasSubs ? "text-decoration:line-through;color:var(--muted);" : "") +
-                '">' +
-                escapeHtml(formatMainTopicLabel(mainNumber, topic.name)) +
-                "</span>";
-              if (hasSubs)
-                html +=
-                  '<span class="main-topic-progress">' +
-                  doneSubs +
-                  "/" +
-                  subtopics.length +
-                  "</span>";
-              else if (topic.doneAt)
-                html +=
-                  '<span class="main-topic-progress">' +
-                  new Date(topic.doneAt).toLocaleDateString() +
-                  "</span>";
-              html += "</div>";
-              if (hasSubs) {
-                html += '<div class="subtopic-list">';
-                subtopics.forEach((subtopic, subIndex) => {
-                  const subLabel = formatSubtopicLabel(mainNumber, subIndex, subtopic.name);
-                  html +=
-                    '<div class="subtopic-item' +
-                    (subtopic.done ? " done" : "") +
-                    '"><div class="chkbox sm' +
-                    (subtopic.done ? " done" : "") +
-                    '" onclick="toggleSubtopic(\'' +
-                    subject.id +
-                    "'," +
-                    topicIndex +
-                    "," +
-                    subIndex +
-                    ')">' +
-                    (subtopic.done
-                      ? '<i data-lucide="check" style="width:14px;height:14px;display:inline-block;"></i>'
-                      : "") +
-                    '</div><div class="subtopic-name">' +
-                    escapeHtml(subLabel) +
-                    "</div>" +
-                    (subtopic.doneAt
-                      ? "<span style=\"font-size:11px;color:var(--muted);font-family:'DM Mono',monospace;\">" +
-                        new Date(subtopic.doneAt).toLocaleDateString() +
-                        "</span>"
-                      : "") +
-                    "</div>";
-                });
-                html += "</div>";
-              }
-              html += "</div>";
-            });
-            html += "</div></div>";
+              ';"></div></div>';
+            html += renderTeacherYearPlan(subject, topicStart);
+            html += "</div>";
             return html;
           })
           .join("");
         setTimeout(() => lucide.createIcons(), 0);
       }
 
+      window.addYearPlanUnit = async function (sid) {
+        const subject = allSubjects.find((item) => String(item.id) === String(sid));
+        if (!subject) {
+          showToast("Subject not found.", "err");
+          return;
+        }
+        if (!(cud && cud.role === "teacher" && String(subject.teacherId) === String(cud.id))) {
+          showToast("This subject is not assigned to your teacher account.", "err");
+          return;
+        }
+        const domId = safeDomId(sid);
+        const unitEl = document.getElementById("yp-unit-" + domId);
+        const topicEl = document.getElementById("yp-topic-" + domId);
+        const subtopicsEl = document.getElementById("yp-subtopics-" + domId);
+        const unitNumber = String(unitEl?.value || "").trim();
+        const topicName = normalizeTopicLabel(topicEl?.value || "");
+        const subtopicNames = String(subtopicsEl?.value || "")
+          .split(/\r?\n/)
+          .map(normalizeTopicLabel)
+          .filter(Boolean);
+        if (!unitNumber || !topicName) {
+          showToast("Unit number and topic are required.", "err");
+          return;
+        }
+        const nowIso = new Date().toISOString();
+        const topics = JSON.parse(JSON.stringify(subject.topics || []));
+        topics.push({
+          unitNumber,
+          name: topicName,
+          done: false,
+          doneAt: null,
+          createdAt: nowIso,
+          subtopics: subtopicNames.map((name) => ({
+            name,
+            done: false,
+            doneAt: null,
+            createdAt: nowIso,
+          })),
+        });
+        await updateDoc(doc(db, "subjects", sid), { topics, updatedAt: nowIso });
+        subject.topics = topics;
+        subject.updatedAt = nowIso;
+        if (unitEl) unitEl.value = "";
+        if (topicEl) topicEl.value = "";
+        if (subtopicsEl) subtopicsEl.value = "";
+        renderMySubjects();
+        renderDashboard();
+        showToast("Year-plan unit saved.", "success");
+      };
+
       window.toggleMainTopic = async function (sid, mi) {
         const s = allSubjects.find((s) => s.id === sid);
         if (!s) return;
         const topics = JSON.parse(JSON.stringify(s.topics || []));
         const mt = topics[mi];
+        const nowIso = new Date().toISOString();
         mt.done = !mt.done;
-        mt.doneAt = mt.done ? new Date().toISOString() : null;
-        await updateDoc(doc(db, "subjects", sid), { topics });
+        mt.doneAt = mt.done ? nowIso : null;
+        await updateDoc(doc(db, "subjects", sid), { topics, updatedAt: nowIso });
         s.topics = topics;
+        s.updatedAt = nowIso;
         renderMySubjects();
         renderDashboard();
         showToast(mt.done ? "Topic complete!" : "Unmarked", mt.done ? "success" : "");
@@ -7023,13 +7267,15 @@
         if (!s) return;
         const topics = JSON.parse(JSON.stringify(s.topics || []));
         const sub = topics[mi].subtopics[si];
+        const nowIso = new Date().toISOString();
         sub.done = !sub.done;
-        sub.doneAt = sub.done ? new Date().toISOString() : null;
+        sub.doneAt = sub.done ? nowIso : null;
         const allDone = topics[mi].subtopics.every((x) => x.done);
         topics[mi].done = allDone;
-        topics[mi].doneAt = allDone ? new Date().toISOString() : null;
-        await updateDoc(doc(db, "subjects", sid), { topics });
+        topics[mi].doneAt = allDone ? nowIso : null;
+        await updateDoc(doc(db, "subjects", sid), { topics, updatedAt: nowIso });
         s.topics = topics;
+        s.updatedAt = nowIso;
         renderMySubjects();
         renderDashboard();
         showToast(sub.done ? "Subtopic complete!" : "Unmarked", sub.done ? "success" : "");
@@ -7662,6 +7908,103 @@
       function formatSubtopicLabel(mainNumber, subIndex, name) {
         const label = normalizeTopicLabel(name) || "Subtopic";
         return mainNumber + "." + (subIndex + 1) + " " + label;
+      }
+      function safeDomId(value) {
+        return String(value || "item").replace(/[^A-Za-z0-9_-]/g, "_");
+      }
+      function jsArg(value) {
+        return String(value || "")
+          .replace(/\\/g, "\\\\")
+          .replace(/'/g, "\\'")
+          .replace(/\r?\n/g, " ");
+      }
+      function yearPlanDate(value) {
+        if (!value) return "-";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toLocaleDateString();
+      }
+      function yearPlanUnitLabel(topic, fallbackNumber) {
+        const explicit = topic?.unitNumber || topic?.unit || topic?.unitNo || topic?.unit_no;
+        return explicit ? String(explicit) : String(fallbackNumber || "");
+      }
+      function renderYearPlanStatus(subjectId, topicIndex, subIndex, done) {
+        const click =
+          subIndex === null
+            ? "toggleMainTopic('" + jsArg(subjectId) + "'," + topicIndex + ")"
+            : "toggleSubtopic('" + jsArg(subjectId) + "'," + topicIndex + "," + subIndex + ")";
+        return (
+          '<button class="year-plan-status-btn ' +
+          (done ? "done" : "pending") +
+          '" onclick="' +
+          click +
+          '"><i data-lucide="' +
+          (done ? "check" : "x") +
+          '" style="width:13px;height:13px"></i><span>' +
+          (done ? "Complete" : "Not complete") +
+          "</span></button>"
+        );
+      }
+      function renderTeacherYearPlan(subject, topicStart) {
+        const subjectId = String(subject.id || "");
+        const domId = safeDomId(subjectId);
+        const termLabel = subject.term ? "Term " + subject.term : "Year plan";
+        let rows = "";
+        (subject.topics || []).forEach((topic, topicIndex) => {
+          const mainNumber = topicStart + topicIndex;
+          const unit = escapeHtml(yearPlanUnitLabel(topic, mainNumber));
+          const topicName = escapeHtml(normalizeTopicLabel(topic.name) || "Topic");
+          const subtopics = Array.isArray(topic.subtopics) ? topic.subtopics : [];
+          if (subtopics.length) {
+            subtopics.forEach((subtopic, subIndex) => {
+              rows +=
+                "<tr><td><span class=\"year-plan-unit\">" +
+                unit +
+                '</span></td><td><div class="year-plan-topic">' +
+                topicName +
+                '</div><div class="year-plan-subtopic">' +
+                escapeHtml(formatSubtopicLabel(mainNumber, subIndex, subtopic.name)) +
+                '</div></td><td><span class="year-plan-date">' +
+                escapeHtml(yearPlanDate(subtopic.doneAt || topic.doneAt)) +
+                "</span></td><td>" +
+                renderYearPlanStatus(subjectId, topicIndex, subIndex, !!subtopic.done) +
+                "</td></tr>";
+            });
+          } else {
+            rows +=
+              "<tr><td><span class=\"year-plan-unit\">" +
+              unit +
+              '</span></td><td><div class="year-plan-topic">' +
+              escapeHtml(formatMainTopicLabel(mainNumber, topic.name)) +
+              '</div></td><td><span class="year-plan-date">' +
+              escapeHtml(yearPlanDate(topic.doneAt)) +
+              "</span></td><td>" +
+              renderYearPlanStatus(subjectId, topicIndex, null, !!topic.done) +
+              "</td></tr>";
+          }
+        });
+        return (
+          '<div class="year-plan-shell"><div class="year-plan-head"><div><div class="year-plan-title">' +
+          escapeHtml(termLabel) +
+          '</div><div class="year-plan-meta">' +
+          escapeHtml(subjectScopeLabel(subject)) +
+          '</div></div><span class="term-badge">' +
+          escapeHtml((subject.topics || []).length + " unit" + ((subject.topics || []).length === 1 ? "" : "s")) +
+          '</span></div><div class="year-plan-form"><input id="yp-unit-' +
+          domId +
+          '" class="year-plan-input" placeholder="Unit no." /><input id="yp-topic-' +
+          domId +
+          '" class="year-plan-input" placeholder="Topic" /><textarea id="yp-subtopics-' +
+          domId +
+          '" class="year-plan-textarea" placeholder="Subtopics - one per line"></textarea><button class="btn sm" onclick="addYearPlanUnit(\'' +
+          jsArg(subjectId) +
+          '\')"><i data-lucide="save" style="width:13px;height:13px"></i> Submit</button></div>' +
+          (rows
+            ? '<div class="year-plan-table-wrap"><table class="year-plan-table"><thead><tr><th>Unit</th><th>Topics / What Done</th><th>Record Date</th><th>Done</th></tr></thead><tbody>' +
+              rows +
+              "</tbody></table></div>"
+            : '<div class="year-plan-empty">No year-plan units entered yet.</div>') +
+          "</div>"
+        );
       }
       function subjectTopicStartNumber(subject) {
         if (!subject) return 1;
@@ -10720,7 +11063,7 @@
         if (mobileNav) {
           const teacherMode = !!(cud && cud.role === "teacher");
           mobileNav.style.display = teacherMode ? "" : "none";
-          const pageKey = name === "dashboard" || name === "my-subjects" ? name : "profile";
+          const pageKey = name === "dashboard" || name === "daily-progress" ? name : "profile";
           mobileNav.querySelectorAll(".mnav-item").forEach((btn) => btn.classList.remove("active"));
           mobileNav
             .querySelector('.mnav-item[data-page="' + pageKey + '"]')
@@ -10733,10 +11076,7 @@
         if (name === "subjects" && cud && cud.role === "admin") renderSubjects();
         if (name === "progress" && cud && cud.role === "admin") renderProgress();
         if (name === "relief") loadReliefAssignments();
-        if (name === "my-subjects" && cud && cud.role === "teacher") {
-          refreshMySyllabusClassOptions();
-          renderMySubjects();
-        }
+        if (name === "daily-progress") loadDailyProgress();
         closeSidebar();
       };
       window.openMyProfile = function () {
@@ -10760,7 +11100,7 @@
               document.querySelector(".page.active")?.id || "page-dashboard"
             ).replace("page-", "");
             const pageKey =
-              activePage === "dashboard" || activePage === "my-subjects" ? activePage : "dashboard";
+              activePage === "dashboard" || activePage === "daily-progress" ? activePage : "dashboard";
             mobileNav
               .querySelectorAll(".mnav-item")
               .forEach((btn) => btn.classList.remove("active"));
@@ -10788,10 +11128,12 @@
 
       // ── Add Subject Modal – Step Switcher ──
       window.switchASTab = function (idx) {
+        const tabs = document.querySelectorAll(".asmodal-tab");
+        idx = Math.max(0, Math.min(Number(idx) || 0, Math.max(0, tabs.length - 1)));
         document.querySelectorAll(".asmodal-step").forEach((s, i) => {
           s.classList.toggle("active", i === idx);
         });
-        document.querySelectorAll(".asmodal-tab").forEach((t, i) => {
+        tabs.forEach((t, i) => {
           t.classList.remove("active", "done");
           if (i < idx) t.classList.add("done");
           if (i === idx) t.classList.add("active");
@@ -12242,10 +12584,367 @@
         }
       };
 
+      let dailyProgressRecords = [];
+      let editingDailyProgressId = null;
+      let dailyProgressDebounceTimer = null;
+
+      function dailyField(id) {
+        return document.getElementById(id);
+      }
+
+      function dailyValue(id) {
+        return String(dailyField(id)?.value || "").trim();
+      }
+
+      function dailyTeacherId() {
+        return String(cud?.teacherId || cud?.teacher_id || cud?.staffId || cud?.staff_id || cud?.id || "").trim();
+      }
+
+      function setupDailyProgressFormDefaults() {
+        const dateEl = dailyField("daily-date");
+        if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
+        const teacherIdEl = dailyField("daily-teacher-id");
+        const teacherNameEl = dailyField("daily-teacher-name");
+        const teacherMode = cud && cud.role === "teacher";
+        if (teacherIdEl && teacherMode) {
+          teacherIdEl.value = dailyTeacherId();
+          teacherIdEl.readOnly = true;
+        }
+        if (teacherNameEl && teacherMode) {
+          teacherNameEl.value = cud.name || "";
+          teacherNameEl.readOnly = true;
+        }
+      }
+
+      function dailyProgressQuery() {
+        const params = new URLSearchParams();
+        const map = [
+          ["search", "daily-filter-search"],
+          ["date", "daily-filter-date"],
+          ["date_from", "daily-filter-from"],
+          ["date_to", "daily-filter-to"],
+          ["teacher_id", "daily-filter-teacher-id"],
+          ["teacher_name", "daily-filter-teacher-name"],
+          ["subject", "daily-filter-subject"],
+          ["grade", "daily-filter-grade"],
+          ["section", "daily-filter-section"],
+          ["unit_number", "daily-filter-unit"],
+          ["completion_status", "daily-filter-status"],
+        ];
+        map.forEach(([key, id]) => {
+          const value = dailyValue(id);
+          if (value) params.set(key, value);
+        });
+        const qs = params.toString();
+        return qs ? "?" + qs : "";
+      }
+
+      function dailyProgressPayload() {
+        return {
+          record_date: dailyValue("daily-date"),
+          teacher_id: dailyValue("daily-teacher-id"),
+          teacher_name: dailyValue("daily-teacher-name"),
+          grade: dailyValue("daily-grade"),
+          section: dailyValue("daily-section"),
+          subject: dailyValue("daily-subject"),
+          period_label: dailyValue("daily-period"),
+          unit_number: dailyValue("daily-unit"),
+          main_topic: dailyValue("daily-main-topic"),
+          subtopic: dailyValue("daily-subtopic"),
+          completed_work: dailyValue("daily-completed-work"),
+          page_reference: dailyValue("daily-page-reference"),
+          notes: dailyValue("daily-notes"),
+          completion_status: dailyValue("daily-completion-status") || "Completed",
+          next_planned_lesson: dailyValue("daily-next-lesson"),
+        };
+      }
+
+      function dailyCanEdit(record) {
+        if (!cud) return false;
+        if (cud.role === "admin") return true;
+        const today = new Date().toISOString().slice(0, 10);
+        return (
+          String(record.teacher_user_id || "") === String(cud.id || "") &&
+          String(record.record_date || "").slice(0, 10) === today &&
+          !record.locked_at
+        );
+      }
+
+      function dailyCanDelete() {
+        return !!(
+          cud &&
+          cud.role === "admin" &&
+          (cud.isMasterAdmin ||
+            cud.platformRole === "masteradmin" ||
+            cud.platformRole === "superadmin" ||
+            cud.platformRole === "master_edutrack_admin")
+        );
+      }
+
+      function dailyStatusBadge(status) {
+        const text = status || "Completed";
+        const color =
+          text === "Completed"
+            ? "var(--accent2)"
+            : text === "Partially Completed"
+              ? "var(--warn)"
+              : "#f87171";
+        return '<span class="badge" style="border-color:' + color + ';color:' + color + '">' + escapeHtml(text) + "</span>";
+      }
+
+      function renderDailyProgressTable() {
+        const tbody = dailyField("daily-progress-tbody");
+        const meta = dailyField("daily-progress-meta");
+        if (meta) meta.textContent = dailyProgressRecords.length + " records shown";
+        if (!tbody) return;
+        if (!dailyProgressRecords.length) {
+          tbody.innerHTML =
+            '<tr><td colspan="9" style="color:var(--muted);padding:18px">No daily progress records found.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = dailyProgressRecords
+          .map((record) => {
+            const actions =
+              (dailyCanEdit(record)
+                ? '<button class="btn secondary sm" onclick="editDailyProgress(' +
+                  Number(record.id) +
+                  ')">Edit</button>'
+                : "") +
+              (dailyCanDelete()
+                ? '<button class="btn secondary sm" onclick="deleteDailyProgress(' +
+                  Number(record.id) +
+                  ')">Delete</button>'
+                : "");
+            return (
+              "<tr><td>" +
+              escapeHtml(String(record.record_date || "").slice(0, 10)) +
+              "</td><td><strong>" +
+              escapeHtml(record.teacher_name || "-") +
+              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
+              escapeHtml(record.teacher_id || "-") +
+              "</span></td><td>" +
+              escapeHtml(record.grade || "-") +
+              " / " +
+              escapeHtml(record.section || "-") +
+              "</td><td>" +
+              escapeHtml(record.subject || "-") +
+              "</td><td>" +
+              escapeHtml(record.unit_number || "-") +
+              "</td><td><strong>" +
+              escapeHtml(record.main_topic || "-") +
+              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
+              escapeHtml(record.subtopic || "") +
+              "</span></td><td>" +
+              escapeHtml(record.completed_work || "-") +
+              "</td><td>" +
+              dailyStatusBadge(record.completion_status) +
+              '</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">' +
+              (actions || '<span style="color:var(--muted);font-size:12px">-</span>') +
+              "</div></td></tr>"
+            );
+          })
+          .join("");
+      }
+
+      window.loadDailyProgress = async function () {
+        setupDailyProgressFormDefaults();
+        const tbody = dailyField("daily-progress-tbody");
+        if (tbody) {
+          tbody.innerHTML =
+            '<tr><td colspan="9" style="color:var(--muted);padding:18px">Loading records...</td></tr>';
+        }
+        try {
+          dailyProgressRecords = await apiFetch(
+            "/api/edutrack/daily-syllabus-progress" + dailyProgressQuery(),
+          );
+          renderDailyProgressTable();
+        } catch (error) {
+          if (tbody) {
+            tbody.innerHTML =
+              '<tr><td colspan="9" style="color:var(--muted);padding:18px">Could not load records: ' +
+              escapeHtml(error.message) +
+              "</td></tr>";
+          }
+        }
+      };
+
+      window.loadDailyProgressDebounced = function () {
+        clearTimeout(dailyProgressDebounceTimer);
+        dailyProgressDebounceTimer = setTimeout(() => loadDailyProgress(), 300);
+      };
+
+      window.resetDailyProgressForm = function () {
+        editingDailyProgressId = null;
+        [
+          "daily-period",
+          "daily-grade",
+          "daily-section",
+          "daily-subject",
+          "daily-unit",
+          "daily-main-topic",
+          "daily-subtopic",
+          "daily-completed-work",
+          "daily-page-reference",
+          "daily-notes",
+          "daily-next-lesson",
+        ].forEach((id) => {
+          const el = dailyField(id);
+          if (el) el.value = "";
+        });
+        const title = dailyField("daily-progress-form-title");
+        if (title) title.textContent = "Add Daily Record";
+        const status = dailyField("daily-completion-status");
+        if (status) status.value = "Completed";
+        setupDailyProgressFormDefaults();
+      };
+
+      window.editDailyProgress = function (id) {
+        const record = dailyProgressRecords.find((item) => Number(item.id) === Number(id));
+        if (!record) return;
+        editingDailyProgressId = Number(id);
+        const values = {
+          "daily-date": String(record.record_date || "").slice(0, 10),
+          "daily-teacher-id": record.teacher_id || "",
+          "daily-teacher-name": record.teacher_name || "",
+          "daily-grade": record.grade || "",
+          "daily-section": record.section || "",
+          "daily-subject": record.subject || "",
+          "daily-period": record.period_label || "",
+          "daily-unit": record.unit_number || "",
+          "daily-main-topic": record.main_topic || "",
+          "daily-subtopic": record.subtopic || "",
+          "daily-completed-work": record.completed_work || "",
+          "daily-page-reference": record.page_reference || "",
+          "daily-notes": record.notes || "",
+          "daily-completion-status": record.completion_status || "Completed",
+          "daily-next-lesson": record.next_planned_lesson || "",
+        };
+        Object.entries(values).forEach(([idKey, value]) => {
+          const el = dailyField(idKey);
+          if (el) el.value = value;
+        });
+        const title = dailyField("daily-progress-form-title");
+        if (title) title.textContent = "Edit Daily Record";
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      };
+
+      window.submitDailyProgress = async function () {
+        const errorBox = dailyField("daily-form-error");
+        if (errorBox) errorBox.textContent = "";
+        const payload = dailyProgressPayload();
+        const required = ["record_date", "grade", "section", "subject", "unit_number", "main_topic", "completed_work"];
+        const missing = required.filter((key) => !payload[key]);
+        if (missing.length) {
+          if (errorBox) errorBox.textContent = "Required fields are missing.";
+          return;
+        }
+        try {
+          const path = editingDailyProgressId
+            ? "/api/edutrack/daily-syllabus-progress/" + editingDailyProgressId
+            : "/api/edutrack/daily-syllabus-progress";
+          await apiFetch(path, {
+            method: editingDailyProgressId ? "PUT" : "POST",
+            body: JSON.stringify(payload),
+          });
+          showToast("Daily progress saved", "success");
+          resetDailyProgressForm();
+          await loadDailyProgress();
+        } catch (error) {
+          if (errorBox) errorBox.textContent = error.message;
+          showToast(error.message, "err");
+        }
+      };
+
+      window.deleteDailyProgress = async function (id) {
+        if (!dailyCanDelete()) return;
+        if (!confirm("Delete this daily progress record?")) return;
+        try {
+          await apiFetch("/api/edutrack/daily-syllabus-progress/" + id, { method: "DELETE" });
+          showToast("Daily progress record deleted", "success");
+          await loadDailyProgress();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.exportDailyProgressCSV = async function () {
+        try {
+          const res = await fetch(
+            API_BASE + "/api/edutrack/daily-syllabus-progress/export/csv" + dailyProgressQuery(),
+            { headers: platformHeaders() },
+          );
+          if (!res.ok) throw new Error("CSV export failed");
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "edutrack-daily-syllabus-progress.csv";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.printDailyProgressReport = function () {
+        const rows = dailyProgressRecords
+          .map(
+            (record) =>
+              "<tr><td>" +
+              escapeHtml(String(record.record_date || "").slice(0, 10)) +
+              "</td><td>" +
+              escapeHtml(record.teacher_name || "") +
+              "</td><td>" +
+              escapeHtml((record.grade || "") + " / " + (record.section || "")) +
+              "</td><td>" +
+              escapeHtml(record.subject || "") +
+              "</td><td>" +
+              escapeHtml(record.unit_number || "") +
+              "</td><td>" +
+              escapeHtml(record.main_topic || "") +
+              "</td><td>" +
+              escapeHtml(record.subtopic || "") +
+              "</td><td>" +
+              escapeHtml(record.completed_work || "") +
+              "</td><td>" +
+              escapeHtml(record.completion_status || "") +
+              "</td></tr>",
+          )
+          .join("");
+        const win = window.open("", "_blank");
+        if (!win) return;
+        win.document.write(
+          "<!doctype html><html><head><title>EduTrack Daily Syllabus Progress Report</title><style>body{font-family:Arial,sans-serif;color:#111827;padding:24px}h1{font-size:20px;margin:0}h2{font-size:16px;margin:4px 0 18px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #d1d5db;padding:6px;vertical-align:top}th{background:#f3f4f6}.sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}.sig div{border-top:1px solid #111827;padding-top:8px}</style></head><body><h1>Loyola College Negombo</h1><h2>EduTrack Daily Syllabus Progress Report</h2><p>Generated by " +
+            escapeHtml(cud?.name || "-") +
+            "<br>Generated at " +
+            escapeHtml(new Date().toLocaleString()) +
+            '</p><table><thead><tr><th>Date</th><th>Teacher</th><th>Grade/Section</th><th>Subject</th><th>Unit</th><th>Main Topic</th><th>Subtopic</th><th>Completed Work</th><th>Status</th></tr></thead><tbody>' +
+            (rows || '<tr><td colspan="9">No records</td></tr>') +
+            '</tbody></table><div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div></body></html>',
+        );
+        win.document.close();
+        win.focus();
+        win.print();
+      };
+
       let reliefAssignments = [];
+      let reliefSearchQuery = "";
 
       function isReliefAdmin() {
         return !!(cud && cud.role === "admin");
+      }
+
+      function isReliefMaster() {
+        return !!(
+          cud &&
+          cud.role === "admin" &&
+          (cud.isMasterAdmin ||
+            cud.platformRole === "masteradmin" ||
+            cud.platformRole === "superadmin" ||
+            cud.platformRole === "master_edutrack_admin")
+        );
       }
 
       async function reliefFetch(path, options = {}) {
@@ -12260,6 +12959,22 @@
           return data;
         }
         if (!res.ok) throw new Error(`API error ${res.status}`);
+        return res;
+      }
+
+      async function reliefBlobFetch(path, options = {}) {
+        const res = await fetch(`${API_BASE}${path}`, {
+          ...options,
+          headers: platformHeaders(options.headers || {}),
+        });
+        if (!res.ok) {
+          let message = `API error ${res.status}`;
+          try {
+            const data = await res.json();
+            if (data && data.error) message = data.error;
+          } catch {}
+          throw new Error(message);
+        }
         return res;
       }
 
@@ -12285,12 +13000,12 @@
         if (!box) return;
         const total = reliefAssignments.length;
         const locked = reliefAssignments.filter((item) => item.isLocked).length;
-        const printed = reliefAssignments.filter((item) => Number(item.print_count || 0) > 0).length;
+        const downloaded = reliefAssignments.filter((item) => Number(item.download_count || 0) > 0).length;
         box.innerHTML =
           '<div class="relief-summary-tile"><small>Total Assignments</small><strong>' +
           total +
-          '</strong></div><div class="relief-summary-tile"><small>Printed</small><strong>' +
-          printed +
+          '</strong></div><div class="relief-summary-tile"><small>Downloaded</small><strong>' +
+          downloaded +
           '</strong></div><div class="relief-summary-tile"><small>Locked</small><strong>' +
           locked +
           "</strong></div>";
@@ -12300,26 +13015,72 @@
         const list = document.getElementById("relief-list");
         if (!list) return;
         renderReliefSummary();
-        if (!reliefAssignments.length) {
+        const visibleAssignments = reliefSearchQuery
+          ? reliefAssignments.filter((item) =>
+              [
+                item.title,
+                item.teacher_id,
+                item.teacher_name,
+                item.uploaded_teacher_id,
+                item.uploaded_teacher_name,
+                item.relief_teacher_id,
+                item.relief_teacher_name,
+                item.subject_name,
+                item.grade,
+                item.section,
+                item.assignment_date,
+              ]
+                .join(" ")
+                .toLowerCase()
+                .includes(reliefSearchQuery),
+            )
+          : reliefAssignments;
+        if (!visibleAssignments.length) {
           list.innerHTML = '<div class="empty">No relief assignments uploaded yet.</div>';
           return;
         }
-        list.innerHTML = reliefAssignments
+        list.innerHTML = visibleAssignments
           .map((item) => {
-            const locked = item.isLocked;
+            const locked = item.isDownloadLocked || item.isLocked;
+            const downloadCount = Number(item.download_count || 0);
+            const allowedDownloads = 1 + Number(item.allowed_extra_downloads || 0);
+            const officialDownloadAction =
+              isReliefAdmin() && !locked
+                ? '<button class="btn sm" onclick="officialDownloadRelief(' +
+                  item.id +
+                  ')"><i data-lucide="download" style="width:13px;height:13px"></i> Official Download</button>'
+                : isReliefAdmin()
+                  ? '<button class="btn secondary sm" disabled><i data-lucide="lock" style="width:13px;height:13px"></i> Locked</button>'
+                  : "";
+            const officialPrintAction =
+              isReliefAdmin() && !item.isPrintLocked
+                ? '<button class="btn sm" onclick="officialPrintRelief(' +
+                  item.id +
+                  ')"><i data-lucide="printer" style="width:13px;height:13px"></i> Official Print</button>'
+                : "";
             const adminActions = isReliefAdmin()
-              ? '<button class="btn sm" onclick="officialPrintRelief(' +
-                item.id +
-                ')"><i data-lucide="printer" style="width:13px;height:13px"></i> Official Print</button>' +
-                '<button class="btn secondary sm" onclick="unlockRelief(' +
-                item.id +
-                ')"><i data-lucide="unlock" style="width:13px;height:13px"></i> Unlock</button>' +
+              ? officialDownloadAction +
+                officialPrintAction +
+                (isReliefMaster()
+                  ? '<button class="btn secondary sm" onclick="unlockRelief(' +
+                    item.id +
+                    ')"><i data-lucide="unlock" style="width:13px;height:13px"></i> Unlock Download</button><button class="btn secondary sm" onclick="unlockReliefPrint(' +
+                    item.id +
+                    ')"><i data-lucide="unlock" style="width:13px;height:13px"></i> Unlock Print</button>'
+                  : "") +
                 '<button class="btn secondary sm" onclick="showReliefAudit(' +
                 item.id +
                 ')"><i data-lucide="history" style="width:13px;height:13px"></i> Audit</button>' +
-                '<button class="btn secondary sm" onclick="deleteReliefAssignment(' +
+                '<button class="btn secondary sm" onclick="requestDeleteReliefAssignment(' +
                 item.id +
-                ')"><i data-lucide="trash-2" style="width:13px;height:13px"></i> Delete</button>'
+                ')"><i data-lucide="trash-2" style="width:13px;height:13px"></i> Request Delete</button>' +
+                (isReliefMaster() && item.status === "delete_requested"
+                  ? '<button class="btn sm" onclick="approveDeleteReliefAssignment(' +
+                    item.id +
+                    ')">Approve Delete</button><button class="btn secondary sm" onclick="rejectDeleteReliefAssignment(' +
+                    item.id +
+                    ')">Reject Delete</button>'
+                  : "")
               : "";
             return (
               '<div class="relief-card-row"><div><div class="relief-card-row-title">' +
@@ -12327,7 +13088,7 @@
               ' <span class="relief-lock ' +
               (locked ? "locked" : "") +
               '">' +
-              (locked ? "LOCKED" : "OPEN") +
+              (item.status === "delete_requested" ? "DELETE REQUESTED" : locked ? "LOCKED" : "PENDING DOWNLOAD") +
               '</span></div><div class="relief-card-row-meta">Date: ' +
               escapeHtml(reliefDate(item.assignment_date)) +
               " | Grade: " +
@@ -12337,20 +13098,25 @@
               " | Subject: " +
               escapeHtml(item.subject_name || "-") +
               "<br>Uploaded by " +
-              escapeHtml(item.uploaded_by_name || item.teacher_name || "-") +
+              escapeHtml(item.uploaded_teacher_name || item.uploaded_by_name || item.teacher_name || "-") +
+              (item.uploaded_teacher_id ? " (" + escapeHtml(item.uploaded_teacher_id) + ")" : "") +
               " | PDF: " +
               escapeHtml(item.original_file_name || "-") +
-              " | Print count: " +
-              Number(item.print_count || 0) +
+              " | Official downloads: " +
+              downloadCount +
               " / " +
-              (1 + Number(item.allowed_extra_prints || 0)) +
+              allowedDownloads +
               (item.relief_teacher_name
-                ? "<br>Relief teacher: " + escapeHtml(item.relief_teacher_name)
+                ? "<br>Relief teacher: " +
+                  escapeHtml(item.relief_teacher_name) +
+                  (item.relief_teacher_id ? " (" + escapeHtml(item.relief_teacher_id) + ")" : "")
+                : "") +
+              (item.downloaded_at ? " | Downloaded: " + escapeHtml(reliefDate(item.downloaded_at)) : "") +
+              (item.last_unlock_reason
+                ? "<br>Last unlock reason: " + escapeHtml(item.last_unlock_reason)
                 : "") +
               (item.note ? "<br>Note: " + escapeHtml(item.note) : "") +
-              '</div></div><div class="relief-card-actions"><button class="btn secondary sm" onclick="downloadReliefFile(' +
-              item.id +
-              ')"><i data-lucide="download" style="width:13px;height:13px"></i> Download PDF</button>' +
+              '</div></div><div class="relief-card-actions">' +
               adminActions +
               "</div></div>"
             );
@@ -12360,6 +13126,11 @@
           setTimeout(() => window.lucide.createIcons(), 0);
         }
       }
+
+      window.setReliefSearch = function (value) {
+        reliefSearchQuery = String(value || "").trim().toLowerCase();
+        renderReliefAssignments();
+      };
 
       window.loadReliefAssignments = async function () {
         const list = document.getElementById("relief-list");
@@ -12422,18 +13193,75 @@
       };
 
       window.downloadReliefFile = async function (id) {
+        return officialDownloadRelief(id);
+      };
+
+      window.officialDownloadRelief = async function (id) {
+        if (!isReliefAdmin()) return;
+        const assignment = reliefAssignments.find((item) => Number(item.id) === Number(id));
+        if (!assignment) return;
+        if (assignment.isLocked) {
+          showToast("Locked. A master admin must unlock another download.", "err");
+          return;
+        }
+        const suggestions = reliefTeacherOptions().slice(0, 8).join("\n");
+        const reliefTeacherId = prompt(
+          "Enter relief teacher ID or staff ID" + (suggestions ? "\n\nKnown teachers:\n" + suggestions : ""),
+        );
+        if (!reliefTeacherId) return;
+        let reliefTeacher = null;
         try {
-          const assignment = reliefAssignments.find((item) => Number(item.id) === Number(id));
-          const res = await reliefFetch(`/api/edutrack/relief-assignments/${id}/file`);
+          reliefTeacher = await apiFetch(
+            `/api/edutrack/teachers/lookup/${encodeURIComponent(reliefTeacherId.trim())}`,
+          );
+          const ok = confirm(
+            "Relief teacher loaded:\n\n" +
+              "Name: " +
+              (reliefTeacher.name || "-") +
+              "\nPosition: " +
+              (reliefTeacher.position || "-") +
+              "\nSubject: " +
+              (reliefTeacher.subject || "-") +
+              "\nSection/classes: " +
+              (reliefTeacher.section || reliefTeacher.classes || "-") +
+              "\n\nContinue official download?",
+          );
+          if (!ok) return;
+        } catch (error) {
+          showToast(error.message, "err");
+          return;
+        }
+        let reason = "";
+        if (Number(assignment.download_count || 0) > 0) {
+          reason = prompt("Reason for this extra download", assignment.last_unlock_reason || "");
+          if (!reason || !reason.trim()) {
+            showToast("Reason is required for an extra download.", "err");
+            return;
+          }
+        }
+        try {
+          const res = await reliefBlobFetch(
+            `/api/edutrack/relief-assignments/${id}/official-download`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                relief_teacher_id: reliefTeacherId.trim(),
+                reason: reason.trim(),
+              }),
+            },
+          );
           const blob = await res.blob();
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
-          link.download = assignment?.original_file_name || "relief-assignment.pdf";
+          link.download = assignment.original_file_name || "relief-assignment.pdf";
           document.body.appendChild(link);
           link.click();
           link.remove();
           setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast("Official download recorded and locked.", "success");
+          await loadReliefAssignments();
         } catch (error) {
           showToast(error.message, "err");
         }
@@ -12441,18 +13269,55 @@
 
       window.officialPrintRelief = async function (id) {
         if (!isReliefAdmin()) return;
-        const suggestions = reliefTeacherOptions().slice(0, 8).join("\n");
-        const reliefTeacherId = prompt(
-          "Enter relief teacher ID or staff ID" + (suggestions ? "\n\nKnown teachers:\n" + suggestions : ""),
-        );
+        const assignment = reliefAssignments.find((item) => Number(item.id) === Number(id));
+        if (!assignment) return;
+        if (assignment.isPrintLocked) {
+          showToast("Print locked. A master admin must unlock another print.", "err");
+          return;
+        }
+        const reliefTeacherId = prompt("Enter relief teacher ID or staff ID");
         if (!reliefTeacherId) return;
         try {
-          await apiFetch(`/api/edutrack/relief-assignments/${id}/print`, {
+          const reliefTeacher = await apiFetch(
+            `/api/edutrack/teachers/lookup/${encodeURIComponent(reliefTeacherId.trim())}`,
+          );
+          const ok = confirm(
+            "Relief teacher loaded:\n\n" +
+              "Name: " +
+              (reliefTeacher.name || "-") +
+              "\nPosition: " +
+              (reliefTeacher.position || "-") +
+              "\nSubject: " +
+              (reliefTeacher.subject || "-") +
+              "\nSection/classes: " +
+              (reliefTeacher.section || reliefTeacher.classes || "-") +
+              "\n\nContinue official print?",
+          );
+          if (!ok) return;
+          let reason = "";
+          if (Number(assignment.print_count || 0) > 0) {
+            reason = prompt("Reason for this extra print", assignment.last_unlock_reason || "");
+            if (!reason || !reason.trim()) {
+              showToast("Reason is required for an extra print.", "err");
+              return;
+            }
+          }
+          const res = await reliefBlobFetch(`/api/edutrack/relief-assignments/${id}/print`, {
             method: "POST",
-            body: JSON.stringify({ relief_teacher_id: reliefTeacherId.trim() }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              relief_teacher_id: reliefTeacherId.trim(),
+              reason: reason.trim(),
+            }),
           });
-          showToast("Official print recorded", "success");
-          await downloadReliefFile(id);
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const printWindow = window.open(url, "_blank");
+          if (printWindow) {
+            printWindow.addEventListener("load", () => printWindow.print(), { once: true });
+          }
+          setTimeout(() => URL.revokeObjectURL(url), 5000);
+          showToast("Official print recorded and locked.", "success");
           await loadReliefAssignments();
         } catch (error) {
           showToast(error.message, "err");
@@ -12460,13 +13325,43 @@
       };
 
       window.unlockRelief = async function (id) {
-        if (!isReliefAdmin()) return;
-        const reason = prompt("Unlock reason", "Approved extra print");
+        if (!isReliefMaster()) {
+          showToast("Master admin access required for unlock.", "err");
+          return;
+        }
+        const reason = prompt("Unlock reason for one extra download", "");
         if (reason === null) return;
+        if (!reason.trim()) {
+          showToast("Unlock reason is required.", "err");
+          return;
+        }
         try {
-          await apiFetch(`/api/edutrack/relief-assignments/${id}/unlock`, {
+          await apiFetch(`/api/edutrack/relief-assignments/${id}/unlock-one-download`, {
             method: "POST",
-            body: JSON.stringify({ reason }),
+            body: JSON.stringify({ reason: reason.trim() }),
+          });
+          showToast("Relief assignment unlocked for one extra download", "success");
+          await loadReliefAssignments();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.unlockReliefPrint = async function (id) {
+        if (!isReliefMaster()) {
+          showToast("Master admin access required for unlock.", "err");
+          return;
+        }
+        const reason = prompt("Unlock reason for one extra print", "");
+        if (reason === null) return;
+        if (!reason.trim()) {
+          showToast("Unlock reason is required.", "err");
+          return;
+        }
+        try {
+          await apiFetch(`/api/edutrack/relief-assignments/${id}/unlock-one-print`, {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() }),
           });
           showToast("Relief assignment unlocked for one extra print", "success");
           await loadReliefAssignments();
@@ -12495,12 +13390,48 @@
         }
       };
 
-      window.deleteReliefAssignment = async function (id) {
+      window.requestDeleteReliefAssignment = async function (id) {
         if (!isReliefAdmin()) return;
-        if (!confirm("Delete this relief assignment record?")) return;
+        const reason = prompt("Reason for delete request", "");
+        if (reason === null) return;
         try {
-          await apiFetch(`/api/edutrack/relief-assignments/${id}`, { method: "DELETE" });
-          showToast("Relief assignment deleted", "success");
+          await apiFetch(`/api/edutrack/relief-assignments/${id}/delete-request`, {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() || "Delete requested" }),
+          });
+          showToast("Delete request submitted", "success");
+          await loadReliefAssignments();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.approveDeleteReliefAssignment = async function (id) {
+        if (!isReliefMaster()) return;
+        const reason = prompt("Approve delete reason", "Approved by master admin");
+        if (reason === null) return;
+        try {
+          await apiFetch(`/api/edutrack/relief-assignments/${id}/approve-delete`, {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() || "Approved by master admin" }),
+          });
+          showToast("Delete approved", "success");
+          await loadReliefAssignments();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.rejectDeleteReliefAssignment = async function (id) {
+        if (!isReliefMaster()) return;
+        const reason = prompt("Reject delete reason", "Rejected by master admin");
+        if (reason === null) return;
+        try {
+          await apiFetch(`/api/edutrack/relief-assignments/${id}/reject-delete`, {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() || "Rejected by master admin" }),
+          });
+          showToast("Delete rejected", "success");
           await loadReliefAssignments();
         } catch (error) {
           showToast(error.message, "err");
