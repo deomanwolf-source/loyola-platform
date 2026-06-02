@@ -399,6 +399,133 @@
     return codes;
   }
 
+  const autoSortClassOrder = ["a", "b", "c", "d", "e", "f", "g", "h"];
+  const autoSortStreamOrder = ["maths", "bio", "commerce", "arts", "technology"];
+  const autoSortMediumOrder = ["sin", "eng"];
+  const autoSortFixedCodes = [
+    "rector-principal",
+    "vice-rector",
+    "principal-primary",
+    "priest-in-charge-middle-upper",
+    "sectional-head-upper",
+    "vice-principal-advanced-level",
+    "vice-principal-primary",
+    "vice-principal-middle",
+    "vice-principal-upper",
+    "assistant-sectional-head-primary",
+    "assistant-sectional-head-middle",
+    "assistant-sectional-head-advanced-level",
+    "subject-head-primary",
+    "subject-head-middle",
+    "subject-head-upper",
+    "subject-head-advanced-level",
+    ...Array.from({ length: 13 }, (_, index) => `grade-head-${index + 1}`),
+    "stream-head-science-maths",
+    "stream-head-maths",
+    "stream-head-bio",
+    "stream-head-commerce",
+    "stream-head-arts",
+    "stream-head-technology",
+    "subject-coordinator-primary-sinhala",
+    "subject-coordinator-primary-mathematics",
+    "subject-coordinator-primary-environmental-studies",
+    "subject-coordinator-primary-english",
+    "subject-coordinator-primary-roman-catholicism",
+    "subject-coordinator-middle-sinhala",
+    "subject-coordinator-middle-mathematics",
+    "subject-coordinator-middle-science",
+    "subject-coordinator-middle-english",
+    "subject-coordinator-middle-history-geography-civics",
+    "subject-coordinator-middle-roman-catholicism",
+    "subject-coordinator-middle-health-science-physical-education",
+    "subject-coordinator-middle-practical-technical-skills",
+    "subject-coordinator-upper-sinhala",
+    "subject-coordinator-upper-mathematics",
+    "subject-coordinator-upper-science",
+    "subject-coordinator-upper-english",
+    "subject-coordinator-upper-history-geography-civics",
+    "subject-coordinator-upper-roman-catholicism",
+    "subject-coordinator-upper-health-science-physical-education",
+    "subject-coordinator-upper-practical-technical-skills",
+    "subject-coordinator-aesthetic-art",
+    "subject-coordinator-aesthetic-arts",
+    "subject-coordinator-aesthetic-dancing",
+    "subject-coordinator-aesthetic-eastern-music",
+    "subject-coordinator-aesthetic-western-music",
+    "subject-coordinator-advanced-level-science-maths",
+    "subject-coordinator-advanced-level-commerce",
+    "subject-coordinator-advanced-level-arts",
+    "subject-coordinator-advanced-level-technology",
+    "english-medium-coordinator-primary",
+    "english-medium-coordinator-middle",
+    "english-medium-coordinator-upper",
+    "english-medium-coordinator-advanced-level",
+    ...Array.from({ length: 5 }, (_, gradeIndex) =>
+      autoSortClassOrder.map((letter) => `class-teacher-${gradeIndex + 1}-${letter}`),
+    ).flat(),
+    ...Array.from({ length: 3 }, (_, gradeIndex) =>
+      autoSortClassOrder.map((letter) => `class-teacher-${gradeIndex + 6}-${letter}`),
+    ).flat(),
+    ...Array.from({ length: 3 }, (_, gradeIndex) =>
+      autoSortClassOrder.map((letter) => `class-teacher-${gradeIndex + 9}-${letter}`),
+    ).flat(),
+    ...[12, 13].flatMap((grade) =>
+      autoSortStreamOrder.flatMap((stream) =>
+        autoSortMediumOrder.flatMap((medium) =>
+          ["a", "b", "c", "d"].map(
+            (letter) => `class-teacher-${grade}-${stream}-${medium}-${letter}`,
+          ),
+        ),
+      ),
+    ),
+    "subject-teacher-primary",
+    "subject-teacher-middle",
+    "subject-teacher-upper",
+    "subject-teacher-advanced-level",
+    "special-need-resource-unit",
+    "visiting-teacher",
+    "counsellor",
+    "administrative-secretary",
+    "secretary",
+    "head-academic-office",
+    "academic-officer",
+    "accountant",
+    "accounts-assistant",
+    "manager-it",
+    "assistant-it",
+    "receptionist",
+    "bookstore-clerk",
+    "bookstore-assistant",
+    "office-assistant",
+    "maintenance-supervisor",
+    "nursing-officer",
+    "librarian",
+    "supportive-staff",
+    "council-al-president",
+    "council-al-vice-president",
+    "council-al-secretary",
+    "council-al-member",
+    "council-upper-member",
+    "council-middle-member",
+    "council-primary-member",
+  ];
+  const autoSortCodeOrder = new Map(
+    autoSortFixedCodes.map((code, index) => [code, (index + 1) * 1000]),
+  );
+
+  function profileSlugFromName(value) {
+    return String(value || "")
+      .slice(0, 150)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
+  }
+
+  function autoSortOrderFromPositionCodes(input) {
+    const primaryCode = normalizePositionCodes(input)[0];
+    return primaryCode ? autoSortCodeOrder.get(primaryCode) || 0 : 0;
+  }
+
   function positionCodesForProfile(person = {}) {
     const profile = person || {};
     const explicit = profile.position_codes || profile.positionCodes;
@@ -1136,7 +1263,7 @@
       isEdit ? "Edit Staff Profile" : "Create Staff Profile",
       "Staff ID is generated automatically by the backend.",
       `
-        <form id="staff-form" class="staff-form">
+        <form id="staff-form" class="staff-form" data-edit-mode="${isEdit ? "true" : "false"}">
           <section class="profile-card">
             <div class="photo-box" id="photo-box">
               ${
@@ -1162,14 +1289,22 @@
                   <small>${isEdit ? "Staff ID cannot be changed while editing." : "Auto generated. Type an old deleted Staff ID here only when re-adding the same person."}</small>
                 </label>
                 ${field("Full Name", "full_name", person?.full_name || "", "required")}
-                ${field("Slug", "slug", person?.slug || "")}
+                <label class="field">
+                  <span>Slug</span>
+                  <input name="slug" value="${esc(person?.slug || "")}" />
+                  <small>Auto generated from full name unless edited.</small>
+                </label>
                 ${field("Email", "email", person?.email || "", 'type="email"')}
                 ${field("Phone", "phone", person?.phone || "")}
                 <label class="field">
                   <span>Status</span>
                   <select name="status">${optionList(["Active", "Inactive"], person?.status || "Active")}</select>
                 </label>
-                ${field("Sort Order", "sort_order", person?.sort_order ?? person?.sortOrder ?? 0, 'type="number" step="1"')}
+                <label class="field">
+                  <span>Sort Order</span>
+                  <input name="sort_order" value="${esc(person?.sort_order ?? person?.sortOrder ?? 0)}" type="number" step="1" />
+                  <small>Auto generated from the first position code unless edited.</small>
+                </label>
               </div>
             </div>
             <div class="form-section">
@@ -1674,7 +1809,10 @@
     }
 
     const staffForm = document.getElementById("staff-form");
-    if (staffForm) staffForm.addEventListener("submit", submitStaffForm);
+    if (staffForm) {
+      bindStaffAutoFields(staffForm);
+      staffForm.addEventListener("submit", submitStaffForm);
+    }
     const photoFile = document.getElementById("photo-file");
     if (photoFile) photoFile.addEventListener("change", uploadProfilePhoto);
     const clearPhoto = document.querySelector("[data-action='clear-photo']");
@@ -1711,6 +1849,66 @@
     document.querySelectorAll("[data-delete-notice]").forEach((button) => {
       button.addEventListener("click", () => deleteNotice(button.dataset.deleteNotice));
     });
+  }
+
+  function bindStaffAutoFields(form) {
+    const fullName = form.querySelector("[name='full_name']");
+    const slugInput = form.querySelector("[name='slug']");
+    const sortOrderInput = form.querySelector("[name='sort_order']");
+    const positionCodes = form.querySelector("[name='position_codes']");
+    if (!fullName || !slugInput || !sortOrderInput || !positionCodes) return;
+
+    const isEditMode = form.dataset.editMode === "true";
+    const initialGeneratedSlug = profileSlugFromName(fullName.value);
+    const initialSlug = String(slugInput.value || "").trim();
+    const initialSortOrder = Number(sortOrderInput.value || 0);
+    const hasManualInitialSlug = isEditMode
+      ? Boolean(initialSlug)
+      : Boolean(initialSlug && initialSlug !== initialGeneratedSlug);
+    slugInput.dataset.manual = hasManualInitialSlug ? "true" : "false";
+    sortOrderInput.dataset.manual = isEditMode && initialSortOrder !== 0 ? "true" : "false";
+
+    const syncSlug = () => {
+      if (slugInput.dataset.manual === "true" && slugInput.value.trim()) return;
+      slugInput.value = profileSlugFromName(fullName.value);
+      slugInput.dataset.manual = "false";
+    };
+
+    const syncSortOrder = () => {
+      const current = Number(sortOrderInput.value || 0);
+      if (sortOrderInput.dataset.manual === "true" && current !== 0) return;
+      sortOrderInput.value = String(autoSortOrderFromPositionCodes(positionCodes.value));
+      sortOrderInput.dataset.manual = "false";
+    };
+
+    fullName.addEventListener("input", syncSlug);
+    slugInput.addEventListener("input", () => {
+      const value = slugInput.value.trim();
+      if (!value) {
+        slugInput.dataset.manual = "false";
+        syncSlug();
+        return;
+      }
+      slugInput.dataset.manual = value === profileSlugFromName(fullName.value) ? "false" : "true";
+    });
+    positionCodes.addEventListener("input", syncSortOrder);
+    sortOrderInput.addEventListener("input", () => {
+      const current = Number(sortOrderInput.value || 0);
+      if (!sortOrderInput.value || current === 0) {
+        sortOrderInput.dataset.manual = "false";
+        syncSortOrder();
+        return;
+      }
+      sortOrderInput.dataset.manual = "true";
+    });
+
+    syncSlug();
+    syncSortOrder();
+  }
+
+  function staffSortOrderIsManual(form) {
+    const input = form.querySelector("[name='sort_order']");
+    return input?.dataset.manual === "true" && Number(input.value || 0) !== 0;
   }
 
   async function refreshCurrentView() {
@@ -1928,7 +2126,7 @@
     payload.profile_image = document.getElementById("profile-image").value;
     payload.photo_url = payload.profile_image;
     payload.position_codes = normalizePositionCodes(payload.position_codes).join("\n");
-    payload.sort_order = Number(payload.sort_order || 0);
+    payload.sort_order = staffSortOrderIsManual(form) ? Number(payload.sort_order || 0) : 0;
     const hasPositionCodes = Boolean(payload.position_codes);
     const wasEditing = Boolean(state.editingId);
 

@@ -2100,6 +2100,9 @@ function registerStaffRoutes(app, context) {
     payload.positions = normalizePositionPayload(body, payload);
     payload.positionCodesProvided = positionCodesInput(body) !== null;
     const primaryPosition = payload.positions[0];
+    if (!payload.sortOrder && primaryPosition?.sortOrder) {
+      payload.sortOrder = normalizeSortOrder(primaryPosition.sortOrder, 0);
+    }
     if (primaryPosition && !providedStaffType) {
       payload.staffType = staffTypeFromMainCategory(primaryPosition.mainCategory);
     }
