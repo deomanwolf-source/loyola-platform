@@ -105,6 +105,23 @@ function googleCalendarEmbedUrl(mode: "MONTH" | "AGENDA") {
   return `https://calendar.google.com/calendar/embed?${params.toString()}`;
 }
 
+function canonicalVisualPageId(path: string, db: ReturnType<typeof getDb>) {
+  const requestedPageId = path === "/" || path === "" ? "home" : path.replace(/^\/+/, "");
+  const aliases: Record<string, string> = {
+    notices: "news",
+    "academics/cambridge": LCEA_PAGE_ID,
+    facilities: FACILITIES_PAGE_ID,
+    "facilities-services": FACILITIES_PAGE_ID,
+    "college-administration": "about/college-administration",
+    "college-staff": "about/college-staff",
+    "college-anthem-hymn": "about/college-anthem-hymn",
+    "photo-gallery": "gallery/photo-gallery",
+    "video-gallery": "gallery/video-gallery",
+  };
+  const canonicalId = aliases[requestedPageId] || requestedPageId;
+  return db.pages[canonicalId] ? canonicalId : requestedPageId;
+}
+
 function roleLabel(role: Role) {
   const labels: Record<Role, string> = {
     masteradmin: "Master Admin",
@@ -182,8 +199,18 @@ export function App() {
 
   const pageIsLive = (id: string) =>
     Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
-  const requestedPageId = path === "/" || path === "" ? "home" : path.replace(/^\/+/, "");
-  const visualPageId = requestedPageId === "notices" ? "news" : requestedPageId;
+  const visualPageId = canonicalVisualPageId(path, db);
+  const isSystemPath =
+    path === "/login" || path === "/portal" || path === "/admin" || path.startsWith("/portal/");
+
+  if (
+    !isSystemPath &&
+    visualPageId !== "home" &&
+    pageIsLive(visualPageId) &&
+    db.pages[visualPageId]?.visualHtml?.trim()
+  ) {
+    return <VisualBuilderPage pageId={visualPageId} />;
+  }
 
   if (path === "/portal/edutrack") return <EduTrackRuntimePage />;
 
@@ -228,16 +255,6 @@ export function App() {
     pageIsLive(FACILITIES_PAGE_ID)
   ) {
     return <FacilitiesServicesPage />;
-  }
-
-  if (
-    path !== "/login" &&
-    !path.startsWith("/portal/") &&
-    visualPageId !== "home" &&
-    pageIsLive(visualPageId) &&
-    db.pages[visualPageId]?.visualHtml
-  ) {
-    return <VisualBuilderPage pageId={visualPageId} />;
   }
 
   if (path === "/" || path === "") return <HomePage />;
@@ -370,7 +387,6 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
     <PublicLayout>
       {page.visualCss && <style>{page.visualCss}</style>}
       <div className="visual-page" dangerouslySetInnerHTML={{ __html: page.visualHtml }} />
-      {pageId !== "about" && <SubpagesSection parentId={pageId} />}
     </PublicLayout>
   );
 }

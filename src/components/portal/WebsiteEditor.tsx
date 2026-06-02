@@ -1266,11 +1266,12 @@ export function WebsiteEditor() {
 
   const openVisualBuilder = () => {
     const savedPage = db.pages[selectedPage];
+    const savedVisualHtml = savedPage?.visualHtml?.trim();
     const captured =
       selectedPage === "home" ? null : capturePreviewContent(previewFrameRef.current);
 
     setVisualEditorInitial({
-      html: captured?.html || savedPage?.visualHtml || visualStarterForPage(db, selectedPage),
+      html: savedVisualHtml || captured?.html || visualStarterForPage(db, selectedPage),
       css: savedPage?.visualCss || "",
       canvasCss: selectedPage === "home" ? "" : captured?.css || "",
     });
