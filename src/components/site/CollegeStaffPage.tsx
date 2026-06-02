@@ -33,6 +33,20 @@ type StaffAssignment = {
   group: StaffDisplayGroup;
 };
 
+type StaffTypeFilter = "Academic Staff" | "Non-Academic Staff" | "Supportive Staff";
+
+const STAFF_TYPE_FILTERS: StaffTypeFilter[] = [
+  "Academic Staff",
+  "Non-Academic Staff",
+  "Supportive Staff",
+];
+
+const filterIconMap = {
+  "Academic Staff": GraduationCap,
+  "Non-Academic Staff": Briefcase,
+  "Supportive Staff": Users,
+} as const;
+
 function normalize(value?: string) {
   return String(value || "")
     .trim()
@@ -187,29 +201,45 @@ function StaffPhoto({ profile, size = "large" }: { profile: StaffProfile; size?:
 }
 
 const GROUP_SECTION_TITLES: Record<string, string> = {
-  "academic-1st": "1.1 College Administration",
-  "academic-2nd": "1.2 Assistant Sectional Heads and Subject Heads",
-  "grade-heads": "1.4 Grade Heads",
-  "stream-heads": "1.5 Advanced Level Stream Heads",
-  "subject-coordinators-primary": "1.6 Subject Co-ordinators - Primary School",
-  "subject-coordinators-middle": "1.7 Subject Co-ordinators - Middle School",
-  "subject-coordinators-upper": "1.8 Subject Co-ordinators - Upper School",
-  "subject-coordinators-aesthetic": "1.9 Aesthetic Subject Co-ordinators",
-  "subject-coordinators-al": "1.10 Subject Co-ordinators - Advanced Level",
-  "english-medium-coordinators": "1.11 English Medium Co-ordinators",
-  "class-teachers-primary": "1.12 Class Teachers - Primary School",
-  "class-teachers-middle": "1.13 Class Teachers - Middle School",
-  "class-teachers-upper": "1.14 Class Teachers - Upper School",
-  "class-teachers-al": "1.15 Class Teachers - Advanced Level Section",
-  "subject-teachers": "1.16 Subject Teachers",
-  "non-academic": "2.1 Non-Academic Staff",
-  "supportive": "3.1 Supportive Staff",
-  "academic-council": "4.1 General Academic Council",
+  "academic-1st": "College Administration",
+  "academic-2nd": "Assistant Sectional Heads and Subject Heads",
+  "grade-heads": "Grade Heads",
+  "stream-heads": "Advanced Level Stream Heads",
+  "subject-coordinators-primary": "Subject Co-ordinators - Primary School",
+  "subject-coordinators-middle": "Subject Co-ordinators - Middle School",
+  "subject-coordinators-upper": "Subject Co-ordinators - Upper School",
+  "subject-coordinators-aesthetic": "Aesthetic Subject Co-ordinators",
+  "subject-coordinators-al": "Subject Co-ordinators - Advanced Level",
+  "english-medium-coordinators": "English Medium Co-ordinators",
+  "class-teachers-primary": "Class Teachers - Primary School",
+  "class-teachers-middle": "Class Teachers - Middle School",
+  "class-teachers-upper": "Class Teachers - Upper School",
+  "class-teachers-al": "Class Teachers - Advanced Level Section",
+  "subject-teachers": "Subject Teachers",
+  "non-academic": "Non-Academic Staff",
+  "supportive": "Supportive Staff",
+  "academic-council": "General Academic Council",
   "uncategorized": "Other Staff",
 };
 
 function sectionTitle(group: StaffDisplayGroup) {
-  return GROUP_SECTION_TITLES[group.id] || group.title;
+  return (GROUP_SECTION_TITLES[group.id] || group.title).replace(/^\d+(?:\.\d+)?\s+/, "");
+}
+
+function assignmentStaffType(assignment: StaffAssignment): StaffTypeFilter {
+  if (
+    assignment.group.id === "non-academic" ||
+    assignment.position.main_category === "Non-Academic Staff"
+  ) {
+    return "Non-Academic Staff";
+  }
+  if (
+    assignment.group.id === "supportive" ||
+    assignment.position.main_category === "Supportive Staff"
+  ) {
+    return "Supportive Staff";
+  }
+  return "Academic Staff";
 }
 
 function positionMeta(position: ParsedPositionCode) {
@@ -416,6 +446,7 @@ export function CollegeStaffPage({
   const [liveTeachers, setLiveTeachers] = useState<Teacher[] | null>(null);
   const [selectedAssignment, setSelectedAssignment] = useState<StaffAssignment | null>(null);
   const [search, setSearch] = useState("");
+  const [activeStaffType, setActiveStaffType] = useState<StaffTypeFilter>("Academic Staff");
   void pageId;
 
   useEffect(() => {
@@ -458,8 +489,22 @@ export function CollegeStaffPage({
 
   const assignments = useMemo(() => makeAssignments(profiles), [profiles]);
   const query = normalize(search);
-  const filteredAssignments = assignments.filter((assignment) =>
-    assignmentMatchesSearch(assignment, query),
+  const staffTypeCounts = useMemo(
+    () =>
+      STAFF_TYPE_FILTERS.reduce(
+        (counts, type) => ({
+          ...counts,
+          [type]: assignments.filter((assignment) => assignmentStaffType(assignment) === type)
+            .length,
+        }),
+        {} as Record<StaffTypeFilter, number>,
+      ),
+    [assignments],
+  );
+  const filteredAssignments = assignments.filter(
+    (assignment) =>
+      assignmentStaffType(assignment) === activeStaffType &&
+      assignmentMatchesSearch(assignment, query),
   );
   const grouped = STAFF_DISPLAY_GROUPS.map((group) => ({
     group,
@@ -478,21 +523,57 @@ export function CollegeStaffPage({
             Staff Directory
           </p>
           <h1 className="mt-2 font-serif text-4xl font-bold text-slate-950 md:text-[2.5rem]">
-            Academic Staff
+            {activeStaffType}
           </h1>
           <div className="mt-4 border-t border-slate-300" />
-          <div className="mt-6 max-w-xl">
-            <label className="relative block">
-              <span className="sr-only">Search staff</span>
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-              <input
-                type="search"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search by name, position, qualification..."
-                className="h-12 w-full rounded-lg border border-slate-300 bg-white pl-12 pr-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-crimson focus:ring-2 focus:ring-crimson/15"
-              />
-            </label>
+          <div className="mt-6 grid gap-4 lg:grid-cols-[minmax(0,36rem)_1fr] lg:items-center">
+            <div className="max-w-xl">
+              <label className="relative block">
+                <span className="sr-only">Search staff</span>
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search by name, position, qualification..."
+                  className="h-12 w-full rounded-lg border border-slate-300 bg-white pl-12 pr-4 text-sm font-semibold text-slate-950 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-crimson focus:ring-2 focus:ring-crimson/15"
+                />
+              </label>
+            </div>
+            <div
+              className="flex flex-wrap gap-2 lg:justify-end"
+              role="tablist"
+              aria-label="Staff type"
+            >
+              {STAFF_TYPE_FILTERS.map((type) => {
+                const Icon = filterIconMap[type];
+                const active = activeStaffType === type;
+                return (
+                  <button
+                    key={type}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setActiveStaffType(type)}
+                    className={`inline-flex h-11 items-center gap-2 rounded-lg border px-4 text-sm font-extrabold transition ${
+                      active
+                        ? "border-crimson bg-crimson text-white shadow-[0_10px_24px_rgba(191,10,48,0.18)]"
+                        : "border-slate-200 bg-white text-slate-950 hover:border-crimson hover:text-crimson"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span>{type}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[0.68rem] font-black ${
+                        active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                      }`}
+                    >
+                      {staffTypeCounts[type] || 0}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {grouped.length > 0 ? (
