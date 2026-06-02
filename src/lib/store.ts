@@ -7,6 +7,10 @@ export const DEFAULT_HERO_IMAGE = "/flag1.png";
 export const DEFAULT_MAP_URL = "https://maps.app.goo.gl/SbvARKozMPQTve388";
 export const DEFAULT_MAP_EMBED_URL =
   "https://www.google.com/maps?q=Loyola%20College%20Negombo%2C%20Sri%20Lanka&output=embed";
+export const DEFAULT_FOOTER_COPYRIGHT_LINE =
+  "\u00a9 2026 Loyola College, Negombo. All Rights Reserved.";
+export const DEFAULT_DEVELOPER_CREDIT =
+  "Developed by Hasintha Arunalu Niroshan | Website Development / Technical Support";
 const BUNDLED_STATIC_ASSETS = new Set(["/flag1.png", "/loyola-crest.jpg"]);
 
 export type Role =
@@ -358,6 +362,8 @@ export interface DB {
     headerApplyLabel: string;
     headerSignInLabel: string;
     footerText: string;
+    footerCopyrightLine: string;
+    developerCredit: string;
     footerLegalLine: string;
     customCss: string;
     socials: {
@@ -522,6 +528,8 @@ export const seed: DB = {
     headerApplyLabel: "Admissions",
     headerSignInLabel: "Portal Login",
     footerText: "",
+    footerCopyrightLine: DEFAULT_FOOTER_COPYRIGHT_LINE,
+    developerCredit: DEFAULT_DEVELOPER_CREDIT,
     footerLegalLine: "",
     customCss: "",
     socials: { facebook: "", instagram: "", youtube: "", linkedin: "", whatsapp: "" },

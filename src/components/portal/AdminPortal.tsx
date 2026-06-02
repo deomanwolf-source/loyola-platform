@@ -3205,6 +3205,35 @@ function SettingsPanel({ db }: { db: DB }) {
         </div>
       </PanelShell>
 
+      <PanelShell title="Footer text" kicker="Public website">
+        <div className="grid gap-4 lg:grid-cols-2">
+          <TextInput
+            value={db.websiteContent.footerCopyrightLine}
+            onChange={(e) => update({ footerCopyrightLine: e.target.value })}
+            placeholder="Copyright line"
+          />
+          <TextInput
+            value={db.websiteContent.developerCredit}
+            onChange={(e) => update({ developerCredit: e.target.value })}
+            placeholder="Developer credit"
+          />
+          <TextInput
+            value={db.websiteContent.footerLegalLine}
+            onChange={(e) => update({ footerLegalLine: e.target.value })}
+            placeholder="Optional legal line"
+          />
+          <TextInput
+            value={db.websiteContent.footerText}
+            onChange={(e) => update({ footerText: e.target.value })}
+            placeholder="Footer description"
+          />
+        </div>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
+          These lines appear in the public website footer below the existing links and contact
+          details.
+        </p>
+      </PanelShell>
+
       <PanelShell title="Social media links" kicker="Footer icons">
         <div className="grid gap-4 lg:grid-cols-2">
           {socialFields.map(({ key, label, placeholder, Icon }) => (

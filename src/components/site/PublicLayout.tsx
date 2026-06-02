@@ -1,5 +1,10 @@
 import { memo, useState } from "react";
-import { DEFAULT_HERO_IMAGE, useDb } from "@/lib/store";
+import {
+  DEFAULT_DEVELOPER_CREDIT,
+  DEFAULT_FOOTER_COPYRIGHT_LINE,
+  DEFAULT_HERO_IMAGE,
+  useDb,
+} from "@/lib/store";
 import {
   ArrowRight,
   ChevronDown,
@@ -248,6 +253,10 @@ export const SiteHeader = memo(function SiteHeader() {
 export const SiteFooter = memo(function SiteFooter() {
   const db = useDb();
   const socials = db.websiteContent.socials || {};
+  const footerCopyrightLine =
+    db.websiteContent.footerCopyrightLine || DEFAULT_FOOTER_COPYRIGHT_LINE;
+  const developerCredit = db.websiteContent.developerCredit || DEFAULT_DEVELOPER_CREDIT;
+  const footerLegalLine = db.websiteContent.footerLegalLine?.trim();
   const nav = [...db.navigation]
     .filter(
       (n) =>
@@ -375,11 +384,16 @@ export const SiteFooter = memo(function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-white/12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-5 text-xs text-white/50 md:flex-row">
-          <p>
-            &copy; {new Date().getFullYear()} {db.websiteContent.schoolName}. All rights reserved.
-          </p>
-          <p>{db.websiteContent.footerLegalLine}</p>
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-5 text-center text-xs text-white/50 md:flex-row md:text-left">
+          <div className="space-y-1">
+            <p>{footerCopyrightLine}</p>
+            {developerCredit && (
+              <p className="text-[11px] leading-relaxed text-white/40">{developerCredit}</p>
+            )}
+          </div>
+          {footerLegalLine && (
+            <p className="max-w-md text-white/45 md:text-right">{footerLegalLine}</p>
+          )}
         </div>
       </div>
     </footer>

@@ -561,6 +561,8 @@ function previewItems(db: DB, pageId: string, section: string) {
   return [
     { title: db.websiteContent.schoolName, body: db.websiteContent.footerText },
     { title: "Contact", body: `${db.websiteContent.phone} | ${db.websiteContent.email}` },
+    { title: "Copyright", body: db.websiteContent.footerCopyrightLine },
+    { title: "Developer credit", body: db.websiteContent.developerCredit },
     { title: "Legal line", body: db.websiteContent.footerLegalLine },
   ];
 }
@@ -2069,6 +2071,42 @@ export function WebsiteEditor() {
                       </div>
                     )}
                   </>
+                )}
+                {selectedSection === "Footer" && (
+                  <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
+                      Footer details
+                    </p>
+                    <Field label="Footer description">
+                      <textarea
+                        value={db.websiteContent.footerText}
+                        onChange={(e) => updateContent({ footerText: e.target.value })}
+                        rows={4}
+                        className="input-line resize-none"
+                      />
+                    </Field>
+                    <Field label="Copyright line">
+                      <input
+                        value={db.websiteContent.footerCopyrightLine}
+                        onChange={(e) => updateContent({ footerCopyrightLine: e.target.value })}
+                        className="input-line"
+                      />
+                    </Field>
+                    <Field label="Developer credit">
+                      <input
+                        value={db.websiteContent.developerCredit}
+                        onChange={(e) => updateContent({ developerCredit: e.target.value })}
+                        className="input-line"
+                      />
+                    </Field>
+                    <Field label="Legal line">
+                      <input
+                        value={db.websiteContent.footerLegalLine}
+                        onChange={(e) => updateContent({ footerLegalLine: e.target.value })}
+                        className="input-line"
+                      />
+                    </Field>
+                  </div>
                 )}
                 <button
                   type="button"
