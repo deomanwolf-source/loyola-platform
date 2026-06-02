@@ -382,12 +382,27 @@
   margin: 0 auto;
 }
 
+.visual-page .hero {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(120deg, rgb(8 40 111 / 0.96), rgb(8 40 111 / 0.78)),
+    url("/loyola-crest.jpg") center/contain no-repeat;
+  color: #ffffff;
+}
+
 .visual-page .eyebrow {
   color: var(--crimson);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.18em;
   text-transform: uppercase;
+}
+
+.visual-page h1 {
+  color: var(--navy);
+  font-family: var(--font-serif);
+  font-size: clamp(2.4rem, 6vw, 4.8rem);
+  line-height: 1.08;
 }
 
 .visual-page h2 {
@@ -589,6 +604,51 @@
   color: #64748b;
 }
 
+.visual-page .team-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.visual-page .team-card {
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow-soft);
+}
+
+.visual-page .team-card img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.visual-page .team-card div {
+  padding: 20px;
+}
+
+.visual-page .team-card p {
+  margin-top: 6px;
+}
+
+.visual-page .cta-banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--navy), #1e3560);
+  color: #ffffff;
+}
+
+.visual-page .cta-banner h2,
+.visual-page .cta-banner p {
+  color: #ffffff;
+}
+
+.visual-page .cta-banner .eyebrow {
+  color: var(--gold-light);
+}
+
 .visual-page .band {
   background: var(--background);
 }
@@ -687,6 +747,7 @@
   .visual-page .home-stat-grid,
   .visual-page .home-rector-grid,
   .visual-page .leadership-grid,
+  .visual-page .team-grid,
   .visual-page .anthem-media-layout {
     grid-template-columns: 1fr;
   }

@@ -32,6 +32,7 @@ interface VisualEditorProps {
   initialHtml: string;
   initialCss: string;
   canvasCss?: string;
+  templateHtml?: string;
   onSave: (html: string, css: string) => void;
   onClose: () => void;
 }
@@ -414,6 +415,7 @@ export function VisualEditor({
   initialHtml,
   initialCss,
   canvasCss,
+  templateHtml,
   onSave,
   onClose,
 }: VisualEditorProps) {
@@ -751,6 +753,20 @@ export function VisualEditor({
     );
   };
 
+  const loadPageTemplate = () => {
+    if (!editorRef.current || !templateHtml) return;
+    if (
+      isDirty &&
+      !window.confirm("Replace the current canvas with the clean editable page content?")
+    ) {
+      return;
+    }
+    editorRef.current.setComponents(templateHtml);
+    editorRef.current.setStyle("");
+    setIsDirty(true);
+    setSaveConfirmation("Clean page content loaded. Save Page to keep it.");
+  };
+
   const handleClose = () => {
     if (isDirty) {
       if (!window.confirm("You have unsaved changes. Close without saving?")) return;
@@ -943,6 +959,17 @@ export function VisualEditor({
           >
             <ImagePlus className="h-4 w-4" />
           </button>
+          {templateHtml && (
+            <button
+              type="button"
+              onClick={loadPageTemplate}
+              title="Load clean editable page content"
+              className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-white/10 bg-white/5 px-3 text-xs font-bold text-slate-100 transition hover:bg-white/10 hover:text-white"
+            >
+              <LayoutTemplate className="h-4 w-4" />
+              <span className="hidden xl:inline">Load Page Content</span>
+            </button>
+          )}
           <button
             type="button"
             onClick={handleSave}

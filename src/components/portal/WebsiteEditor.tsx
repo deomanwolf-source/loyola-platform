@@ -234,20 +234,302 @@ function escapeHtml(value?: string) {
   );
 }
 
-function homeVisualStarter() {
-  return `<section class="home-about-section">
+const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
+const FACILITIES_PAGE_ID = "the-college/facilities-services";
+
+const lceaProgrammes = [
+  {
+    level: "Pre Starters (Nursery)",
+    students: "40 students",
+    age: "5 years",
+    teachers: ["Niroshini Perera", "Sarala Subasingha"],
+  },
+  {
+    level: "Pre Starters",
+    students: "140 students",
+    age: "5-8 years",
+    teachers: [
+      "Mrs. Hasara Fernando",
+      "Rev. Sr. Princy Croos Pulle",
+      "Miss. Maleesha Nethmini",
+      "Miss. Chrishani Fernando",
+      "Miss. Hashini Perera",
+      "Miss. Amasha Perera",
+    ],
+  },
+  {
+    level: "Starters",
+    students: "200 students",
+    age: "7-10 years",
+    teachers: [
+      "Mrs. Jayani Jethma",
+      "Rev. Sr. Malrani Fernando",
+      "Miss. Amindi Silva",
+      "Mrs. Priyanthi Fernando",
+      "Miss. Dhananjani Perera",
+      "Miss. Vihangi Fernando",
+      "Miss. Nisali Christina",
+      "Mrs. Christina Sebastian",
+      "Miss. Tharushika Fernando",
+      "Mrs. Ronisha Devedas",
+    ],
+  },
+  {
+    level: "Movers",
+    students: "100 students",
+    age: "9-11 years",
+    teachers: [
+      "Mrs. Geethanchali Devedas",
+      "Miss. Anuththara Sewmini",
+      "Mrs. Sumedhie Fernando",
+      "Mrs. M. K. Roshina",
+      "Mrs. Dharshani Suraweera",
+    ],
+  },
+  {
+    level: "Flyers",
+    students: "60 students",
+    age: "10-12 years",
+    teachers: [
+      "Mrs. Harshani Fernandopulle",
+      "Mrs. Cynthiya Karunapala",
+      "Mrs. Shanika Marasinghe",
+      "Mrs. Nirosha Perera",
+    ],
+  },
+  {
+    level: "KET",
+    students: "60 students",
+    age: "Above 12 years",
+    teachers: ["Mrs. Shiromi Jude", "Mr. Sumith Senadheera", "Mr. Bernil Anuranga"],
+  },
+  {
+    level: "PET",
+    students: "60 students",
+    age: "Above 12 years",
+    teachers: ["Mrs. Ranlie Fernando", "Mrs. Sandamali", "Mr. Rasika Perera"],
+  },
+  {
+    level: "FCE",
+    students: "10 students",
+    age: "Above 12 years",
+    teachers: ["Mr. Amantha Fernando"],
+  },
+];
+
+const facilitiesTemplateItems = [
+  {
+    title: "Audio Visual Room",
+    category: "Learning & Media",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/AUDIO-VISUAL-ROOM-300x250.jpg",
+    body: "A presentation-ready learning space for conferences, seminars, screenings, and media-assisted teaching.",
+  },
+  {
+    title: "SV Fonseka Hall",
+    category: "Assembly & Events",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/SV-FONSEKA-300x250.jpg",
+    body: "A central college hall for assemblies, formal gatherings, celebrations, and student programmes.",
+  },
+  {
+    title: "Library",
+    category: "Study & Reading",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/LIBRARY-300x250.jpg",
+    body: "A quiet academic resource space that supports reading habits, research, reference work, and independent study.",
+  },
+  {
+    title: "Smart Class Room",
+    category: "Digital Learning",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/SMART-CLASS-ROOM-300x250.jpg",
+    body: "A technology-enabled classroom that helps teachers deliver clear, visual, and interactive lessons.",
+  },
+  {
+    title: "Canteen",
+    category: "Student Services",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/CANTEEN-300x250.jpg",
+    body: "A daily service space for refreshments, meals, and student needs during school hours.",
+  },
+  {
+    title: "St. Ignatius Chapel",
+    category: "Faith & Prayer",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/ST-IGNATIUS-CHAPEL-300x250.jpg",
+    body: "A sacred chapel for prayer, reflection, worship, and the Catholic identity of Loyola College.",
+  },
+  {
+    title: "Cadet Billet",
+    category: "Discipline & Leadership",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/CADET-BILLET-300x250.jpg",
+    body: "A dedicated space for cadet activities, training preparation, teamwork, and discipline.",
+  },
+  {
+    title: "Scout Den",
+    category: "Clubs & Leadership",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/SCOUT-DEN-300x250.jpg",
+    body: "A home base for scouts to organize equipment, plan activities, and build practical leadership skills.",
+  },
+  {
+    title: "Auditorium",
+    category: "Performance & Meetings",
+    image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/auditorium-300x250.jpg",
+    body: "A refined venue for meetings, conferences, performances, presentations, and large school gatherings.",
+  },
+];
+
+function cleanBody(value: string | undefined, fallback = "") {
+  const text = (value || "").trim();
+  if (!text || text === "New page content goes here.") return fallback;
+  return text;
+}
+
+function paragraphsHtml(value: string) {
+  return value
+    .split(/\n{2,}|\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `<p style="margin-top:14px;">${escapeHtml(line)}</p>`)
+    .join("");
+}
+
+function pageHeroHtml({
+  kicker,
+  title,
+  body,
+  image,
+}: {
+  kicker: string;
+  title: string;
+  body: string;
+  image: string;
+}) {
+  const heroImage = escapeHtml(image || "/loyola-crest.jpg");
+  return `<section class="hero" style="position:relative;display:flex;min-height:420px;align-items:center;overflow:hidden;background:#0a1628;">
+  <img src="${heroImage}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.3;" />
+  <div style="position:absolute;inset:0;background:linear-gradient(105deg, rgba(10,22,40,.98), rgba(10,22,40,.84), rgba(183,15,27,.42));"></div>
+  <div class="container" style="position:relative;z-index:1;">
+    <p class="eyebrow">${escapeHtml(kicker)}</p>
+    <h1 style="max-width:860px;margin-top:18px;color:#fff;">${escapeHtml(title)}</h1>
+    <p style="max-width:720px;margin-top:20px;color:rgba(255,255,255,.82);font-size:1.12rem;">${escapeHtml(body)}</p>
+  </div>
+</section>`;
+}
+
+function featureCardsHtml(
+  cards: Array<{ title: string; body: string; kicker?: string; image?: string }>,
+  className = "grid-3",
+) {
+  return `<div class="${className}" style="margin-top:30px;">
+    ${cards
+      .map(
+        (card) => `<article class="feature-card">
+      ${card.image ? `<img src="${escapeHtml(card.image)}" alt="" style="width:100%;aspect-ratio:16/10;object-fit:cover;border-radius:8px;margin-bottom:18px;" />` : ""}
+      ${card.kicker ? `<p class="eyebrow">${escapeHtml(card.kicker)}</p>` : ""}
+      <h3 style="margin-top:${card.kicker ? "12px" : "0"};">${escapeHtml(card.title)}</h3>
+      <p style="margin-top:10px;">${escapeHtml(card.body)}</p>
+    </article>`,
+      )
+      .join("")}
+  </div>`;
+}
+
+function blockSectionsHtml(blocks: PageBlock[] | undefined) {
+  if (!blocks?.length) return "";
+
+  return blocks
+    .map((block) => {
+      const title = block.content.title || "";
+      const body = block.content.body || block.content.quote || "";
+      if (block.type === "quote") {
+        return `<section><div class="container"><blockquote class="quote">${escapeHtml(body)}</blockquote>${block.content.author ? `<p class="eyebrow" style="margin-top:18px;">${escapeHtml(block.content.author)}</p>` : ""}</div></section>`;
+      }
+      if (block.type === "image-text") {
+        return `<section class="band"><div class="container grid-2" style="align-items:center;">
+  <img src="${escapeHtml(block.content.image || "/loyola-crest.jpg")}" alt="" style="width:100%;border-radius:8px;background:#fff;padding:24px;box-shadow:0 16px 38px -28px rgba(8,40,111,.45);" />
+  <div><p class="eyebrow">Page block</p><h2 style="margin-top:12px;">${escapeHtml(title || "Content section")}</h2>${paragraphsHtml(body)}</div>
+</div></section>`;
+      }
+      return `<section><div class="container"><p class="eyebrow">Page block</p><h2 style="margin-top:12px;">${escapeHtml(title || "Content section")}</h2>${paragraphsHtml(body || "Edit this content.")}</div></section>`;
+    })
+    .join("\n\n");
+}
+
+function homeVisualStarter(db: DB) {
+  const content = db.websiteContent;
+  const page = db.pages.home || {};
+  const home = db.homeSections;
+  const heroImage =
+    page.backgroundMediaUrl ||
+    page.image ||
+    content.heroImage ||
+    db.media.campusImage ||
+    "/flag1.png";
+  const heroTitle =
+    content.heroTitle?.trim() || page.title || "A Tradition of Excellence. A Future of Innovation.";
+  const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
+  const stats = home.stats.length ? home.stats : [];
+  const leadershipCards =
+    home.leadershipCards.filter((card) => card.visible !== false).length > 0
+      ? home.leadershipCards.filter((card) => card.visible !== false)
+      : [
+          {
+            id: "lead-1",
+            name: "His Eminence Malcolm Cardinal Ranjith",
+            title: "The Archbishop of Colombo",
+            description: "",
+            image: "/loyola-crest.jpg",
+            order: 1,
+            visible: true,
+          },
+          {
+            id: "lead-2",
+            name: "Very Rev. Fr. Gemunu Dias",
+            title: "General Manager of Catholic Private Schools",
+            description: "",
+            image: "/loyola-crest.jpg",
+            order: 2,
+            visible: true,
+          },
+          {
+            id: "lead-3",
+            name: "Rev. Fr. D.M.J. Kennedy Perera",
+            title: "Rector / Principal",
+            description: "",
+            image: db.media.principalImage || "/loyola-crest.jpg",
+            order: 3,
+            visible: true,
+          },
+        ];
+
+  const newsCards = (db.news.length ? db.news : [{ title: "News & Notices", body: "Important updates and school notices will appear here.", date: "" }])
+    .slice(0, 3)
+    .map((item) => ({ title: item.title, body: item.body || item.date || "School update." }));
+  const eventCards = (db.events.length ? db.events : [{ title: "Upcoming Events", location: "Campus", date: "School calendar", type: "Event" }])
+    .slice(0, 3)
+    .map((item) => ({
+      title: item.title,
+      body: `${item.date || "Date"} | ${item.location || "Campus"} | ${item.type || "Event"}`,
+    }));
+
+  return `${pageHeroHtml({
+    kicker: content.schoolName || "Loyola College Negombo",
+    title: heroTitle,
+    body: heroText,
+    image: heroImage,
+  })}
+
+<section class="home-about-section">
   <div class="container home-about-grid">
     <div>
-      <p class="eyebrow">About Our College</p>
+      <p class="eyebrow">${escapeHtml(home.aboutHeading || "About Our College")}</p>
       <h2 style="margin-top:12px;">Loyola College at a glance.</h2>
-      <p style="margin-top:18px;">Loyola College has a 75 years history that began as an institute in a cadjan hut and has since developed into a well-reputed Catholic school in the Negombo area, managed by the Archdiocese of Colombo. The present Rector of the College, Rev. Fr. Kennedy Perera, is guiding Loyola College to higher shores with his innovative vision of the 21st century.</p>
-      <a class="btn" href="/about" style="margin-top:24px;">More Details</a>
+      ${paragraphsHtml(home.aboutBody || "Add the main college introduction here.")}
+      <a class="btn" href="${escapeHtml(home.aboutButtonHref || "/about")}" style="margin-top:24px;">${escapeHtml(home.aboutButtonLabel || "More Details")}</a>
     </div>
     <div class="home-stat-grid">
-      <article class="stat-tile"><strong>2,662</strong><span>Students</span></article>
-      <article class="stat-tile"><strong>145</strong><span>Academic Staff</span></article>
-      <article class="stat-tile"><strong>3</strong><span>Available Labs</span></article>
-      <article class="stat-tile"><strong>1</strong><span>Land System</span></article>
+      ${stats
+        .map(
+          (stat) =>
+            `<article class="stat-tile"><strong>${escapeHtml(stat.value)}</strong><span>${escapeHtml(stat.label)}</span></article>`,
+        )
+        .join("")}
     </div>
   </div>
 </section>
@@ -255,14 +537,13 @@ function homeVisualStarter() {
 <section class="home-rector-section">
   <div class="container home-rector-grid">
     <figure class="home-rector-photo">
-      <img src="/loyola-crest.jpg" alt="Rector portrait placeholder" />
+      <img src="${escapeHtml(home.rectorImage || db.media.principalImage || "/loyola-crest.jpg")}" alt="" />
     </figure>
     <article class="home-rector-message">
-      <p class="eyebrow">Rector's Message</p>
-      <h2 style="margin-top:12px;">Dear Students, Parents, and Alumni of Loyola College,</h2>
-      <p style="margin-top:18px;">In today's world of advancing technology, it is essential for us to continually update and modernize our systems. In line with this, we are transitioning from manual systems to web-based online management systems. We have already upgraded our annual calendar and student progress report systems to a web-based portal.</p>
-      <p style="margin-top:14px;">We kindly ask for your cooperation as we move forward with these updates to align with current standards.</p>
-      <p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector / Principal</span></p>
+      <p class="eyebrow">${escapeHtml(home.rectorHeading || "Rector's Message")}</p>
+      <h2 style="margin-top:12px;">${escapeHtml(home.rectorTitle || "Dear Students, Parents, and Alumni of Loyola College,")}</h2>
+      ${paragraphsHtml(home.rectorBody || "Add the rector message here.")}
+      <p class="home-signature">${escapeHtml(home.rectorName || "Rev. Fr. D.M.J. Kennedy Perera")}<br /><span>${escapeHtml(home.rectorDesignation || "Rector / Principal")}</span></p>
     </article>
   </div>
 </section>
@@ -270,35 +551,258 @@ function homeVisualStarter() {
 <section class="home-leadership-section">
   <div class="container">
     <div class="home-section-heading">
-      <p class="eyebrow">Administration Board</p>
-      <h2 style="margin-top:12px;">Leadership guiding Loyola College.</h2>
-      <p style="margin-top:16px;">Meet the spiritual and academic leadership team serving the Loyola College community with faith, discipline, and clear educational direction.</p>
+      <p class="eyebrow">${escapeHtml(home.leadershipKicker || "Administration Board")}</p>
+      <h2 style="margin-top:12px;">${escapeHtml(home.leadershipTitle || "Leadership guiding Loyola College.")}</h2>
+      <p style="margin-top:16px;">${escapeHtml(home.leadershipBody || "Meet the leadership team serving the Loyola College community.")}</p>
     </div>
     <div class="leadership-grid" style="margin-top:32px;">
-      <article class="leadership-card">
-        <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>His Eminence Malcolm Cardinal Ranjith</h3><span></span><p>The Archbishop of Colombo</p></div>
-      </article>
-      <article class="leadership-card">
-        <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>Very Rev. Fr. Gemunu Dias</h3><span></span><p>General Manager of Catholic Private Schools</p></div>
-      </article>
-      <article class="leadership-card">
-        <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>Rev. Fr. D.M.J. Kennedy Perera</h3><span></span><p>Rector/Principal</p></div>
-      </article>
-      <article class="leadership-card">
-        <img src="/loyola-crest.jpg" alt="" />
-        <div><h3>Rev. Fr. W.G. Thilina Pathum</h3><span></span><p>Vice Rector, Prefect of Games</p></div>
-      </article>
+      ${leadershipCards
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
+        .slice(0, 4)
+        .map(
+          (card) => `<article class="leadership-card">
+        <img src="${escapeHtml(card.image || "/loyola-crest.jpg")}" alt="" />
+        <div><h3>${escapeHtml(card.name)}</h3><span></span><p>${escapeHtml(card.title)}</p></div>
+      </article>`,
+        )
+        .join("")}
     </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="container">
+    <p class="eyebrow">Academics</p>
+    <h2 style="margin-top:12px;">Academic pathways for every stage.</h2>
+    ${featureCardsHtml([
+      { title: "Primary Section", body: "Foundational learning, values, and classroom confidence." },
+      { title: "Middle School", body: "Structured study habits and co-curricular discovery." },
+      { title: "Advanced Level", body: "Technology, Science, Commerce, and Arts pathways." },
+    ])}
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <p class="eyebrow">News and Events</p>
+    <h2 style="margin-top:12px;">Latest school updates.</h2>
+    ${featureCardsHtml([...newsCards, ...eventCards].slice(0, 6))}
   </div>
 </section>`;
 }
 
+function lceaVisualStarter(db: DB) {
+  const page = db.pages[LCEA_PAGE_ID] || {};
+  const image = page.image || db.media.campusImage || db.websiteContent.heroImage || "/loyola-crest.jpg";
+  const body = cleanBody(
+    page.body,
+    "Cambridge-standard English learning for Loyolian students and learners from other schools.",
+  );
+
+  return `${pageHeroHtml({
+    kicker: page.kicker || "Academics",
+    title: page.title || "Loyolian Cambridge English Academy",
+    body,
+    image,
+  })}
+
+<section class="band">
+  <div class="container grid-2" style="align-items:start;">
+    <article class="feature-card">
+      <p class="eyebrow">English Academy</p>
+      <h2 style="margin-top:12px;">English learning with Cambridge international standards.</h2>
+      ${paragraphsHtml(
+        "Loyola College launched Loyolian Cambridge English Academy on May 1, 2024. The academy is a brain-child of Rev. Fr. Kennedy Perera, the present Rector of Loyola College Negombo, who has held the vision of enhancing the English linguistic capacity of Loyolian students from the day of his installation.\n\nLCEA has opened its doors to students from other schools as well, giving them the opportunity to learn English according to Cambridge international standards.\n\nMore than 700 students are being equipped with standard English at LCEA by a well-qualified staff of 36 teachers.",
+      )}
+    </article>
+    <article class="feature-card" style="background:#0a1628;color:#fff;">
+      <p class="eyebrow" style="color:#f7d96b;">Academy Vision</p>
+      <h2 style="margin-top:12px;color:#fff;">A stronger English foundation for young learners.</h2>
+      <p style="margin-top:18px;color:rgba(255,255,255,.72);">LCEA offers an upgraded English academy experience in the Negombo region, with regular monthly learning time and guided support for each Cambridge level.</p>
+    </article>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <p class="eyebrow">Academy Team</p>
+    <h2 style="margin-top:12px;">Leadership and administration</h2>
+    ${featureCardsHtml([
+      { kicker: "Rector", title: "Rev. Fr. Kennedy Perera", body: "Rector of Loyola College Negombo" },
+      { kicker: "Priest in charge", title: "Fr. Mahima Gunawardena", body: "Loyolian Cambridge English Academy" },
+      { kicker: "Manager", title: "Mr. Deepal Fonseka", body: "Academy management" },
+      { kicker: "Accountant", title: "Mrs. Reshika Crishelni", body: "Accounts and administration" },
+      { kicker: "Vice Principal", title: "Mrs. Priyanthi Fernando", body: "Academy support" },
+      { kicker: "Vice Principal", title: "Mrs. Geethanchali Devedas", body: "Academy support" },
+    ])}
+  </div>
+</section>
+
+<section class="band">
+  <div class="container">
+    <p class="eyebrow">Weekly Classes</p>
+    <h2 style="margin-top:12px;">Class schedule</h2>
+    ${featureCardsHtml([
+      { title: "Wednesday", body: "2.15 P.M. to 5.15 P.M. for Pre Starters, Starters, Movers" },
+      { title: "Friday", body: "2.15 P.M. to 5.15 P.M. for Flyers, KET, PET, FCE" },
+      { title: "Monthly English", body: "Students are guided with 12 hours of English every month." },
+    ])}
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <p class="eyebrow">Cambridge Levels</p>
+    <h2 style="margin-top:12px;">Programme groups and teaching staff</h2>
+    ${featureCardsHtml(
+      lceaProgrammes.map((programme) => ({
+        kicker: `${programme.students} | Age: ${programme.age}`,
+        title: programme.level,
+        body: programme.teachers.join(", "),
+      })),
+      "grid-2",
+    )}
+  </div>
+</section>`;
+}
+
+function facilitiesVisualStarter(db: DB) {
+  const page = db.pages[FACILITIES_PAGE_ID] || {};
+  const image =
+    page.image ||
+    facilitiesTemplateItems[8]?.image ||
+    db.media.campusImage ||
+    db.websiteContent.heroImage ||
+    "/loyola-crest.jpg";
+  const body = cleanBody(
+    page.body,
+    "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life.",
+  );
+
+  return `${pageHeroHtml({
+    kicker: page.kicker || "The College",
+    title: page.title || "Facilities & Services",
+    body,
+    image,
+  })}
+
+<section class="band">
+  <div class="container grid-2" style="align-items:start;">
+    <article class="feature-card">
+      <p class="eyebrow">Campus Facilities</p>
+      <h2 style="margin-top:12px;">Purpose-built spaces for study, service, worship, and school life.</h2>
+      <p style="margin-top:18px;">Loyola College Negombo provides facilities that support classroom learning, co-curricular formation, spiritual life, leadership development, student service, and major school gatherings.</p>
+      <div class="stats-row" style="margin-top:28px;grid-template-columns:repeat(3,minmax(0,1fr));">
+        <article class="stat-tile"><strong>9</strong><span>Featured facilities</span></article>
+        <article class="stat-tile"><strong>3</strong><span>Learning zones</span></article>
+        <article class="stat-tile"><strong>4</strong><span>Formation spaces</span></article>
+      </div>
+    </article>
+    <article class="feature-card" style="background:#0a1628;color:#fff;">
+      <div class="grid-2" style="gap:6px;">
+        ${facilitiesTemplateItems
+          .slice(0, 4)
+          .map(
+            (facility) =>
+              `<img src="${escapeHtml(facility.image)}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;" />`,
+          )
+          .join("")}
+      </div>
+      <p class="eyebrow" style="margin-top:24px;color:#f7d96b;">Facilities Network</p>
+      <h2 style="margin-top:12px;color:#fff;">Every space has a clear role in student life.</h2>
+      <p style="margin-top:14px;color:rgba(255,255,255,.72);">This page brings each facility into a clear, image-led presentation for parents, students, staff, and visitors.</p>
+    </article>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <p class="eyebrow">Explore Facilities</p>
+    <h2 style="margin-top:12px;">Campus facilities and student services</h2>
+    ${featureCardsHtml(
+      facilitiesTemplateItems.map((facility) => ({
+        kicker: facility.category,
+        title: facility.title,
+        body: facility.body,
+        image: facility.image,
+      })),
+      "grid-3",
+    )}
+  </div>
+</section>
+
+<section class="band">
+  <div class="container">
+    <p class="eyebrow">Service Areas</p>
+    <h2 style="margin-top:12px;">Organized around how students use the campus.</h2>
+    ${featureCardsHtml([
+      {
+        title: "Learning & Technology",
+        body: "Audio Visual Room, Library, and Smart Class Room support digital teaching, reading, presentations, and focused academic work.",
+      },
+      {
+        title: "Gathering & Performance",
+        body: "SV Fonseka Hall and Auditorium support assemblies, stage work, ceremonies, conferences, and shared college occasions.",
+      },
+      {
+        title: "Service, Faith & Leadership",
+        body: "Canteen, St. Ignatius Chapel, Cadet Billet, and Scout Den support wellbeing, faith, discipline, and student leadership.",
+      },
+    ])}
+  </div>
+</section>`;
+}
+
+function supplementalVisualSections(db: DB, pageId: string) {
+  if (pageId === "about") {
+    return `<section class="band"><div class="container"><p class="eyebrow">About Loyola</p><h2 style="margin-top:12px;">College story and identity</h2>${paragraphsHtml(`${db.aboutSections.storyBodyOne || ""}\n${db.aboutSections.storyBodyTwo || ""}` || "Add the college story here.")}${featureCardsHtml(db.aboutSections.stats.map((stat) => ({ title: stat.value, body: stat.label })))}</div></section>`;
+  }
+  if (pageId === "academics") {
+    const departments = db.academicsSections.departments.length
+      ? db.academicsSections.departments
+      : [
+          { id: "primary", name: "Primary Section", body: "Foundational learning and values.", count: "" },
+          { id: "middle", name: "Middle School", body: "Balanced academic growth.", count: "" },
+          { id: "advanced", name: "Advanced Level", body: "Senior academic pathways.", count: "" },
+        ];
+    return `<section class="band"><div class="container"><p class="eyebrow">Academic Pathways</p><h2 style="margin-top:12px;">Departments and subjects</h2>${featureCardsHtml(departments.map((dept) => ({ title: dept.name, body: `${dept.body} ${dept.count || ""}`.trim() })))}</div></section>`;
+  }
+  if (pageId === "admissions") {
+    return `<section class="band"><div class="container"><p class="eyebrow">Admissions</p><h2 style="margin-top:12px;">Application steps</h2>${featureCardsHtml(db.admissionsSteps.map((step) => ({ kicker: step.number, title: step.title, body: step.body })))}</div></section>`;
+  }
+  if (pageId === "news") {
+    return `<section class="band"><div class="container"><p class="eyebrow">News & Notices</p><h2 style="margin-top:12px;">Latest updates</h2>${featureCardsHtml((db.news.length ? db.news : [{ title: "News item", body: "Add news from the portal.", date: "" }]).slice(0, 6).map((item) => ({ kicker: item.date, title: item.title, body: item.body })))}</div></section>`;
+  }
+  if (pageId === "events") {
+    return `<section class="band"><div class="container"><p class="eyebrow">Events</p><h2 style="margin-top:12px;">Upcoming school dates</h2>${featureCardsHtml((db.events.length ? db.events : [{ title: "School event", date: "Date", location: "Campus", type: "Event" }]).slice(0, 6).map((item) => ({ kicker: item.type, title: item.title, body: `${item.date} | ${item.location}` })))}</div></section>`;
+  }
+  if (pageId === "gallery" || pageId === "gallery/photo-gallery") {
+    return `<section class="band"><div class="container"><p class="eyebrow">Gallery</p><h2 style="margin-top:12px;">Photo albums</h2>${featureCardsHtml((db.gallery.length ? db.gallery : [{ label: "Gallery album", description: "Add photo albums from the portal.", image: "/loyola-crest.jpg" }]).slice(0, 6).map((item) => ({ title: item.label, body: item.description || "Album preview.", image: item.image })))}</div></section>`;
+  }
+  if (pageId === "gallery/video-gallery") {
+    return `<section class="band"><div class="container"><p class="eyebrow">Video Gallery</p><h2 style="margin-top:12px;">School video coverage</h2>${featureCardsHtml((db.videoGallery.length ? db.videoGallery : [{ label: "Video album", description: "Add videos from the portal.", coverImage: "/loyola-crest.jpg", videos: [] }]).slice(0, 6).map((item) => ({ title: item.label, body: item.description || "Video album preview.", image: item.coverImage || "/loyola-crest.jpg" })))}</div></section>`;
+  }
+  if (pageId === "downloads") {
+    return `<section class="band"><div class="container"><p class="eyebrow">Downloads</p><h2 style="margin-top:12px;">Forms, circulars, and files</h2>${featureCardsHtml((db.downloads.length ? db.downloads : [{ title: "Download item", description: "Add files from the portal.", category: "School file" }]).slice(0, 6).map((item) => ({ kicker: item.category, title: item.title, body: item.description })))}</div></section>`;
+  }
+  if (pageId === "contact") {
+    return `<section class="band"><div class="container"><p class="eyebrow">Contact</p><h2 style="margin-top:12px;">Visit, write, or call us.</h2>${featureCardsHtml([
+      { title: "Address", body: db.websiteContent.address },
+      { title: "Phone", body: db.websiteContent.phone },
+      { title: "Email", body: db.websiteContent.email },
+    ])}</div></section>`;
+  }
+  if (pageId === "calendar") {
+    return `<section class="band"><div class="container"><p class="eyebrow">Calendar</p><h2 style="margin-top:12px;">School events and important dates</h2><article class="feature-card" style="margin-top:28px;"><h3>Calendar area</h3><p style="margin-top:10px;">Use this visual section for calendar notes, event instructions, holidays, meetings, celebrations, and academic reminders.</p></article></div></section>`;
+  }
+  return "";
+}
+
 function visualStarterForPage(db: DB, pageId: string) {
   const page = db.pages[pageId] || db.pages.home || {};
-  if (pageId === "home") return homeVisualStarter();
+  if (pageId === "home") return homeVisualStarter(db);
+  if (pageId === LCEA_PAGE_ID) return lceaVisualStarter(db);
+  if (pageId === FACILITIES_PAGE_ID) return facilitiesVisualStarter(db);
 
   const navItem = db.navigation.find((item) => item.id === pageId);
   const pageName = navItem?.label || page.title || displayPageName(pageId);
@@ -441,7 +945,9 @@ function visualStarterForPage(db: DB, pageId: string) {
       )
       .join("")}
   </div>
-</section>`;
+</section>
+${blockSectionsHtml(page.blocks)}
+${supplementalVisualSections(db, pageId)}`;
 }
 
 function capturePageCss(doc: Document) {
@@ -811,6 +1317,7 @@ export function WebsiteEditor() {
     html: string;
     css: string;
     canvasCss: string;
+    templateHtml: string;
   } | null>(null);
 
   const page = db.pages[selectedPage] || db.pages.home;
@@ -1267,13 +1774,13 @@ export function WebsiteEditor() {
   const openVisualBuilder = () => {
     const savedPage = db.pages[selectedPage];
     const savedVisualHtml = savedPage?.visualHtml?.trim();
-    const captured =
-      selectedPage === "home" ? null : capturePreviewContent(previewFrameRef.current);
+    const templateHtml = visualStarterForPage(db, selectedPage);
 
     setVisualEditorInitial({
-      html: savedVisualHtml || captured?.html || visualStarterForPage(db, selectedPage),
-      css: savedPage?.visualCss || "",
-      canvasCss: selectedPage === "home" ? "" : captured?.css || "",
+      html: savedVisualHtml || templateHtml,
+      css: savedVisualHtml ? savedPage?.visualCss || "" : "",
+      canvasCss: "",
+      templateHtml,
     });
     setVisualEditorOpen(true);
     setMessage(`Visual Builder opened for '${savedPage?.title || selectedPage}'.`);
@@ -1388,6 +1895,7 @@ export function WebsiteEditor() {
           initialHtml={visualEditorInitial.html}
           initialCss={visualEditorInitial.css}
           canvasCss={visualEditorInitial.canvasCss}
+          templateHtml={visualEditorInitial.templateHtml}
           onSave={(html, css) => void saveVisualContent(html, css)}
           onClose={() => {
             setVisualEditorOpen(false);
