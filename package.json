@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite dev",
     "start": "node server.js",
-    "build": "node --check apps/website/server.js",
+    "build": "node --check server.js",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
