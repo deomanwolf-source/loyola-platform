@@ -4687,6 +4687,13 @@ async function eduTrackActor(req) {
 }
 
 function normalizeDailyProgressInput(body = {}, actor, existing = null) {
+  const completedWork = String(
+    body.completed_work ||
+      body.topic_done_today ||
+      body.topic ||
+      existing?.completed_work ||
+      "",
+  ).trim();
   const record = {
     teacher_user_id: String(body.teacher_user_id || existing?.teacher_user_id || actor.id || ""),
     teacher_id: String(body.teacher_id || existing?.teacher_id || actor.teacherId || actor.id || ""),
@@ -4699,9 +4706,9 @@ function normalizeDailyProgressInput(body = {}, actor, existing = null) {
     subject: String(body.subject || body.subject_name || existing?.subject || "").trim(),
     period_label: String(body.period_label || body.period || existing?.period_label || "").trim(),
     unit_number: String(body.unit_number || body.unit || existing?.unit_number || "").trim(),
-    main_topic: String(body.main_topic || existing?.main_topic || "").trim(),
+    main_topic: String(body.main_topic || completedWork || existing?.main_topic || "").trim(),
     subtopic: String(body.subtopic || existing?.subtopic || "").trim(),
-    completed_work: String(body.completed_work || existing?.completed_work || "").trim(),
+    completed_work: completedWork,
     page_reference: String(body.page_reference || body.pages || existing?.page_reference || "").trim(),
     notes: String(body.notes || body.note || existing?.notes || "").trim(),
     completion_status: String(
@@ -4720,7 +4727,7 @@ function normalizeDailyProgressInput(body = {}, actor, existing = null) {
 
 function assertDailyProgressRequired(record) {
   const missing = [];
-  ["record_date", "grade", "section", "subject", "unit_number", "main_topic", "completed_work"].forEach(
+  ["record_date", "section", "subject", "unit_number", "completed_work", "completion_status"].forEach(
     (field) => {
       if (!record[field]) missing.push(field);
     },
@@ -5038,18 +5045,14 @@ app.get("/api/edutrack/daily-syllabus-progress/export/csv", teacherOrAdmin, asyn
       "Teacher",
       "Teacher ID",
       "Date",
-      "Grade",
-      "Section",
+      "Class / Section",
       "Subject",
       "Period",
       "Unit Number",
-      "Main Topic",
-      "Subtopic",
-      "Completed Work",
+      "Topic Done Today",
       "Completion Status",
-      "Page Reference",
       "Notes",
-      "Next Planned Lesson",
+      "Created At",
     ];
     const lines = [
       headers.join(","),
@@ -5058,18 +5061,14 @@ app.get("/api/edutrack/daily-syllabus-progress/export/csv", teacherOrAdmin, asyn
           row.teacher_name,
           row.teacher_id,
           dateOnly(row.record_date),
-          row.grade,
           row.section,
           row.subject,
           row.period_label,
           row.unit_number,
-          row.main_topic,
-          row.subtopic,
           row.completed_work,
           row.completion_status,
-          row.page_reference,
           row.notes,
-          row.next_planned_lesson,
+          row.created_at,
         ]
           .map(csvEscape)
           .join(","),

@@ -4855,7 +4855,7 @@
           <div class="page-header page-header-row">
             <div>
               <h2>Daily Syllabus Progress</h2>
-              <p>Record the unit, topic, subtopic, and completed work from the school year plan.</p>
+              <p>Fast daily lesson record for the school year plan.</p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap">
               <button class="btn secondary sm" onclick="printDailyProgressReport()">
@@ -4871,26 +4871,18 @@
           </div>
           <div class="card" style="margin-bottom: 18px">
             <div class="section-title" id="daily-progress-form-title">Add Daily Record</div>
+            <div class="form-grid-2" id="daily-admin-fields" style="display: none">
+              <div class="field"><label>Teacher ID</label><input id="daily-teacher-id" placeholder="Auto-saved for teachers" /></div>
+              <div class="field"><label>Teacher Name</label><input id="daily-teacher-name" placeholder="Auto-saved for teachers" /></div>
+            </div>
             <div class="form-grid-2">
               <div class="field"><label>Date</label><input id="daily-date" type="date" /></div>
+              <div class="field"><label>Class / Section</label><select id="daily-section-select" style="display: none"></select><input id="daily-section" placeholder="A / GRADE-10-A" /></div>
+              <div class="field"><label>Subject</label><select id="daily-subject-select" style="display: none"></select><input id="daily-subject" placeholder="Mathematics" /></div>
               <div class="field"><label>Period / Time Slot</label><input id="daily-period" placeholder="Period 3 / 10:30" /></div>
-              <div class="field"><label>Teacher ID</label><input id="daily-teacher-id" placeholder="Auto-filled for teachers" /></div>
-              <div class="field"><label>Teacher Name</label><input id="daily-teacher-name" placeholder="Auto-filled for teachers" /></div>
-              <div class="field"><label>Grade</label><input id="daily-grade" placeholder="Grade 10" /></div>
-              <div class="field"><label>Class / Section</label><input id="daily-section" placeholder="A / GRADE-10-A" /></div>
-              <div class="field"><label>Subject</label><input id="daily-subject" placeholder="Mathematics" /></div>
-              <div class="field"><label>Unit Number</label><input id="daily-unit" placeholder="Unit 1" /></div>
-              <div class="field"><label>Main Topic</label><input id="daily-main-topic" placeholder="Main topic from year plan" /></div>
-              <div class="field"><label>Subtopic</label><input id="daily-subtopic" placeholder="Subtopic" /></div>
-            </div>
-            <div class="field">
-              <label>What was completed today</label>
-              <textarea id="daily-completed-work" placeholder="Write the actual lesson progress completed today"></textarea>
-            </div>
-            <div class="form-grid-2">
-              <div class="field"><label>Page numbers / lesson reference</label><input id="daily-page-reference" placeholder="Optional" /></div>
+              <div class="field"><label>Unit No.</label><input id="daily-unit" placeholder="Unit 01" /></div>
               <div class="field">
-                <label>Completion Status</label>
+                <label>Status</label>
                 <select id="daily-completion-status">
                   <option>Completed</option>
                   <option>Partially Completed</option>
@@ -4898,31 +4890,36 @@
                 </select>
               </div>
             </div>
-            <div class="form-grid-2">
-              <div class="field"><label>Notes</label><textarea id="daily-notes" placeholder="Optional notes"></textarea></div>
-              <div class="field"><label>Next planned lesson</label><textarea id="daily-next-lesson" placeholder="Optional"></textarea></div>
+            <div class="field">
+              <label>Topic Done Today</label>
+              <textarea id="daily-completed-work" placeholder="Example: Algebra - Linear equations / Exercise 2.1"></textarea>
+            </div>
+            <div class="field" id="daily-note-wrap" style="display: none">
+              <label>Note</label>
+              <textarea id="daily-notes" placeholder="Optional note"></textarea>
             </div>
             <div id="daily-form-error" class="error-msg"></div>
             <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="toggleDailyNote()">Add Note</button>
               <button class="btn secondary sm" onclick="resetDailyProgressForm()">Clear</button>
-              <button class="btn sm" onclick="submitDailyProgress()">
-                <i data-lucide="save" style="width: 14px; height: 14px"></i> Save Record
+              <button class="btn secondary sm" onclick="submitDailyProgress(true)">
+                Save & Add Another
+              </button>
+              <button class="btn sm" onclick="submitDailyProgress(true)" style="font-size: 14px; padding: 0 18px">
+                <i data-lucide="save" style="width: 14px; height: 14px"></i> Save Daily Record
               </button>
             </div>
           </div>
           <div class="card">
-            <div class="section-title" style="margin-bottom: 12px">Records</div>
+            <div class="section-title" style="margin-bottom: 12px" id="daily-records-title">My Recent Records</div>
             <div class="quick-finder-grid" style="margin-bottom: 12px">
               <input id="daily-filter-search" class="quick-input" placeholder="Search records" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-date" class="quick-input" type="date" onchange="loadDailyProgress()" />
               <input id="daily-filter-from" class="quick-input" type="date" onchange="loadDailyProgress()" />
               <input id="daily-filter-to" class="quick-input" type="date" onchange="loadDailyProgress()" />
               <input id="daily-filter-teacher-id" class="quick-input" placeholder="Teacher ID" oninput="loadDailyProgressDebounced()" />
               <input id="daily-filter-teacher-name" class="quick-input" placeholder="Teacher name" oninput="loadDailyProgressDebounced()" />
               <input id="daily-filter-subject" class="quick-input" placeholder="Subject" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-grade" class="quick-input" placeholder="Grade" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-section" class="quick-input" placeholder="Section" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-unit" class="quick-input" placeholder="Unit" oninput="loadDailyProgressDebounced()" />
+              <input id="daily-filter-section" class="quick-input" placeholder="Class / Section" oninput="loadDailyProgressDebounced()" />
               <select id="daily-filter-status" class="quick-select" onchange="loadDailyProgress()">
                 <option value="">All statuses</option>
                 <option>Completed</option>
@@ -4937,12 +4934,12 @@
                   <tr>
                     <th>Date</th>
                     <th>Teacher</th>
-                    <th>Grade / Section</th>
+                    <th>Class</th>
                     <th>Subject</th>
-                    <th>Unit</th>
-                    <th>Topic</th>
-                    <th>Completed Work</th>
+                    <th>Unit No.</th>
+                    <th>Topic Done Today</th>
                     <th>Status</th>
+                    <th>Created</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -12600,7 +12597,89 @@
         return String(cud?.teacherId || cud?.teacher_id || cud?.staffId || cud?.staff_id || cud?.id || "").trim();
       }
 
+      function uniqueDailyOptions(items) {
+        return [...new Set(items.map((item) => String(item || "").trim()).filter(Boolean))].sort(
+          (a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }),
+        );
+      }
+
+      function assignedDailySubjects() {
+        if (!cud) return [];
+        const teacherMode = cud.role === "teacher";
+        const source = teacherMode
+          ? allSubjects.filter((subject) => String(subject.teacherId || "") === String(cud.id || ""))
+          : allSubjects;
+        return uniqueDailyOptions(source.map((subject) => subject.name || subject.subject));
+      }
+
+      function assignedDailyClasses() {
+        if (!cud) return [];
+        const teacherMode = cud.role === "teacher";
+        const source = teacherMode
+          ? allSubjects.filter((subject) => String(subject.teacherId || "") === String(cud.id || ""))
+          : allSubjects;
+        const subjectClasses = source.flatMap((subject) =>
+          Array.isArray(subject.classIds)
+            ? subject.classIds
+            : subject.classId
+              ? [subject.classId]
+              : subject.section
+                ? [subject.section]
+                : [],
+        );
+        const teacher = allTeachers.find((item) => String(item.id || "") === String(cud.id || ""));
+        const teacherClasses = teacher
+          ? Array.isArray(teacher.classIds)
+            ? teacher.classIds
+            : teacher.classId
+              ? [teacher.classId]
+              : []
+          : [];
+        return uniqueDailyOptions([...subjectClasses, ...teacherClasses]);
+      }
+
+      function setupDailySelect(selectId, inputId, options, placeholder) {
+        const select = dailyField(selectId);
+        const input = dailyField(inputId);
+        if (!select || !input) return;
+        if (options.length) {
+          const current = input.value || select.value;
+          const choices = current && !options.includes(current) ? [current, ...options] : options;
+          select.innerHTML =
+            '<option value="">' +
+            placeholder +
+            "</option>" +
+            choices.map((item) => '<option value="' + escapeHtml(item) + '">' + escapeHtml(item) + "</option>").join("");
+          if (current && choices.includes(current)) select.value = current;
+          input.value = select.value || current || "";
+          select.style.display = "";
+          input.style.display = "none";
+          select.onchange = () => {
+            input.value = select.value;
+          };
+        } else {
+          select.style.display = "none";
+          input.style.display = "";
+          select.onchange = null;
+        }
+      }
+
+      function refreshDailyProgressControls() {
+        const isAdmin = !!(cud && cud.role === "admin");
+        const adminFields = dailyField("daily-admin-fields");
+        if (adminFields) adminFields.style.display = isAdmin ? "" : "none";
+        const title = dailyField("daily-records-title");
+        if (title) title.textContent = isAdmin ? "All Daily Records" : "My Recent Records";
+        ["daily-filter-teacher-id", "daily-filter-teacher-name"].forEach((id) => {
+          const el = dailyField(id);
+          if (el) el.style.display = isAdmin ? "" : "none";
+        });
+        setupDailySelect("daily-section-select", "daily-section", assignedDailyClasses(), "Select class / section");
+        setupDailySelect("daily-subject-select", "daily-subject", assignedDailySubjects(), "Select subject");
+      }
+
       function setupDailyProgressFormDefaults() {
+        refreshDailyProgressControls();
         const dateEl = dailyField("daily-date");
         if (dateEl && !dateEl.value) dateEl.value = new Date().toISOString().slice(0, 10);
         const teacherIdEl = dailyField("daily-teacher-id");
@@ -12640,22 +12719,23 @@
       }
 
       function dailyProgressPayload() {
+        const completedWork = dailyValue("daily-completed-work");
         return {
           record_date: dailyValue("daily-date"),
           teacher_id: dailyValue("daily-teacher-id"),
           teacher_name: dailyValue("daily-teacher-name"),
-          grade: dailyValue("daily-grade"),
+          grade: "",
           section: dailyValue("daily-section"),
           subject: dailyValue("daily-subject"),
           period_label: dailyValue("daily-period"),
           unit_number: dailyValue("daily-unit"),
-          main_topic: dailyValue("daily-main-topic"),
-          subtopic: dailyValue("daily-subtopic"),
-          completed_work: dailyValue("daily-completed-work"),
-          page_reference: dailyValue("daily-page-reference"),
+          main_topic: completedWork,
+          subtopic: "",
+          completed_work: completedWork,
+          page_reference: "",
           notes: dailyValue("daily-notes"),
           completion_status: dailyValue("daily-completion-status") || "Completed",
-          next_planned_lesson: dailyValue("daily-next-lesson"),
+          next_planned_lesson: "",
         };
       }
 
@@ -12723,21 +12803,17 @@
               "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
               escapeHtml(record.teacher_id || "-") +
               "</span></td><td>" +
-              escapeHtml(record.grade || "-") +
-              " / " +
               escapeHtml(record.section || "-") +
               "</td><td>" +
               escapeHtml(record.subject || "-") +
               "</td><td>" +
               escapeHtml(record.unit_number || "-") +
-              "</td><td><strong>" +
-              escapeHtml(record.main_topic || "-") +
-              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
-              escapeHtml(record.subtopic || "") +
-              "</span></td><td>" +
+              "</td><td>" +
               escapeHtml(record.completed_work || "-") +
               "</td><td>" +
               dailyStatusBadge(record.completion_status) +
+              "</td><td>" +
+              escapeHtml(record.created_at ? new Date(record.created_at).toLocaleString() : "-") +
               '</td><td><div style="display:flex;gap:6px;flex-wrap:wrap">' +
               (actions || '<span style="color:var(--muted);font-size:12px">-</span>') +
               "</div></td></tr>"
@@ -12776,21 +12852,15 @@
       window.resetDailyProgressForm = function () {
         editingDailyProgressId = null;
         [
-          "daily-period",
-          "daily-grade",
-          "daily-section",
-          "daily-subject",
           "daily-unit",
-          "daily-main-topic",
-          "daily-subtopic",
           "daily-completed-work",
-          "daily-page-reference",
           "daily-notes",
-          "daily-next-lesson",
         ].forEach((id) => {
           const el = dailyField(id);
           if (el) el.value = "";
         });
+        const noteWrap = dailyField("daily-note-wrap");
+        if (noteWrap) noteWrap.style.display = "none";
         const title = dailyField("daily-progress-form-title");
         if (title) title.textContent = "Add Daily Record";
         const status = dailyField("daily-completion-status");
@@ -12806,25 +12876,23 @@
           "daily-date": String(record.record_date || "").slice(0, 10),
           "daily-teacher-id": record.teacher_id || "",
           "daily-teacher-name": record.teacher_name || "",
-          "daily-grade": record.grade || "",
           "daily-section": record.section || "",
           "daily-subject": record.subject || "",
           "daily-period": record.period_label || "",
           "daily-unit": record.unit_number || "",
-          "daily-main-topic": record.main_topic || "",
-          "daily-subtopic": record.subtopic || "",
           "daily-completed-work": record.completed_work || "",
-          "daily-page-reference": record.page_reference || "",
           "daily-notes": record.notes || "",
           "daily-completion-status": record.completion_status || "Completed",
-          "daily-next-lesson": record.next_planned_lesson || "",
         };
         Object.entries(values).forEach(([idKey, value]) => {
           const el = dailyField(idKey);
           if (el) el.value = value;
         });
+        refreshDailyProgressControls();
         const title = dailyField("daily-progress-form-title");
         if (title) title.textContent = "Edit Daily Record";
+        const noteWrap = dailyField("daily-note-wrap");
+        if (noteWrap && record.notes) noteWrap.style.display = "";
         window.scrollTo({ top: 0, behavior: "smooth" });
       };
 
@@ -12832,7 +12900,7 @@
         const errorBox = dailyField("daily-form-error");
         if (errorBox) errorBox.textContent = "";
         const payload = dailyProgressPayload();
-        const required = ["record_date", "grade", "section", "subject", "unit_number", "main_topic", "completed_work"];
+        const required = ["record_date", "section", "subject", "unit_number", "completed_work"];
         const missing = required.filter((key) => !payload[key]);
         if (missing.length) {
           if (errorBox) errorBox.textContent = "Required fields are missing.";
@@ -12853,6 +12921,14 @@
           if (errorBox) errorBox.textContent = error.message;
           showToast(error.message, "err");
         }
+      };
+
+      window.toggleDailyNote = function () {
+        const noteWrap = dailyField("daily-note-wrap");
+        if (!noteWrap) return;
+        const shouldShow = noteWrap.style.display === "none";
+        noteWrap.style.display = shouldShow ? "" : "none";
+        if (shouldShow) dailyField("daily-notes")?.focus();
       };
 
       window.deleteDailyProgress = async function (id) {
@@ -12897,15 +12973,11 @@
               "</td><td>" +
               escapeHtml(record.teacher_name || "") +
               "</td><td>" +
-              escapeHtml((record.grade || "") + " / " + (record.section || "")) +
+              escapeHtml(record.section || "") +
               "</td><td>" +
               escapeHtml(record.subject || "") +
               "</td><td>" +
               escapeHtml(record.unit_number || "") +
-              "</td><td>" +
-              escapeHtml(record.main_topic || "") +
-              "</td><td>" +
-              escapeHtml(record.subtopic || "") +
               "</td><td>" +
               escapeHtml(record.completed_work || "") +
               "</td><td>" +
@@ -12920,8 +12992,8 @@
             escapeHtml(cud?.name || "-") +
             "<br>Generated at " +
             escapeHtml(new Date().toLocaleString()) +
-            '</p><table><thead><tr><th>Date</th><th>Teacher</th><th>Grade/Section</th><th>Subject</th><th>Unit</th><th>Main Topic</th><th>Subtopic</th><th>Completed Work</th><th>Status</th></tr></thead><tbody>' +
-            (rows || '<tr><td colspan="9">No records</td></tr>') +
+            '</p><table><thead><tr><th>Date</th><th>Teacher</th><th>Class</th><th>Subject</th><th>Unit No.</th><th>Topic Done Today</th><th>Status</th></tr></thead><tbody>' +
+            (rows || '<tr><td colspan="7">No records</td></tr>') +
             '</tbody></table><div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div></body></html>',
         );
         win.document.close();
