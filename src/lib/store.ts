@@ -561,6 +561,13 @@ export const seed: DB = {
       parentId: "about",
     },
     { id: "academics", label: "Academics", order: 3, visible: true },
+    {
+      id: "academics/loyolian-cambridge-english-academy",
+      label: "Loyolian Cambridge English Academy",
+      order: 1,
+      visible: true,
+      parentId: "academics",
+    },
     { id: "admissions", label: "Admissions", order: 4, visible: true },
     { id: "news", label: "News & Notices", order: 5, visible: true },
     { id: "events", label: "Events", order: 6, visible: true },
@@ -622,6 +629,11 @@ export const seed: DB = {
       kicker: "Academics",
       title: "Academics",
       body: "",
+    },
+    "academics/loyolian-cambridge-english-academy": {
+      kicker: "Academics",
+      title: "Loyolian Cambridge English Academy",
+      body: "Cambridge-standard English learning for Loyolian students and learners from other schools.",
     },
     events: {
       kicker: "Events",
@@ -1229,6 +1241,50 @@ function migratePublicWebsiteCopy(db: DB): DB {
   };
 }
 
+function ensureAcademicsSubpages(db: DB): DB {
+  const subpages: {
+    id: string;
+    label: string;
+    order: number;
+    page: DB["pages"][string];
+  }[] = [
+    {
+      id: "academics/loyolian-cambridge-english-academy",
+      label: "Loyolian Cambridge English Academy",
+      order: 1,
+      page: {
+        kicker: "Academics",
+        title: "Loyolian Cambridge English Academy",
+        body: "Cambridge-standard English learning for Loyolian students and learners from other schools.",
+      },
+    },
+  ];
+
+  const pages = db.pages && typeof db.pages === "object" ? { ...db.pages } : {};
+  const navigation = Array.isArray(db.navigation) ? [...db.navigation] : [...seed.navigation];
+  let changed = false;
+
+  subpages.forEach((subpage) => {
+    if (!pages[subpage.id]) {
+      pages[subpage.id] = subpage.page;
+      changed = true;
+    }
+
+    if (!navigation.some((item) => item.id === subpage.id)) {
+      navigation.push({
+        id: subpage.id,
+        label: subpage.label,
+        order: subpage.order,
+        visible: true,
+        parentId: "academics",
+      });
+      changed = true;
+    }
+  });
+
+  return changed ? { ...db, pages, navigation } : db;
+}
+
 function ensureGallerySubpages(db: DB): DB {
   const subpages: {
     id: string;
@@ -1443,7 +1499,9 @@ function prepareDb(db: DB): DB {
           stripDemoContent(
             ensureCalendarPage(
               ensureCollegeAnthemPage(
-                ensureGallerySubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+                ensureGallerySubpages(
+                  ensureAcademicsSubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+                ),
               ),
             ),
           ),

@@ -79,6 +79,7 @@ const REPORT_CARD_ROLES: Role[] = [
   "student",
   "parent",
 ];
+const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 
 const LOYOLA_CALENDAR_ID = "loyolacollegeng.official@gmail.com";
 const LOYOLA_CALENDAR_TIME_ZONE = "Asia/Colombo";
@@ -162,11 +163,11 @@ export function App() {
       {
         threshold: 0.05,
         rootMargin: "0px 0px -45px 0px",
-      }
+      },
     );
 
     const elements = document.querySelectorAll(
-      ".reveal-on-scroll, .reveal-stagger, .public-site main > section, .visual-page section"
+      ".reveal-on-scroll, .reveal-stagger, .public-site main > section, .visual-page section",
     );
     elements.forEach((el) => {
       if (!el.classList.contains("is-revealed")) {
@@ -218,6 +219,9 @@ export function App() {
   }
 
   if (path === "/calendar" && pageIsLive("calendar")) return <CalendarPage />;
+  if ([`/${LCEA_PAGE_ID}`, "/academics/cambridge"].includes(path) && pageIsLive(LCEA_PAGE_ID)) {
+    return <LoyolianCambridgeEnglishAcademyPage />;
+  }
 
   if (
     path !== "/login" &&
@@ -252,7 +256,12 @@ export function App() {
     return <CollegeStaffPage pageId={path.replace(/^\/+/, "")} />;
   }
   if (path.startsWith("/staff/")) {
-    return <CollegeStaffPage pageId="about/college-staff" profileSlug={path.split("/").filter(Boolean)[1] || ""} />;
+    return (
+      <CollegeStaffPage
+        pageId="about/college-staff"
+        profileSlug={path.split("/").filter(Boolean)[1] || ""}
+      />
+    );
   }
   if (
     (path === "/about/college-anthem-hymn" && pageIsLive("about/college-anthem-hymn")) ||
@@ -339,8 +348,7 @@ function pageIsLiveInDb(db: ReturnType<typeof getDb>, id: string) {
 function visibleSubpages(db: ReturnType<typeof getDb>, parentId: string) {
   return [...db.navigation]
     .filter(
-      (item) =>
-        item.parentId === parentId && item.visible !== false && Boolean(db.pages[item.id]),
+      (item) => item.parentId === parentId && item.visible !== false && Boolean(db.pages[item.id]),
     )
     .sort((a, b) => a.order - b.order);
 }
@@ -439,9 +447,7 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
               Profile Records
             </p>
-            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
-              Rector Profiles
-            </h2>
+            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">Rector Profiles</h2>
             <div className="mt-8 grid gap-8 lg:grid-cols-2">
               {pastRectorProfiles.map((profile) => (
                 <article
@@ -534,7 +540,10 @@ function HomeVisualBuilderSections() {
   return (
     <>
       {page.visualCss && <style>{page.visualCss}</style>}
-      <div className="visual-page home-visual-sections" dangerouslySetInnerHTML={{ __html: html }} />
+      <div
+        className="visual-page home-visual-sections"
+        dangerouslySetInnerHTML={{ __html: html }}
+      />
     </>
   );
 }
@@ -593,10 +602,18 @@ function HomeRequiredSections() {
         <div className="mx-auto grid max-w-7xl gap-8 px-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-center">
           <figure className="overflow-hidden rounded-lg border border-border bg-white shadow-elegant">
             {rectorImage ? (
-              <img src={rectorImage} alt={home.rectorName} className="aspect-[4/5] w-full object-cover" />
+              <img
+                src={rectorImage}
+                alt={home.rectorName}
+                className="aspect-[4/5] w-full object-cover"
+              />
             ) : (
               <div className="grid aspect-[4/5] place-items-center bg-white p-12">
-                <img src="/loyola-crest.jpg" alt="" className="h-40 w-40 object-contain opacity-80" />
+                <img
+                  src="/loyola-crest.jpg"
+                  alt=""
+                  className="h-40 w-40 object-contain opacity-80"
+                />
               </div>
             )}
           </figure>
@@ -645,10 +662,18 @@ function HomeRequiredSections() {
               >
                 <div className="overflow-hidden rounded bg-secondary">
                   {card.image ? (
-                    <img src={card.image} alt={card.name} className="aspect-[4/5] w-full object-cover" />
+                    <img
+                      src={card.image}
+                      alt={card.name}
+                      className="aspect-[4/5] w-full object-cover"
+                    />
                   ) : (
                     <div className="grid aspect-[4/5] place-items-center bg-secondary/70 p-8">
-                      <img src="/loyola-crest.jpg" alt="" className="h-20 w-20 object-contain opacity-55" />
+                      <img
+                        src="/loyola-crest.jpg"
+                        alt=""
+                        className="h-20 w-20 object-contain opacity-55"
+                      />
                     </div>
                   )}
                 </div>
@@ -1206,11 +1231,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
       "සිසු සිත් විදුණැන බලයෙන් සතපා",
       "සත්‍ය මැදින් ආලෝකෙ කරා //",
     ],
-    [
-      "පහන් ටැඹක් සේ මඟ එළි කළ ඔබ",
-      "සදා අපගේ ආලෝකය වුව මැන",
-      "සැරදේ වොරැඳේ සැරදේ !!!!!",
-    ],
+    ["පහන් ටැඹක් සේ මඟ එළි කළ ඔබ", "සදා අපගේ ආලෝකය වුව මැන", "සැරදේ වොරැඳේ සැරදේ !!!!!"],
   ];
 
   const anthemTextBlocks = hasCustomText
@@ -1489,6 +1510,320 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
   );
 }
 
+const lceaStats = [
+  {
+    label: "Students Equipped",
+    value: "700+",
+    body: "Learners are being equipped with standard English at LCEA.",
+    icon: Users,
+  },
+  {
+    label: "Teaching Staff",
+    value: "36",
+    body: "Loyolian teachers and qualified teachers from other schools guide the students.",
+    icon: GraduationCap,
+  },
+  {
+    label: "Monthly English",
+    value: "12 hrs",
+    body: "Young learners receive structured English learning every month.",
+    icon: BookOpen,
+  },
+  {
+    label: "Launched",
+    value: "May 1, 2024",
+    body: "The academy was launched under the vision of Rev. Fr. Kennedy Perera.",
+    icon: Award,
+  },
+];
+
+const lceaLeadership = [
+  { role: "Rector", names: ["Rev. Fr. Kennedy Perera"] },
+  { role: "Priest in Charge", names: ["Fr. Mahima Gunawardena"] },
+  { role: "Manager", names: ["Mr. Deepal Fonseka"] },
+  { role: "Accountant", names: ["Mrs. Reshika Crishelni"] },
+  { role: "Vice Principals", names: ["Mrs. Priyanthi Fernando", "Mrs. Geethanchali Devedas"] },
+];
+
+const lceaProgrammes = [
+  {
+    level: "Pre Starters (Nursery)",
+    students: "40 students",
+    age: "5 years",
+    teachers: ["Niroshini Perera", "Sarala Subasingha"],
+  },
+  {
+    level: "Pre Starters",
+    students: "140 students",
+    age: "5-8 years",
+    teachers: [
+      "Mrs. Hasara Fernando",
+      "Rev. Sr. Princy Croos Pulle",
+      "Miss. Maleesha Nethmini",
+      "Miss. Chrishani Fernando",
+      "Miss. Hashini Perera",
+      "Miss. Amasha Perera",
+    ],
+  },
+  {
+    level: "Starters",
+    students: "200 students",
+    age: "7-10 years",
+    teachers: [
+      "Mrs. Jayani Jethma",
+      "Rev. Sr. Malrani Fernando",
+      "Miss. Amindi Silva",
+      "Mrs. Priyanthi Fernando",
+      "Miss. Dhananjani Perera",
+      "Miss. Vihangi Fernando",
+      "Miss. Nisali Christina",
+      "Mrs. Christina Sebastian",
+      "Miss. Tharushika Fernando",
+      "Mrs. Ronisha Devedas",
+    ],
+  },
+  {
+    level: "Movers",
+    students: "100 students",
+    age: "9-11 years",
+    teachers: [
+      "Mrs. Geethanchali Devedas",
+      "Miss. Anuththara Sewmini",
+      "Mrs. Sumedhie Fernando",
+      "Mrs. M. K. Roshina",
+      "Mrs. Dharshani Suraweera",
+    ],
+  },
+  {
+    level: "Flyers",
+    students: "60 students",
+    age: "10-12 years",
+    teachers: [
+      "Mrs. Harshani Fernandopulle",
+      "Mrs. Cynthiya Karunapala",
+      "Mrs. Shanika Marasinghe",
+      "Mrs. Nirosha Perera",
+    ],
+  },
+  {
+    level: "KET",
+    students: "60 students",
+    age: "Above 12 years",
+    teachers: ["Mrs. Shiromi Jude", "Mr. Sumith Senadheera", "Mr. Bernil Anuranga"],
+  },
+  {
+    level: "PET",
+    students: "60 students",
+    age: "Above 12 years",
+    teachers: ["Mrs. Ranlie Fernando", "Mrs. Sandamali", "Mr. Rasika Perera"],
+  },
+  {
+    level: "FCE",
+    students: "10 students",
+    age: "Above 12 years",
+    teachers: ["Mr. Amantha Fernando"],
+  },
+];
+
+const lceaSchedule = [
+  {
+    day: "Wednesday",
+    time: "2.15 P.M. to 5.15 P.M.",
+    levels: "Pre Starters, Starters, Movers",
+  },
+  {
+    day: "Friday",
+    time: "2.15 P.M. to 5.15 P.M.",
+    levels: "Flyers, KET, PET, FCE",
+  },
+];
+
+function LoyolianCambridgeEnglishAcademyPage() {
+  const db = useDb();
+  const page = db.pages[LCEA_PAGE_ID];
+  const pageBody =
+    page?.body && page.body.trim() !== "New page content goes here." ? page.body : "";
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={LCEA_PAGE_ID}
+        kicker={page?.kicker || "Academics"}
+        title={page?.title || "Loyolian Cambridge English Academy"}
+        subtitle={
+          pageBody ||
+          "Cambridge-standard English learning for Loyolian students and learners from other schools."
+        }
+        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
+
+      <section className="bg-page-soft py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_390px]">
+            <article className="min-w-0 rounded-lg border border-border bg-white p-7 shadow-soft md:p-9">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                English Academy
+              </p>
+              <h2 className="mt-4 max-w-3xl break-words font-serif text-2xl font-bold leading-tight text-navy sm:text-3xl md:text-4xl">
+                English learning with Cambridge international standards.
+              </h2>
+              <div className="mt-6 space-y-4 break-words text-sm leading-7 text-muted-foreground md:text-base">
+                <p>
+                  Loyola College launched Loyolian Cambridge English Academy on May 1, 2024. The
+                  academy is a brain-child of Rev. Fr. Kennedy Perera, the present Rector of Loyola
+                  College Negombo, who has held the vision of enhancing the English linguistic
+                  capacity of Loyolian students from the day of his installation.
+                </p>
+                <p>
+                  LCEA has opened its doors to students from other schools as well, giving them the
+                  opportunity to learn English according to Cambridge international standards.
+                </p>
+                <p>
+                  More than 700 students are being equipped with standard English at LCEA by a
+                  well-qualified staff of 36 teachers.
+                </p>
+              </div>
+            </article>
+
+            <aside className="min-w-0 rounded-lg bg-navy p-7 text-white shadow-elegant md:p-8">
+              <ShieldCheck className="h-9 w-9 text-gold-light" />
+              <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
+                Academy Vision
+              </p>
+              <h3 className="mt-3 break-words font-serif text-3xl font-bold leading-tight">
+                A stronger English foundation for young learners.
+              </h3>
+              <p className="mt-4 text-sm leading-7 text-white/72">
+                LCEA offers an upgraded English academy experience in the Negombo region, with
+                regular monthly learning time and guided support for each Cambridge level.
+              </p>
+            </aside>
+          </div>
+
+          <div className="stagger-children mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {lceaStats.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article
+                  key={item.label}
+                  className="min-w-0 rounded-lg border border-border bg-white p-6 shadow-soft"
+                >
+                  <Icon className="h-7 w-7 text-gold" />
+                  <p className="mt-5 font-serif text-3xl font-bold text-navy">{item.value}</p>
+                  <h3 className="mt-2 text-sm font-bold uppercase tracking-[0.14em] text-crimson">
+                    {item.label}
+                  </h3>
+                  <p className="mt-3 text-sm leading-6 text-muted-foreground">{item.body}</p>
+                </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[minmax(0,1fr)_430px]">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Academy Team
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Leadership and administration
+            </h2>
+            <div className="stagger-children mt-8 grid gap-4 md:grid-cols-2">
+              {lceaLeadership.map((item) => (
+                <article
+                  key={item.role}
+                  className="min-w-0 rounded-lg border border-border bg-background p-5 shadow-soft"
+                >
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                    {item.role}
+                  </p>
+                  <div className="mt-3 space-y-1">
+                    {item.names.map((name) => (
+                      <p key={name} className="break-words font-serif text-xl font-bold text-navy">
+                        {name}
+                      </p>
+                    ))}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <aside className="min-w-0 rounded-lg border border-border bg-white p-6 shadow-elegant">
+            <Calendar className="h-8 w-8 text-gold" />
+            <p className="mt-5 text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+              Weekly Classes
+            </p>
+            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">Class schedule</h2>
+            <div className="mt-6 space-y-4">
+              {lceaSchedule.map((slot) => (
+                <div key={slot.day} className="rounded-lg bg-background p-5">
+                  <p className="text-sm font-bold uppercase tracking-[0.14em] text-navy">
+                    {slot.day}
+                  </p>
+                  <p className="mt-2 text-lg font-bold text-crimson">{slot.time}</p>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{slot.levels}</p>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section className="bg-page-soft py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="max-w-3xl">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Cambridge Levels
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Programme groups and teaching staff
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
+              Students are guided through age-appropriate Cambridge English levels by the following
+              staff members.
+            </p>
+          </div>
+
+          <div className="stagger-children mt-9 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {lceaProgrammes.map((programme) => (
+              <article
+                key={programme.level}
+                className="flex h-full min-w-0 flex-col rounded-lg border border-border bg-white p-6 shadow-soft"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="break-words font-serif text-2xl font-bold text-navy">
+                      {programme.level}
+                    </h3>
+                    <p className="mt-2 text-sm font-bold text-crimson">{programme.students}</p>
+                  </div>
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-gold/15 text-gold">
+                    <BookOpen className="h-5 w-5" />
+                  </span>
+                </div>
+                <p className="mt-4 rounded-lg bg-background px-3 py-2 text-sm font-semibold text-navy">
+                  Age: {programme.age}
+                </p>
+                <ul className="mt-5 space-y-2 text-sm leading-6 text-muted-foreground">
+                  {programme.teachers.map((teacher) => (
+                    <li key={teacher} className="flex gap-2">
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
+                      <span>{teacher}</span>
+                    </li>
+                  ))}
+                </ul>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+    </PublicLayout>
+  );
+}
+
 function AcademicsPage() {
   const db = useDb();
   const page = db.pages.academics;
@@ -1513,6 +1848,20 @@ function AcademicsPage() {
       "advanced-level",
       "Technology, Science, Commerce, and Arts streams with senior academic guidance.",
     ],
+  ];
+  const quickLinks = [
+    {
+      title: "Academic Calendar",
+      href: "/calendar",
+      body: "Open school events, holidays, celebrations, meetings, and academic dates.",
+      icon: Calendar,
+    },
+    {
+      title: "Cambridge English Academy",
+      href: `/${LCEA_PAGE_ID}`,
+      body: "View LCEA levels, schedules, leadership, student numbers, and teaching staff.",
+      icon: BookOpen,
+    },
   ];
   return (
     <PublicLayout>
@@ -1562,18 +1911,20 @@ function AcademicsPage() {
           </table>
         </div>
         <div id="calendar" className="stagger-children mt-8 grid gap-5 md:grid-cols-2">
-          {["Academic Calendar", "Cambridge English Academy"].map((item) => (
-            <article
-              key={item}
-              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
-            >
-              <Calendar className="h-7 w-7 text-gold" />
-              <h2 className="mt-3 font-serif text-2xl text-navy">{item}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                A dedicated area for schedules, resources, notices, and inquiry links.
-              </p>
-            </article>
-          ))}
+          {quickLinks.map((item) => {
+            const Icon = item.icon;
+            return (
+              <a
+                key={item.title}
+                href={item.href}
+                className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+              >
+                <Icon className="h-7 w-7 text-gold" />
+                <h2 className="mt-3 font-serif text-2xl text-navy">{item.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+              </a>
+            );
+          })}
         </div>
       </section>
       <SubpagesSection parentId="academics" />
@@ -2953,8 +3304,7 @@ function LoginPage() {
       <section
         className="login-brand-panel relative hidden overflow-hidden lg:flex lg:flex-col lg:justify-between"
         style={{
-          background:
-            "linear-gradient(135deg, #071430 0%, #0a1e4a 40%, #14286e 70%, #0a1628 100%)",
+          background: "linear-gradient(135deg, #071430 0%, #0a1e4a 40%, #14286e 70%, #0a1628 100%)",
         }}
       >
         {/* Animated gradient blobs */}
@@ -3033,26 +3383,23 @@ function LoginPage() {
             <span className="text-amber-300">digital home.</span>
           </h1>
           <p className="mt-5 max-w-sm text-sm leading-7 text-white/65">
-            A unified workspace connecting students, parents, teachers, and
-            administration through one secure sign-in.
+            A unified workspace connecting students, parents, teachers, and administration through
+            one secure sign-in.
           </p>
 
           {/* Feature pills */}
           <div className="stagger-fast mt-8 flex flex-wrap gap-2">
-            {[
-              "Student Portal",
-              "Parent Access",
-              "Staff Dashboard",
-              "Website Studio",
-            ].map((item) => (
-              <span
-                key={item}
-                className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm"
-              >
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
-                {item}
-              </span>
-            ))}
+            {["Student Portal", "Parent Access", "Staff Dashboard", "Website Studio"].map(
+              (item) => (
+                <span
+                  key={item}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80 backdrop-blur-sm"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+                  {item}
+                </span>
+              ),
+            )}
           </div>
         </div>
 
@@ -3073,9 +3420,7 @@ function LoginPage() {
             alt=""
           />
           <div>
-            <p className="font-serif text-xl font-bold text-navy">
-              {db.websiteContent.schoolName}
-            </p>
+            <p className="font-serif text-xl font-bold text-navy">{db.websiteContent.schoolName}</p>
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#d4a017]">
               {db.websiteContent.tagline}
             </p>

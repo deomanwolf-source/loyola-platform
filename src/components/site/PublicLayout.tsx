@@ -251,10 +251,7 @@ export const SiteFooter = memo(function SiteFooter() {
   const nav = [...db.navigation]
     .filter(
       (n) =>
-        n.visible !== false &&
-        !n.parentId &&
-        n.id !== "student-portal" &&
-        Boolean(db.pages[n.id]),
+        n.visible !== false && !n.parentId && n.id !== "student-portal" && Boolean(db.pages[n.id]),
     )
     .sort((a, b) => a.order - b.order);
   const hrefIsLive = (href: string) => {
@@ -481,7 +478,7 @@ export function PageHeader({
       <div className="relative mx-auto max-w-7xl px-6 py-20 md:py-28 animate-fade-in-up">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-light">{kicker}</p>
         <span className="gold-divider mt-4" />
-        <h1 className="max-w-4xl font-serif text-4xl font-bold leading-tight md:text-6xl">
+        <h1 className="max-w-4xl break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-6xl">
           {title}
         </h1>
         {subtitle && (
