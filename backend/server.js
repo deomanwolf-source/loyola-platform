@@ -1396,6 +1396,151 @@ async function ensureContentTables() {
   `);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_teacher_subject_assignments (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      teacher_user_id VARCHAR(64) NULL,
+      teacher_id VARCHAR(80) NULL,
+      teacher_name VARCHAR(190) NOT NULL,
+      subject_id VARCHAR(80) NULL,
+      subject_name VARCHAR(150) NOT NULL,
+      grade VARCHAR(50) NOT NULL,
+      section VARCHAR(50) NULL,
+      class_name VARCHAR(100) NULL,
+      academic_year VARCHAR(20) NOT NULL,
+      assigned_by_user_id VARCHAR(64) NULL,
+      assigned_by_name VARCHAR(190) NULL,
+      status VARCHAR(40) NOT NULL DEFAULT 'Active',
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_ypp_assign_teacher_user (teacher_user_id),
+      KEY idx_ypp_assign_teacher_id (teacher_id),
+      KEY idx_ypp_assign_subject (subject_name),
+      KEY idx_ypp_assign_grade_section (grade, section),
+      KEY idx_ypp_assign_year (academic_year),
+      KEY idx_ypp_assign_status (status)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_year_plans (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      assignment_id INT NULL,
+      teacher_user_id VARCHAR(64) NULL,
+      teacher_id VARCHAR(80) NULL,
+      teacher_name VARCHAR(190) NOT NULL,
+      subject_name VARCHAR(150) NOT NULL,
+      grade VARCHAR(50) NOT NULL,
+      section VARCHAR(50) NULL,
+      academic_year VARCHAR(20) NOT NULL,
+      status VARCHAR(40) NOT NULL DEFAULT 'Draft',
+      progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
+      created_by_user_id VARCHAR(64) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_ypp_plans_assignment (assignment_id),
+      KEY idx_ypp_plans_teacher_user (teacher_user_id),
+      KEY idx_ypp_plans_teacher_id (teacher_id),
+      KEY idx_ypp_plans_subject (subject_name),
+      KEY idx_ypp_plans_grade_section (grade, section),
+      KEY idx_ypp_plans_year (academic_year),
+      KEY idx_ypp_plans_status (status)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_year_plan_terms (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      year_plan_id INT NOT NULL,
+      term_name VARCHAR(80) NOT NULL,
+      term_order INT NOT NULL,
+      unit_count INT NOT NULL DEFAULT 0,
+      progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_ypp_term (year_plan_id, term_order),
+      KEY idx_ypp_terms_plan (year_plan_id)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_year_plan_units (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      term_id INT NOT NULL,
+      year_plan_id INT NOT NULL,
+      unit_number VARCHAR(80) NOT NULL,
+      unit_title VARCHAR(255) NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY unique_ypp_unit (term_id, display_order),
+      KEY idx_ypp_units_plan (year_plan_id),
+      KEY idx_ypp_units_term (term_id)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_year_plan_topics (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      unit_id INT NOT NULL,
+      term_id INT NOT NULL,
+      year_plan_id INT NOT NULL,
+      main_topic VARCHAR(255) NOT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      progress_percentage DECIMAL(5,2) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_ypp_topics_plan (year_plan_id),
+      KEY idx_ypp_topics_term (term_id),
+      KEY idx_ypp_topics_unit (unit_id)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_year_plan_subtopics (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      topic_id INT NOT NULL,
+      unit_id INT NOT NULL,
+      term_id INT NOT NULL,
+      year_plan_id INT NOT NULL,
+      subtopic_title VARCHAR(255) NOT NULL,
+      display_order INT NOT NULL DEFAULT 0,
+      is_completed TINYINT(1) NOT NULL DEFAULT 0,
+      completed_at TIMESTAMP NULL,
+      completed_by_user_id VARCHAR(64) NULL,
+      completed_by_name VARCHAR(190) NULL,
+      completion_note TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_ypp_subtopics_plan (year_plan_id),
+      KEY idx_ypp_subtopics_term (term_id),
+      KEY idx_ypp_subtopics_unit (unit_id),
+      KEY idx_ypp_subtopics_topic (topic_id),
+      KEY idx_ypp_subtopics_completed (is_completed)
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_year_plan_audit_logs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      year_plan_id INT NULL,
+      entity_type VARCHAR(80) NOT NULL,
+      entity_id VARCHAR(80) NULL,
+      action VARCHAR(100) NOT NULL,
+      old_value_json LONGTEXT NULL,
+      new_value_json LONGTEXT NULL,
+      actor_user_id VARCHAR(64) NULL,
+      actor_name VARCHAR(190) NULL,
+      ip_address VARCHAR(80) NULL,
+      user_agent TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_ypp_audit_plan (year_plan_id),
+      KEY idx_ypp_audit_entity (entity_type, entity_id),
+      KEY idx_ypp_audit_actor (actor_user_id)
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS report_cards (
       id INT AUTO_INCREMENT PRIMARY KEY,
       student_id VARCHAR(50) NOT NULL,
@@ -1455,6 +1600,35 @@ async function ensureContentTables() {
   await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "details_json", "LONGTEXT");
   await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "ip_address", "VARCHAR(80)");
   await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "user_agent", "TEXT");
+  await addColumnIfMissing("edutrack_year_plans", "progress_percentage", "DECIMAL(5,2) NOT NULL DEFAULT 0");
+  await ensureTableIndexes("edutrack_teacher_subject_assignments", [
+    {
+      name: "idx_ypp_assign_teacher_user",
+      sql: "CREATE INDEX idx_ypp_assign_teacher_user ON edutrack_teacher_subject_assignments (teacher_user_id)",
+    },
+    {
+      name: "idx_ypp_assign_teacher_id",
+      sql: "CREATE INDEX idx_ypp_assign_teacher_id ON edutrack_teacher_subject_assignments (teacher_id)",
+    },
+    {
+      name: "idx_ypp_assign_year",
+      sql: "CREATE INDEX idx_ypp_assign_year ON edutrack_teacher_subject_assignments (academic_year)",
+    },
+  ]);
+  await ensureTableIndexes("edutrack_year_plans", [
+    {
+      name: "idx_ypp_plans_teacher_user",
+      sql: "CREATE INDEX idx_ypp_plans_teacher_user ON edutrack_year_plans (teacher_user_id)",
+    },
+    {
+      name: "idx_ypp_plans_teacher_id",
+      sql: "CREATE INDEX idx_ypp_plans_teacher_id ON edutrack_year_plans (teacher_id)",
+    },
+    {
+      name: "idx_ypp_plans_year",
+      sql: "CREATE INDEX idx_ypp_plans_year ON edutrack_year_plans (academic_year)",
+    },
+  ]);
   await ensureTableIndexes("edutrack_daily_syllabus_progress", [
     {
       name: "idx_daily_syllabus_teacher_id",
@@ -4838,6 +5012,1154 @@ function csvEscape(value) {
   const text = value == null ? "" : String(value);
   return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
+
+const YEAR_PLAN_TERMS = [
+  { order: 1, name: "1st Term" },
+  { order: 2, name: "2nd Term" },
+  { order: 3, name: "3rd Term" },
+];
+
+function shortText(value, max = 255) {
+  return String(value == null ? "" : value)
+    .trim()
+    .slice(0, max);
+}
+
+function nullableShortText(value, max = 255) {
+  const text = shortText(value, max);
+  return text || null;
+}
+
+function positiveInt(value, fallback = 0) {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? Math.floor(num) : fallback;
+}
+
+function boundedInt(value, fallback = 0, max = 200) {
+  const num = positiveInt(value, fallback);
+  return Math.max(0, Math.min(max, num));
+}
+
+function currentAcademicYear() {
+  return String(new Date().getFullYear());
+}
+
+function canAccessYearPlan(req, actor, plan, action = "read") {
+  if (isEduTrackAdminUser(req)) return true;
+  const ownsPlan =
+    String(plan.teacher_user_id || "") === actor.id ||
+    String(plan.teacher_id || "") === actor.teacherId;
+  if (!ownsPlan) return false;
+  if (action === "delete") return false;
+  return true;
+}
+
+function canAccessAssignment(req, actor, assignment) {
+  if (isEduTrackAdminUser(req)) return true;
+  return (
+    String(assignment.teacher_user_id || "") === actor.id ||
+    String(assignment.teacher_id || "") === actor.teacherId
+  );
+}
+
+async function insertYearPlanAudit(conn, req, yearPlanId, entityType, entityId, action, oldValue, newValue, actor) {
+  const meta = requestAuditMeta(req);
+  await conn.query(
+    `
+      INSERT INTO edutrack_year_plan_audit_logs
+        (year_plan_id, entity_type, entity_id, action, old_value_json, new_value_json,
+         actor_user_id, actor_name, ip_address, user_agent)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      yearPlanId || null,
+      shortText(entityType, 80) || "year_plan",
+      entityId == null ? null : String(entityId),
+      shortText(action, 100),
+      oldValue ? JSON.stringify(oldValue) : null,
+      newValue ? JSON.stringify(newValue) : null,
+      actor.id,
+      actor.name,
+      meta.ip,
+      meta.userAgent,
+    ],
+  );
+}
+
+function serializeYearPlanSummary(row) {
+  const totalSubtopics = Number(row.total_subtopics || 0);
+  const completedSubtopics = Number(row.completed_subtopics || 0);
+  return {
+    ...row,
+    progress_percentage: Number(row.progress_percentage || 0),
+    total_terms: Number(row.total_terms || 0),
+    total_units: Number(row.total_units || 0),
+    total_topics: Number(row.total_topics || 0),
+    total_subtopics: totalSubtopics,
+    completed_subtopics: completedSubtopics,
+    pending_subtopics: Math.max(0, totalSubtopics - completedSubtopics),
+  };
+}
+
+function attachYearPlanSummary(plan) {
+  const terms = plan.terms || [];
+  const units = terms.flatMap((term) => term.units || []);
+  const topics = units.flatMap((unit) => unit.topics || []);
+  const subtopics = topics.flatMap((topic) => topic.subtopics || []);
+  const completed = subtopics.filter((subtopic) => Number(subtopic.is_completed || 0) === 1).length;
+  plan.summary = {
+    total_terms: terms.length,
+    total_units: units.length,
+    total_topics: topics.length,
+    total_subtopics: subtopics.length,
+    completed_subtopics: completed,
+    pending_subtopics: Math.max(0, subtopics.length - completed),
+    completion_percentage: subtopics.length ? Math.round((completed / subtopics.length) * 100) : 0,
+  };
+  return plan;
+}
+
+async function readYearPlanDetail(planId, runner = db) {
+  const [plans] = await runner.query("SELECT * FROM edutrack_year_plans WHERE id = ? LIMIT 1", [
+    Number(planId),
+  ]);
+  const plan = plans[0];
+  if (!plan) return null;
+  const [terms] = await runner.query(
+    "SELECT * FROM edutrack_year_plan_terms WHERE year_plan_id = ? ORDER BY term_order ASC, id ASC",
+    [plan.id],
+  );
+  const [units] = await runner.query(
+    "SELECT * FROM edutrack_year_plan_units WHERE year_plan_id = ? ORDER BY term_id ASC, display_order ASC, id ASC",
+    [plan.id],
+  );
+  const [topics] = await runner.query(
+    "SELECT * FROM edutrack_year_plan_topics WHERE year_plan_id = ? ORDER BY unit_id ASC, display_order ASC, id ASC",
+    [plan.id],
+  );
+  const [subtopics] = await runner.query(
+    "SELECT * FROM edutrack_year_plan_subtopics WHERE year_plan_id = ? ORDER BY topic_id ASC, display_order ASC, id ASC",
+    [plan.id],
+  );
+  const subtopicsByTopic = new Map();
+  subtopics.forEach((row) => {
+    if (!subtopicsByTopic.has(row.topic_id)) subtopicsByTopic.set(row.topic_id, []);
+    subtopicsByTopic.get(row.topic_id).push(row);
+  });
+  const topicsByUnit = new Map();
+  topics.forEach((row) => {
+    if (!topicsByUnit.has(row.unit_id)) topicsByUnit.set(row.unit_id, []);
+    topicsByUnit.get(row.unit_id).push({
+      ...row,
+      progress_percentage: Number(row.progress_percentage || 0),
+      subtopics: subtopicsByTopic.get(row.id) || [],
+    });
+  });
+  const unitsByTerm = new Map();
+  units.forEach((row) => {
+    if (!unitsByTerm.has(row.term_id)) unitsByTerm.set(row.term_id, []);
+    unitsByTerm.get(row.term_id).push({
+      ...row,
+      progress_percentage: Number(row.progress_percentage || 0),
+      topics: topicsByUnit.get(row.id) || [],
+    });
+  });
+  return attachYearPlanSummary({
+    ...plan,
+    progress_percentage: Number(plan.progress_percentage || 0),
+    terms: terms.map((term) => ({
+      ...term,
+      progress_percentage: Number(term.progress_percentage || 0),
+      units: unitsByTerm.get(term.id) || [],
+    })),
+  });
+}
+
+async function refreshYearPlanProgress(yearPlanId, runner = db) {
+  const [topicRows] = await runner.query(
+    `
+      SELECT topic_id, COUNT(*) AS total, SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS done
+      FROM edutrack_year_plan_subtopics
+      WHERE year_plan_id = ?
+      GROUP BY topic_id
+    `,
+    [Number(yearPlanId)],
+  );
+  for (const row of topicRows) {
+    const total = Number(row.total || 0);
+    const pct = total ? Math.round((Number(row.done || 0) / total) * 100) : 0;
+    await runner.query("UPDATE edutrack_year_plan_topics SET progress_percentage = ? WHERE id = ?", [
+      pct,
+      row.topic_id,
+    ]);
+  }
+
+  const [unitRows] = await runner.query(
+    `
+      SELECT unit_id, COUNT(*) AS total, SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS done
+      FROM edutrack_year_plan_subtopics
+      WHERE year_plan_id = ?
+      GROUP BY unit_id
+    `,
+    [Number(yearPlanId)],
+  );
+  for (const row of unitRows) {
+    const total = Number(row.total || 0);
+    const pct = total ? Math.round((Number(row.done || 0) / total) * 100) : 0;
+    await runner.query("UPDATE edutrack_year_plan_units SET progress_percentage = ? WHERE id = ?", [
+      pct,
+      row.unit_id,
+    ]);
+  }
+
+  const [termRows] = await runner.query(
+    `
+      SELECT term_id, COUNT(*) AS total, SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS done
+      FROM edutrack_year_plan_subtopics
+      WHERE year_plan_id = ?
+      GROUP BY term_id
+    `,
+    [Number(yearPlanId)],
+  );
+  for (const row of termRows) {
+    const total = Number(row.total || 0);
+    const pct = total ? Math.round((Number(row.done || 0) / total) * 100) : 0;
+    await runner.query("UPDATE edutrack_year_plan_terms SET progress_percentage = ? WHERE id = ?", [
+      pct,
+      row.term_id,
+    ]);
+  }
+
+  const [[planRow]] = await runner.query(
+    `
+      SELECT COUNT(*) AS total, SUM(CASE WHEN is_completed = 1 THEN 1 ELSE 0 END) AS done
+      FROM edutrack_year_plan_subtopics
+      WHERE year_plan_id = ?
+    `,
+    [Number(yearPlanId)],
+  );
+  const total = Number(planRow.total || 0);
+  const pct = total ? Math.round((Number(planRow.done || 0) / total) * 100) : 0;
+  await runner.query("UPDATE edutrack_year_plans SET progress_percentage = ?, updated_at = NOW() WHERE id = ?", [
+    pct,
+    Number(yearPlanId),
+  ]);
+}
+
+async function readPlanByChild(table, id, runner = db) {
+  const safeTable = table.replace(/[^a-z0-9_]/gi, "");
+  const [rows] = await runner.query(`SELECT * FROM ${safeTable} WHERE id = ? LIMIT 1`, [Number(id)]);
+  const row = rows[0];
+  if (!row) return null;
+  const [plans] = await runner.query("SELECT * FROM edutrack_year_plans WHERE id = ? LIMIT 1", [
+    Number(row.year_plan_id),
+  ]);
+  return { row, plan: plans[0] || null };
+}
+
+function yearPlanAssignmentPayload(body = {}, actor) {
+  return {
+    teacher_user_id: shortText(body.teacher_user_id || body.teacherUserId || "", 64),
+    teacher_id: shortText(body.teacher_id || body.teacherId || "", 80),
+    teacher_name: shortText(body.teacher_name || body.teacherName || "", 190),
+    subject_id: shortText(body.subject_id || body.subjectId || "", 80),
+    subject_name: shortText(body.subject_name || body.subjectName || body.subject || "", 150),
+    grade: shortText(body.grade || "", 50),
+    section: shortText(body.section || "", 50),
+    class_name: shortText(body.class_name || body.className || body.class || "", 100),
+    academic_year: shortText(body.academic_year || body.academicYear || currentAcademicYear(), 20),
+    assigned_by_user_id: actor.id,
+    assigned_by_name: actor.name,
+    status: shortText(body.status || "Active", 40) || "Active",
+  };
+}
+
+function assertAssignmentPayload(payload) {
+  const missing = [];
+  ["teacher_name", "subject_name", "grade", "academic_year"].forEach((field) => {
+    if (!payload[field]) missing.push(field);
+  });
+  if (missing.length) {
+    const error = new Error(`Missing required fields: ${missing.join(", ")}`);
+    error.status = 400;
+    throw error;
+  }
+}
+
+async function listYearPlanAssignments(req, actor, mineOnly = false) {
+  const where = [];
+  const params = [];
+  if (mineOnly || !isEduTrackAdminUser(req)) {
+    where.push("(teacher_user_id = ? OR teacher_id = ?)");
+    params.push(actor.id, actor.teacherId);
+  }
+  const addEq = (column, value) => {
+    if (value == null || String(value).trim() === "") return;
+    where.push(`${column} = ?`);
+    params.push(String(value).trim());
+  };
+  addEq("teacher_id", req.query.teacher_id);
+  addEq("teacher_user_id", req.query.teacher_user_id);
+  addEq("subject_name", req.query.subject);
+  addEq("grade", req.query.grade);
+  addEq("section", req.query.section);
+  addEq("academic_year", req.query.academic_year);
+  addEq("status", req.query.status);
+  if (req.query.search) {
+    const like = `%${String(req.query.search).trim()}%`;
+    where.push(
+      "(teacher_name LIKE ? OR teacher_id LIKE ? OR subject_name LIKE ? OR grade LIKE ? OR section LIKE ? OR class_name LIKE ?)",
+    );
+    params.push(like, like, like, like, like, like);
+  }
+  const [rows] = await db.query(
+    `
+      SELECT a.*,
+        p.id AS year_plan_id,
+        p.status AS year_plan_status,
+        p.progress_percentage AS year_plan_progress
+      FROM edutrack_teacher_subject_assignments a
+      LEFT JOIN edutrack_year_plans p ON p.assignment_id = a.id
+      ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+      ORDER BY a.academic_year DESC, a.teacher_name ASC, a.subject_name ASC, a.grade ASC, a.section ASC
+      LIMIT 1000
+    `,
+    params,
+  );
+  return rows.map((row) => ({
+    ...row,
+    year_plan_progress: Number(row.year_plan_progress || 0),
+  }));
+}
+
+app.get("/api/edutrack/my-assignments", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    res.json(await listYearPlanAssignments(req, actor, true));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/teacher-assignments", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    res.json(await listYearPlanAssignments(req, actor, false));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/edutrack/teacher-assignments", eduzyncAdminOnly, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const payload = yearPlanAssignmentPayload(req.body || {}, actor);
+    assertAssignmentPayload(payload);
+    await conn.beginTransaction();
+    const [result] = await conn.query(
+      `
+        INSERT INTO edutrack_teacher_subject_assignments
+          (teacher_user_id, teacher_id, teacher_name, subject_id, subject_name,
+           grade, section, class_name, academic_year, assigned_by_user_id,
+           assigned_by_name, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        payload.teacher_user_id || null,
+        payload.teacher_id || null,
+        payload.teacher_name,
+        payload.subject_id || null,
+        payload.subject_name,
+        payload.grade,
+        payload.section || null,
+        payload.class_name || null,
+        payload.academic_year,
+        payload.assigned_by_user_id,
+        payload.assigned_by_name,
+        payload.status,
+      ],
+    );
+    await insertYearPlanAudit(conn, req, null, "assignment", result.insertId, "created", null, payload, actor);
+    await conn.commit();
+    res.status(201).json({ success: true, id: result.insertId });
+  } catch (error) {
+    await conn.rollback();
+    res.status(error.status || 500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/api/edutrack/teacher-assignments/:id", eduzyncAdminOnly, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const payload = yearPlanAssignmentPayload(req.body || {}, actor);
+    assertAssignmentPayload(payload);
+    await conn.beginTransaction();
+    const [existingRows] = await conn.query(
+      "SELECT * FROM edutrack_teacher_subject_assignments WHERE id = ? FOR UPDATE",
+      [Number(req.params.id)],
+    );
+    const existing = existingRows[0];
+    if (!existing) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Teacher assignment not found" });
+    }
+    await conn.query(
+      `
+        UPDATE edutrack_teacher_subject_assignments
+        SET teacher_user_id = ?, teacher_id = ?, teacher_name = ?, subject_id = ?,
+          subject_name = ?, grade = ?, section = ?, class_name = ?, academic_year = ?,
+          status = ?, updated_at = NOW()
+        WHERE id = ?
+      `,
+      [
+        payload.teacher_user_id || null,
+        payload.teacher_id || null,
+        payload.teacher_name,
+        payload.subject_id || null,
+        payload.subject_name,
+        payload.grade,
+        payload.section || null,
+        payload.class_name || null,
+        payload.academic_year,
+        payload.status,
+        existing.id,
+      ],
+    );
+    await conn.query(
+      `
+        UPDATE edutrack_year_plans
+        SET teacher_user_id = ?, teacher_id = ?, teacher_name = ?, subject_name = ?,
+          grade = ?, section = ?, academic_year = ?, updated_at = NOW()
+        WHERE assignment_id = ?
+      `,
+      [
+        payload.teacher_user_id || null,
+        payload.teacher_id || null,
+        payload.teacher_name,
+        payload.subject_name,
+        payload.grade,
+        payload.section || null,
+        payload.academic_year,
+        existing.id,
+      ],
+    );
+    await insertYearPlanAudit(conn, req, null, "assignment", existing.id, "updated", existing, payload, actor);
+    await conn.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await conn.rollback();
+    res.status(error.status || 500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.delete("/api/edutrack/teacher-assignments/:id", edutrackMasterOnly, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    await conn.beginTransaction();
+    const [rows] = await conn.query(
+      "SELECT * FROM edutrack_teacher_subject_assignments WHERE id = ? FOR UPDATE",
+      [Number(req.params.id)],
+    );
+    const existing = rows[0];
+    if (!existing) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Teacher assignment not found" });
+    }
+    await conn.query("DELETE FROM edutrack_teacher_subject_assignments WHERE id = ?", [existing.id]);
+    await insertYearPlanAudit(conn, req, null, "assignment", existing.id, "deleted", existing, null, actor);
+    await conn.commit();
+    res.json({ success: true });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+function yearPlanListWhere(query, req, actor) {
+  const where = [];
+  const params = [];
+  if (!isEduTrackAdminUser(req)) {
+    where.push("(p.teacher_user_id = ? OR p.teacher_id = ?)");
+    params.push(actor.id, actor.teacherId);
+  }
+  const addEq = (column, value) => {
+    if (value == null || String(value).trim() === "") return;
+    where.push(`${column} = ?`);
+    params.push(String(value).trim());
+  };
+  addEq("p.teacher_id", query.teacher_id);
+  addEq("p.teacher_user_id", query.teacher_user_id);
+  addEq("p.subject_name", query.subject);
+  addEq("p.grade", query.grade);
+  addEq("p.section", query.section);
+  addEq("p.academic_year", query.academic_year);
+  addEq("p.status", query.status);
+  if (query.search) {
+    const like = `%${String(query.search).trim()}%`;
+    where.push(
+      "(p.teacher_name LIKE ? OR p.teacher_id LIKE ? OR p.subject_name LIKE ? OR p.grade LIKE ? OR p.section LIKE ?)",
+    );
+    params.push(like, like, like, like, like);
+  }
+  return { sql: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
+}
+
+app.get("/api/edutrack/year-plans", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const { sql, params } = yearPlanListWhere(req.query || {}, req, actor);
+    const [rows] = await db.query(
+      `
+        SELECT p.*,
+          COUNT(DISTINCT t.id) AS total_terms,
+          COUNT(DISTINCT u.id) AS total_units,
+          COUNT(DISTINCT mt.id) AS total_topics,
+          COUNT(DISTINCT st.id) AS total_subtopics,
+          SUM(CASE WHEN st.is_completed = 1 THEN 1 ELSE 0 END) AS completed_subtopics
+        FROM edutrack_year_plans p
+        LEFT JOIN edutrack_year_plan_terms t ON t.year_plan_id = p.id
+        LEFT JOIN edutrack_year_plan_units u ON u.year_plan_id = p.id
+        LEFT JOIN edutrack_year_plan_topics mt ON mt.year_plan_id = p.id
+        LEFT JOIN edutrack_year_plan_subtopics st ON st.year_plan_id = p.id
+        ${sql}
+        GROUP BY p.id
+        ORDER BY p.academic_year DESC, p.teacher_name ASC, p.subject_name ASC, p.grade ASC, p.section ASC
+        LIMIT 1000
+      `,
+      params,
+    );
+    res.json(rows.map(serializeYearPlanSummary));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/edutrack/year-plans", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const assignmentId = positiveInt(req.body?.assignment_id || req.body?.assignmentId, 0);
+    let assignment = null;
+    if (assignmentId) {
+      const [assignments] = await conn.query(
+        "SELECT * FROM edutrack_teacher_subject_assignments WHERE id = ? LIMIT 1",
+        [assignmentId],
+      );
+      assignment = assignments[0] || null;
+      if (!assignment) return res.status(404).json({ error: "Teacher assignment not found" });
+      if (!canAccessAssignment(req, actor, assignment)) {
+        return res.status(403).json({ error: "Access denied for this assignment" });
+      }
+      const [existingPlans] = await conn.query(
+        "SELECT id FROM edutrack_year_plans WHERE assignment_id = ? LIMIT 1",
+        [assignmentId],
+      );
+      if (existingPlans[0]) {
+        return res.status(200).json({
+          success: true,
+          id: existingPlans[0].id,
+          plan: await readYearPlanDetail(existingPlans[0].id, conn),
+        });
+      }
+    }
+    const payload = {
+      assignment_id: assignment?.id || null,
+      teacher_user_id: assignment?.teacher_user_id || shortText(req.body?.teacher_user_id || actor.id, 64),
+      teacher_id: assignment?.teacher_id || shortText(req.body?.teacher_id || actor.teacherId || actor.id, 80),
+      teacher_name:
+        assignment?.teacher_name || shortText(req.body?.teacher_name || actor.teacherName || actor.name, 190),
+      subject_name: assignment?.subject_name || shortText(req.body?.subject_name || req.body?.subject || "", 150),
+      grade: assignment?.grade || shortText(req.body?.grade || "", 50),
+      section: assignment?.section || shortText(req.body?.section || "", 50),
+      academic_year: assignment?.academic_year || shortText(req.body?.academic_year || currentAcademicYear(), 20),
+      status: shortText(req.body?.status || "Draft", 40) || "Draft",
+    };
+    const missing = ["teacher_name", "subject_name", "grade", "academic_year"].filter((key) => !payload[key]);
+    if (missing.length) return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
+    if (!isEduTrackAdminUser(req)) {
+      payload.teacher_user_id = actor.id;
+      payload.teacher_id = actor.teacherId || actor.id;
+      payload.teacher_name = actor.teacherName || actor.name;
+    }
+    await conn.beginTransaction();
+    const [result] = await conn.query(
+      `
+        INSERT INTO edutrack_year_plans
+          (assignment_id, teacher_user_id, teacher_id, teacher_name, subject_name,
+           grade, section, academic_year, status, created_by_user_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        payload.assignment_id,
+        payload.teacher_user_id || null,
+        payload.teacher_id || null,
+        payload.teacher_name,
+        payload.subject_name,
+        payload.grade,
+        payload.section || null,
+        payload.academic_year,
+        payload.status,
+        actor.id,
+      ],
+    );
+    await insertYearPlanAudit(conn, req, result.insertId, "year_plan", result.insertId, "created", null, payload, actor);
+    await conn.commit();
+    res.status(201).json({ success: true, id: result.insertId, plan: await readYearPlanDetail(result.insertId) });
+  } catch (error) {
+    await conn.rollback();
+    res.status(error.status || 500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.get("/api/edutrack/year-plans/:id", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const plan = await readYearPlanDetail(req.params.id);
+    if (!plan) return res.status(404).json({ error: "Year plan not found" });
+    if (!canAccessYearPlan(req, actor, plan, "read")) return res.status(403).json({ error: "Access denied" });
+    res.json(plan);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/edutrack/year-plans/:id", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    await conn.beginTransaction();
+    const [rows] = await conn.query("SELECT * FROM edutrack_year_plans WHERE id = ? FOR UPDATE", [
+      Number(req.params.id),
+    ]);
+    const existing = rows[0];
+    if (!existing) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Year plan not found" });
+    }
+    if (!canAccessYearPlan(req, actor, existing, "edit")) {
+      await conn.rollback();
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const status = shortText(req.body?.status || existing.status || "Draft", 40);
+    const academicYear = shortText(req.body?.academic_year || existing.academic_year, 20);
+    await conn.query(
+      "UPDATE edutrack_year_plans SET status = ?, academic_year = ?, updated_at = NOW() WHERE id = ?",
+      [status, academicYear, existing.id],
+    );
+    await insertYearPlanAudit(
+      conn,
+      req,
+      existing.id,
+      "year_plan",
+      existing.id,
+      "updated",
+      existing,
+      { status, academic_year: academicYear },
+      actor,
+    );
+    await conn.commit();
+    res.json({ success: true, plan: await readYearPlanDetail(existing.id) });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.post("/api/edutrack/year-plans/:id/generate-units", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    await conn.beginTransaction();
+    const [plans] = await conn.query("SELECT * FROM edutrack_year_plans WHERE id = ? FOR UPDATE", [
+      Number(req.params.id),
+    ]);
+    const plan = plans[0];
+    if (!plan) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Year plan not found" });
+    }
+    if (!canAccessYearPlan(req, actor, plan, "edit")) {
+      await conn.rollback();
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const counts = {
+      1: boundedInt(req.body?.term1_units || req.body?.term_1 || req.body?.first_term_units, 0, 50),
+      2: boundedInt(req.body?.term2_units || req.body?.term_2 || req.body?.second_term_units, 0, 50),
+      3: boundedInt(req.body?.term3_units || req.body?.term_3 || req.body?.third_term_units, 0, 50),
+    };
+    for (const term of YEAR_PLAN_TERMS) {
+      await conn.query(
+        `
+          INSERT INTO edutrack_year_plan_terms (year_plan_id, term_name, term_order, unit_count)
+          VALUES (?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE term_name = VALUES(term_name), unit_count = VALUES(unit_count), updated_at = NOW()
+        `,
+        [plan.id, term.name, term.order, counts[term.order]],
+      );
+      const [termRows] = await conn.query(
+        "SELECT id FROM edutrack_year_plan_terms WHERE year_plan_id = ? AND term_order = ? LIMIT 1",
+        [plan.id, term.order],
+      );
+      const termId = termRows[0]?.id;
+      for (let index = 1; index <= counts[term.order]; index += 1) {
+        await conn.query(
+          `
+            INSERT INTO edutrack_year_plan_units
+              (term_id, year_plan_id, unit_number, unit_title, display_order)
+            VALUES (?, ?, ?, '', ?)
+            ON DUPLICATE KEY UPDATE unit_number = VALUES(unit_number), updated_at = NOW()
+          `,
+          [termId, plan.id, `Unit ${String(index).padStart(2, "0")}`, index],
+        );
+      }
+    }
+    await refreshYearPlanProgress(plan.id, conn);
+    await insertYearPlanAudit(conn, req, plan.id, "year_plan", plan.id, "generated_units", null, counts, actor);
+    await conn.commit();
+    res.json({ success: true, plan: await readYearPlanDetail(plan.id) });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/api/edutrack/year-plan-terms/:id", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const found = await readPlanByChild("edutrack_year_plan_terms", req.params.id, conn);
+    if (!found?.row) return res.status(404).json({ error: "Term not found" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    await conn.query(
+      "UPDATE edutrack_year_plan_terms SET unit_count = ?, updated_at = NOW() WHERE id = ?",
+      [boundedInt(req.body?.unit_count, found.row.unit_count || 0, 50), found.row.id],
+    );
+    await insertYearPlanAudit(conn, req, found.plan.id, "term", found.row.id, "updated", found.row, req.body, actor);
+    res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/api/edutrack/year-plan-units/:id", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const found = await readPlanByChild("edutrack_year_plan_units", req.params.id, conn);
+    if (!found?.row) return res.status(404).json({ error: "Unit not found" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    const unitNumber = shortText(req.body?.unit_number || found.row.unit_number, 80);
+    const unitTitle = nullableShortText(req.body?.unit_title ?? found.row.unit_title, 255);
+    const displayOrder = positiveInt(req.body?.display_order, found.row.display_order || 1);
+    await conn.query(
+      "UPDATE edutrack_year_plan_units SET unit_number = ?, unit_title = ?, display_order = ?, updated_at = NOW() WHERE id = ?",
+      [unitNumber, unitTitle, displayOrder, found.row.id],
+    );
+    await insertYearPlanAudit(conn, req, found.plan.id, "unit", found.row.id, "updated", found.row, req.body, actor);
+    res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.post("/api/edutrack/year-plan-units/:id/topics", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const found = await readPlanByChild("edutrack_year_plan_units", req.params.id, conn);
+    if (!found?.row) return res.status(404).json({ error: "Unit not found" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    const mainTopic = shortText(req.body?.main_topic || req.body?.topic || "", 255);
+    if (!mainTopic) return res.status(400).json({ error: "main_topic is required" });
+    const [maxRows] = await conn.query(
+      "SELECT COALESCE(MAX(display_order), 0) AS max_order FROM edutrack_year_plan_topics WHERE unit_id = ?",
+      [found.row.id],
+    );
+    const displayOrder = positiveInt(req.body?.display_order, Number(maxRows[0]?.max_order || 0) + 1);
+    const [result] = await conn.query(
+      `
+        INSERT INTO edutrack_year_plan_topics
+          (unit_id, term_id, year_plan_id, main_topic, display_order)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+      [found.row.id, found.row.term_id, found.row.year_plan_id, mainTopic, displayOrder],
+    );
+    await insertYearPlanAudit(conn, req, found.plan.id, "topic", result.insertId, "created", null, req.body, actor);
+    res.status(201).json({ success: true, id: result.insertId, plan: await readYearPlanDetail(found.plan.id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/api/edutrack/year-plan-topics/:id", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const found = await readPlanByChild("edutrack_year_plan_topics", req.params.id, conn);
+    if (!found?.row) return res.status(404).json({ error: "Topic not found" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    const mainTopic = shortText(req.body?.main_topic || req.body?.topic || found.row.main_topic, 255);
+    const displayOrder = positiveInt(req.body?.display_order, found.row.display_order || 1);
+    await conn.query(
+      "UPDATE edutrack_year_plan_topics SET main_topic = ?, display_order = ?, updated_at = NOW() WHERE id = ?",
+      [mainTopic, displayOrder, found.row.id],
+    );
+    await insertYearPlanAudit(conn, req, found.plan.id, "topic", found.row.id, "updated", found.row, req.body, actor);
+    res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.post("/api/edutrack/year-plan-topics/:id/subtopics", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const found = await readPlanByChild("edutrack_year_plan_topics", req.params.id, conn);
+    if (!found?.row) return res.status(404).json({ error: "Topic not found" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    const raw = Array.isArray(req.body?.subtopics)
+      ? req.body.subtopics
+      : String(req.body?.subtopic_title || req.body?.subtopics || req.body?.title || "")
+          .split(/\r?\n/)
+          .map((item) => item.trim());
+    const titles = raw.map((item) => shortText(item?.subtopic_title || item?.title || item, 255)).filter(Boolean);
+    if (!titles.length) return res.status(400).json({ error: "At least one subtopic is required" });
+    const [maxRows] = await conn.query(
+      "SELECT COALESCE(MAX(display_order), 0) AS max_order FROM edutrack_year_plan_subtopics WHERE topic_id = ?",
+      [found.row.id],
+    );
+    let nextOrder = Number(maxRows[0]?.max_order || 0) + 1;
+    const ids = [];
+    for (const title of titles) {
+      const [result] = await conn.query(
+        `
+          INSERT INTO edutrack_year_plan_subtopics
+            (topic_id, unit_id, term_id, year_plan_id, subtopic_title, display_order)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `,
+        [found.row.id, found.row.unit_id, found.row.term_id, found.row.year_plan_id, title, nextOrder],
+      );
+      ids.push(result.insertId);
+      nextOrder += 1;
+    }
+    await refreshYearPlanProgress(found.plan.id, conn);
+    await insertYearPlanAudit(conn, req, found.plan.id, "subtopic", ids.join(","), "created", null, titles, actor);
+    res.status(201).json({ success: true, ids, plan: await readYearPlanDetail(found.plan.id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.put("/api/edutrack/year-plan-subtopics/:id", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const found = await readPlanByChild("edutrack_year_plan_subtopics", req.params.id, conn);
+    if (!found?.row) return res.status(404).json({ error: "Subtopic not found" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    const title = shortText(req.body?.subtopic_title || req.body?.title || found.row.subtopic_title, 255);
+    const note = nullableShortText(req.body?.completion_note ?? found.row.completion_note, 2000);
+    const displayOrder = positiveInt(req.body?.display_order, found.row.display_order || 1);
+    await conn.query(
+      "UPDATE edutrack_year_plan_subtopics SET subtopic_title = ?, completion_note = ?, display_order = ?, updated_at = NOW() WHERE id = ?",
+      [title, note, displayOrder, found.row.id],
+    );
+    await insertYearPlanAudit(conn, req, found.plan.id, "subtopic", found.row.id, "updated", found.row, req.body, actor);
+    res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.post("/api/edutrack/year-plan-subtopics/:id/toggle-complete", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const found = await readPlanByChild("edutrack_year_plan_subtopics", req.params.id, conn);
+    if (!found?.row) return res.status(404).json({ error: "Subtopic not found" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    const hasExplicit = Object.prototype.hasOwnProperty.call(req.body || {}, "is_completed");
+    const completed = hasExplicit ? Number(req.body.is_completed) === 1 || req.body.is_completed === true : !Number(found.row.is_completed);
+    const note = nullableShortText(req.body?.completion_note || req.body?.note || found.row.completion_note, 2000);
+    await conn.query(
+      `
+        UPDATE edutrack_year_plan_subtopics
+        SET is_completed = ?, completed_at = ?, completed_by_user_id = ?, completed_by_name = ?,
+          completion_note = ?, updated_at = NOW()
+        WHERE id = ?
+      `,
+      [completed ? 1 : 0, completed ? mysqlDateTime() : null, completed ? actor.id : null, completed ? actor.name : null, note, found.row.id],
+    );
+    await refreshYearPlanProgress(found.plan.id, conn);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      found.plan.id,
+      "subtopic",
+      found.row.id,
+      completed ? "completed" : "reopened",
+      found.row,
+      { is_completed: completed, completion_note: note },
+      actor,
+    );
+    res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+function yearPlanReportWhere(query, req, actor) {
+  const where = [];
+  const params = [];
+  if (!isEduTrackAdminUser(req)) {
+    where.push("(p.teacher_user_id = ? OR p.teacher_id = ?)");
+    params.push(actor.id, actor.teacherId);
+  }
+  const addEq = (column, value) => {
+    if (value == null || String(value).trim() === "") return;
+    where.push(`${column} = ?`);
+    params.push(String(value).trim());
+  };
+  addEq("p.teacher_id", query.teacher_id || query.teacherId);
+  addEq("p.teacher_name", query.teacher_name);
+  addEq("p.subject_name", query.subject || query.subject_name);
+  addEq("p.grade", query.grade);
+  addEq("p.section", query.section);
+  addEq("p.academic_year", query.academic_year);
+  addEq("t.term_name", query.term || query.term_name);
+  if (query.status === "Completed") where.push("st.is_completed = 1");
+  if (query.status === "Pending") where.push("(st.id IS NULL OR st.is_completed = 0)");
+  if (query.search) {
+    const like = `%${String(query.search).trim()}%`;
+    where.push(
+      "(p.teacher_name LIKE ? OR p.teacher_id LIKE ? OR p.subject_name LIKE ? OR p.grade LIKE ? OR p.section LIKE ? OR u.unit_title LIKE ? OR mt.main_topic LIKE ? OR st.subtopic_title LIKE ?)",
+    );
+    params.push(like, like, like, like, like, like, like, like);
+  }
+  return { sql: where.length ? `WHERE ${where.join(" AND ")}` : "", params };
+}
+
+async function yearPlanReportPayload(req, actor, extraQuery = {}) {
+  const query = { ...(req.query || {}), ...extraQuery };
+  const { sql, params } = yearPlanReportWhere(query, req, actor);
+  const [rows] = await db.query(
+    `
+      SELECT
+        p.id AS year_plan_id,
+        p.teacher_user_id,
+        p.teacher_id,
+        p.teacher_name,
+        p.subject_name,
+        p.grade,
+        p.section,
+        p.academic_year,
+        p.status AS plan_status,
+        p.progress_percentage AS plan_progress,
+        t.term_name,
+        t.term_order,
+        u.unit_number,
+        u.unit_title,
+        mt.main_topic,
+        st.id AS subtopic_id,
+        st.subtopic_title,
+        st.is_completed,
+        st.completed_at,
+        st.completed_by_name,
+        st.completion_note
+      FROM edutrack_year_plans p
+      LEFT JOIN edutrack_year_plan_terms t ON t.year_plan_id = p.id
+      LEFT JOIN edutrack_year_plan_units u ON u.term_id = t.id
+      LEFT JOIN edutrack_year_plan_topics mt ON mt.unit_id = u.id
+      LEFT JOIN edutrack_year_plan_subtopics st ON st.topic_id = mt.id
+      ${sql}
+      ORDER BY p.academic_year DESC, p.teacher_name ASC, p.subject_name ASC,
+        p.grade ASC, p.section ASC, t.term_order ASC, u.display_order ASC,
+        mt.display_order ASC, st.display_order ASC
+      LIMIT 5000
+    `,
+    params,
+  );
+  const summary = rows.reduce(
+    (acc, row) => {
+      if (row.year_plan_id) acc.planIds.add(row.year_plan_id);
+      const unitKey = `${row.year_plan_id}:${row.term_order}:${row.unit_number}`;
+      if (row.unit_number) acc.unitKeys.add(unitKey);
+      if (row.main_topic) acc.topicKeys.add(`${unitKey}:${row.main_topic}`);
+      if (row.subtopic_id) {
+        acc.totalSubtopics += 1;
+        if (Number(row.is_completed || 0) === 1) acc.completedSubtopics += 1;
+      }
+      return acc;
+    },
+    {
+      planIds: new Set(),
+      unitKeys: new Set(),
+      topicKeys: new Set(),
+      totalSubtopics: 0,
+      completedSubtopics: 0,
+    },
+  );
+  return {
+    title: "EduTrack Year Plan Progress Report",
+    generatedBy: actor.name,
+    generatedAt: new Date().toISOString(),
+    filters: query,
+    records: rows,
+    summary: {
+      totalPlans: summary.planIds.size,
+      totalUnits: summary.unitKeys.size,
+      totalMainTopics: summary.topicKeys.size,
+      totalSubtopics: summary.totalSubtopics,
+      completedSubtopics: summary.completedSubtopics,
+      pendingSubtopics: Math.max(0, summary.totalSubtopics - summary.completedSubtopics),
+      completionPercentage: summary.totalSubtopics
+        ? Math.round((summary.completedSubtopics / summary.totalSubtopics) * 100)
+        : 0,
+    },
+  };
+}
+
+app.get("/api/edutrack/year-plan-reports", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    res.json(await yearPlanReportPayload(req, actor));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/year-plan-reports/teacher/:teacherId", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    res.json(await yearPlanReportPayload(req, actor, { teacher_id: req.params.teacherId }));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/year-plan-reports/subject", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    res.json(await yearPlanReportPayload(req, actor));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/year-plan-reports/grade-section", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    res.json(await yearPlanReportPayload(req, actor));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/year-plan-reports/export/csv", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const report = await yearPlanReportPayload(req, actor);
+    const headers = [
+      "Teacher",
+      "Teacher ID",
+      "Academic Year",
+      "Subject",
+      "Grade",
+      "Section",
+      "Term",
+      "Unit No.",
+      "Unit Title",
+      "Main Topic",
+      "Subtopic",
+      "Status",
+      "Completed Date",
+      "Note",
+    ];
+    const lines = [
+      headers.join(","),
+      ...report.records.map((row) =>
+        [
+          row.teacher_name,
+          row.teacher_id,
+          row.academic_year,
+          row.subject_name,
+          row.grade,
+          row.section,
+          row.term_name,
+          row.unit_number,
+          row.unit_title,
+          row.main_topic,
+          row.subtopic_title,
+          Number(row.is_completed || 0) === 1 ? "Completed" : "Pending",
+          row.completed_at,
+          row.completion_note,
+        ]
+          .map(csvEscape)
+          .join(","),
+      ),
+    ];
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="edutrack-year-plan-progress-${new Date().toISOString().slice(0, 10)}.csv"`,
+    );
+    res.send(lines.join("\r\n"));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 app.get("/api/edutrack/daily-syllabus-progress", teacherOrAdmin, async (req, res) => {
   try {

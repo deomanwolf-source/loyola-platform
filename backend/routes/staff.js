@@ -1276,6 +1276,67 @@ function registerStaffRoutes(app, context) {
         KEY idx_staff_attendance_staff (staff_id)
       )
     `);
+    await addColumnIfMissing("staff_attendance", "staff_profile_id", "VARCHAR(50) NULL");
+    await addColumnIfMissing("staff_attendance", "staff_name", "VARCHAR(190) NULL");
+    await addColumnIfMissing("staff_attendance", "attendance_date", "DATE NULL");
+    await addColumnIfMissing("staff_attendance", "section", "VARCHAR(120) NULL");
+    await addColumnIfMissing("staff_attendance", "staff_type", "VARCHAR(100) NULL");
+    await addColumnIfMissing("staff_attendance", "position", "VARCHAR(150) NULL");
+    await addColumnIfMissing("staff_attendance", "reason", "TEXT NULL");
+    await addColumnIfMissing("staff_attendance", "late_minutes", "INT NULL");
+    await addColumnIfMissing("staff_attendance", "marked_by_user_id", "VARCHAR(50) NULL");
+    await addColumnIfMissing("staff_attendance", "marked_by_name", "VARCHAR(190) NULL");
+    await addColumnIfMissing("staff_attendance", "marked_at", "TIMESTAMP NULL");
+    await addColumnIfMissing("staff_attendance", "updated_by_user_id", "VARCHAR(50) NULL");
+    await addColumnIfMissing(
+      "staff_attendance",
+      "updated_at",
+      "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
+    );
+    await db.query(`
+      UPDATE staff_attendance
+      SET staff_profile_id = COALESCE(NULLIF(staff_profile_id, ''), staff_id),
+          attendance_date = COALESCE(attendance_date, date)
+      WHERE staff_profile_id IS NULL
+         OR staff_profile_id = ''
+         OR attendance_date IS NULL
+    `);
+    await addIndexIfMissing("staff_attendance", "idx_staff_attendance_profile", "(staff_profile_id)");
+    await addIndexIfMissing(
+      "staff_attendance",
+      "idx_staff_attendance_attendance_date",
+      "(attendance_date)",
+    );
+    const [attendanceUniqueIndexes] = await db.query(
+      "SHOW INDEX FROM staff_attendance WHERE Key_name = 'unique_staff_profile_attendance_date'",
+    );
+    if (!attendanceUniqueIndexes.length) {
+      await db.query(
+        "ALTER TABLE staff_attendance ADD UNIQUE KEY unique_staff_profile_attendance_date (staff_profile_id, attendance_date)",
+      );
+    }
+
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS staff_attendance_audit_logs (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        attendance_id INT NULL,
+        staff_profile_id VARCHAR(50) NULL,
+        staff_id VARCHAR(50) NULL,
+        action VARCHAR(100) NOT NULL,
+        old_status VARCHAR(40) NULL,
+        new_status VARCHAR(40) NULL,
+        old_value_json LONGTEXT NULL,
+        new_value_json LONGTEXT NULL,
+        actor_user_id VARCHAR(50) NULL,
+        actor_name VARCHAR(190) NULL,
+        ip_address VARCHAR(80) NULL,
+        user_agent TEXT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_staff_att_audit_attendance (attendance_id),
+        KEY idx_staff_att_audit_staff (staff_profile_id),
+        KEY idx_staff_att_audit_actor (actor_user_id)
+      )
+    `);
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS staff_leave_requests (
@@ -2312,7 +2373,15 @@ function registerStaffRoutes(app, context) {
     await ensureStaffTables();
     const staff = await readProfiles();
     const [[attendanceToday]] = await db.query(
-      "SELECT COUNT(*) AS total FROM staff_attendance WHERE date = CURRENT_DATE()",
+      "SELECT COUNT(*) AS total FROM staff_attendance WHERE COALESCE(attendance_date, date) = CURRENT_DATE()",
+    );
+    const [attendanceStatusRows] = await db.query(
+      `
+        SELECT status, COUNT(*) AS total
+        FROM staff_attendance
+        WHERE COALESCE(attendance_date, date) = CURRENT_DATE()
+        GROUP BY status
+      `,
     );
     const [[pendingLeave]] = await db.query(
       "SELECT COUNT(*) AS total FROM staff_leave_requests WHERE status = 'Pending'",
@@ -2332,12 +2401,30 @@ function registerStaffRoutes(app, context) {
       counts[key] = (counts[key] || 0) + 1;
       return counts;
     }, {});
+    const attendanceByStatus = attendanceStatusRows.reduce((counts, row) => {
+      counts[row.status || "Unmarked"] = Number(row.total || 0);
+      return counts;
+    }, {});
+    const leaveToday =
+      (attendanceByStatus["Duty Leave"] || 0) +
+      (attendanceByStatus["Maternity Leave"] || 0) +
+      (attendanceByStatus["Short Leave"] || 0) +
+      (attendanceByStatus["Half Day"] || 0) +
+      (attendanceByStatus["Leave Approved"] || 0) +
+      (attendanceByStatus.Informed || 0);
+    const activeStaffCount = staff.filter((item) => item.status === "Active").length;
 
     return {
       total: staff.length,
       active: staff.filter((item) => item.status === "Active").length,
       inactive: staff.filter((item) => item.status !== "Active").length,
       attendanceToday: Number(attendanceToday.total || 0),
+      presentToday: attendanceByStatus.Present || 0,
+      absentToday: attendanceByStatus.Absent || 0,
+      leaveToday,
+      lateToday: attendanceByStatus["Late to Come"] || attendanceByStatus.Late || 0,
+      unmarkedToday: Math.max(0, activeStaffCount - Number(attendanceToday.total || 0)),
+      attendanceByStatus,
       pendingLeave: Number(pendingLeave.total || 0),
       documents: Number(documents.total || 0),
       byType,
@@ -2347,6 +2434,412 @@ function registerStaffRoutes(app, context) {
         .slice(0, 8),
       recentLogs,
     };
+  }
+
+  const attendanceStatuses = [
+    "Present",
+    "Absent",
+    "Duty Leave",
+    "Maternity Leave",
+    "Short Leave",
+    "Half Day",
+    "Leave Approved",
+    "Informed",
+    "Late to Come",
+  ];
+  const attendanceSections = [
+    "All Sections",
+    "Primary School",
+    "Middle School",
+    "Upper School",
+    "A/L Section",
+    "Administration",
+    "Non-Academic Staff",
+    "Supportive Staff",
+  ];
+
+  function normalizeAttendanceStatus(value) {
+    const status = clean(value || "Present", 40);
+    if (attendanceStatuses.includes(status)) return status;
+    if (status === "Late") return "Late to Come";
+    if (status === "Leave") return "Leave Approved";
+    return "Present";
+  }
+
+  function actorName(req) {
+    return clean(req.user?.name || req.user?.email || req.user?.id || "System", 190);
+  }
+
+  function staffAttendanceSection(profile = {}) {
+    const staffType = profile.staff_type || profile.staffType || "";
+    const source = [
+      profile.department,
+      profile.section,
+      profile.position,
+      profile.website_place,
+      profile.websitePlace,
+      profile.staff_type,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    if (staffType === "Supportive Staff" || /supportive/.test(source)) return "Supportive Staff";
+    if (staffType === "Non-Academic Staff" || /non-academic|office|bookstore|financial|it|library|maintenance/.test(source)) {
+      return "Non-Academic Staff";
+    }
+    if (/advanced|advance|a\/l|grade (12|13)|al section/.test(source)) return "A/L Section";
+    if (/upper|grade (9|10|11)/.test(source)) return "Upper School";
+    if (/middle|grade (6|7|8)/.test(source)) return "Middle School";
+    if (/primary|grade ([1-5])/.test(source)) return "Primary School";
+    if (/admin|principal|rector|secretary/.test(source)) return "Administration";
+    return profile.department || "Administration";
+  }
+
+  function staffAttendanceProfileMatches(profile, { section, staffType, search }) {
+    if (section && section !== "All Sections" && staffAttendanceSection(profile) !== section) return false;
+    if (staffType && staffType !== "All" && staffType !== "All Staff" && profile.staff_type !== staffType) return false;
+    const term = clean(search, 120).toLowerCase();
+    if (!term) return true;
+    return [
+      profile.id,
+      profile.teacher_id,
+      profile.full_name,
+      profile.nic,
+      profile.position,
+      profile.department,
+      profile.staff_type,
+      profile.email,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(term);
+  }
+
+  async function attendanceRecordsByDate(date) {
+    const [rows] = await db.query(
+      `
+        SELECT *
+        FROM staff_attendance
+        WHERE COALESCE(attendance_date, date) = ?
+      `,
+      [date],
+    );
+    const byProfile = new Map();
+    rows.forEach((row) => {
+      byProfile.set(String(row.staff_profile_id || row.staff_id || ""), row);
+      byProfile.set(String(row.staff_id || ""), row);
+    });
+    return byProfile;
+  }
+
+  async function staffAttendanceRows(query = {}) {
+    await ensureStaffTables();
+    const date = normalizeDate(query.date || query.attendance_date) || new Date().toISOString().slice(0, 10);
+    const section = attendanceSections.includes(clean(query.section, 120))
+      ? clean(query.section, 120)
+      : "All Sections";
+    const staffType = clean(query.staff_type || query.staffType || "All", 100);
+    const search = clean(query.search, 120);
+    const profiles = (await readProfiles()).filter((profile) =>
+      staffAttendanceProfileMatches(profile, { section, staffType, search }),
+    );
+    const byProfile = await attendanceRecordsByDate(date);
+    return profiles.map((profile) => {
+      const record = byProfile.get(String(profile.id)) || null;
+      const computedSection = staffAttendanceSection(profile);
+      const status = record?.status || "";
+      return {
+        attendance_id: record?.id || null,
+        id: record?.id || null,
+        staff_profile_id: profile.id,
+        staff_id: profile.id,
+        teacher_id: profile.teacher_id || "",
+        staff_name: profile.full_name,
+        full_name: profile.full_name,
+        attendance_date: date,
+        date,
+        section: record?.section || computedSection,
+        staff_type: record?.staff_type || profile.staff_type || "",
+        position: record?.position || profile.position || "",
+        status,
+        note: record?.note || "",
+        reason: record?.reason || "",
+        late_minutes: record?.late_minutes || "",
+        last_updated: record?.updated_at || record?.marked_at || record?.created_at || null,
+        marked_by_name: record?.marked_by_name || "",
+      };
+    });
+  }
+
+  function attendanceSummary(rows) {
+    const byStatus = Object.fromEntries(attendanceStatuses.map((status) => [status, 0]));
+    let unmarked = 0;
+    rows.forEach((row) => {
+      if (!row.status) {
+        unmarked += 1;
+      } else if (Object.prototype.hasOwnProperty.call(byStatus, row.status)) {
+        byStatus[row.status] += 1;
+      }
+    });
+    return {
+      totalStaff: rows.length,
+      ...byStatus,
+      Unmarked: unmarked,
+    };
+  }
+
+  async function insertStaffAttendanceAudit(conn, req, attendanceId, staffProfileId, staffId, action, oldValue, newValue) {
+    await conn.query(
+      `
+        INSERT INTO staff_attendance_audit_logs
+          (attendance_id, staff_profile_id, staff_id, action, old_status, new_status,
+           old_value_json, new_value_json, actor_user_id, actor_name, ip_address, user_agent)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        attendanceId || null,
+        staffProfileId || null,
+        staffId || null,
+        action,
+        oldValue?.status || null,
+        newValue?.status || null,
+        oldValue ? JSON.stringify(oldValue) : null,
+        newValue ? JSON.stringify(newValue) : null,
+        actorId(req),
+        actorName(req),
+        clean(req.ip || req.headers["x-forwarded-for"] || "", 80),
+        clean(req.headers["user-agent"] || "", 1000),
+      ],
+    );
+  }
+
+  async function bulkMarkStaffAttendance(req, res) {
+    const conn = await db.getConnection();
+    try {
+      await ensureStaffTables();
+      const input = Array.isArray(req.body)
+        ? req.body
+        : Array.isArray(req.body?.records)
+          ? req.body.records
+          : req.body && typeof req.body === "object"
+            ? [req.body]
+            : [];
+      if (!Array.isArray(input) || !input.length) {
+        return res.status(400).json({ error: "Attendance records are required" });
+      }
+      const date =
+        normalizeDate(req.body?.date || input[0]?.attendance_date || input[0]?.date) ||
+        new Date().toISOString().slice(0, 10);
+      const profiles = await readProfiles();
+      const profilesById = new Map(profiles.map((profile) => [String(profile.id), profile]));
+      await conn.beginTransaction();
+      let saved = 0;
+      for (const item of input) {
+        const staffProfileId = clean(item.staff_profile_id || item.staffProfileId || item.staff_id || item.staffId, 50);
+        if (!staffProfileId) continue;
+        const profile = profilesById.get(staffProfileId);
+        if (!profile) continue;
+        const attendanceDate = normalizeDate(item.attendance_date || item.date) || date;
+        const status = normalizeAttendanceStatus(item.status);
+        const payload = {
+          staff_profile_id: profile.id,
+          staff_id: profile.id,
+          staff_name: profile.full_name,
+          attendance_date: attendanceDate,
+          section: clean(item.section || staffAttendanceSection(profile), 120),
+          staff_type: clean(item.staff_type || profile.staff_type, 100),
+          position: clean(item.position || profile.position, 150),
+          status,
+          note: cleanNullable(item.note, 2000),
+          reason: cleanNullable(item.reason || item.note, 2000),
+          late_minutes: Number.isFinite(Number(item.late_minutes)) ? Number(item.late_minutes) : null,
+        };
+        const [existingRows] = await conn.query(
+          `
+            SELECT *
+            FROM staff_attendance
+            WHERE (staff_profile_id = ? OR staff_id = ?)
+              AND COALESCE(attendance_date, date) = ?
+            LIMIT 1
+            FOR UPDATE
+          `,
+          [payload.staff_profile_id, payload.staff_id, payload.attendance_date],
+        );
+        const existing = existingRows[0] || null;
+        await conn.query(
+          `
+            INSERT INTO staff_attendance
+              (staff_profile_id, staff_id, staff_name, attendance_date, date, section,
+               staff_type, position, status, note, reason, late_minutes, marked_by,
+               marked_by_user_id, marked_by_name, marked_at, updated_by_user_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?)
+            ON DUPLICATE KEY UPDATE
+              staff_name = VALUES(staff_name),
+              attendance_date = VALUES(attendance_date),
+              date = VALUES(date),
+              section = VALUES(section),
+              staff_type = VALUES(staff_type),
+              position = VALUES(position),
+              status = VALUES(status),
+              note = VALUES(note),
+              reason = VALUES(reason),
+              late_minutes = VALUES(late_minutes),
+              marked_by = VALUES(marked_by),
+              marked_by_user_id = VALUES(marked_by_user_id),
+              marked_by_name = VALUES(marked_by_name),
+              updated_by_user_id = VALUES(updated_by_user_id),
+              updated_at = NOW()
+          `,
+          [
+            payload.staff_profile_id,
+            payload.staff_id,
+            payload.staff_name,
+            payload.attendance_date,
+            payload.attendance_date,
+            payload.section,
+            payload.staff_type,
+            payload.position,
+            payload.status,
+            payload.note,
+            payload.reason,
+            payload.late_minutes,
+            actorId(req),
+            actorId(req),
+            actorName(req),
+            actorId(req),
+          ],
+        );
+        const [savedRows] = await conn.query(
+          `
+            SELECT *
+            FROM staff_attendance
+            WHERE staff_profile_id = ? AND attendance_date = ?
+            LIMIT 1
+          `,
+          [payload.staff_profile_id, payload.attendance_date],
+        );
+        const savedRow = savedRows[0] || {};
+        await insertStaffAttendanceAudit(
+          conn,
+          req,
+          savedRow.id || existing?.id || null,
+          payload.staff_profile_id,
+          payload.staff_id,
+          existing ? "attendance.updated" : "attendance.created",
+          existing,
+          payload,
+        );
+        saved += 1;
+      }
+      await conn.commit();
+      await logStaffAction(req, "attendance.bulk_marked", "attendance", date, { saved });
+      res.status(201).json({ success: true, saved });
+    } catch (error) {
+      await conn.rollback();
+      res.status(500).json({ error: error.message });
+    } finally {
+      conn.release();
+    }
+  }
+
+  async function dailyAttendanceReport(req, res) {
+    try {
+      const rows = await staffAttendanceRows(req.query || {});
+      res.json({
+        title: "Daily Staff Attendance Report",
+        date: normalizeDate(req.query.date) || new Date().toISOString().slice(0, 10),
+        section: clean(req.query.section || "All Sections", 120),
+        generatedBy: actorName(req),
+        generatedAt: new Date().toISOString(),
+        summary: attendanceSummary(rows),
+        records: rows,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async function attendanceAggregateReport(req, res, mode) {
+    try {
+      await ensureStaffTables();
+      const dateFrom = normalizeDate(req.query.date_from || req.query.from) || `${new Date().getFullYear()}-01-01`;
+      const dateTo = normalizeDate(req.query.date_to || req.query.to) || new Date().toISOString().slice(0, 10);
+      const section = clean(req.query.section, 120);
+      const staffId = clean(req.query.staff_id || req.params.staffId, 50);
+      const where = ["COALESCE(attendance_date, date) BETWEEN ? AND ?"];
+      const params = [dateFrom, dateTo];
+      if (section && section !== "All Sections") {
+        where.push("section = ?");
+        params.push(section);
+      }
+      if (staffId) {
+        where.push("(staff_profile_id = ? OR staff_id = ?)");
+        params.push(staffId, staffId);
+      }
+      const group =
+        mode === "monthly"
+          ? "DATE_FORMAT(COALESCE(attendance_date, date), '%Y-%m')"
+          : mode === "section"
+            ? "section"
+            : "staff_profile_id, staff_name";
+      const [rows] = await db.query(
+        `
+          SELECT ${group} AS bucket, status, COUNT(*) AS total
+          FROM staff_attendance
+          WHERE ${where.join(" AND ")}
+          GROUP BY ${group}, status
+          ORDER BY bucket ASC, status ASC
+        `,
+        params,
+      );
+      res.json({
+        title: `${mode} staff attendance report`,
+        generatedBy: actorName(req),
+        generatedAt: new Date().toISOString(),
+        filters: { date_from: dateFrom, date_to: dateTo, section, staff_id: staffId },
+        records: rows,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async function exportAttendanceCsv(req, res) {
+    try {
+      const rows = await staffAttendanceRows(req.query || {});
+      const headers = ["Staff ID", "Name", "Date", "Section", "Staff Type", "Position", "Status", "Note", "Last Updated"];
+      const csvEscape = (value) => {
+        const text = value == null ? "" : String(value);
+        return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+      };
+      const lines = [
+        headers.join(","),
+        ...rows.map((row) =>
+          [
+            row.staff_id,
+            row.staff_name,
+            row.attendance_date,
+            row.section,
+            row.staff_type,
+            row.position,
+            row.status || "Unmarked",
+            row.note,
+            row.last_updated,
+          ]
+            .map(csvEscape)
+            .join(","),
+        ),
+      ];
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="staff-attendance-${new Date().toISOString().slice(0, 10)}.csv"`,
+      );
+      res.send(lines.join("\r\n"));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
   }
 
   async function readProfiles({ staffId = null, userId = null } = {}) {
@@ -3937,63 +4430,40 @@ function registerStaffRoutes(app, context) {
 
   app.get("/api/staff-attendance", staffManagerOnly, async (req, res) => {
     try {
-      await ensureStaffTables();
-      const date = normalizeDate(req.query.date) || null;
-      const values = date ? [date] : [];
-      const [rows] = await db.query(
-        `
-          SELECT a.*, sp.full_name, sp.department, sp.position
-          FROM staff_attendance a
-          LEFT JOIN staff_profiles sp ON sp.id = a.staff_id
-          ${date ? "WHERE a.date = ?" : ""}
-          ORDER BY a.date DESC, sp.full_name ASC
-          LIMIT 500
-        `,
-        values,
-      );
-      res.json(rows);
+      res.json(await staffAttendanceRows(req.query || {}));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  app.post("/api/staff-attendance", staffManagerOnly, async (req, res) => {
+  app.post("/api/staff-attendance", staffManagerOnly, bulkMarkStaffAttendance);
+  app.get("/api/staff/attendance", staffManagerOnly, async (req, res) => {
     try {
-      await ensureStaffTables();
-      const staffId = clean(req.body.staff_id || req.body.staffId, 50);
-      const date = normalizeDate(req.body.date);
-      if (!staffId || !date)
-        return res.status(400).json({ error: "staff_id and date are required" });
-
-      await db.query(
-        `
-          INSERT INTO staff_attendance
-            (staff_id, date, check_in, check_out, status, note, marked_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-          ON DUPLICATE KEY UPDATE
-            check_in = VALUES(check_in),
-            check_out = VALUES(check_out),
-            status = VALUES(status),
-            note = VALUES(note),
-            marked_by = VALUES(marked_by)
-        `,
-        [
-          staffId,
-          date,
-          cleanNullable(req.body.check_in || req.body.checkIn, 20),
-          cleanNullable(req.body.check_out || req.body.checkOut, 20),
-          clean(req.body.status || "Present", 40),
-          cleanNullable(req.body.note, 1000),
-          actorId(req),
-        ],
-      );
-
-      await logStaffAction(req, "attendance.marked", "staff", staffId, { date });
-      res.status(201).json({ success: true });
+      res.json(await staffAttendanceRows(req.query || {}));
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
   });
+  app.post("/api/staff/attendance/bulk-mark", staffManagerOnly, bulkMarkStaffAttendance);
+  app.get("/api/staff/attendance/today-summary", staffManagerOnly, async (req, res) => {
+    try {
+      const rows = await staffAttendanceRows({ date: new Date().toISOString().slice(0, 10) });
+      res.json(attendanceSummary(rows));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app.get("/api/staff/attendance/reports/daily", staffManagerOnly, dailyAttendanceReport);
+  app.get("/api/staff/attendance/reports/monthly", staffManagerOnly, (req, res) =>
+    attendanceAggregateReport(req, res, "monthly"),
+  );
+  app.get("/api/staff/attendance/reports/section", staffManagerOnly, (req, res) =>
+    attendanceAggregateReport(req, res, "section"),
+  );
+  app.get("/api/staff/attendance/reports/staff/:staffId", staffManagerOnly, (req, res) =>
+    attendanceAggregateReport(req, res, "staff"),
+  );
+  app.get("/api/staff/attendance/export/csv", staffManagerOnly, exportAttendanceCsv);
 
   app.get("/api/staff-leave", staffManagerOnly, async (req, res) => {
     try {

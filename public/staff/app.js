@@ -21,6 +21,9 @@
       type: "All",
       status: "All",
       date: new Date().toISOString().slice(0, 10),
+      attendanceSection: "All Sections",
+      attendanceStaffType: "All",
+      attendanceSearch: "",
     },
     positionFilters: {
       search: "",
@@ -154,6 +157,28 @@
     roles: "shield",
     audit: "activity",
   };
+
+  const attendanceStatuses = [
+    ["Present", "P", "Present"],
+    ["Absent", "A", "Absent"],
+    ["Duty Leave", "DL", "Duty Leave"],
+    ["Maternity Leave", "ML", "Maternity Leave"],
+    ["Short Leave", "SL", "Short Leave"],
+    ["Half Day", "HD", "Half Day"],
+    ["Leave Approved", "LA", "Leave Approved"],
+    ["Informed", "I", "Informed"],
+    ["Late to Come", "LT", "Late to Come"],
+  ];
+  const attendanceSections = [
+    "All Sections",
+    "Primary School",
+    "Middle School",
+    "Upper School",
+    "A/L Section",
+    "Administration",
+    "Non-Academic Staff",
+    "Supportive Staff",
+  ];
 
   const viewSubtitles = {
     dashboard: "Today's HR overview and operational workload.",
@@ -655,9 +680,13 @@
 
   async function loadViewData(view) {
     if (view === "attendance") {
-      state.attendance = await api(
-        `/api/staff-attendance?date=${encodeURIComponent(state.filters.date || today())}`,
-      );
+      const params = new URLSearchParams({
+        date: state.filters.date || today(),
+        section: state.filters.attendanceSection || "All Sections",
+        staff_type: state.filters.attendanceStaffType || "All",
+        search: state.filters.attendanceSearch || "",
+      });
+      state.attendance = await api(`/api/staff/attendance?${params.toString()}`);
     }
     if (view === "leave") state.leave = await api("/api/staff-leave");
     if (view === "documents") state.documents = await api("/api/staff-documents");
@@ -1351,48 +1380,107 @@
 
   function attendanceHtml() {
     const currentDate = state.filters.date || today();
+    const summary = attendanceStatuses.reduce((counts, [status]) => {
+      counts[status] = state.attendance.filter((row) => row.status === status).length;
+      return counts;
+    }, {});
+    const unmarked = state.attendance.filter((row) => !row.status).length;
     return `
       <div class="module-toolbar">
-        <label class="field compact">
-          <span>Date</span>
-          <input id="attendance-date" type="date" value="${esc(currentDate)}" />
-        </label>
+        <div class="filter-grid attendance-filter-grid">
+          <label class="field compact">
+            <span>Date</span>
+            <input id="attendance-date" type="date" value="${esc(currentDate)}" />
+          </label>
+          <label class="field compact">
+            <span>Section</span>
+            <select id="attendance-section">${optionList(attendanceSections, state.filters.attendanceSection || "All Sections")}</select>
+          </label>
+          <label class="field compact">
+            <span>Staff Type</span>
+            <select id="attendance-staff-type">${optionList(["All", ...staffTypes], state.filters.attendanceStaffType || "All")}</select>
+          </label>
+          <label class="field compact">
+            <span>Search</span>
+            <input id="attendance-search" value="${esc(state.filters.attendanceSearch || "")}" placeholder="Name, ID, NIC, position" />
+          </label>
+        </div>
+        <div class="toolbar-actions">
+          <button class="button ghost" type="button" data-action="load-attendance">${icon("refresh")} Load Staff</button>
+          <button class="button gold" type="button" data-action="mark-all-present">${icon("calendar")} Mark All Present</button>
+          <button class="button primary" type="button" data-action="save-attendance">${icon("shield")} Save Attendance</button>
+          <button class="button ghost" type="button" data-action="print-attendance">${icon("file")} Print Daily Report</button>
+          <button class="button ghost" type="button" data-action="export-attendance">${icon("download")} Export CSV</button>
+        </div>
       </div>
-      <div class="split-grid wide-left">
-        ${panel(
-          "Mark Attendance",
-          "Daily staff attendance record",
-          `<form id="attendance-form" class="compact-form">
-            <label class="field">
-              <span>Staff Member</span>
-              <select name="staff_id" required>
-                <option value="">Select staff</option>
-                ${state.staff.map((person) => `<option value="${esc(person.id)}">${esc(person.full_name)}</option>`).join("")}
-              </select>
-            </label>
-            <input type="hidden" name="date" value="${esc(currentDate)}" />
-            ${field("Check In", "check_in", "", 'type="time"')}
-            ${field("Check Out", "check_out", "", 'type="time"')}
-            <label class="field">
-              <span>Status</span>
-              <select name="status">${optionList(["Present", "Absent", "Late", "Half Day", "Leave"], "Present")}</select>
-            </label>
-            ${field("Note", "note")}
-            <button class="button primary" type="submit">${icon("calendar")} Save Attendance</button>
-          </form>`,
-        )}
-        ${panel(
-          "Attendance Register",
-          `${state.attendance.length} entries`,
-          tableHtml(["Staff", "Date", "In", "Out", "Status", "Note"], state.attendance, (row) => [
-            row.full_name || row.staff_id,
-            String(row.date || "").slice(0, 10),
-            row.check_in || "-",
-            row.check_out || "-",
-            row.status,
-            row.note || "",
-          ]),
-        )}
+      <div class="attendance-summary-grid">
+        <div class="attendance-summary-card"><strong>${esc(state.attendance.length)}</strong><span>Total Staff</span></div>
+        <div class="attendance-summary-card good"><strong>${esc(summary.Present || 0)}</strong><span>Present</span></div>
+        <div class="attendance-summary-card bad"><strong>${esc(summary.Absent || 0)}</strong><span>Absent</span></div>
+        <div class="attendance-summary-card warn"><strong>${esc(summary["Late to Come"] || 0)}</strong><span>Late</span></div>
+        <div class="attendance-summary-card"><strong>${esc(unmarked)}</strong><span>Unmarked</span></div>
+      </div>
+      <div class="attendance-legend">
+        ${attendanceStatuses.map(([status, abbr]) => `<span><b>${esc(abbr)}</b>${esc(status)}</span>`).join("")}
+      </div>
+      <div class="table-wrap attendance-table-wrap">
+        <table class="data-table attendance-table">
+          <thead>
+            <tr>
+              <th>Staff ID</th>
+              <th>Teacher / Staff Name</th>
+              <th>Section</th>
+              <th>Position</th>
+              <th>Status</th>
+              <th>Note / Reason</th>
+              <th>Last Updated</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              state.attendance.length
+                ? state.attendance
+                    .map(
+                      (row) => `
+                        <tr>
+                          <td data-label="Staff ID"><strong>${esc(row.staff_id || row.staff_profile_id || "")}</strong></td>
+                          <td data-label="Name">
+                            <div class="identity">
+                              ${avatar({ full_name: row.staff_name || row.full_name })}
+                              <span><strong>${esc(row.staff_name || row.full_name || "-")}</strong><small>${esc(row.staff_type || "")}</small></span>
+                            </div>
+                          </td>
+                          <td data-label="Section">${esc(row.section || "-")}</td>
+                          <td data-label="Position">${esc(row.position || "-")}</td>
+                          <td data-label="Status">
+                            <div class="attendance-status-buttons">
+                              ${attendanceStatuses
+                                .map(
+                                  ([status, abbr, title]) => `
+                                    <button
+                                      class="attendance-status-btn ${row.status === status ? "selected" : ""} ${esc(statusClass(status))}"
+                                      type="button"
+                                      title="${esc(title)}"
+                                      data-attendance-status="${esc(status)}"
+                                      data-staff-id="${esc(row.staff_profile_id || row.staff_id)}"
+                                    >${esc(abbr)}</button>
+                                  `,
+                                )
+                                .join("")}
+                            </div>
+                          </td>
+                          <td data-label="Note">
+                            <input class="attendance-note" data-attendance-note="${esc(row.staff_profile_id || row.staff_id)}" value="${esc(row.note || row.reason || "")}" placeholder="Optional" />
+                          </td>
+                          <td data-label="Last Updated">${esc(row.last_updated ? new Date(row.last_updated).toLocaleString() : "-")}</td>
+                        </tr>
+                      `,
+                    )
+                    .join("")
+                : `<tr><td colspan="7" class="empty">No staff loaded for these filters.</td></tr>`
+            }
+          </tbody>
+        </table>
       </div>
     `;
   }
@@ -1807,6 +1895,53 @@
         await setView("attendance");
       });
     }
+    const attendanceSection = document.getElementById("attendance-section");
+    if (attendanceSection) {
+      attendanceSection.addEventListener("change", async () => {
+        state.filters.attendanceSection = attendanceSection.value || "All Sections";
+        await setView("attendance");
+      });
+    }
+    const attendanceStaffType = document.getElementById("attendance-staff-type");
+    if (attendanceStaffType) {
+      attendanceStaffType.addEventListener("change", async () => {
+        state.filters.attendanceStaffType = attendanceStaffType.value || "All";
+        await setView("attendance");
+      });
+    }
+    const attendanceSearch = document.getElementById("attendance-search");
+    if (attendanceSearch) {
+      attendanceSearch.addEventListener("input", () => {
+        state.filters.attendanceSearch = attendanceSearch.value || "";
+        clearTimeout(bindEvents.attendanceSearchTimer);
+        bindEvents.attendanceSearchTimer = setTimeout(() => setView("attendance"), 320);
+      });
+    }
+    document.querySelectorAll("[data-attendance-status]").forEach((button) => {
+      button.addEventListener("click", () => {
+        setAttendanceStatus(button.dataset.staffId, button.dataset.attendanceStatus);
+      });
+    });
+    document.querySelectorAll("[data-attendance-note]").forEach((input) => {
+      input.addEventListener("input", () => {
+        setAttendanceNote(input.dataset.attendanceNote, input.value);
+      });
+    });
+    document.querySelectorAll("[data-action='load-attendance']").forEach((button) => {
+      button.addEventListener("click", () => setView("attendance"));
+    });
+    document.querySelectorAll("[data-action='mark-all-present']").forEach((button) => {
+      button.addEventListener("click", markAllAttendancePresent);
+    });
+    document.querySelectorAll("[data-action='save-attendance']").forEach((button) => {
+      button.addEventListener("click", saveAttendanceBulk);
+    });
+    document.querySelectorAll("[data-action='print-attendance']").forEach((button) => {
+      button.addEventListener("click", printAttendanceReport);
+    });
+    document.querySelectorAll("[data-action='export-attendance']").forEach((button) => {
+      button.addEventListener("click", exportAttendanceCsv);
+    });
 
     const staffForm = document.getElementById("staff-form");
     if (staffForm) {
@@ -1832,8 +1967,6 @@
       select.addEventListener("change", () => syncAdditionalPositionDefaults(select));
     });
 
-    const attendanceForm = document.getElementById("attendance-form");
-    if (attendanceForm) attendanceForm.addEventListener("submit", submitAttendance);
     const leaveForm = document.getElementById("leave-form");
     if (leaveForm) leaveForm.addEventListener("submit", submitLeave);
     document.querySelectorAll("[data-leave-status]").forEach((button) => {
@@ -2223,15 +2356,153 @@
     }
   }
 
-  async function submitAttendance(event) {
-    event.preventDefault();
-    const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+  function setAttendanceStatus(staffId, status) {
+    state.attendance = state.attendance.map((row) =>
+      String(row.staff_profile_id || row.staff_id) === String(staffId)
+        ? { ...row, status }
+        : row,
+    );
+    renderShell();
+  }
+
+  function setAttendanceNote(staffId, note) {
+    state.attendance = state.attendance.map((row) =>
+      String(row.staff_profile_id || row.staff_id) === String(staffId)
+        ? { ...row, note }
+        : row,
+    );
+  }
+
+  function markAllAttendancePresent() {
+    state.attendance = state.attendance.map((row) => ({ ...row, status: "Present" }));
+    renderShell();
+    setNotice("All loaded staff marked Present. Click Save Attendance to store it.", "success");
+  }
+
+  async function saveAttendanceBulk() {
+    const records = state.attendance
+      .filter((row) => row.status || row.note)
+      .map((row) => ({
+        staff_profile_id: row.staff_profile_id || row.staff_id,
+        staff_id: row.staff_id || row.staff_profile_id,
+        attendance_date: state.filters.date || today(),
+        section: row.section || "",
+        staff_type: row.staff_type || "",
+        position: row.position || "",
+        status: row.status || "Present",
+        note: row.note || "",
+      }));
+    if (!records.length) {
+      setNotice("Select at least one attendance status before saving.", "error");
+      return;
+    }
     try {
-      await api("/api/staff-attendance", { method: "POST", body: JSON.stringify(payload) });
+      await api("/api/staff/attendance/bulk-mark", {
+        method: "POST",
+        body: JSON.stringify({ date: state.filters.date || today(), records }),
+      });
       await setView("attendance");
       setNotice("Attendance saved.", "success");
     } catch (error) {
       setNotice(error.message || "Attendance save failed.", "error");
+    }
+  }
+
+  function attendanceReportRows() {
+    return state.attendance.map((row) => ({
+      staffId: row.staff_id || row.staff_profile_id || "",
+      name: row.staff_name || row.full_name || "",
+      section: row.section || "",
+      position: row.position || "",
+      status: row.status || "Unmarked",
+      note: row.note || row.reason || "",
+    }));
+  }
+
+  function printAttendanceReport() {
+    const rows = attendanceReportRows();
+    const summary = attendanceStatuses
+      .map(([status]) => `${status}: ${rows.filter((row) => row.status === status).length}`)
+      .join(" | ");
+    const tableRows = rows
+      .map(
+        (row) => `
+          <tr>
+            <td>${esc(row.staffId)}</td>
+            <td>${esc(row.name)}</td>
+            <td>${esc(row.section)}</td>
+            <td>${esc(row.position)}</td>
+            <td>${esc(row.status)}</td>
+            <td>${esc(row.note)}</td>
+          </tr>
+        `,
+      )
+      .join("");
+    const win = window.open("", "_blank");
+    if (!win) return;
+    win.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Daily Staff Attendance Report</title>
+          <style>
+            body{font-family:Arial,sans-serif;color:#111827;padding:24px}
+            h1{font-size:20px;margin:0}
+            h2{font-size:16px;margin:4px 0 18px}
+            table{width:100%;border-collapse:collapse;font-size:12px}
+            th,td{border:1px solid #d1d5db;padding:6px;text-align:left;vertical-align:top}
+            th{background:#f3f4f6}
+            .meta{font-size:12px;margin:12px 0 16px}
+            .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}
+            .sig div{border-top:1px solid #111827;padding-top:8px}
+          </style>
+        </head>
+        <body>
+          <h1>Loyola College Negombo</h1>
+          <h2>Daily Staff Attendance Report</h2>
+          <div class="meta">
+            Date: ${esc(state.filters.date || today())}<br>
+            Section: ${esc(state.filters.attendanceSection || "All Sections")}<br>
+            Generated by: ${esc(state.user?.name || state.user?.email || "-")}<br>
+            Generated at: ${esc(new Date().toLocaleString())}<br>
+            ${esc(summary)}
+          </div>
+          <table>
+            <thead><tr><th>Staff ID</th><th>Name</th><th>Section</th><th>Position</th><th>Status</th><th>Note</th></tr></thead>
+            <tbody>${tableRows || '<tr><td colspan="6">No records</td></tr>'}</tbody>
+          </table>
+          <div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div>
+        </body>
+      </html>
+    `);
+    win.document.close();
+    win.focus();
+    win.print();
+  }
+
+  async function exportAttendanceCsv() {
+    const params = new URLSearchParams({
+      date: state.filters.date || today(),
+      section: state.filters.attendanceSection || "All Sections",
+      staff_type: state.filters.attendanceStaffType || "All",
+      search: state.filters.attendanceSearch || "",
+    });
+    try {
+      const response = await fetch(`/api/staff/attendance/export/csv?${params.toString()}`, {
+        headers: headers(),
+      });
+      if (!response.ok) throw new Error("Attendance export failed.");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `staff-attendance-${state.filters.date || today()}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      setNotice(error.message || "Attendance export failed.", "error");
     }
   }
 
