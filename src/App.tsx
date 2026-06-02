@@ -377,16 +377,59 @@ function visibleSubpages(db: ReturnType<typeof getDb>, parentId: string) {
     .sort((a, b) => a.order - b.order);
 }
 
+function normalizeVisualPageHtml(html: string) {
+  const fallback = { bodyHtml: html, kicker: "", title: "", subtitle: "", image: "" };
+  if (typeof DOMParser === "undefined") return fallback;
+
+  const doc = new DOMParser().parseFromString(`<main>${html}</main>`, "text/html");
+  const main = doc.querySelector("main");
+  if (!main) return fallback;
+
+  const firstElement = Array.from(main.children).find((child) => child instanceof HTMLElement) as
+    | HTMLElement
+    | undefined;
+  if (!firstElement?.classList.contains("hero")) return fallback;
+
+  const kicker = firstElement.querySelector(".eyebrow")?.textContent?.trim() || "";
+  const title = firstElement.querySelector("h1")?.textContent?.trim() || "";
+  const subtitle = firstElement.querySelector("p:not(.eyebrow)")?.textContent?.trim() || "";
+  const image = firstElement.querySelector("img")?.getAttribute("src") || "";
+  firstElement.remove();
+
+  return {
+    bodyHtml: main.innerHTML.trim(),
+    kicker,
+    title,
+    subtitle,
+    image,
+  };
+}
+
 function VisualBuilderPage({ pageId }: { pageId: string }) {
   const db = useDb();
   const page = db.pages[pageId];
 
   if (!page?.visualHtml) return <GenericPage pageId={pageId} />;
 
+  const visual = normalizeVisualPageHtml(page.visualHtml);
+  const title = visual.title || page.title || pageId.split("/").pop()?.replaceAll("-", " ") || "";
+  const body =
+    visual.subtitle ||
+    (page.body && page.body.trim() !== "New page content goes here." ? page.body : "");
+
   return (
     <PublicLayout>
+      <PageHeader
+        pageId={pageId}
+        kicker={visual.kicker || page.kicker || page.eyebrow || "Page"}
+        title={title}
+        subtitle={body}
+        image={visual.image || page.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
       {page.visualCss && <style>{page.visualCss}</style>}
-      <div className="visual-page" dangerouslySetInnerHTML={{ __html: page.visualHtml }} />
+      {visual.bodyHtml && (
+        <div className="visual-page" dangerouslySetInnerHTML={{ __html: visual.bodyHtml }} />
+      )}
     </PublicLayout>
   );
 }
