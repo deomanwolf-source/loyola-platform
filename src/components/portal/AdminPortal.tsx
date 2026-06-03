@@ -123,30 +123,28 @@ const navGroups: {
   },
 ];
 
+const fullAccessAdminRoles: Role[] = ["masteradmin", "superadmin"];
+const protectedAdminPanels = new Set<PanelId>(["users", "activity", "backup", "settings"]);
+
+function canAccessAdminPanel(role: Role | undefined, panel: PanelId) {
+  if (!role || !adminRoles.includes(role)) return false;
+  if (fullAccessAdminRoles.includes(role)) return true;
+  return !protectedAdminPanels.has(panel);
+}
+
 function navGroupsForRole(role?: Role) {
-  if (role === "website_admin") {
-    const websiteItems = navGroups[0].items
-      .filter((item) =>
-        [
-          "dashboard",
-          "studio",
-          "approvals",
-          "pages",
-          "content",
-          "media",
-          "storage",
-          "design",
-        ].includes(item.id),
-      )
-      .map((item) => (item.id === "approvals" ? { ...item, label: "Approval Status" } : item));
-    return [
-      {
-        label: "Website",
-        items: websiteItems,
-      },
-    ];
-  }
-  return navGroups;
+  return navGroups
+    .map((group) => ({
+      ...group,
+      items: group.items
+        .filter((item) => canAccessAdminPanel(role, item.id))
+        .map((item) =>
+          role === "website_admin" && item.id === "approvals"
+            ? { ...item, label: "Approval Status" }
+            : item,
+        ),
+    }))
+    .filter((group) => group.items.length > 0);
 }
 
 const allPanelIds = new Set<PanelId>(navGroups.flatMap((group) => group.items.map((item) => item.id)));
@@ -357,7 +355,15 @@ function collectPageTreeIds(nav: DB["navigation"], id: string): Set<string> {
   return ids;
 }
 
-function DashboardPanel({ db, setActive }: { db: DB; setActive: (id: PanelId) => void }) {
+function DashboardPanel({
+  db,
+  setActive,
+  availablePanels,
+}: {
+  db: DB;
+  setActive: (id: PanelId) => void;
+  availablePanels: PanelId[];
+}) {
   const mediaCount =
     db.gallery.length +
     db.videoGallery.length +
@@ -399,7 +405,9 @@ function DashboardPanel({ db, setActive }: { db: DB; setActive: (id: PanelId) =>
               ["Edit pages", "pages", FileText],
               ["Design system", "design", Palette],
               ["Create backup", "backup", Database],
-            ].map(([label, id, Icon]) => (
+            ]
+              .filter(([, id]) => availablePanels.includes(id as PanelId))
+              .map(([label, id, Icon]) => (
               <button
                 key={String(label)}
                 type="button"
@@ -3276,13 +3284,16 @@ function SecurityPanel({ db }: { db: DB }) {
         {[
           [
             "Role-based admin access",
-            "Website Admin, Super Admin and Master Admin can open this panel.",
+            "Website admins can manage website tools. Super Admin and Master Admin can open protected management panels.",
           ],
           [
             "Upload validation",
             "Images are JPG/PNG up to 5 MB. Videos are MP4/MOV/WebM up to 500 MB.",
           ],
-          ["Activity logs", "Open the Activity Logs tab to review admin actions."],
+          [
+            "Protected controls",
+            "Users & Roles, Activity Logs, Backup, and Settings are locked to Super Admin and Master Admin.",
+          ],
         ].map(([title, body]) => (
           <div key={title} className="rounded-2xl border border-border bg-secondary/40 p-5">
             <ShieldCheck className="h-7 w-7 text-gold" />
@@ -3292,7 +3303,7 @@ function SecurityPanel({ db }: { db: DB }) {
         ))}
       </div>
       <div className="mt-6 space-y-3">
-        {db.auditLogs.slice(0, 10).map((log) => (
+        {db.auditLogs.slice(0, 0).map((log) => (
           <div key={log.id} className="rounded-2xl bg-white px-4 py-3 text-sm shadow-soft">
             <b>{log.action}</b>
             <span className="text-muted-foreground">
@@ -3332,10 +3343,89 @@ function formatRole(role?: Role) {
   return labels[role] || role;
 }
 
+function auditSeverity(log: DB["auditLogs"][number]) {
+  const text = `${log.area || ""} ${log.action}`.toLowerCase();
+  if (
+    text.includes("delete") ||
+    text.includes("reset") ||
+    text.includes("backup") ||
+    text.includes("setting") ||
+    text.includes("user") ||
+    text.includes("role")
+  ) {
+    return "Protected";
+  }
+  if (text.includes("publish") || text.includes("approval") || text.includes("saved")) {
+    return "Change";
+  }
+  if (text.includes("sign") || text.includes("login")) return "Auth";
+  return "Info";
+}
+
+function auditTarget(action: string) {
+  const [, target] = action.split(/:(.+)/);
+  return target?.trim() || "";
+}
+
+function shortUserAgent(value?: string) {
+  if (!value) return "Not captured";
+  return value.length > 160 ? `${value.slice(0, 160)}...` : value;
+}
+
 function ActivityPanel({ db }: { db: DB }) {
+  const [query, setQuery] = useState("");
+  const [areaFilter, setAreaFilter] = useState("all");
+  const [roleFilter, setRoleFilter] = useState("all");
+  const logs = db.auditLogs;
+  const areas = [...new Set(logs.map((log) => log.area || "General"))].sort();
+  const roles = [...new Set(logs.map((log) => log.actorRole || "system"))].sort();
+  const normalizedQuery = query.trim().toLowerCase();
+  const filteredLogs = logs.filter((log) => {
+    const area = log.area || "General";
+    const role = log.actorRole || "system";
+    const haystack = [
+      log.id,
+      log.user,
+      log.action,
+      log.actorEmail,
+      log.actorName,
+      log.actorRole,
+      log.area,
+      log.requestPath,
+      log.source,
+      log.timeZone,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase();
+    return (
+      (areaFilter === "all" || area === areaFilter) &&
+      (roleFilter === "all" || role === roleFilter) &&
+      (!normalizedQuery || haystack.includes(normalizedQuery))
+    );
+  });
+  const loginCount = logs.filter(
+    (log) =>
+      (log.area || log.action).toLowerCase().includes("login") ||
+      log.action.toLowerCase().includes("signed"),
+  ).length;
+  const protectedCount = logs.filter((log) => auditSeverity(log) === "Protected").length;
+  const uniqueActors = new Set(logs.map((log) => log.actorEmail || log.user)).size;
+  const areaCounts = areas.map((area) => ({
+    area,
+    count: logs.filter((log) => (log.area || "General") === area).length,
+  }));
+  const actorCounts = [...new Set(logs.map((log) => log.actorEmail || log.user || "System"))]
+    .map((actor) => ({
+      actor,
+      count: logs.filter((log) => (log.actorEmail || log.user || "System") === actor).length,
+    }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
   return (
     <PanelShell title="Activity logs" kicker="Full user history">
-      <div className="mb-5 grid gap-3 md:grid-cols-3">
+      <div className="mb-5 grid gap-3 md:grid-cols-5">
         <div className="rounded-2xl border border-border bg-secondary/35 p-4">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
             Total records
@@ -3346,15 +3436,19 @@ function ActivityPanel({ db }: { db: DB }) {
           <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
             Login records
           </p>
-          <p className="mt-2 text-2xl font-black text-navy">
-            {
-              db.auditLogs.filter(
-                (log) =>
-                  (log.area || log.action).toLowerCase().includes("login") ||
-                  log.action.toLowerCase().includes("signed"),
-              ).length
-            }
+          <p className="mt-2 text-2xl font-black text-navy">{loginCount}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-secondary/35 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+            Protected events
           </p>
+          <p className="mt-2 text-2xl font-black text-navy">{protectedCount}</p>
+        </div>
+        <div className="rounded-2xl border border-border bg-secondary/35 p-4">
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+            Unique actors
+          </p>
+          <p className="mt-2 text-2xl font-black text-navy">{uniqueActors}</p>
         </div>
         <div className="rounded-2xl border border-border bg-secondary/35 p-4">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
@@ -3365,9 +3459,98 @@ function ActivityPanel({ db }: { db: DB }) {
           </p>
         </div>
       </div>
+
+      <div className="mb-5 grid gap-3 rounded-2xl border border-border bg-white p-4 md:grid-cols-[minmax(0,1fr)_220px_220px]">
+        <label className="block">
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+            Search logs
+          </span>
+          <div className="relative mt-2">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="w-full rounded-xl border border-border bg-secondary/40 py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-gold"
+              placeholder="Search actor, action, path, role..."
+            />
+          </div>
+        </label>
+        <label className="block">
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+            Area
+          </span>
+          <select
+            value={areaFilter}
+            onChange={(event) => setAreaFilter(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-border bg-secondary/40 px-3 py-3 text-sm font-bold text-navy outline-none focus:border-gold"
+          >
+            <option value="all">All areas</option>
+            {areas.map((area) => (
+              <option key={area} value={area}>
+                {area}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="block">
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-muted-foreground">
+            Role
+          </span>
+          <select
+            value={roleFilter}
+            onChange={(event) => setRoleFilter(event.target.value)}
+            className="mt-2 w-full rounded-xl border border-border bg-secondary/40 px-3 py-3 text-sm font-bold text-navy outline-none focus:border-gold"
+          >
+            <option value="all">All roles</option>
+            {roles.map((role) => (
+              <option key={role} value={role}>
+                {role === "system" ? "System" : formatRole(role as Role)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      <div className="mb-5 grid gap-3 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-white p-4">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-crimson">
+            Activity by area
+          </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {areaCounts.map((item) => (
+              <div key={item.area} className="rounded-xl bg-secondary/40 px-3 py-2">
+                <p className="text-xs font-black text-navy">{item.area}</p>
+                <p className="mt-1 text-sm font-bold text-muted-foreground">{item.count} events</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-border bg-white p-4">
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-crimson">
+            Top actors
+          </p>
+          <div className="mt-4 space-y-2">
+            {actorCounts.map((item) => (
+              <div
+                key={item.actor}
+                className="flex items-center justify-between gap-3 rounded-xl bg-secondary/40 px-3 py-2"
+              >
+                <span className="min-w-0 truncate text-xs font-black text-navy">{item.actor}</span>
+                <span className="shrink-0 text-sm font-bold text-muted-foreground">
+                  {item.count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="space-y-3">
-        {db.auditLogs.map((log) => (
-          <div key={log.id} className="rounded-2xl border border-border bg-secondary/30 p-4">
+        {filteredLogs.map((log) => {
+          const severity = auditSeverity(log);
+          const target = auditTarget(log.action);
+          return (
+            <div key={log.id} className="rounded-2xl border border-border bg-secondary/30 p-4">
             <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
@@ -3377,23 +3560,93 @@ function ActivityPanel({ db }: { db: DB }) {
                   <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground">
                     {formatRole(log.actorRole)}
                   </span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${
+                      severity === "Protected"
+                        ? "bg-crimson/10 text-crimson"
+                        : severity === "Change"
+                          ? "bg-gold/25 text-navy"
+                          : severity === "Auth"
+                            ? "bg-blue-100 text-blue-900"
+                            : "bg-emerald-100 text-emerald-900"
+                    }`}
+                  >
+                    {severity}
+                  </span>
                 </div>
                 <p className="mt-3 text-sm font-black text-navy">{formatActor(log)}</p>
                 <p className="mt-1 text-sm font-semibold text-slate-700">
                   {formatActor(log)} {log.action.charAt(0).toLowerCase()}
                   {log.action.slice(1)}.
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Raw action: {log.action}</p>
+                <div className="mt-4 grid gap-3 text-xs md:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl bg-white px-3 py-2">
+                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                      Event ID
+                    </p>
+                    <p className="mt-1 break-all font-semibold text-navy">{log.id}</p>
+                  </div>
+                  <div className="rounded-xl bg-white px-3 py-2">
+                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                      Actor email
+                    </p>
+                    <p className="mt-1 break-all font-semibold text-navy">
+                      {log.actorEmail || log.user || "System"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white px-3 py-2">
+                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                      Path
+                    </p>
+                    <p className="mt-1 break-all font-semibold text-navy">
+                      {log.requestPath || "Not captured"}
+                    </p>
+                  </div>
+                  <div className="rounded-xl bg-white px-3 py-2">
+                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                      Target
+                    </p>
+                    <p className="mt-1 break-all font-semibold text-navy">
+                      {target || "No target"}
+                    </p>
+                  </div>
+                </div>
+                <details className="mt-3 rounded-xl border border-border bg-white px-3 py-2 text-xs">
+                  <summary className="cursor-pointer font-black uppercase tracking-[0.14em] text-navy">
+                    Advanced event details
+                  </summary>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    <p>
+                      <b>Raw action:</b> {log.action}
+                    </p>
+                    <p>
+                      <b>Source:</b> {log.source || "legacy"}
+                    </p>
+                    <p>
+                      <b>Timezone:</b> {log.timeZone || "Not captured"}
+                    </p>
+                    <p>
+                      <b>ISO time:</b> {log.createdAt}
+                    </p>
+                  </div>
+                  <p className="mt-2 break-all">
+                    <b>User agent:</b> {shortUserAgent(log.userAgent)}
+                  </p>
+                  <pre className="mt-3 max-h-56 overflow-auto rounded-lg bg-[#081324] p-3 text-[11px] leading-5 text-white">
+                    {JSON.stringify(log, null, 2)}
+                  </pre>
+                </details>
               </div>
               <span className="shrink-0 text-xs font-semibold text-muted-foreground">
                 {new Date(log.createdAt).toLocaleString()}
               </span>
             </div>
           </div>
-        ))}
-        {db.auditLogs.length === 0 && (
+          );
+        })}
+        {filteredLogs.length === 0 && (
           <p className="rounded-2xl border border-border bg-secondary/30 p-5 text-sm text-muted-foreground">
-            No activity yet.
+            No activity matches the current filters.
           </p>
         )}
       </div>
@@ -3414,6 +3667,8 @@ export function AdminPortal() {
   const [saveMessageTone, setSaveMessageTone] = useState<"info" | "error">("info");
   const visibleNavGroups = navGroupsForRole(auth.user?.role);
   const visiblePanelIds = visibleNavGroups.flatMap((group) => group.items.map((item) => item.id));
+  const fallbackPanel = visiblePanelIds[0] || "dashboard";
+  const activePanel = visiblePanelIds.includes(active) ? active : fallbackPanel;
   const needsApproval = auth.user?.role === "website_admin";
 
   useEffect(() => {
@@ -3431,20 +3686,19 @@ export function AdminPortal() {
 
   useEffect(() => {
     if (auth.user && !visiblePanelIds.includes(active)) {
-      const fallbackPanel = visiblePanelIds[0] || "dashboard";
       setActive(fallbackPanel);
       replaceAdminPanelUrl(fallbackPanel);
     }
-  }, [active, auth.user, visiblePanelIds]);
+  }, [active, auth.user, fallbackPanel, visiblePanelIds]);
 
   useEffect(() => {
-    if (!auth.user || lastLoggedPanel.current === active) return;
+    if (!auth.user || lastLoggedPanel.current === activePanel) return;
     const label = visibleNavGroups
       .flatMap((group) => group.items)
-      .find((item) => item.id === active)?.label;
+      .find((item) => item.id === activePanel)?.label;
     if (label) audit(`Opened ${label} panel`, auth.user.email);
-    lastLoggedPanel.current = active;
-  }, [active, auth.user, visibleNavGroups]);
+    lastLoggedPanel.current = activePanel;
+  }, [activePanel, auth.user, visibleNavGroups]);
 
   if (auth.loading || !auth.user) {
     return (
@@ -3587,7 +3841,7 @@ export function AdminPortal() {
                       replaceAdminPanelUrl(item.id);
                       setSidebarOpen(false);
                     }}
-                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition-smooth ${active === item.id ? "bg-gold text-navy shadow-gold" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
+                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition-smooth ${activePanel === item.id ? "bg-gold text-navy shadow-gold" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
                   >
                     <item.icon className="h-5 w-5" /> {item.label}
                   </button>
@@ -3623,7 +3877,7 @@ export function AdminPortal() {
                   {formatRole(auth.user.role)} access
                 </p>
                 <h1 className="font-serif text-3xl font-bold text-navy">
-                  {visibleNavGroups.flatMap((g) => g.items).find((i) => i.id === active)?.label ||
+                  {visibleNavGroups.flatMap((g) => g.items).find((i) => i.id === activePanel)?.label ||
                     "Dashboard"}
                 </h1>
               </div>
@@ -3676,25 +3930,27 @@ export function AdminPortal() {
           </div>
         </header>
         <main className="p-4 md:p-8">
-          {active === "dashboard" && <DashboardPanel db={db} setActive={setActive} />}
-          {active === "studio" && <WebsiteEditor />}
-          {active === "approvals" &&
+          {activePanel === "dashboard" && (
+            <DashboardPanel db={db} setActive={setActive} availablePanels={visiblePanelIds} />
+          )}
+          {activePanel === "studio" && <WebsiteEditor />}
+          {activePanel === "approvals" &&
             (auth.user.role === "website_admin" ? (
               <MyPublishRequestsPanel />
             ) : (
               <PublishApprovalsPanel />
             ))}
-          {active === "pages" && <PagesPanel db={db} />}
-          {active === "content" && <ContentPanel db={db} />}
-          {active === "media" && <MediaPanel db={db} />}
-          {active === "storage" && <StoragePanel />}
-          {active === "design" && <DesignPanel db={db} />}
-          {active === "messages" && <MessagesPanel db={db} />}
-          {active === "users" && <UsersPanel db={db} />}
-          {active === "security" && <SecurityPanel db={db} />}
-          {active === "activity" && <ActivityPanel db={db} />}
-          {active === "backup" && <BackupPanel db={db} />}
-          {active === "settings" && <SettingsPanel db={db} />}
+          {activePanel === "pages" && <PagesPanel db={db} />}
+          {activePanel === "content" && <ContentPanel db={db} />}
+          {activePanel === "media" && <MediaPanel db={db} />}
+          {activePanel === "storage" && <StoragePanel />}
+          {activePanel === "design" && <DesignPanel db={db} />}
+          {activePanel === "messages" && <MessagesPanel db={db} />}
+          {activePanel === "users" && <UsersPanel db={db} />}
+          {activePanel === "security" && <SecurityPanel db={db} />}
+          {activePanel === "activity" && <ActivityPanel db={db} />}
+          {activePanel === "backup" && <BackupPanel db={db} />}
+          {activePanel === "settings" && <SettingsPanel db={db} />}
         </main>
       </div>
     </div>

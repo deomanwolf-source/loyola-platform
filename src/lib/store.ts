@@ -323,6 +323,10 @@ export interface AuditLog {
   actorName?: string;
   actorRole?: Role;
   area?: string;
+  source?: string;
+  requestPath?: string;
+  userAgent?: string;
+  timeZone?: string;
 }
 
 export type PageBlockType = "text" | "hero" | "image-text" | "quote" | "gallery" | "spacer";
@@ -1913,7 +1917,7 @@ export function useDb(): DB {
 
 function currentAuditActor(user: string) {
   const sessionUser = authCache?.user;
-  if (sessionUser && ["Admin", "Website editor", "System"].includes(user)) {
+  if (sessionUser && (["Admin", "Website editor", "System"].includes(user) || user === sessionUser.email)) {
     return {
       user: sessionUser.email,
       actorEmail: sessionUser.email,
@@ -1934,6 +1938,11 @@ function auditArea(action: string) {
   const text = action.toLowerCase();
   if (text.includes("sign")) return "Login";
   if (text.includes("opened")) return "Navigation";
+  if (text.includes("user") || text.includes("role") || text.includes("account"))
+    return "Access Control";
+  if (text.includes("setting") || text.includes("security")) return "Security";
+  if (text.includes("staff") || text.includes("teacher") || text.includes("attendance"))
+    return "Staff";
   if (text.includes("image") || text.includes("video") || text.includes("album")) return "Media";
   if (text.includes("page") || text.includes("website") || text.includes("visual"))
     return "Website";
@@ -1943,8 +1952,25 @@ function auditArea(action: string) {
   return "General";
 }
 
+function auditContext() {
+  if (typeof window === "undefined") return { source: "server" };
+  let timeZone = "";
+  try {
+    timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    timeZone = "";
+  }
+  return {
+    source: "browser",
+    requestPath: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+    userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+    timeZone,
+  };
+}
+
 export function audit(action: string, user = "System") {
   const actor = currentAuditActor(user);
+  const context = auditContext();
   setDb((db) => ({
     ...db,
     auditLogs: [
@@ -1957,6 +1983,10 @@ export function audit(action: string, user = "System") {
         actorName: actor.actorName,
         actorRole: actor.actorRole,
         area: auditArea(action),
+        source: context.source,
+        requestPath: context.requestPath,
+        userAgent: context.userAgent,
+        timeZone: context.timeZone,
       },
       ...db.auditLogs,
     ].slice(0, 200),
