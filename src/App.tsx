@@ -79,6 +79,7 @@ const REPORT_CARD_ROLES: Role[] = [
   "student",
   "parent",
 ];
+const REPORT_CARDS_SYSTEM_URL = "https://intranet.loyolacollege.lk/login";
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 const FACILITIES_PAGE_ID = "the-college/facilities-services";
 
@@ -4001,7 +4002,7 @@ function CentralPortal() {
     },
     {
       title: "Report Cards",
-      href: "/portal/reports",
+      href: REPORT_CARDS_SYSTEM_URL,
       icon: FileText,
       roles: REPORT_CARD_ROLES,
       meta: "Marks and reports",
@@ -4928,9 +4929,7 @@ function ModulePage({ moduleId }: { moduleId: string }) {
       icon: FileText,
       roles: REPORT_CARD_ROLES,
       actions: [
-        { label: "Report Cards", href: "/portal/reports?tab=cards" },
-        { label: "Marks", href: "/portal/reports?tab=marks" },
-        { label: "PDF Export", href: "/portal/reports?tab=pdf" },
+        { label: "Open Report Card System", href: REPORT_CARDS_SYSTEM_URL },
       ],
     },
   };
