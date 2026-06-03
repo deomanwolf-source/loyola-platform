@@ -354,6 +354,66 @@ const facilitiesTemplateItems = [
   },
 ];
 
+const PAST_RECTORS_PAGE_IDS = new Set([
+  "about/college-history",
+  "about/past-rectors-vice-rectors",
+  "college-history",
+  "pastrectors",
+  "past-rectors",
+]);
+
+const pastRectorProfiles = [
+  {
+    name: "S. V. Goonesekera Mahatha",
+    years: "1949 - 1987",
+    image: "/assets/past-rectors/sv-sir.jpeg",
+  },
+  {
+    name: "J. E. Noyel Dabare Mahatha",
+    years: "1987 - 1994",
+    image: "/assets/past-rectors/noyel-sir.jpeg",
+  },
+  {
+    name: "Rev. Fr. Leo Perera",
+    years: "1994 - 1999",
+    image: "/assets/past-rectors/fr-leo.jpeg",
+  },
+  {
+    name: "Rev. Fr. Thilakasiri Fernando",
+    years: "1995 - 1999",
+    image: "/assets/past-rectors/fr-thilakasiri.jpeg",
+  },
+  {
+    name: "Rev. Fr. Trevor G. Martin",
+    years: "2000 - 2014",
+    image: "/assets/past-rectors/fr-trevor.jpeg",
+  },
+  {
+    name: "Rev. Fr. Ranjith Andradi",
+    years: "2014 - 2015",
+    image: "/assets/past-rectors/fr-ranjith.jpeg",
+  },
+  {
+    name: "Rev. Fr. Sudath Gunetilleke",
+    years: "2015 - 2021",
+    image: "/assets/past-rectors/fr-sudath.jpeg",
+  },
+];
+
+function isPastRectorsPage(pageId: string) {
+  return PAST_RECTORS_PAGE_IDS.has(pageId);
+}
+
+function shouldUsePastRectorsTemplate(pageId: string, savedVisualHtml?: string) {
+  if (!isPastRectorsPage(pageId) || !savedVisualHtml) return false;
+  if (savedVisualHtml.includes("past-rectors-collage.jpeg")) return false;
+  return (
+    savedVisualHtml.includes("Past Rectors & Vice Rectors overview") &&
+    savedVisualHtml.includes("Key information") &&
+    savedVisualHtml.includes("Next steps")
+  );
+}
+
 function cleanBody(value: string | undefined, fallback = "") {
   const text = (value || "").trim();
   if (!text || text === "New page content goes here.") return fallback;
@@ -733,6 +793,55 @@ function facilitiesVisualStarter(db: DB) {
 </section>`;
 }
 
+function pastRectorsVisualStarter(db: DB, pageId: string) {
+  const page = db.pages[pageId] || db.pages["about/college-history"] || {};
+  const body = cleanBody(
+    page.body,
+    "Remembering the leaders who shaped Loyola College Negombo.",
+  );
+  const image =
+    page.image || db.media.campusImage || db.websiteContent.heroImage || "/loyola-crest.jpg";
+
+  return `${pageHeroHtml({
+    kicker: page.kicker || "Faith, learning, discipline, and service.",
+    title: page.title || "Past Rectors & Vice Rectors",
+    body,
+    image,
+  })}
+
+<section class="band">
+  <div class="container">
+    <article class="feature-card">
+      <p class="eyebrow">Legacy Wall</p>
+      <h2 style="margin-top:12px;">Past Rectors & Vice Rectors</h2>
+      <div style="margin-top:28px;overflow:hidden;border:1px solid #dde4ed;border-radius:8px;background:#fff;">
+        <img src="/assets/past-rectors/past-rectors-collage.jpeg" alt="Past Rectors and Vice Rectors collage" style="width:100%;height:auto;object-fit:contain;" />
+      </div>
+    </article>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <p class="eyebrow">Profile Records</p>
+    <h2 style="margin-top:12px;">Rector Profiles</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:28px;margin-top:32px;">
+      ${pastRectorProfiles
+        .map(
+          (profile) => `<article class="feature-card" style="overflow:hidden;padding:0;">
+        <div style="border-bottom:1px solid #dde4ed;padding:22px 24px;">
+          <h3>${escapeHtml(profile.name)}</h3>
+          <p class="eyebrow" style="margin-top:10px;">Service Period: ${escapeHtml(profile.years)}</p>
+        </div>
+        <img src="${escapeHtml(profile.image)}" alt="${escapeHtml(profile.name)} profile" loading="lazy" style="width:100%;max-height:720px;object-fit:contain;background:#fff;" />
+      </article>`,
+        )
+        .join("")}
+    </div>
+  </div>
+</section>`;
+}
+
 function supplementalVisualSections(db: DB, pageId: string) {
   if (pageId === "about") {
     return `<section class="band"><div class="container"><p class="eyebrow">About Loyola</p><h2 style="margin-top:12px;">College story and identity</h2>${paragraphsHtml(`${db.aboutSections.storyBodyOne || ""}\n${db.aboutSections.storyBodyTwo || ""}` || "Add the college story here.")}${featureCardsHtml(db.aboutSections.stats.map((stat) => ({ title: stat.value, body: stat.label })))}</div></section>`;
@@ -783,6 +892,7 @@ function visualStarterForPage(db: DB, pageId: string) {
   if (pageId === "home") return homeVisualStarter(db);
   if (pageId === LCEA_PAGE_ID) return lceaVisualStarter(db);
   if (pageId === FACILITIES_PAGE_ID) return facilitiesVisualStarter(db);
+  if (isPastRectorsPage(pageId)) return pastRectorsVisualStarter(db, pageId);
 
   const navItem = db.navigation.find((item) => item.id === pageId);
   const pageName = navItem?.label || page.title || displayPageName(pageId);
@@ -1734,10 +1844,11 @@ export function WebsiteEditor() {
     const savedPage = db.pages[selectedPage];
     const savedVisualHtml = savedPage?.visualHtml?.trim();
     const templateHtml = visualStarterForPage(db, selectedPage);
+    const shouldLoadTemplate = shouldUsePastRectorsTemplate(selectedPage, savedVisualHtml);
 
     setVisualEditorInitial({
-      html: savedVisualHtml || templateHtml,
-      css: savedVisualHtml ? savedPage?.visualCss || "" : "",
+      html: shouldLoadTemplate ? templateHtml : savedVisualHtml || templateHtml,
+      css: savedVisualHtml && !shouldLoadTemplate ? savedPage?.visualCss || "" : "",
       canvasCss: "",
       templateHtml,
     });

@@ -507,6 +507,15 @@ const pastRectorProfiles = [
   },
 ];
 
+function isGenericPastRectorsVisualHtml(html?: string) {
+  if (!html || html.includes("past-rectors-collage.jpeg")) return false;
+  return (
+    html.includes("Past Rectors & Vice Rectors overview") &&
+    html.includes("Key information") &&
+    html.includes("Next steps")
+  );
+}
+
 function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string }) {
   const db = useDb();
   const defaultPage = {
@@ -516,6 +525,11 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
     image: "",
   };
   const page = db.pages[pageId] || defaultPage;
+  const visualHtml = page.visualHtml?.trim();
+  if (visualHtml && !isGenericPastRectorsVisualHtml(visualHtml)) {
+    return <VisualBuilderPage pageId={pageId} />;
+  }
+
   const body =
     page.body && page.body.trim() !== "New page content goes here." ? page.body : defaultPage.body;
 
