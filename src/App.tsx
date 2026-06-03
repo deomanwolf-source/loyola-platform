@@ -3992,14 +3992,6 @@ function CentralPortal() {
       lockedMeta: "Only staff admins and top admins",
     },
     {
-      title: "EduZync",
-      href: "/portal/eduzync",
-      icon: Users,
-      roles: EDUZYNC_ADMIN_ROLES,
-      meta: "Students, staff, classes",
-      lockedMeta: "Only EduTrack admins and top admins",
-    },
-    {
       title: "EduTrack",
       href: "/portal/edutrack",
       icon: BookOpen,
