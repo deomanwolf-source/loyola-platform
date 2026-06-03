@@ -678,6 +678,10 @@ function adminOnly(req, res, next) {
   return authRole(ROLES.master, ROLES.super)(req, res, next);
 }
 
+function masterAdminOnly(req, res, next) {
+  return authRole(ROLES.master)(req, res, next);
+}
+
 function websiteAdminOnly(req, res, next) {
   return authRole(...WEBSITE_ADMIN_ROLES)(req, res, next);
 }
@@ -3342,7 +3346,7 @@ app.get("/api/health", async (req, res) => {
   }
 });
 
-app.get("/api/users", adminOnly, async (req, res) => {
+app.get("/api/users", masterAdminOnly, async (req, res) => {
   try {
     await ensureAccessTables();
     const [rows] = await db.query(
@@ -3357,7 +3361,7 @@ app.get("/api/users", adminOnly, async (req, res) => {
   }
 });
 
-app.post("/api/users", adminOnly, async (req, res) => {
+app.post("/api/users", masterAdminOnly, async (req, res) => {
   try {
     await ensureAccessTables();
     const { id, name, email, password, role = ROLES.teacher, status = "Active" } = req.body || {};
@@ -3404,7 +3408,7 @@ app.post("/api/users", adminOnly, async (req, res) => {
   }
 });
 
-app.put("/api/users/:id", adminOnly, async (req, res) => {
+app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
   try {
     await ensureAccessTables();
     const userId = compactText(req.params.id, 50);
@@ -3463,7 +3467,7 @@ app.put("/api/users/:id", adminOnly, async (req, res) => {
   }
 });
 
-app.delete("/api/users/:id", adminOnly, async (req, res) => {
+app.delete("/api/users/:id", masterAdminOnly, async (req, res) => {
   try {
     await ensureAccessTables();
     const userId = compactText(req.params.id, 50);

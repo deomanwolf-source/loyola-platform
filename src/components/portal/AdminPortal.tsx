@@ -123,12 +123,15 @@ const navGroups: {
   },
 ];
 
-const fullAccessAdminRoles: Role[] = ["masteradmin", "superadmin"];
+const fullAccessAdminRoles: Role[] = ["masteradmin"];
+const ownerOnlyAdminPanels = new Set<PanelId>(["users", "activity", "settings"]);
 const protectedAdminPanels = new Set<PanelId>(["users", "activity", "backup", "settings"]);
 
 function canAccessAdminPanel(role: Role | undefined, panel: PanelId) {
   if (!role || !adminRoles.includes(role)) return false;
   if (fullAccessAdminRoles.includes(role)) return true;
+  if (ownerOnlyAdminPanels.has(panel)) return false;
+  if (role === "superadmin") return true;
   return !protectedAdminPanels.has(panel);
 }
 
@@ -2416,7 +2419,7 @@ const userRoleOptions: Role[] = [
 
 const rolePermissionRows: { role: Role; access: string; scope: string }[] = [
   { role: "masteradmin", access: "Full control", scope: "All portals, users, publishing" },
-  { role: "superadmin", access: "Full control", scope: "All portals except owner-only locks" },
+  { role: "superadmin", access: "Admin tools", scope: "Website tools, publishing, backup" },
   { role: "website_admin", access: "Website", scope: "Pages, media, news, notices, events" },
   { role: "eduzync_admin", access: "School data", scope: "Students, classes, teachers, EduTrack" },
   { role: "staff_admin", access: "Staff", scope: "Staff profiles, documents, leave, notices" },
@@ -2471,9 +2474,7 @@ function UsersPanel({ db }: { db: DB }) {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const canManageUsers = auth.user
-    ? ["masteradmin", "superadmin"].includes(auth.user.role)
-    : false;
+  const canManageUsers = auth.user?.role === "masteradmin";
 
   const loadUsers = useCallback(async () => {
     if (!canManageUsers) return;
@@ -2646,7 +2647,7 @@ function UsersPanel({ db }: { db: DB }) {
     return (
       <PanelShell title="Users & Roles" kicker="Access control">
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm font-semibold text-red-800">
-          User management is available only for Master Admin and Super Admin accounts.
+          User management is available only for Master Admin accounts.
         </div>
       </PanelShell>
     );
@@ -3284,7 +3285,7 @@ function SecurityPanel({ db }: { db: DB }) {
         {[
           [
             "Role-based admin access",
-            "Website admins can manage website tools. Super Admin and Master Admin can open protected management panels.",
+            "Website admins can manage website tools. Master Admin controls owner-only management panels.",
           ],
           [
             "Upload validation",
@@ -3292,7 +3293,7 @@ function SecurityPanel({ db }: { db: DB }) {
           ],
           [
             "Protected controls",
-            "Users & Roles, Activity Logs, Backup, and Settings are locked to Super Admin and Master Admin.",
+            "Users & Roles, Activity Logs, and Settings are locked to Master Admin only. Backup stays limited to Super Admin and Master Admin.",
           ],
         ].map(([title, body]) => (
           <div key={title} className="rounded-2xl border border-border bg-secondary/40 p-5">

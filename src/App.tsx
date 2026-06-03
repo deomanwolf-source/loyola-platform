@@ -65,7 +65,7 @@ const AdminPortal = lazy(() =>
   import("@/components/portal/AdminPortal").then((module) => ({ default: module.AdminPortal })),
 );
 
-const MASTER_ROLES: Role[] = ["masteradmin", "superadmin"];
+const MASTER_ROLES: Role[] = ["masteradmin"];
 const WEBSITE_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "website_admin"];
 const EDUZYNC_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "eduzync_admin"];
 const STAFF_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "staff_admin"];
@@ -4014,7 +4014,7 @@ function CentralPortal() {
       icon: Users,
       roles: MASTER_ROLES,
       meta: "Accounts, roles, and permissions",
-      lockedMeta: "Only Master Admin and Super Admin",
+      lockedMeta: "Only Master Admin",
     },
   ];
 
