@@ -260,7 +260,13 @@ export function App() {
 
   if (path === "/" || path === "") return <HomePage />;
   if (
-    ["/about/college-history", "/college-history", "/pastrectors", "/past-rectors"].includes(path)
+    [
+      "/about/college-history",
+      "/about/past-rectors-vice-rectors",
+      "/college-history",
+      "/pastrectors",
+      "/past-rectors",
+    ].includes(path)
   ) {
     return (
       <PastRectorsPage
@@ -503,20 +509,23 @@ const pastRectorProfiles = [
 
 function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string }) {
   const db = useDb();
-  const page = db.pages[pageId] || {
+  const defaultPage = {
     kicker: "Faith, learning, discipline, and service.",
     title: "Past Rectors & Vice Rectors",
     body: "Remembering the leaders who shaped Loyola College Negombo.",
     image: "",
   };
+  const page = db.pages[pageId] || defaultPage;
+  const body =
+    page.body && page.body.trim() !== "New page content goes here." ? page.body : defaultPage.body;
 
   return (
     <PublicLayout>
       <PageHeader
         pageId={pageId}
-        kicker={page.kicker || "Faith, learning, discipline, and service."}
-        title={page.title || "Past Rectors & Vice Rectors"}
-        subtitle={page.body || "Remembering the leaders who shaped Loyola College Negombo."}
+        kicker={page.kicker || defaultPage.kicker}
+        title={page.title || defaultPage.title}
+        subtitle={body}
         image={page.image || db.media.campusImage || db.websiteContent.heroImage}
       />
 
