@@ -9,13 +9,22 @@ This project uses two Hostinger MySQL databases:
 
 In Hostinger phpMyAdmin:
 
-1. Open database `u414000991_loyoladatabase`.
+1. Open the main website database.
 2. Go to **Import**.
-3. Import:
+3. Import the current schema:
 
 ```txt
-database/hostinger-main-database-import.sql
+database/hostinger-schema.sql
 ```
+
+4. To restore the saved public homepage/design snapshot, import:
+
+```txt
+database/restore-public-site-snapshot.sql
+```
+
+Do not import `database/hostinger-clean-reset.sql` unless you intentionally want to reset the
+published website content.
 
 ## 2. Import EduTrack Database
 
