@@ -1017,8 +1017,6 @@ function HomePage() {
         </div>
       </section>
 
-      <HomeVisionMissionIdentity />
-
       <section className="mx-auto max-w-7xl px-6 py-20">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
