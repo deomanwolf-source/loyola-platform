@@ -77,6 +77,18 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 const MAX_SHORT_VIDEO_SECONDS = 120;
 
+function rememberDeletedContentId(
+  current: DB,
+  key: "news" | "events",
+  id: string,
+): DB["deletedContentIds"] {
+  const existing = current.deletedContentIds?.[key] || [];
+  return {
+    ...current.deletedContentIds,
+    [key]: Array.from(new Set([...existing, id])),
+  };
+}
+
 type PanelId =
   | "dashboard"
   | "studio"
@@ -898,7 +910,8 @@ function ContentPanel({ db }: { db: DB }) {
           type: eventType || "School Event",
           description: eventDescription.trim() || undefined,
           image: eventImage || undefined,
-        } as EventItem & { description?: string; image?: string },
+          posterUrl: eventImage || undefined,
+        } as EventItem,
         ...current.events,
       ],
     }));
@@ -912,10 +925,29 @@ function ContentPanel({ db }: { db: DB }) {
     if (eventImageInputRef.current) eventImageInputRef.current.value = "";
   };
 
-  const removeNews = (id: string) =>
-    setDb((current) => ({ ...current, news: current.news.filter((item) => item.id !== id) }));
-  const removeEvent = (id: string) =>
-    setDb((current) => ({ ...current, events: current.events.filter((item) => item.id !== id) }));
+  const removeNews = (id: string) => {
+    setDb((current) => {
+      if (!current.news.some((item) => item.id === id)) return current;
+      return {
+        ...current,
+        news: current.news.filter((item) => item.id !== id),
+        deletedContentIds: rememberDeletedContentId(current, "news", id),
+      };
+    });
+    audit(`News deleted: ${id}`, "Admin");
+  };
+
+  const removeEvent = (id: string) => {
+    setDb((current) => {
+      if (!current.events.some((item) => item.id === id)) return current;
+      return {
+        ...current,
+        events: current.events.filter((item) => item.id !== id),
+        deletedContentIds: rememberDeletedContentId(current, "events", id),
+      };
+    });
+    audit(`Event deleted: ${id}`, "Admin");
+  };
 
   return (
     <div className="grid gap-6 xl:grid-cols-2">

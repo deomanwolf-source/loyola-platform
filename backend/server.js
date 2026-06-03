@@ -1869,6 +1869,47 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
+const EXPLICIT_DELETE_COLLECTIONS = ["news", "events"];
+
+function explicitDeletedIds(siteDb, key) {
+  if (!isPlainObject(siteDb?.deletedContentIds)) return new Set();
+  const ids = Array.isArray(siteDb.deletedContentIds[key]) ? siteDb.deletedContentIds[key] : [];
+  return new Set(
+    ids
+      .map((id) => String(id || "").trim())
+      .filter(Boolean),
+  );
+}
+
+function applyExplicitContentDeletes(targetDb, markerDb = targetDb) {
+  if (!isPlainObject(targetDb)) return targetDb;
+  let nextDb = targetDb;
+
+  for (const key of EXPLICIT_DELETE_COLLECTIONS) {
+    const deletedIds = explicitDeletedIds(markerDb, key);
+    if (!deletedIds.size || !Array.isArray(nextDb[key])) continue;
+
+    const filtered = nextDb[key].filter((item) => {
+      const itemId = String(item?.id || item?.source_id || "").trim();
+      return !deletedIds.has(itemId);
+    });
+
+    if (filtered.length !== nextDb[key].length) {
+      if (nextDb === targetDb) nextDb = { ...targetDb };
+      nextDb[key] = filtered;
+    }
+  }
+
+  return nextDb;
+}
+
+function clearExplicitContentDeletes(siteDb) {
+  if (!isPlainObject(siteDb) || !isPlainObject(siteDb.deletedContentIds)) return siteDb;
+  const nextDb = { ...siteDb };
+  delete nextDb.deletedContentIds;
+  return nextDb;
+}
+
 function removeStaffTeacherRows(siteDb, teacherId) {
   if (!isPlainObject(siteDb) || !Array.isArray(siteDb.teachers)) {
     return { changed: false, siteDb };
@@ -2925,8 +2966,8 @@ async function syncEvents(connection, siteDb) {
       [
         item.id,
         String(item.title || "Untitled event").slice(0, 255),
-        item.type || item.description || "",
-        item.posterUrl || item.poster_url || "",
+        item.description || item.type || "",
+        item.posterUrl || item.poster_url || item.image || "",
         mysqlDate(item.date || item.event_date),
         item.location || item.venue || "",
         item.status || "upcoming",
@@ -3132,6 +3173,9 @@ function collectMedia(siteDb) {
   });
 
   (siteDb.news || []).forEach((item) => add("news", item.image || item.image_url));
+  (siteDb.events || []).forEach((item) =>
+    add("events", item.image || item.posterUrl || item.poster_url),
+  );
   (siteDb.downloads || []).forEach((item) => add("notices", item.fileUrl || item.file_url));
   (siteDb.teachers || []).forEach((item) => add("staff", item.image));
   (siteDb.staffDocuments || []).forEach((item) => add("staff-documents", item.fileUrl));
@@ -3211,16 +3255,20 @@ async function writeSiteDb(siteDb, { mode = "published" } = {}) {
 
   const contentVersion = Date.now();
   const nowIso = new Date(contentVersion).toISOString();
+  const incomingDb = applyExplicitContentDeletes(siteDb, siteDb);
   const existingDb = await readSiteDb({ draft: mode === "draft" });
   const publishedDb = mode === "draft" ? await readSiteDb({ draft: false }) : null;
-  const protectedDb = protectPageSnapshot(siteDb, existingDb);
-  const persistentDb = protectPersistentContentSnapshot(protectedDb, existingDb);
+  const deletionAwareExistingDb = applyExplicitContentDeletes(existingDb, incomingDb);
+  const protectedDb = protectPageSnapshot(incomingDb, deletionAwareExistingDb);
+  const persistentDb = protectPersistentContentSnapshot(protectedDb, deletionAwareExistingDb);
   const syncDb = {
     ...persistentDb,
     contentVersion,
     publishedAt: mode === "published" ? nowIso : persistentDb.publishedAt || nowIso,
   };
-  const savedDb = scrubUserPasswords(syncDb);
+  const savedDb = scrubUserPasswords(
+    mode === "published" ? clearExplicitContentDeletes(syncDb) : syncDb,
+  );
 
   const connection = await db.getConnection();
   try {

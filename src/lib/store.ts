@@ -53,6 +53,14 @@ export interface EventItem {
   date: string;
   location: string;
   type: string;
+  description?: string;
+  image?: string;
+  posterUrl?: string;
+  poster_url?: string;
+  status?: string;
+  created_at?: string;
+  venue?: string;
+  event_date?: string;
 }
 export interface GalleryItem {
   id: string;
@@ -500,6 +508,10 @@ export interface DB {
   assignments: Assignment[];
   events: EventItem[];
   news: NewsItem[];
+  deletedContentIds?: {
+    news?: string[];
+    events?: string[];
+  };
   gallery: GalleryItem[];
   videoGallery: VideoGalleryItem[];
   downloads: DownloadItem[];
@@ -1081,6 +1093,14 @@ function normalizeImageFields(db: DB): DB {
       principalImage: normalizeImageUrl(db.media.principalImage),
     },
     news: db.news.map((item) => ({ ...item, image: normalizeImageUrl(item.image) })),
+    events: db.events.map((item) => {
+      const image = normalizeImageUrl(item.image || item.posterUrl || item.poster_url);
+      return {
+        ...item,
+        image,
+        posterUrl: normalizeImageUrl(item.posterUrl || item.poster_url || image),
+      };
+    }),
     gallery: db.gallery.map((item) => ({
       ...item,
       image: normalizeImageUrl(item.image),
