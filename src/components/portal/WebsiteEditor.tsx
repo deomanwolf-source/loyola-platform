@@ -34,7 +34,7 @@ import {
   type PageBlockType,
   type PageBlock,
 } from "@/lib/store";
-import { isMediaUploadDisabledError, uploadFileToBackend } from "@/lib/backend-upload";
+import { uploadFileToBackend } from "@/lib/backend-upload";
 import { createPublishRequest } from "@/lib/publish-requests";
 import { MediaUploadStatus } from "./MediaUploadStatus";
 import { VisualEditor } from "./VisualEditor";
@@ -121,22 +121,11 @@ async function prepareBackgroundMedia(file: File): Promise<{
 }> {
   if (IMAGE_TYPES.includes(file.type)) {
     const optimized = await compressImage(file);
-    try {
-      const url = await uploadFileToBackend("site-background", file);
-      return {
-        url,
-        type: "image",
-        message: `Background image optimized and uploaded: ${optimized.original} to ${optimized.optimized}`,
-      };
-    } catch (error) {
-      if (isMediaUploadDisabledError(error)) throw error;
-      // Vite dev still needs local previews to work when cloud storage is unavailable.
-    }
-
+    const url = await uploadFileToBackend("site-images/backgrounds", file);
     return {
-      url: optimized.url,
+      url,
       type: "image",
-      message: `Background image optimized for local preview: ${optimized.original} to ${optimized.optimized}`,
+      message: `Background image optimized and uploaded: ${optimized.original} to ${optimized.optimized}`,
     };
   }
 
@@ -148,21 +137,12 @@ async function prepareBackgroundMedia(file: File): Promise<{
     throw new Error("Video is too large. Maximum video upload is 500 MB.");
   }
 
-  try {
-    const url = await uploadFileToBackend("site-background", file);
-    return {
-      url,
-      type: "video",
-      message: `Background video uploaded: ${formatBytes(file.size)}`,
-    };
-  } catch (error) {
-    if (isMediaUploadDisabledError(error)) throw error;
-    throw new Error(
-      error instanceof Error
-        ? error.message
-        : "Video upload needs the Node.js backend. Keep the backend running, or use a YouTube link for large videos.",
-    );
-  }
+  const url = await uploadFileToBackend("site-videos/backgrounds", file);
+  return {
+    url,
+    type: "video",
+    message: `Background video uploaded: ${formatBytes(file.size)}`,
+  };
 }
 
 function Field({
@@ -1447,17 +1427,8 @@ export function WebsiteEditor() {
     try {
       setMessage("Optimizing image...");
       const optimized = await compressImage(file);
-      let imageUrl = optimized.url;
-      let uploaded = false;
-
-      try {
-        setMessage("Uploading optimized image...");
-        imageUrl = await uploadFileToBackend(`site-images/${target}`, file);
-        uploaded = true;
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-        // Keep local editing functional when backend storage is unavailable.
-      }
+      setMessage("Uploading optimized image...");
+      const imageUrl = await uploadFileToBackend(`site-images/${target}`, file);
 
       setDb((current) => {
         if (target === "hero")
@@ -1502,9 +1473,7 @@ export function WebsiteEditor() {
       });
       audit(`Image uploaded to ${target}`, "Website editor");
       setMessage(
-        uploaded
-          ? `Image optimized and uploaded: ${optimized.original} to ${optimized.optimized}`
-          : `Image optimized for local storage: ${optimized.original} to ${optimized.optimized}`,
+        `Image optimized and uploaded: ${optimized.original} to ${optimized.optimized}`,
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Image upload failed.");
@@ -1516,22 +1485,12 @@ export function WebsiteEditor() {
     try {
       setMessage("Optimizing leadership photo...");
       const optimized = await compressImage(file);
-      let imageUrl = optimized.url;
-      let uploaded = false;
-
-      try {
-        setMessage("Uploading leadership photo...");
-        imageUrl = await uploadFileToBackend(`site-images/leadership/${cardId}`, file);
-        uploaded = true;
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-      }
+      setMessage("Uploading leadership photo...");
+      const imageUrl = await uploadFileToBackend(`site-images/leadership/${cardId}`, file);
 
       updateLeadershipCard(cardId, { image: imageUrl });
       setMessage(
-        uploaded
-          ? `Leadership photo uploaded: ${optimized.original} to ${optimized.optimized}`
-          : `Leadership photo optimized for local storage: ${optimized.original} to ${optimized.optimized}`,
+        `Leadership photo uploaded: ${optimized.original} to ${optimized.optimized}`,
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Leadership photo upload failed.");

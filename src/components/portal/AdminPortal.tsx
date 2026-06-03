@@ -62,7 +62,6 @@ import {
   type Teacher,
 } from "@/lib/store";
 import {
-  isMediaUploadDisabledError,
   uploadDataUrlToBackend,
   uploadFileToBackend,
   uploadFileToBackendInfo,
@@ -570,14 +569,8 @@ function PagesPanel({ db }: { db: DB }) {
   const uploadPageImage = async (id: string, file?: File) => {
     if (!file) return;
     try {
-      const optimized = await compressImage(file);
-      let imageUrl = optimized.dataUrl;
-      try {
-        imageUrl = await uploadFileToBackend("page-images", file);
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-        // Local Vite preview stores inline images when cloud storage is unavailable.
-      }
+      await compressImage(file);
+      const imageUrl = await uploadFileToBackend("site-images/pages", file);
       updatePage(id, { image: imageUrl });
       audit(`Page photo uploaded: ${id}`, "Admin");
     } catch (error) {
@@ -833,14 +826,8 @@ function ContentPanel({ db }: { db: DB }) {
     if (!file) return;
     setNewsImageUploading(true);
     try {
-      const optimized = await compressImage(file);
-      let imageUrl = optimized.dataUrl;
-      try {
-        imageUrl = await uploadFileToBackend("news-images", file);
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-        // fallback to inline data URL
-      }
+      await compressImage(file);
+      const imageUrl = await uploadFileToBackend("news-images", file);
       setNewsImage(imageUrl);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Image upload failed.");
@@ -853,14 +840,8 @@ function ContentPanel({ db }: { db: DB }) {
     if (!file) return;
     setEventImageUploading(true);
     try {
-      const optimized = await compressImage(file);
-      let imageUrl = optimized.dataUrl;
-      try {
-        imageUrl = await uploadFileToBackend("event-images", file);
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-        // fallback to inline data URL
-      }
+      await compressImage(file);
+      const imageUrl = await uploadFileToBackend("event-images", file);
       setEventImage(imageUrl);
     } catch (error) {
       window.alert(error instanceof Error ? error.message : "Image upload failed.");
@@ -1599,21 +1580,12 @@ function MediaPanel({ db }: { db: DB }) {
       setMessage(
         `Optimizing ${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"}...`,
       );
-      const optimized = await Promise.all(
-        selectedFiles.map((file) => compressImage(file, 900, 0.72)),
-      );
+      await Promise.all(selectedFiles.map((file) => compressImage(file, 900, 0.72)));
       setMessage(
         `Uploading ${selectedFiles.length} image${selectedFiles.length === 1 ? "" : "s"}...`,
       );
       const uploadedImages = await Promise.all(
-        selectedFiles.map(async (file, index) => {
-          try {
-            return await uploadFileToBackend("gallery-images", file);
-          } catch (error) {
-            if (isMediaUploadDisabledError(error)) throw error;
-            return optimized[index].dataUrl;
-          }
-        }),
+        selectedFiles.map((file) => uploadFileToBackend("gallery-images/albums", file)),
       );
       const nextImages = [...currentImages, ...uploadedImages].slice(0, 10);
       setDb((current) => ({
@@ -1644,14 +1616,8 @@ function MediaPanel({ db }: { db: DB }) {
     }
     try {
       setMessage("Uploading album cover photo...");
-      const optimized = await compressImage(file, 1200, 0.78);
-      let coverUrl = optimized.dataUrl;
-      try {
-        coverUrl = await uploadFileToBackend("gallery-covers", file);
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-        // Local preview keeps the cover inline if backend storage is unavailable.
-      }
+      await compressImage(file, 1200, 0.78);
+      const coverUrl = await uploadFileToBackend("gallery-images/covers", file);
       setDb((current) => ({
         ...current,
         gallery: current.gallery.map((item) => {
@@ -1679,14 +1645,8 @@ function MediaPanel({ db }: { db: DB }) {
     }
     try {
       setMessage("Uploading video album cover photo...");
-      const optimized = await compressImage(file, 1200, 0.78);
-      let coverUrl = optimized.dataUrl;
-      try {
-        coverUrl = await uploadFileToBackend("video-gallery-covers", file);
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-        // Local preview keeps the cover inline if backend storage is unavailable.
-      }
+      await compressImage(file, 1200, 0.78);
+      const coverUrl = await uploadFileToBackend("video-gallery/covers", file);
       setDb((current) => ({
         ...current,
         videoGallery: current.videoGallery.map((item) =>
@@ -3129,13 +3089,7 @@ function SettingsPanel({ db }: { db: DB }) {
     setUploading(true);
     try {
       const optimized = await compressImage(file, 1200, 0.78);
-      let url = optimized.dataUrl;
-      try {
-        url = await uploadFileToBackend("site-settings", file);
-      } catch (error) {
-        if (isMediaUploadDisabledError(error)) throw error;
-        // Fallback to data URL if backend storage upload fails.
-      }
+      const url = await uploadFileToBackend("site-images/settings", file);
       update({ anthemVideoCoverImage: url });
       audit("Anthem cover photo updated", "Admin");
     } catch (error) {
@@ -4154,13 +4108,7 @@ function StaffPanel({ db }: { db: DB }) {
 
   const handlePhotoUpload = async (dataUrl: string, file: File) => {
     try {
-      let imageUrl = dataUrl;
-      try {
-        imageUrl = await uploadDataUrlToBackend("staff-profiles", dataUrl, file.name);
-      } catch (uploadErr) {
-        if (isMediaUploadDisabledError(uploadErr)) throw uploadErr;
-        console.error("Storage upload failed, falling back to data URL", uploadErr);
-      }
+      const imageUrl = await uploadDataUrlToBackend("staff-profiles", dataUrl, file.name);
       setFormImage(imageUrl);
       setCropFile(null);
     } catch (err) {

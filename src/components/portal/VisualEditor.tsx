@@ -465,7 +465,7 @@ export function VisualEditor({
           }
         }
 
-        const url = await uploadFileToBackend("site-images", file);
+        const url = await uploadFileToBackend("site-images/visual-builder", file);
         editor.AssetManager.add({ src: url, name: file.name });
         setUploadNotice({ name: file.name, url, kind });
         setUploadedAssetCount((count) => count + 1);

@@ -29,7 +29,6 @@ function resolveUploadRoot() {
 }
 
 const uploadRoot = resolveUploadRoot();
-const videoUploadDir = path.join(uploadRoot, "videos");
 const reliefUploadDir = path.join(uploadRoot, "edutrack");
 
 let sharp = null;
@@ -102,7 +101,6 @@ function copyMissingUploads(sourceRoot, targetRoot) {
 
 fs.mkdirSync(uploadRoot, { recursive: true });
 copyMissingUploads(legacyUploadRoot, uploadRoot);
-fs.mkdirSync(videoUploadDir, { recursive: true });
 fs.mkdirSync(reliefUploadDir, { recursive: true });
 app.disable("x-powered-by");
 app.set("trust proxy", true);
@@ -2495,15 +2493,22 @@ function mediaCategoryFromFolder(folder = "", fileType = "") {
   const cleanFolder = String(folder || "").toLowerCase();
   const cleanType = String(fileType || "").toLowerCase();
 
-  if (cleanFolder.startsWith("pages/") || cleanFolder === "page-images") return "Page images";
+  if (
+    cleanFolder.startsWith("pages/") ||
+    cleanFolder === "page-images" ||
+    cleanFolder.includes("site-images/pages")
+  ) {
+    return "Page images";
+  }
   if (cleanFolder.includes("news")) return "News photos";
   if (cleanFolder.includes("event")) return "Event photos";
   if (cleanFolder.includes("gallery-videos") || cleanFolder.includes("video-gallery")) {
     return "Video gallery";
   }
   if (cleanFolder.includes("gallery")) return "Gallery photos";
-  if (cleanFolder.includes("staff")) return "Staff profiles";
   if (cleanFolder.includes("notice") || cleanFolder.includes("download")) return "Documents";
+  if (cleanFolder.includes("document")) return "Documents";
+  if (cleanFolder.includes("staff")) return "Staff profiles";
   if (cleanFolder.includes("site")) return "Site assets";
   if (cleanType.includes("video")) return "Videos";
   if (cleanType.includes("image")) return "Photos";
@@ -2640,9 +2645,10 @@ async function processStaffProfilePhotoUpload(req, file, folder) {
   };
 }
 
-async function processVideoUpload(req, file) {
+async function processVideoUpload(req, file, folder = "videos") {
   requireFfmpeg();
-  await fs.promises.mkdir(videoUploadDir, { recursive: true });
+  const outputDirectory = path.join(uploadRoot, safePathSegment(folder || "videos"));
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
 
   const metadata = await probeVideo(file.path);
   const durationSeconds = Number(metadata.format?.duration || 0);
@@ -2658,8 +2664,8 @@ async function processVideoUpload(req, file) {
   }
 
   const baseName = uniqueMediaBaseName(file);
-  const mp4Path = path.join(videoUploadDir, `${baseName}.mp4`);
-  const webmPath = path.join(videoUploadDir, `${baseName}.webm`);
+  const mp4Path = path.join(outputDirectory, `${baseName}.mp4`);
+  const webmPath = path.join(outputDirectory, `${baseName}.webm`);
   const scaleFilter =
     "scale=1280:720:force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2";
 
@@ -2747,7 +2753,7 @@ async function processDocumentUpload(req, file, folder) {
 async function processUploadedMedia(req, file, folder) {
   const kind = uploadMediaKind(file);
   if (kind === "image") return processImageUpload(req, file, folder);
-  if (kind === "short_video_upload") return processVideoUpload(req, file);
+  if (kind === "short_video_upload") return processVideoUpload(req, file, folder);
   if (kind === "document") return processDocumentUpload(req, file, folder);
   await unlinkQuiet(file.path);
   throw new Error("Unsupported media type.");
