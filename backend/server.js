@@ -7623,9 +7623,15 @@ if (fs.existsSync(frontendIndex)) {
     res.sendFile(frontendIndex);
   };
 
+  if (process.env.APP_NAME === "edutrack") {
+    app.get("/", (req, res) => {
+      res.redirect(302, "/portal/edutrack");
+    });
+  }
+
   app.get(
     [
-      "/",
+      ...(process.env.APP_NAME === "edutrack" ? [] : ["/"]),
       "/login",
       "/portal",
       "/admin",
