@@ -3731,7 +3731,11 @@ function LoginPage() {
         />
 
         {/* Top: Logo + school name */}
-        <div className="relative z-10 flex items-center gap-4 p-10 animate-fade-in-up">
+        <a
+          href="/"
+          className="relative z-10 flex items-center gap-4 p-10 animate-fade-in-up"
+          aria-label="Back to Loyola College home page"
+        >
           <div className="relative">
             <div
               className="absolute inset-0 rounded-full opacity-60"
@@ -3757,7 +3761,7 @@ function LoginPage() {
               {db.websiteContent.tagline}
             </p>
           </div>
-        </div>
+        </a>
 
         {/* Centre: Headline */}
         <div className="relative z-10 px-10 animate-fade-in-up animation-delay-2">
@@ -3804,7 +3808,11 @@ function LoginPage() {
 
       {/* ── Right form panel ────────────────────────────────── */}
       <section className="flex min-h-screen flex-col items-center justify-center px-5 py-10 sm:px-10">
-        <div className="mb-8 flex items-center gap-3 lg:hidden animate-fade-in">
+        <a
+          href="/"
+          className="mb-8 flex items-center gap-3 lg:hidden animate-fade-in"
+          aria-label="Back to Loyola College home page"
+        >
           <img
             className="h-12 w-12 rounded-full border-2 border-[#d4a017] bg-white object-contain p-1"
             src="/loyola-crest.jpg"
@@ -3816,7 +3824,7 @@ function LoginPage() {
               {db.websiteContent.tagline}
             </p>
           </div>
-        </div>
+        </a>
 
         <form
           onSubmit={submit}
@@ -3829,6 +3837,13 @@ function LoginPage() {
           >
             <ChevronLeft className="h-3.5 w-3.5" />
             Back to website
+          </a>
+          <a
+            href="/"
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#d8e1f5] bg-white px-4 py-3 text-sm font-bold text-navy shadow-sm transition hover:border-[#d4a017] hover:bg-[#fff8e1]"
+          >
+            <ChevronLeft className="h-4 w-4" />
+            Go to home page
           </a>
 
           <div className="mt-7">
