@@ -3838,13 +3838,6 @@ function LoginPage() {
             <ChevronLeft className="h-3.5 w-3.5" />
             Back to website
           </a>
-          <a
-            href="/"
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#d8e1f5] bg-white px-4 py-3 text-sm font-bold text-navy shadow-sm transition hover:border-[#d4a017] hover:bg-[#fff8e1]"
-          >
-            <ChevronLeft className="h-4 w-4" />
-            Go to home page
-          </a>
 
           <div className="mt-7">
             <p className="text-xs font-black uppercase tracking-[0.22em] text-[#b70f1b]">
