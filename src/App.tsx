@@ -227,7 +227,6 @@ export function App() {
   }
 
   if (path === "/portal/edutrack") return <EduTrackRuntimePage />;
-  if (path === "/portal/edutrack-native") return <EduTrackIntegratedPage />;
 
   if (path === "/photo-gallery") {
     return (
@@ -4030,14 +4029,6 @@ function CentralPortal() {
       lockedMeta: "Teachers and EduTrack admins",
     },
     {
-      title: "EduTrack Simple",
-      href: "/portal/edutrack-native",
-      icon: BookOpen,
-      roles: EDUTRACK_ROLES,
-      meta: "Simple teacher and admin workspace",
-      lockedMeta: "Teachers and EduTrack admins",
-    },
-    {
       title: "ELMS",
       href: "/portal/elms",
       icon: GraduationCap,
@@ -4390,7 +4381,7 @@ function EduTrackIntegratedPage() {
               <BookOpen className="h-5 w-5" />
             </span>
             <div className="min-w-0">
-              <p className="text-xs font-bold uppercase text-crimson">EduTrack Simple</p>
+              <p className="text-xs font-bold uppercase text-crimson">EduTrack</p>
               <h1 className="truncate font-serif text-2xl font-bold text-navy">
                 Academic Tracking
               </h1>

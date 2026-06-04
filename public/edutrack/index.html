@@ -4528,6 +4528,254 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* Production polish for the full EduTrack workspace */
+      :root {
+        --bg: #07101d;
+        --surface: #0d1a2b;
+        --surface2: #122238;
+        --surface3: #182b43;
+        --border: rgba(137, 169, 210, 0.16);
+        --border-med: rgba(137, 169, 210, 0.28);
+        --text: #edf4ff;
+        --text-2: #c9d7ea;
+        --muted: #91a8c7;
+        --muted2: #657b99;
+        --accent: #3b82f6;
+        --accent-bright: #67b4ff;
+        --accent2: #20d8a0;
+        --warn: #f6c453;
+        --radius: 12px;
+        --radius-sm: 10px;
+        --radius-xs: 8px;
+        --shadow: 0 10px 30px rgba(0, 7, 18, 0.28);
+        --shadow-lg: 0 18px 54px rgba(0, 7, 18, 0.38);
+      }
+
+      body {
+        background:
+          linear-gradient(180deg, rgba(8, 18, 32, 0.98), rgba(4, 18, 24, 0.98)),
+          #07101d;
+      }
+
+      body::before {
+        display: none;
+      }
+
+      .topbar {
+        height: 58px;
+        padding: 0 20px;
+        background: rgba(7, 17, 31, 0.98);
+        border-bottom-color: rgba(137, 169, 210, 0.18);
+        box-shadow: 0 12px 34px rgba(0, 7, 18, 0.28);
+      }
+
+      .sidebar {
+        top: 58px;
+        width: 270px;
+        height: calc(100vh - 58px);
+        background: linear-gradient(180deg, #0a1728, #07111f);
+        box-shadow: 10px 0 34px rgba(0, 7, 18, 0.22);
+      }
+
+      .main {
+        margin-left: 270px;
+        margin-top: 58px;
+        padding: 30px 32px 40px;
+      }
+
+      .sidebar.collapsed ~ .main {
+        margin-left: 64px;
+      }
+
+      .page-header {
+        margin-bottom: 22px;
+      }
+
+      .page-header h2 {
+        font-size: 28px;
+        letter-spacing: -0.7px;
+      }
+
+      .page-header p {
+        max-width: 760px;
+        color: var(--muted);
+      }
+
+      .card,
+      .panel-card,
+      .stat-card,
+      .accounts-table-card,
+      .page-tools,
+      .subject-card,
+      .dash-teacher-card,
+      .term-card,
+      .year-plan-shell,
+      .main-topic-row,
+      .relief-summary-tile,
+      .relief-card-row {
+        background: rgba(13, 26, 43, 0.92);
+        border-color: rgba(137, 169, 210, 0.18);
+        box-shadow: var(--shadow);
+      }
+
+      .card,
+      .panel-card,
+      .accounts-table-card {
+        padding: 24px;
+      }
+
+      .stat-card {
+        min-height: 100px;
+        padding: 20px 18px;
+      }
+
+      .stat-card:hover,
+      .card:hover,
+      .panel-card:hover {
+        border-color: rgba(103, 180, 255, 0.3);
+      }
+
+      .btn,
+      .btn.sm,
+      .export-btn,
+      .account-action,
+      .subject-toggle-btn {
+        min-height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        border-radius: 9px;
+      }
+
+      .btn.secondary,
+      .export-btn {
+        background: rgba(255, 255, 255, 0.045);
+        border-color: rgba(137, 169, 210, 0.22);
+      }
+
+      .btn.secondary:hover,
+      .export-btn:hover {
+        background: rgba(59, 130, 246, 0.12);
+        border-color: rgba(103, 180, 255, 0.38);
+      }
+
+      .quick-finder-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+
+      .quick-input,
+      .quick-select,
+      .finput,
+      .field input,
+      .field select,
+      .field textarea {
+        min-height: 38px;
+        background: rgba(255, 255, 255, 0.055);
+        border-color: rgba(137, 169, 210, 0.22);
+      }
+
+      .quick-input:focus,
+      .quick-select:focus,
+      .finput:focus,
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus {
+        background: rgba(59, 130, 246, 0.08);
+      }
+
+      .accounts-table-card,
+      .card > div[style*="overflow-x: auto"] {
+        overflow: auto;
+      }
+
+      .accounts-table thead th,
+      table thead th {
+        background: rgba(18, 34, 56, 0.98);
+        color: #94afd2;
+      }
+
+      .accounts-table td,
+      table td {
+        color: var(--text-2);
+      }
+
+      .nav-item {
+        min-height: 42px;
+        border-radius: 10px;
+        color: #9fb5d3;
+      }
+
+      .nav-item.active {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(16, 217, 160, 0.08));
+        border-color: rgba(103, 180, 255, 0.34);
+        box-shadow: inset 3px 0 0 rgba(103, 180, 255, 0.9);
+      }
+
+      .sidebar-logo {
+        padding: 24px 22px 18px;
+      }
+
+      .topbar-version {
+        border-color: rgba(32, 216, 160, 0.24);
+        background: rgba(32, 216, 160, 0.08);
+      }
+
+      .topbar-testing {
+        border-color: rgba(32, 216, 160, 0.28);
+        background: rgba(32, 216, 160, 0.08);
+      }
+
+      .topbar-testing .dot {
+        background: var(--accent2);
+        box-shadow: 0 0 0 4px rgba(32, 216, 160, 0.12);
+        animation: none;
+      }
+
+      .topbar-testing .value {
+        color: var(--accent2);
+      }
+
+      body.light-mode .topbar-testing {
+        border-color: rgba(5, 150, 105, 0.24);
+        background: rgba(5, 150, 105, 0.08);
+      }
+
+      body.light-mode .topbar-testing .value {
+        color: #047857;
+      }
+
+      body.light-mode .topbar-testing .dot {
+        background: #059669;
+        box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.12);
+      }
+
+      @media (max-width: 1024px) {
+        .quick-finder-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 768px) {
+        .main {
+          margin-left: 0 !important;
+          margin-top: 58px !important;
+          padding: 16px;
+        }
+
+        .sidebar,
+        .sidebar.collapsed {
+          top: 58px;
+          height: calc(100vh - 58px);
+          width: 270px !important;
+        }
+
+        .quick-finder-grid {
+          grid-template-columns: 1fr;
+        }
+      }
     </style>
   </head>
   <body>
@@ -4647,7 +4895,7 @@
           <div class="topbar-testing" id="topbar-testing" title="Current system status">
             <span class="dot" aria-hidden="true"></span>
             <span class="label">System</span>
-            <span class="value">Under Testing</span>
+            <span class="value">Live</span>
           </div>
         </div>
       </div>
