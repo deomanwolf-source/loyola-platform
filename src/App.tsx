@@ -4030,11 +4030,11 @@ function CentralPortal() {
       lockedMeta: "Teachers and EduTrack admins",
     },
     {
-      title: "EduTrack Native Beta",
+      title: "EduTrack Simple",
       href: "/portal/edutrack-native",
       icon: BookOpen,
       roles: EDUTRACK_ROLES,
-      meta: "React beta for terms, syllabus, progress, and warnings",
+      meta: "Simple teacher and admin workspace",
       lockedMeta: "Teachers and EduTrack admins",
     },
     {
@@ -4086,7 +4086,7 @@ function CentralPortal() {
               </span>
             </span>
           </a>
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <div className="hidden text-right sm:block">
               <p className="text-sm font-bold">{auth.user.name}</p>
               <p className="text-xs uppercase text-muted-foreground">{roleLabel(auth.user.role)}</p>
@@ -4278,6 +4278,15 @@ function EduTrackIntegratedPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.loading, auth.user?.id]);
 
+  useEffect(() => {
+    const currentUser = auth.user;
+    if (!auth.loading && currentUser?.role === "teacher") {
+      setProgressForm((current) =>
+        current.teacher_id === currentUser.id ? current : { ...current, teacher_id: currentUser.id },
+      );
+    }
+  }, [auth.loading, auth.user?.id, auth.user?.role]);
+
   if (auth.loading || !auth.user) {
     return <BrandedLoader title="Opening EduTrack" subtitle="Checking your session" />;
   }
@@ -4289,7 +4298,8 @@ function EduTrackIntegratedPage() {
     );
   }
 
-  const isAdmin = EDUZYNC_ADMIN_ROLES.includes(auth.user.role);
+  const currentUser = auth.user;
+  const isAdmin = EDUZYNC_ADMIN_ROLES.includes(currentUser.role);
 
   const submitTerm = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -4321,56 +4331,19 @@ function EduTrackIntegratedPage() {
 
   const submitProgress = async (event: React.FormEvent) => {
     event.preventDefault();
-    await apiJson("/api/edutrack/progress", { method: "POST", body: JSON.stringify(progressForm) });
+    const teacherId = currentUser.role === "teacher" ? currentUser.id : progressForm.teacher_id;
+    await apiJson("/api/edutrack/progress", {
+      method: "POST",
+      body: JSON.stringify({ ...progressForm, teacher_id: teacherId }),
+    });
     setProgressForm({
-      teacher_id: "",
+      teacher_id: currentUser.role === "teacher" ? currentUser.id : "",
       subject_id: "",
       syllabus_item_id: "",
       status: "completed",
       note: "",
     });
     await loadEduTrack();
-  };
-
-  const seedDemoData = async () => {
-    try {
-      setLoading(true);
-      const term = await apiJson("/api/edutrack/terms", {
-        method: "POST",
-        body: JSON.stringify({
-          level: "Upper",
-          term_name: "Term 1",
-          start_date: "2026-01-01",
-          end_date: "2026-04-30",
-          warning_threshold: 80,
-          status: "Active",
-        }),
-      });
-      const subject = await apiJson("/api/subjects", {
-        method: "POST",
-        body: JSON.stringify({
-          name: "Science",
-          grade: "10",
-          section: "A",
-          teacher_id: teachers[0]?.id || auth.user?.id || "",
-        }),
-      });
-      await apiJson("/api/edutrack/syllabus", {
-        method: "POST",
-        body: JSON.stringify({
-          subject_id: subject.id,
-          grade: "10",
-          title: "Matter and Materials",
-          description: "Properties of matter and practical classroom coverage.",
-          term_id: term.id,
-        }),
-      });
-      await loadEduTrack();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create demo data");
-    } finally {
-      setLoading(false);
-    }
   };
 
   const tabs = [
@@ -4381,74 +4354,120 @@ function EduTrackIntegratedPage() {
     { id: "warnings", label: "Warnings", icon: Bell },
   ] as const;
 
+  const completionPercent = Math.min(100, Math.max(0, Number(dashboard.completionPercent || 0)));
+  const completedItems = Number(dashboard.completedItems || 0);
+  const totalItems = Number(dashboard.totalItems || 0);
+  const selectedTab = tabs.find((tab) => tab.id === activeTab) || tabs[0];
+  const selectedSyllabus = progressForm.subject_id
+    ? syllabus.filter((item) => String(item.subject_id || "") === String(progressForm.subject_id))
+    : syllabus;
+  const teacherDisplayName =
+    teachers.find((teacher) => String(teacher.id) === String(progressForm.teacher_id || currentUser.id))
+      ?.name || currentUser.name;
+  const workspaceMode = isAdmin ? "Admin workspace" : "Teacher workspace";
+
   const inputClass =
-    "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#38bdf8]";
-  const labelClass = "text-xs font-black uppercase tracking-[0.16em] text-white/50";
+    "w-full rounded-md border border-[#cfd8e7] bg-white px-3 py-2.5 text-sm text-[#172033] outline-none placeholder:text-slate-400 focus:border-[#08286f] focus:ring-2 focus:ring-[#08286f]/15";
+  const labelClass = "text-xs font-bold uppercase text-slate-500";
+  const primaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-md bg-[#08286f] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0a347f]";
+  const secondaryButtonClass =
+    "inline-flex items-center justify-center gap-2 rounded-md border border-[#cfd8e7] bg-white px-4 py-2.5 text-sm font-bold text-[#172033] transition hover:border-[#a9bce7] hover:bg-[#f8fbff]";
 
   return (
-    <main className="min-h-screen bg-[#050b18] text-white">
-      <div className="absolute inset-0 -z-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(220,38,38,0.14),transparent_26%)]" />
-      <header className="relative z-10 border-b border-white/10 bg-[#07111f]/90 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-4">
-          <div className="flex items-center gap-3">
+    <main className="min-h-screen bg-[#f3f6fb] text-[#172033]">
+      <header className="border-b border-[#d8e1f5] bg-white">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
             <a
               href="/portal"
-              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10"
+              className="inline-flex h-10 items-center gap-1 rounded-md border border-[#d8e1f5] bg-white px-3 text-sm font-bold text-navy hover:bg-[#f7faff]"
             >
-              ← Portal
+              <ChevronLeft className="h-4 w-4" />
+              Portal
             </a>
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0f2f7a] shadow-lg">
-              <BookOpen className="h-6 w-6" />
+            <span className="hidden h-10 w-10 shrink-0 place-items-center rounded-md bg-[#08286f] text-white sm:grid">
+              <BookOpen className="h-5 w-5" />
             </span>
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7dd3fc]">
-                Loyola Digital Platform
-              </p>
-              <h1 className="font-serif text-2xl font-black">EduTrack Academic Tracking</h1>
+            <div className="min-w-0">
+              <p className="text-xs font-bold uppercase text-crimson">EduTrack Simple</p>
+              <h1 className="truncate font-serif text-2xl font-bold text-navy">
+                Academic Tracking
+              </h1>
             </div>
           </div>
-          <div className="text-right text-xs text-white/60">
-            <p className="font-bold text-white">{auth.user.name}</p>
-            <p>{auth.user.role} • MySQL backend</p>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <a href="/portal/edutrack" className={secondaryButtonClass}>
+              Full workspace
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <button
+              type="button"
+              onClick={() => void loadEduTrack()}
+              className={secondaryButtonClass}
+            >
+              Refresh
+            </button>
           </div>
         </div>
       </header>
 
-      <section className="relative z-10 mx-auto max-w-7xl px-6 py-8">
+      <section className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        <div className="mb-5 grid gap-4 lg:grid-cols-[minmax(0,1.5fr)_minmax(280px,0.5fr)]">
+          <div className="rounded-lg border border-[#d8e1f5] bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase text-crimson">{workspaceMode}</p>
+            <h2 className="mt-2 font-serif text-3xl font-bold text-navy">
+              Simple tracking for daily school work
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+              Teachers update covered topics. Admins manage terms, subjects, syllabus, and warnings.
+            </p>
+          </div>
+          <div className="rounded-lg border border-[#d8e1f5] bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase text-slate-500">Signed in</p>
+            <p className="mt-2 truncate text-lg font-bold text-navy">{auth.user.name}</p>
+            <p className="mt-1 text-sm text-slate-600">{roleLabel(auth.user.role)}</p>
+          </div>
+        </div>
+
         {error && (
-          <div className="mb-5 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-100">
+          <div className="mb-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm font-semibold text-red-700">
             {error}
           </div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Overall</p>
-            <p className="mt-3 text-4xl font-black text-[#7dd3fc]">
-              {dashboard.completionPercent || 0}%
-            </p>
-            <p className="mt-1 text-sm text-white/55">Syllabus coverage</p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Terms</p>
-            <p className="mt-3 text-4xl font-black text-white">{terms.length}</p>
-            <p className="mt-1 text-sm text-white/55">Academic periods</p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Items</p>
-            <p className="mt-3 text-4xl font-black text-white">
-              {dashboard.completedItems || 0}/{dashboard.totalItems || 0}
-            </p>
-            <p className="mt-1 text-sm text-white/55">Completed topics</p>
-          </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Warnings</p>
-            <p className="mt-3 text-4xl font-black text-[#fbbf24]">{warnings.length}</p>
-            <p className="mt-1 text-sm text-white/55">Below threshold</p>
-          </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <EduMetricCard
+            icon={Award}
+            label="Coverage"
+            value={`${completionPercent}%`}
+            helper="Overall"
+            tone="blue"
+          />
+          <EduMetricCard
+            icon={Calendar}
+            label="Terms"
+            value={String(terms.length)}
+            helper="Active records"
+            tone="navy"
+          />
+          <EduMetricCard
+            icon={CheckCircle2}
+            label="Completed"
+            value={`${completedItems}/${totalItems}`}
+            helper="Topics"
+            tone="green"
+          />
+          <EduMetricCard
+            icon={Bell}
+            label="Warnings"
+            value={String(warnings.length)}
+            helper="Below threshold"
+            tone="amber"
+          />
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+        <div className="mt-5 flex flex-wrap gap-2 rounded-lg border border-[#d8e1f5] bg-white p-2 shadow-sm">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -4456,7 +4475,7 @@ function EduTrackIntegratedPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition ${activeTab === tab.id ? "bg-white text-[#07111f]" : "text-white/70 hover:bg-white/10"}`}
+                className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-sm font-bold transition ${activeTab === tab.id ? "bg-[#08286f] text-white" : "text-slate-700 hover:bg-[#eef3ff] hover:text-navy"}`}
               >
                 <Icon className="h-4 w-4" /> {tab.label}
               </button>
@@ -4465,58 +4484,41 @@ function EduTrackIntegratedPage() {
           <button
             type="button"
             onClick={() => void loadEduTrack()}
-            className="ml-auto rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/70 hover:bg-white/10"
+            className="ml-auto rounded-md border border-[#cfd8e7] px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-[#f8fbff]"
           >
             Refresh
           </button>
         </div>
 
         {loading ? (
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-10 text-center text-white/60">
+          <div className="mt-5 rounded-lg border border-[#d8e1f5] bg-white p-10 text-center text-sm font-semibold text-slate-500 shadow-sm">
             Loading EduTrack data...
           </div>
         ) : (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-2xl">
+          <div className="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="rounded-lg border border-[#d8e1f5] bg-white p-5 shadow-sm">
               {activeTab === "dashboard" && (
                 <div>
-                  <h2 className="font-serif text-2xl font-black">Academic overview</h2>
-                  <p className="mt-2 text-sm text-white/55">
-                    Live coverage by subject from the shared MySQL backend.
-                  </p>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase text-crimson">Overview</p>
+                      <h2 className="mt-1 font-serif text-2xl font-bold text-navy">
+                        Subject coverage
+                      </h2>
+                    </div>
+                    <span className="rounded-md bg-[#eef3ff] px-3 py-1 text-xs font-bold text-navy">
+                      {completionPercent}% complete
+                    </span>
+                  </div>
                   <div className="mt-6 grid gap-3">
                     {(dashboard.bySubject || []).length === 0 && (
                       <EmptyState
                         title="No subject progress yet"
-                        action={
-                          isAdmin ? "Create demo EduTrack records" : "Ask admin to add syllabus"
-                        }
-                        onAction={isAdmin ? seedDemoData : undefined}
+                        description="Progress appears here after syllabus items are updated."
                       />
                     )}
                     {(dashboard.bySubject || []).map((row: EduTrackRow) => (
-                      <div
-                        key={row.subject_id || row.subject_name}
-                        className="rounded-2xl border border-white/10 bg-black/20 p-4"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="font-bold">{row.subject_name || "Subject"}</p>
-                          <p className="text-sm font-black text-[#7dd3fc]">
-                            {row.completionPercent}%
-                          </p>
-                        </div>
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            className="h-full rounded-full bg-[#38bdf8]"
-                            style={{
-                              width: `${Math.min(100, Number(row.completionPercent || 0))}%`,
-                            }}
-                          />
-                        </div>
-                        <p className="mt-2 text-xs text-white/45">
-                          {row.completed_items || 0} of {row.total_items || 0} items completed
-                        </p>
-                      </div>
+                      <ProgressSubjectRow key={row.subject_id || row.subject_name} row={row} />
                     ))}
                   </div>
                 </div>
@@ -4525,13 +4527,13 @@ function EduTrackIntegratedPage() {
               {activeTab === "terms" && (
                 <DataList
                   title="Academic terms"
-                  empty="No terms yet. Add Term 1, Term 2, or Term 3."
+                  empty="No academic terms yet."
                 >
                   {terms.map((term) => (
                     <InfoRow
                       key={term.id}
-                      title={`${term.level} • ${term.term_name}`}
-                      meta={`${term.start_date || "No start"} → ${term.end_date || "No end"}`}
+                      title={`${term.level || "Level"} - ${term.term_name || "Term"}`}
+                      meta={`${term.start_date || "No start"} to ${term.end_date || "No end"}`}
                       badge={`${term.warning_threshold || 80}% threshold`}
                     />
                   ))}
@@ -4541,13 +4543,13 @@ function EduTrackIntegratedPage() {
               {activeTab === "syllabus" && (
                 <DataList
                   title="Syllabus items"
-                  empty="No syllabus items yet. Add subjects and topics from the right panel."
+                  empty="No syllabus items yet."
                 >
                   {syllabus.map((item) => (
                     <InfoRow
                       key={item.id}
-                      title={item.title}
-                      meta={`${item.subject_name || "No subject"} • Grade ${item.grade || "-"}`}
+                      title={item.title || "Syllabus item"}
+                      meta={`${item.subject_name || "No subject"} - Grade ${item.grade || "-"}`}
                       badge={item.term_name || "No term"}
                     />
                   ))}
@@ -4557,14 +4559,14 @@ function EduTrackIntegratedPage() {
               {activeTab === "progress" && (
                 <DataList
                   title="Progress log"
-                  empty="No progress records yet. Mark a syllabus item as completed."
+                  empty="No progress records yet."
                 >
                   {progress.map((item) => (
                     <InfoRow
                       key={item.id}
                       title={item.syllabus_title || "Progress record"}
-                      meta={`${item.subject_name || "Subject"} • ${item.teacher_id}`}
-                      badge={item.status}
+                      meta={`${item.subject_name || "Subject"} - ${item.teacher_name || item.teacher_id || "Teacher"}`}
+                      badge={item.status || "Updated"}
                     />
                   ))}
                 </DataList>
@@ -4573,14 +4575,14 @@ function EduTrackIntegratedPage() {
               {activeTab === "warnings" && (
                 <DataList
                   title="Warning log"
-                  empty="No warnings. Great! Coverage is above threshold or no data is available."
+                  empty="No warnings right now."
                 >
                   {warnings.map((item) => (
                     <InfoRow
                       key={`${item.term_id}-${item.subject_id}`}
                       title={item.subject_name || "Subject"}
-                      meta={`${item.term_name} is at ${item.completionPercent}%`}
-                      badge={`Below ${item.warning_threshold}%`}
+                      meta={`${item.term_name || "Term"} is at ${item.completionPercent || 0}%`}
+                      badge={`Below ${item.warning_threshold || 80}%`}
                       warning
                     />
                   ))}
@@ -4588,11 +4590,13 @@ function EduTrackIntegratedPage() {
               )}
             </div>
 
-            <aside className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-2xl">
-              <h3 className="font-serif text-xl font-black">Quick actions</h3>
-              <p className="mt-2 text-sm text-white/50">Create records directly into MySQL.</p>
+            <aside className="rounded-lg border border-[#d8e1f5] bg-white p-5 shadow-sm">
+              <p className="text-xs font-bold uppercase text-crimson">Action</p>
+              <h3 className="mt-1 font-serif text-xl font-bold text-navy">
+                {activeTab === "dashboard" ? "Choose work" : selectedTab.label}
+              </h3>
               {!isAdmin && (
-                <p className="mt-4 rounded-xl bg-white/10 p-3 text-sm text-white/70">
+                <p className="mt-4 rounded-md border border-[#d8e1f5] bg-[#f7faff] p-3 text-sm text-slate-600">
                   Teachers can update progress. Admin can create terms and syllabus.
                 </p>
               )}
@@ -4631,19 +4635,34 @@ function EduTrackIntegratedPage() {
                       onChange={(e) => setTermForm({ ...termForm, end_date: e.target.value })}
                     />
                   </div>
-                  <button className="rounded-xl bg-[#38bdf8] px-4 py-3 text-sm font-black text-[#07111f]">
-                    Save term
-                  </button>
+                  <label className={labelClass}>Warning threshold</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={100}
+                    className={inputClass}
+                    value={termForm.warning_threshold}
+                    onChange={(e) =>
+                      setTermForm({
+                        ...termForm,
+                        warning_threshold: Number(e.target.value),
+                      })
+                    }
+                  />
+                  <button className={primaryButtonClass}>Save term</button>
                 </form>
+              )}
+              {!isAdmin && activeTab === "terms" && (
+                <ReadOnlyPanel title="Terms are managed by EduTrack admins." />
               )}
 
               {isAdmin && activeTab === "syllabus" && (
                 <div className="mt-5 space-y-5">
                   <form
                     onSubmit={submitSubject}
-                    className="grid gap-3 rounded-2xl border border-white/10 p-4"
+                    className="grid gap-3"
                   >
-                    <p className="font-bold">Add subject</p>
+                    <p className="font-bold text-navy">Add subject</p>
                     <input
                       className={inputClass}
                       placeholder="Subject name"
@@ -4667,15 +4686,28 @@ function EduTrackIntegratedPage() {
                         }
                       />
                     </div>
-                    <button className="rounded-xl bg-white px-4 py-3 text-sm font-black text-[#07111f]">
-                      Add subject
-                    </button>
+                    <select
+                      className={inputClass}
+                      value={subjectForm.teacher_id}
+                      onChange={(e) =>
+                        setSubjectForm({ ...subjectForm, teacher_id: e.target.value })
+                      }
+                    >
+                      <option value="">Assign teacher later</option>
+                      {teachers.map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {teacher.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button className={secondaryButtonClass}>Add subject</button>
                   </form>
+                  <div className="h-px bg-[#d8e1f5]" />
                   <form
                     onSubmit={submitSyllabus}
-                    className="grid gap-3 rounded-2xl border border-white/10 p-4"
+                    className="grid gap-3"
                   >
-                    <p className="font-bold">Add syllabus item</p>
+                    <p className="font-bold text-navy">Add syllabus item</p>
                     <select
                       className={inputClass}
                       value={syllabusForm.subject_id}
@@ -4701,10 +4733,16 @@ function EduTrackIntegratedPage() {
                       <option value="">Select term</option>
                       {terms.map((term) => (
                         <option key={term.id} value={term.id}>
-                          {term.level} • {term.term_name}
+                          {term.level} - {term.term_name}
                         </option>
                       ))}
                     </select>
+                    <input
+                      className={inputClass}
+                      placeholder="Grade"
+                      value={syllabusForm.grade}
+                      onChange={(e) => setSyllabusForm({ ...syllabusForm, grade: e.target.value })}
+                    />
                     <input
                       className={inputClass}
                       placeholder="Topic title"
@@ -4720,35 +4758,49 @@ function EduTrackIntegratedPage() {
                         setSyllabusForm({ ...syllabusForm, description: e.target.value })
                       }
                     />
-                    <button className="rounded-xl bg-[#38bdf8] px-4 py-3 text-sm font-black text-[#07111f]">
-                      Save syllabus
-                    </button>
+                    <button className={primaryButtonClass}>Save syllabus</button>
                   </form>
                 </div>
+              )}
+              {!isAdmin && activeTab === "syllabus" && (
+                <ReadOnlyPanel title="Syllabus is managed by EduTrack admins." />
               )}
 
               {activeTab === "progress" && (
                 <form onSubmit={submitProgress} className="mt-5 grid gap-3">
-                  <select
-                    className={inputClass}
-                    value={progressForm.teacher_id}
-                    onChange={(e) =>
-                      setProgressForm({ ...progressForm, teacher_id: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Select teacher</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.id}>
-                        {teacher.name}
-                      </option>
-                    ))}
-                  </select>
+                  {isAdmin ? (
+                    <select
+                      className={inputClass}
+                      value={progressForm.teacher_id}
+                      onChange={(e) =>
+                        setProgressForm({ ...progressForm, teacher_id: e.target.value })
+                      }
+                      required
+                    >
+                      <option value="">Select teacher</option>
+                      {teachers.map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {teacher.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="rounded-md border border-[#d8e1f5] bg-[#f7faff] px-3 py-2 text-sm text-slate-700">
+                      <span className="block text-xs font-bold uppercase text-slate-500">
+                        Teacher
+                      </span>
+                      <strong className="text-navy">{teacherDisplayName}</strong>
+                    </div>
+                  )}
                   <select
                     className={inputClass}
                     value={progressForm.subject_id}
                     onChange={(e) =>
-                      setProgressForm({ ...progressForm, subject_id: e.target.value })
+                      setProgressForm({
+                        ...progressForm,
+                        subject_id: e.target.value,
+                        syllabus_item_id: "",
+                      })
                     }
                     required
                   >
@@ -4768,7 +4820,7 @@ function EduTrackIntegratedPage() {
                     required
                   >
                     <option value="">Select syllabus item</option>
-                    {syllabus.map((item) => (
+                    {selectedSyllabus.map((item) => (
                       <option key={item.id} value={item.id}>
                         {item.title}
                       </option>
@@ -4784,24 +4836,51 @@ function EduTrackIntegratedPage() {
                   </select>
                   <textarea
                     className={inputClass}
-                    placeholder="Teacher note"
+                    placeholder="Note"
                     value={progressForm.note}
                     onChange={(e) => setProgressForm({ ...progressForm, note: e.target.value })}
                   />
-                  <button className="rounded-xl bg-[#22c55e] px-4 py-3 text-sm font-black text-[#07111f]">
-                    Save progress
-                  </button>
+                  <button className={primaryButtonClass}>Save progress</button>
                 </form>
               )}
 
-              {activeTab === "dashboard" && isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => void seedDemoData()}
-                  className="mt-5 w-full rounded-xl bg-[#fbbf24] px-4 py-3 text-sm font-black text-[#07111f]"
-                >
-                  Create demo EduTrack data
-                </button>
+              {activeTab === "dashboard" && (
+                <div className="mt-5 grid gap-3">
+                  {isAdmin && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("terms")}
+                        className={primaryButtonClass}
+                      >
+                        Manage terms
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveTab("syllabus")}
+                        className={secondaryButtonClass}
+                      >
+                        Manage syllabus
+                      </button>
+                    </>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("progress")}
+                    className={isAdmin ? secondaryButtonClass : primaryButtonClass}
+                  >
+                    Update progress
+                  </button>
+                </div>
+              )}
+              {activeTab === "warnings" && (
+                <div className="mt-5 grid gap-3">
+                  <ReadOnlyPanel title="Warnings show subjects below the term threshold." />
+                  <a href="/portal/edutrack" className={secondaryButtonClass}>
+                    Open reports
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                </div>
               )}
             </aside>
           </div>
@@ -4813,24 +4892,24 @@ function EduTrackIntegratedPage() {
 
 function EmptyState({
   title,
+  description = "No records available yet.",
   action,
   onAction,
 }: {
   title: string;
+  description?: string;
   action?: string;
   onAction?: () => void;
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-white/15 bg-black/20 p-8 text-center">
-      <p className="font-serif text-2xl font-black text-white">{title}</p>
-      <p className="mt-2 text-sm text-white/45">
-        Your module is ready. Add records to begin tracking.
-      </p>
+    <div className="rounded-lg border border-dashed border-[#cfd8e7] bg-[#f7faff] p-8 text-center">
+      <p className="font-serif text-2xl font-bold text-navy">{title}</p>
+      <p className="mt-2 text-sm text-slate-500">{description}</p>
       {action && onAction && (
         <button
           type="button"
           onClick={onAction}
-          className="mt-5 rounded-xl bg-white px-4 py-3 text-sm font-black text-[#07111f]"
+          className="mt-5 rounded-md bg-[#08286f] px-4 py-2.5 text-sm font-bold text-white"
         >
           {action}
         </button>
@@ -4848,11 +4927,11 @@ function DataList({
   empty: string;
   children: React.ReactNode;
 }) {
-  const count = Array.isArray(children) ? children.length : 1;
+  const hasItems = Array.isArray(children) ? children.length > 0 : Boolean(children);
   return (
     <div>
-      <h2 className="font-serif text-2xl font-black">{title}</h2>
-      <div className="mt-5 grid gap-3">{count ? children : <EmptyState title={empty} />}</div>
+      <h2 className="font-serif text-2xl font-bold text-navy">{title}</h2>
+      <div className="mt-5 grid gap-3">{hasItems ? children : <EmptyState title={empty} />}</div>
     </div>
   );
 }
@@ -4869,18 +4948,79 @@ function InfoRow({
   warning?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#d8e1f5] bg-white p-4 shadow-sm">
       <div>
-        <p className="font-bold text-white">{title}</p>
-        <p className="mt-1 text-sm text-white/45">{meta}</p>
+        <p className="font-bold text-navy">{title}</p>
+        <p className="mt-1 text-sm text-slate-500">{meta}</p>
       </div>
       {badge && (
         <span
-          className={`rounded-full px-3 py-1 text-xs font-black ${warning ? "bg-amber-400 text-[#07111f]" : "bg-white/10 text-white/70"}`}
+          className={`rounded-md px-3 py-1 text-xs font-bold ${warning ? "bg-amber-100 text-amber-800" : "bg-[#eef3ff] text-navy"}`}
         >
           {badge}
         </span>
       )}
+    </div>
+  );
+}
+
+function EduMetricCard({
+  icon: Icon,
+  label,
+  value,
+  helper,
+  tone,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: string;
+  helper: string;
+  tone: "blue" | "navy" | "green" | "amber";
+}) {
+  const toneClass = {
+    blue: "bg-[#e8f3ff] text-[#075985]",
+    navy: "bg-[#eef3ff] text-navy",
+    green: "bg-emerald-50 text-emerald-700",
+    amber: "bg-amber-50 text-amber-700",
+  }[tone];
+
+  return (
+    <div className="rounded-lg border border-[#d8e1f5] bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-bold uppercase text-slate-500">{label}</p>
+        <span className={`grid h-9 w-9 place-items-center rounded-md ${toneClass}`}>
+          <Icon className="h-4 w-4" />
+        </span>
+      </div>
+      <p className="mt-3 text-3xl font-bold text-navy">{value}</p>
+      <p className="mt-1 text-sm text-slate-500">{helper}</p>
+    </div>
+  );
+}
+
+function ProgressSubjectRow({ row }: { row: EduTrackRow }) {
+  const percent = Math.min(100, Math.max(0, Number(row.completionPercent || 0)));
+
+  return (
+    <div className="rounded-lg border border-[#d8e1f5] bg-white p-4 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-bold text-navy">{row.subject_name || "Subject"}</p>
+        <p className="text-sm font-bold text-[#075985]">{percent}%</p>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#e5edf7]">
+        <div className="h-full rounded-full bg-[#0ea5e9]" style={{ width: `${percent}%` }} />
+      </div>
+      <p className="mt-2 text-xs text-slate-500">
+        {row.completed_items || 0} of {row.total_items || 0} items completed
+      </p>
+    </div>
+  );
+}
+
+function ReadOnlyPanel({ title }: { title: string }) {
+  return (
+    <div className="mt-5 rounded-md border border-[#d8e1f5] bg-[#f7faff] p-3 text-sm font-semibold text-slate-600">
+      {title}
     </div>
   );
 }
