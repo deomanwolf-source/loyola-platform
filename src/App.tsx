@@ -67,13 +67,25 @@ const AdminPortal = lazy(() =>
 
 const MASTER_ROLES: Role[] = ["masteradmin"];
 const WEBSITE_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "website_admin"];
-const EDUZYNC_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "eduzync_admin"];
+const EDUZYNC_ADMIN_ROLES: Role[] = [
+  "masteradmin",
+  "superadmin",
+  "master_edutrack_admin",
+  "eduzync_admin",
+];
 const STAFF_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "staff_admin"];
-const EDUTRACK_ROLES: Role[] = ["masteradmin", "superadmin", "eduzync_admin", "teacher"];
+const EDUTRACK_ROLES: Role[] = [
+  "masteradmin",
+  "superadmin",
+  "master_edutrack_admin",
+  "eduzync_admin",
+  "teacher",
+];
 const ELMS_ROLES: Role[] = ["masteradmin", "superadmin", "teacher", "student"];
 const REPORT_CARD_ROLES: Role[] = [
   "masteradmin",
   "superadmin",
+  "master_edutrack_admin",
   "eduzync_admin",
   "teacher",
   "student",
@@ -128,6 +140,7 @@ function roleLabel(role: Role) {
     masteradmin: "Master Admin",
     superadmin: "Super Admin",
     website_admin: "Website Admin",
+    master_edutrack_admin: "Master EduTrack Admin",
     eduzync_admin: "EduTrack Admin",
     staff_admin: "Staff Admin",
     teacher: "Teacher",
@@ -214,6 +227,7 @@ export function App() {
   }
 
   if (path === "/portal/edutrack") return <EduTrackRuntimePage />;
+  if (path === "/portal/edutrack-native") return <EduTrackIntegratedPage />;
 
   if (path === "/photo-gallery") {
     return (
@@ -4012,7 +4026,15 @@ function CentralPortal() {
       href: "/portal/edutrack",
       icon: BookOpen,
       roles: EDUTRACK_ROLES,
-      meta: "Syllabus progress",
+      meta: "Full syllabus tracking workspace",
+      lockedMeta: "Teachers and EduTrack admins",
+    },
+    {
+      title: "EduTrack Native Beta",
+      href: "/portal/edutrack-native",
+      icon: BookOpen,
+      roles: EDUTRACK_ROLES,
+      meta: "React beta for terms, syllabus, progress, and warnings",
       lockedMeta: "Teachers and EduTrack admins",
     },
     {
@@ -5019,6 +5041,7 @@ function PortalRouter({ role }: { role: Role }) {
     teacher: <TeacherPortal />,
     website_admin: <AdminPortal />,
     eduzync_admin: <ModulePage moduleId="eduzync" />,
+    master_edutrack_admin: <ModulePage moduleId="edutrack" />,
     staff_admin: <StaffPortalRedirect />,
     superadmin: <AdminPortal />,
     masteradmin: <AdminPortal />,

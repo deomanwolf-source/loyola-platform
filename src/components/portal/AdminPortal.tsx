@@ -3367,6 +3367,7 @@ function formatRole(role?: Role) {
     masteradmin: "Master Admin",
     superadmin: "Super Admin",
     website_admin: "Website Admin",
+    master_edutrack_admin: "Master EduTrack Admin",
     eduzync_admin: "EduTrack Admin",
     staff_admin: "Staff Admin",
     teacher: "Teacher",
