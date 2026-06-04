@@ -4961,7 +4961,7 @@
             <span class="nav-icon"><i data-lucide="building-2"></i></span
             ><span class="nav-text"> Teachers</span>
           </div>
-          <div class="nav-item" onclick="showPage('subjects')" style="display: none">
+          <div class="nav-item" onclick="showPage('subjects')">
             <span class="nav-icon"><i data-lucide="library"></i></span
             ><span class="nav-text"> Subject Assignments</span>
           </div>
@@ -5176,9 +5176,14 @@
               <h2>Teacher Assignments</h2>
               <p>Assign teachers to subject, grade, section, and academic year.</p>
             </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap">
+            <button class="btn secondary sm" onclick="showPage('subjects')">
+              <i data-lucide="library" style="width: 14px; height: 14px"></i> Subject Assignments
+            </button>
             <button class="btn secondary sm" onclick="loadTeacherAssignments()">
               <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
             </button>
+          </div>
           </div>
           <div class="card" style="margin-bottom: 18px">
             <div class="section-title">New Assignment</div>
