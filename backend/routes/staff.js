@@ -4300,6 +4300,43 @@ function registerStaffRoutes(app, context) {
     },
   );
 
+  app.get("/api/staff-attendance", attendanceManagerOnly, async (req, res) => {
+    try {
+      res.json(await staffAttendanceRows(req.query || {}));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/staff-attendance", attendanceManagerOnly, bulkMarkStaffAttendance);
+  app.get("/api/staff/attendance", attendanceManagerOnly, async (req, res) => {
+    try {
+      res.json(await staffAttendanceRows(req.query || {}));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app.post("/api/staff/attendance/bulk-mark", attendanceManagerOnly, bulkMarkStaffAttendance);
+  app.get("/api/staff/attendance/today-summary", attendanceManagerOnly, async (req, res) => {
+    try {
+      const rows = await staffAttendanceRows({ date: new Date().toISOString().slice(0, 10) });
+      res.json(attendanceSummary(rows));
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  app.get("/api/staff/attendance/reports/daily", attendanceManagerOnly, dailyAttendanceReport);
+  app.get("/api/staff/attendance/reports/monthly", attendanceManagerOnly, (req, res) =>
+    attendanceAggregateReport(req, res, "monthly"),
+  );
+  app.get("/api/staff/attendance/reports/section", attendanceManagerOnly, (req, res) =>
+    attendanceAggregateReport(req, res, "section"),
+  );
+  app.get("/api/staff/attendance/reports/staff/:staffId", attendanceManagerOnly, (req, res) =>
+    attendanceAggregateReport(req, res, "staff"),
+  );
+  app.get("/api/staff/attendance/export/csv", attendanceManagerOnly, exportAttendanceCsv);
+
   app.get("/api/staff/:id", staffSelfOrManager, async (req, res) => {
     try {
       const staffId = clean(req.params.id, 50);
@@ -4434,43 +4471,6 @@ function registerStaffRoutes(app, context) {
       res.status(500).json({ error: error.message });
     }
   });
-
-  app.get("/api/staff-attendance", attendanceManagerOnly, async (req, res) => {
-    try {
-      res.json(await staffAttendanceRows(req.query || {}));
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  app.post("/api/staff-attendance", attendanceManagerOnly, bulkMarkStaffAttendance);
-  app.get("/api/staff/attendance", attendanceManagerOnly, async (req, res) => {
-    try {
-      res.json(await staffAttendanceRows(req.query || {}));
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-  app.post("/api/staff/attendance/bulk-mark", attendanceManagerOnly, bulkMarkStaffAttendance);
-  app.get("/api/staff/attendance/today-summary", attendanceManagerOnly, async (req, res) => {
-    try {
-      const rows = await staffAttendanceRows({ date: new Date().toISOString().slice(0, 10) });
-      res.json(attendanceSummary(rows));
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-  app.get("/api/staff/attendance/reports/daily", attendanceManagerOnly, dailyAttendanceReport);
-  app.get("/api/staff/attendance/reports/monthly", attendanceManagerOnly, (req, res) =>
-    attendanceAggregateReport(req, res, "monthly"),
-  );
-  app.get("/api/staff/attendance/reports/section", attendanceManagerOnly, (req, res) =>
-    attendanceAggregateReport(req, res, "section"),
-  );
-  app.get("/api/staff/attendance/reports/staff/:staffId", attendanceManagerOnly, (req, res) =>
-    attendanceAggregateReport(req, res, "staff"),
-  );
-  app.get("/api/staff/attendance/export/csv", attendanceManagerOnly, exportAttendanceCsv);
 
   app.get("/api/staff-leave", staffManagerOnly, async (req, res) => {
     try {

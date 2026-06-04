@@ -5643,7 +5643,12 @@
               <h2>Teachers</h2>
               <p>Manage teacher accounts</p>
             </div>
-            <button class="btn sm" onclick="openAddTeacherModal()">+ Add Teacher</button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="exportTeachersExcel()">
+                <i data-lucide="download" style="width: 14px; height: 14px"></i> Export Excel
+              </button>
+              <button class="btn sm" onclick="openAddTeacherModal()">+ Add Teacher</button>
+            </div>
           </div>
           <div class="page-tools">
             <div class="quick-finder-head">
@@ -7149,7 +7154,10 @@
         document.getElementById("app").style.display = "block";
         const isAdmin = cud.role === "admin";
         document.getElementById("admin-nav").style.display = isAdmin ? "" : "none";
-        document.getElementById("nav-daily-progress").style.display = "";
+        ["nav-daily-progress", "nav-year-plan", "nav-year-plan-reports"].forEach((id) => {
+          const item = document.getElementById(id);
+          if (item) item.style.display = isAdmin ? "none" : "";
+        });
         const mobileNav = document.getElementById("mobile-bottom-nav");
         if (mobileNav) mobileNav.style.display = isAdmin ? "none" : "";
         document.getElementById("sidebar-name").textContent = cud.name;
@@ -7367,7 +7375,7 @@
         return [
           teacher.name || "",
           teacher.email || "",
-          teacher.teacherId || "",
+          teacherDisplayId(teacher, ""),
           gradesLabel(teacher),
           classIdsLabel(teacher),
           teacherLevelLabel(teacher),
@@ -9185,6 +9193,23 @@
           classId: classIds[0] || "",
         };
       }
+      function teacherDisplayId(teacher, fallback = "-") {
+        const value = [
+          teacher?.teacherId,
+          teacher?.teacher_id,
+          teacher?.staffId,
+          teacher?.staff_id,
+          teacher?.edutrack_teacher_id,
+          teacher?.external_staff_id,
+        ]
+          .map((item) => String(item || "").trim())
+          .find(Boolean);
+        return value || (teacher?.id ? String(teacher.id) : fallback);
+      }
+      function teacherIdMeta(teacher) {
+        const value = teacherDisplayId(teacher, "");
+        return value ? "ID " + value : "";
+      }
       function normalizeSubject(subject) {
         const classIds = Array.isArray(subject.classIds)
           ? subject.classIds.map((id) => String(id).trim().toUpperCase()).filter(Boolean)
@@ -10067,6 +10092,7 @@
             const levelBadge = teacherLevelBadgeClass(t);
             const levelText = teacherLevelLabel(t);
             const levelColor = teacherAccentColor(t);
+            const displayId = teacherDisplayId(t);
             const sc = allSubjects.filter((s) => s.teacherId === t.id).length;
             return (
               '<tr><td><div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openTeacherProfile(\'' +
@@ -10080,7 +10106,7 @@
               '</span></div></td><td style="color:var(--muted);font-size:13px;">' +
               t.email +
               "</td><td style=\"font-family:'DM Mono',monospace;\">" +
-              (t.teacherId || "-") +
+              displayId +
               "</td><td>" +
               gradesLabel(t) +
               "</td><td style=\"font-family:'DM Mono',monospace;\">" +
@@ -10648,6 +10674,57 @@
           .join("");
         if (window.lucide && typeof window.lucide.createIcons === "function")
           setTimeout(() => window.lucide.createIcons(), 0);
+      };
+
+      window.exportTeachersExcel = function () {
+        const sortedTeachers = [...allTeachers].sort(
+          (a, b) =>
+            (teacherGradeList(a)[0] || 99) - (teacherGradeList(b)[0] || 99) ||
+            (a.name || "").localeCompare(b.name || ""),
+        );
+        const teachers = teachersSearchQuery
+          ? sortedTeachers.filter((teacher) =>
+              teacherSearchText(teacher).includes(teachersSearchQuery),
+            )
+          : sortedTeachers;
+        if (!teachers.length) {
+          showToast("No teachers to export.", "err");
+          return;
+        }
+        const rows = [
+          ["Name", "Email", "Teacher ID", "Grades", "Class IDs", "Level", "Subjects"],
+          ...teachers.map((teacher) => {
+            const subjectCount = allSubjects.filter(
+              (subject) => subject.teacherId === teacher.id,
+            ).length;
+            return [
+              teacher.name || "",
+              teacher.email || "",
+              teacherDisplayId(teacher, ""),
+              gradesLabel(teacher),
+              classIdsLabel(teacher),
+              teacherLevelLabel(teacher),
+              subjectCount,
+            ];
+          }),
+        ];
+        const csv =
+          "\ufeff" +
+          rows
+            .map((row) =>
+              row.map((cell) => '"' + String(cell ?? "").replace(/"/g, '""') + '"').join(","),
+            )
+            .join("\r\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "EduTrack_Teachers_" + new Date().toISOString().slice(0, 10) + ".csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        showToast("Teacher list exported for Excel.", "success");
       };
 
       function accountRoleKey(user) {
@@ -11583,6 +11660,9 @@
           "subjects",
           "progress",
         ];
+        const teacherOnlyPages = ["assigned-subjects", "year-plan", "my-subjects"];
+        if (cud && cud.role === "admin" && teacherOnlyPages.includes(name))
+          name = "teacher-assignments";
         if (cud && cud.role !== "admin" && adminPages.includes(name)) name = "dashboard";
         if (!document.getElementById("page-" + name)) name = "dashboard";
         document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
@@ -13140,7 +13220,7 @@
       }
 
       function dailyTeacherId() {
-        return String(cud?.teacherId || cud?.teacher_id || cud?.staffId || cud?.staff_id || cud?.id || "").trim();
+        return teacherDisplayId(cud, String(cud?.id || "")).trim();
       }
 
       function uniqueDailyOptions(items) {

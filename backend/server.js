@@ -4900,21 +4900,24 @@ async function eduTrackActor(req) {
     role: req.user?.role || "",
   };
   const extra = (await readEduTrackDoc("users", row.id).catch(() => null)) || {};
+  const identityHints = await loadEduTrackIdentityHints();
+  const hint = findEduTrackIdentityHint(identityHints, row, extra);
+  const mergedExtra = mergeEduTrackIdentity(row, extra, hint);
   const teacherId =
-    extra.teacherId ||
-    extra.teacher_id ||
-    extra.staffId ||
-    extra.staff_id ||
+    mergedExtra.teacherId ||
+    mergedExtra.teacher_id ||
+    mergedExtra.staffId ||
+    mergedExtra.staff_id ||
     row.external_staff_id ||
     row.id;
   return {
     id: String(row.id || ""),
-    name: row.name || extra.name || row.email || row.id || "Unknown",
+    name: row.name || mergedExtra.name || row.email || row.id || "Unknown",
     email: row.email || "",
     role: row.role || req.user?.role || "",
     teacherId: String(teacherId || ""),
-    teacherName: extra.name || row.name || row.email || row.id || "Unknown",
-    extra,
+    teacherName: mergedExtra.name || row.name || row.email || row.id || "Unknown",
+    extra: mergedExtra,
   };
 }
 
@@ -7163,6 +7166,139 @@ function fromPlatformUser(row, extra = {}) {
   return { id: row.id, data };
 }
 
+function firstEduTrackValue(...values) {
+  return values.map((value) => compactText(value, 190)).find(Boolean) || "";
+}
+
+function addEduTrackIdentityHint(index, hint = {}) {
+  const normalized = {
+    userId: firstEduTrackValue(hint.userId, hint.user_id, hint.account_user_id),
+    teacherId: firstEduTrackValue(hint.teacherId, hint.teacher_id, hint.edutrack_teacher_id, hint.id),
+    staffId: firstEduTrackValue(hint.staffId, hint.staff_id, hint.external_staff_id, hint.id),
+    email: firstEduTrackValue(hint.email, hint.account_email, hint.user_email).toLowerCase(),
+    name: firstEduTrackValue(hint.name, hint.full_name),
+    subject: firstEduTrackValue(hint.subject),
+    classes: firstEduTrackValue(hint.classes),
+    staffType: firstEduTrackValue(hint.staffType, hint.staff_type, hint.type),
+    department: firstEduTrackValue(hint.department, hint.section, hint.category),
+    position: firstEduTrackValue(hint.position),
+  };
+  const add = (map, key) => {
+    if (key && !map.has(key)) map.set(key, normalized);
+  };
+  add(index.byUserId, normalized.userId);
+  add(index.byTeacherId, normalized.teacherId);
+  add(index.byTeacherId, normalized.staffId);
+  add(index.byEmail, normalized.email);
+}
+
+async function loadEduTrackIdentityHints() {
+  const index = { byUserId: new Map(), byTeacherId: new Map(), byEmail: new Map() };
+  if (await tableExists("staff_profiles")) {
+    try {
+      const [profiles] = await db.query("SELECT * FROM staff_profiles");
+      profiles.forEach((profile) =>
+        addEduTrackIdentityHint(index, {
+          userId: firstEduTrackValue(profile.user_id, profile.teacher_id),
+          teacherId: firstEduTrackValue(profile.edutrack_teacher_id, profile.id, profile.teacher_id),
+          staffId: profile.id,
+          email: firstEduTrackValue(profile.email, profile.user_email),
+          name: profile.full_name,
+          staffType: profile.staff_type,
+          department: firstEduTrackValue(profile.department, profile.section),
+          position: profile.position,
+        }),
+      );
+    } catch (error) {
+      console.warn("EduTrack staff profile identity hints skipped:", error.message);
+    }
+  }
+  if (await tableExists("teachers")) {
+    try {
+      const [teachers] = await db.query(
+        "SELECT id, staff_id, external_staff_id, name, email, subject, classes, type, category, section, position, account_email, account_user_id FROM teachers",
+      );
+      teachers.forEach((teacher) =>
+        addEduTrackIdentityHint(index, {
+          userId: teacher.account_user_id,
+          teacherId: firstEduTrackValue(teacher.staff_id, teacher.external_staff_id, teacher.id),
+          staffId: firstEduTrackValue(teacher.staff_id, teacher.external_staff_id),
+          email: firstEduTrackValue(teacher.account_email, teacher.email),
+          name: teacher.name,
+          subject: teacher.subject,
+          classes: teacher.classes,
+          staffType: teacher.type,
+          department: firstEduTrackValue(teacher.section, teacher.category),
+          position: teacher.position,
+        }),
+      );
+    } catch (error) {
+      console.warn("EduTrack teacher identity hints skipped:", error.message);
+    }
+  }
+  return index;
+}
+
+function findEduTrackIdentityHint(index, row = {}, extra = {}) {
+  const idKeys = [
+    row.id,
+    row.external_staff_id,
+    extra.teacherId,
+    extra.teacher_id,
+    extra.staffId,
+    extra.staff_id,
+  ]
+    .map((value) => compactText(value, 190))
+    .filter(Boolean);
+  for (const key of idKeys) {
+    const byUser = index.byUserId.get(key);
+    if (byUser) return byUser;
+  }
+  for (const key of idKeys) {
+    const byTeacher = index.byTeacherId.get(key);
+    if (byTeacher) return byTeacher;
+  }
+  const emailKeys = [row.email, extra.email]
+    .map((value) => compactText(value, 190).toLowerCase())
+    .filter(Boolean);
+  for (const key of emailKeys) {
+    const byEmail = index.byEmail.get(key);
+    if (byEmail) return byEmail;
+  }
+  return null;
+}
+
+function mergeEduTrackIdentity(row = {}, extra = {}, hint = null) {
+  const staffId = firstEduTrackValue(
+    extra.staffId,
+    extra.staff_id,
+    hint?.staffId,
+    row.external_staff_id,
+  );
+  const teacherId = firstEduTrackValue(
+    extra.teacherId,
+    extra.teacher_id,
+    hint?.teacherId,
+    staffId,
+    row.external_staff_id,
+  );
+  const merged = {
+    ...extra,
+    teacherId,
+    teacher_id: firstEduTrackValue(extra.teacher_id, teacherId),
+    staffId,
+    staff_id: firstEduTrackValue(extra.staff_id, staffId),
+    subject: firstEduTrackValue(extra.subject, hint?.subject),
+    classes: firstEduTrackValue(extra.classes, hint?.classes),
+    staffType: firstEduTrackValue(extra.staffType, hint?.staffType),
+    department: firstEduTrackValue(extra.department, hint?.department),
+    position: firstEduTrackValue(extra.position, hint?.position),
+  };
+  const displayName = firstEduTrackValue(extra.name, hint?.name);
+  if (displayName) merged.name = displayName;
+  return merged;
+}
+
 async function readEduTrackDoc(collectionName, docId) {
   const idColumn = await getEduTrackDocumentIdColumn();
   const [rows] = await db.query(
@@ -7208,22 +7344,29 @@ async function listEduTrackDocs(collectionName) {
 
 async function platformUsersForEduTrack() {
   const [users] = await db.query(
-    "SELECT id, name, email, role, status, created_at FROM users WHERE role IN ('teacher','eduzync_admin','master_edutrack_admin','superadmin','masteradmin') ORDER BY name",
+    "SELECT id, external_staff_id, name, email, role, status, created_at FROM users WHERE role IN ('teacher','eduzync_admin','master_edutrack_admin','superadmin','masteradmin') ORDER BY name",
   );
   const docs = await listEduTrackDocs("users");
   const extraById = new Map(docs.map((item) => [item.id, item.data]));
-  return users.map((user) => fromPlatformUser(user, extraById.get(user.id) || {}));
+  const identityHints = await loadEduTrackIdentityHints();
+  return users.map((user) => {
+    const extra = extraById.get(user.id) || {};
+    const hint = findEduTrackIdentityHint(identityHints, user, extra);
+    return fromPlatformUser(user, mergeEduTrackIdentity(user, extra, hint));
+  });
 }
 
 app.get("/api/edutrack/session", teacherOrAdmin, async (req, res) => {
   try {
     const [users] = await db.query(
-      "SELECT id, name, email, role, status, created_at FROM users WHERE id = ?",
+      "SELECT id, external_staff_id, name, email, role, status, created_at FROM users WHERE id = ?",
       [req.user.id],
     );
     if (!users.length) return res.status(404).json({ error: "User not found" });
     const extra = (await readEduTrackDoc("users", req.user.id)) || {};
-    res.json(fromPlatformUser(users[0], extra).data);
+    const identityHints = await loadEduTrackIdentityHints();
+    const hint = findEduTrackIdentityHint(identityHints, users[0], extra);
+    res.json(fromPlatformUser(users[0], mergeEduTrackIdentity(users[0], extra, hint)).data);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -7275,12 +7418,17 @@ app.get("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, res)
     const docId = String(req.params.id);
     if (collectionName === "users") {
       const [users] = await db.query(
-        "SELECT id, name, email, role, status, created_at FROM users WHERE id = ?",
+        "SELECT id, external_staff_id, name, email, role, status, created_at FROM users WHERE id = ?",
         [docId],
       );
       if (!users.length) return res.json({ exists: false, data: null });
       const extra = (await readEduTrackDoc("users", docId)) || {};
-      return res.json({ exists: true, data: fromPlatformUser(users[0], extra).data });
+      const identityHints = await loadEduTrackIdentityHints();
+      const hint = findEduTrackIdentityHint(identityHints, users[0], extra);
+      return res.json({
+        exists: true,
+        data: fromPlatformUser(users[0], mergeEduTrackIdentity(users[0], extra, hint)).data,
+      });
     }
     const data = await readEduTrackDoc(collectionName, docId);
     res.json({ exists: Boolean(data), data });
