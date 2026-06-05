@@ -9194,7 +9194,7 @@
         };
       }
       function teacherDisplayId(teacher, fallback = "-") {
-        const value = [
+        const values = [
           teacher?.teacherId,
           teacher?.teacher_id,
           teacher?.staffId,
@@ -9203,12 +9203,114 @@
           teacher?.external_staff_id,
         ]
           .map((item) => String(item || "").trim())
-          .find(Boolean);
-        return value || (teacher?.id ? String(teacher.id) : fallback);
+          .filter(Boolean);
+        const lcsValue = values.map(formatLcsId).find((item) => Number.isFinite(lcsNumber(item)));
+        return lcsValue || formatLcsId(values[0]) || (teacher?.id ? String(teacher.id) : fallback);
       }
       function teacherIdMeta(teacher) {
         const value = teacherDisplayId(teacher, "");
         return value ? "ID " + value : "";
+      }
+      function formatLcsId(value) {
+        const text = String(value || "").trim();
+        const match = text.match(/^LCS[\s_-]*(\d+)$/i);
+        if (!match) return text;
+        return "LCS-" + String(Number(match[1])).padStart(4, "0");
+      }
+      function lcsNumber(value) {
+        const match = String(value || "").match(/^LCS[\s_-]*(\d+)$/i);
+        return match ? Number(match[1]) : Number.POSITIVE_INFINITY;
+      }
+      function lookupKeyVariants(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return [];
+        const keys = new Set([raw.toLowerCase(), raw.toLowerCase().replace(/\s+/g, "")]);
+        const match = raw.match(/^LCS[\s_-]*(\d+)$/i);
+        if (match) {
+          const num = String(Number(match[1]));
+          keys.add("lcs-" + num.padStart(4, "0"));
+          keys.add("lcs-" + num);
+        }
+        return [...keys];
+      }
+      function lookupKeysFromValues(values) {
+        const keys = new Set();
+        values.forEach((value) => lookupKeyVariants(value).forEach((key) => keys.add(key)));
+        return [...keys];
+      }
+      function compareTeachersByLcs(a, b) {
+        const aId = teacherDisplayId(a, "");
+        const bId = teacherDisplayId(b, "");
+        const aNum = lcsNumber(aId);
+        const bNum = lcsNumber(bId);
+        if (aNum !== bNum) return aNum - bNum;
+        const idCompare = aId.localeCompare(bId, undefined, {
+          numeric: true,
+          sensitivity: "base",
+        });
+        if (idCompare) return idCompare;
+        return (a.name || "").localeCompare(b.name || "");
+      }
+      function teacherAccountLookupKeys(teacher) {
+        return lookupKeysFromValues([
+          teacher?.id,
+          teacherDisplayId(teacher, ""),
+          teacher?.teacherId,
+          teacher?.teacher_id,
+          teacher?.staffId,
+          teacher?.staff_id,
+          teacher?.edutrack_teacher_id,
+          teacher?.external_staff_id,
+          teacher?.email,
+          teacher?.name,
+        ]);
+      }
+      function currentTeacherAccountKeySet() {
+        const keys = new Set();
+        (allTeachers || [])
+          .filter((teacher) => !/inactive|disabled/i.test(String(teacher.status || "")))
+          .forEach((teacher) =>
+            teacherAccountLookupKeys(teacher).forEach((key) => keys.add(key)),
+          );
+        return keys;
+      }
+      function attendanceRowLookupKeys(row) {
+        return lookupKeysFromValues([
+          row?.staff_profile_id,
+          row?.staff_id,
+          row?.teacher_id,
+          row?.user_id,
+          row?.email,
+          row?.account_email,
+          row?.staff_name,
+          row?.full_name,
+        ]);
+      }
+      function attendanceRowDisplayId(row) {
+        const values = [row?.staff_id, row?.staff_profile_id, row?.teacher_id]
+          .map((item) => String(item || "").trim())
+          .filter(Boolean);
+        const lcsValue = values.map(formatLcsId).find((item) => Number.isFinite(lcsNumber(item)));
+        return lcsValue || formatLcsId(values[0]) || "-";
+      }
+      function filterEduTrackTeacherAttendanceRows(rows) {
+        const teacherKeys = currentTeacherAccountKeySet();
+        if (!teacherKeys.size) return [];
+        return [...(rows || [])]
+          .filter((row) => attendanceRowLookupKeys(row).some((key) => teacherKeys.has(key)))
+          .sort((a, b) => {
+            const aId = attendanceRowDisplayId(a);
+            const bId = attendanceRowDisplayId(b);
+            const aNum = lcsNumber(aId);
+            const bNum = lcsNumber(bId);
+            if (aNum !== bNum) return aNum - bNum;
+            const idCompare = aId.localeCompare(bId, undefined, {
+              numeric: true,
+              sensitivity: "base",
+            });
+            if (idCompare) return idCompare;
+            return (a.staff_name || a.full_name || "").localeCompare(b.staff_name || b.full_name || "");
+          });
       }
       function normalizeSubject(subject) {
         const classIds = Array.isArray(subject.classIds)
@@ -10602,11 +10704,7 @@
       renderTeachers = function () {
         const tb = document.getElementById("teachers-tbody");
         const resultMeta = document.getElementById("teachers-result-meta");
-        const sortedTeachers = [...allTeachers].sort(
-          (a, b) =>
-            (teacherGradeList(a)[0] || 99) - (teacherGradeList(b)[0] || 99) ||
-            (a.name || "").localeCompare(b.name || ""),
-        );
+        const sortedTeachers = [...allTeachers].sort(compareTeachersByLcs);
         const teachers = teachersSearchQuery
           ? sortedTeachers.filter((teacher) =>
               teacherSearchText(teacher).includes(teachersSearchQuery),
@@ -10677,11 +10775,7 @@
       };
 
       window.exportTeachersExcel = function () {
-        const sortedTeachers = [...allTeachers].sort(
-          (a, b) =>
-            (teacherGradeList(a)[0] || 99) - (teacherGradeList(b)[0] || 99) ||
-            (a.name || "").localeCompare(b.name || ""),
-        );
+        const sortedTeachers = [...allTeachers].sort(compareTeachersByLcs);
         const teachers = teachersSearchQuery
           ? sortedTeachers.filter((teacher) =>
               teacherSearchText(teacher).includes(teachersSearchQuery),
@@ -14267,12 +14361,14 @@
         const tbody = document.getElementById("esa-tbody");
         if (!tbody) return;
         if (!eduTrackStaffAttendance.length) {
-          tbody.innerHTML = '<tr><td colspan="7">No staff found for these filters.</td></tr>';
+          tbody.innerHTML =
+            '<tr><td colspan="7">No teacher accounts found for these filters.</td></tr>';
           return;
         }
         tbody.innerHTML = eduTrackStaffAttendance
           .map((row) => {
             const staffId = row.staff_profile_id || row.staff_id || "";
+            const displayStaffId = attendanceRowDisplayId(row);
             const buttons = eduTrackAttendanceStatuses
               .map(([status, code]) => {
                 const selected = row.status === status;
@@ -14302,8 +14398,8 @@
               })
               .join("");
             return (
-              "<tr><td><strong>" +
-              escapeHtml(row.staff_id || row.staff_profile_id || "-") +
+              '<tr><td style="white-space:nowrap"><strong>' +
+              escapeHtml(displayStaffId) +
               "</strong></td><td><strong>" +
               escapeHtml(row.staff_name || row.full_name || "-") +
               "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
@@ -14332,7 +14428,8 @@
         const tbody = document.getElementById("esa-tbody");
         if (tbody) tbody.innerHTML = '<tr><td colspan="7">Loading staff attendance...</td></tr>';
         try {
-          eduTrackStaffAttendance = await apiFetch("/api/staff/attendance?" + eduTrackAttendanceParams());
+          const rows = await apiFetch("/api/staff/attendance?" + eduTrackAttendanceParams());
+          eduTrackStaffAttendance = filterEduTrackTeacherAttendanceRows(rows);
           renderEduTrackStaffAttendance();
         } catch (error) {
           if (tbody) {
@@ -14404,16 +14501,46 @@
 
       window.exportEduTrackStaffAttendanceCSV = async function () {
         try {
-          const res = await fetch(
-            API_BASE + "/api/staff/attendance/export/csv?" + eduTrackAttendanceParams(),
-            { headers: platformHeaders() },
-          );
-          if (!res.ok) throw new Error("CSV export failed");
-          const blob = await res.blob();
+          if (!eduTrackStaffAttendance.length) {
+            showToast("No teacher attendance rows to export.", "err");
+            return;
+          }
+          const headers = [
+            "Staff ID",
+            "Name",
+            "Date",
+            "Section",
+            "Staff Type",
+            "Position",
+            "Status",
+            "Note",
+            "Last Updated",
+          ];
+          const csv =
+            "\ufeff" +
+            [
+              headers,
+              ...eduTrackStaffAttendance.map((row) => [
+                attendanceRowDisplayId(row),
+                row.staff_name || row.full_name || "",
+                eduTrackAttendanceDate(),
+                row.section || "",
+                row.staff_type || "",
+                row.position || "",
+                row.status || "Unmarked",
+                row.note || row.reason || "",
+                row.last_updated || "",
+              ]),
+            ]
+              .map((line) =>
+                line.map((cell) => '"' + String(cell ?? "").replace(/"/g, '""') + '"').join(","),
+              )
+              .join("\r\n");
+          const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
           const url = URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
-          link.download = "staff-attendance-" + eduTrackAttendanceDate() + ".csv";
+          link.download = "teacher-attendance-" + eduTrackAttendanceDate() + ".csv";
           document.body.appendChild(link);
           link.click();
           link.remove();
