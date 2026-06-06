@@ -50,7 +50,7 @@ import {
   type GalleryVideo,
   type Role,
 } from "@/lib/store";
-import { API_URL, authHeaders } from "@/lib/api";
+import { API_URL, authHeaders, getMaintenanceStatus, type MaintenanceStatus } from "@/lib/api";
 
 const StudentPortal = lazy(() =>
   import("@/components/portal/StudentPortal").then((module) => ({ default: module.StudentPortal })),
@@ -90,6 +90,14 @@ const REPORT_CARD_ROLES: Role[] = [
   "teacher",
   "student",
   "parent",
+];
+const MAINTENANCE_BYPASS_ROLES: Role[] = [
+  "masteradmin",
+  "superadmin",
+  "website_admin",
+  "eduzync_admin",
+  "master_edutrack_admin",
+  "staff_admin",
 ];
 const REPORT_CARDS_SYSTEM_URL = "https://intranet.loyolacollege.lk/login";
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
@@ -175,10 +183,52 @@ function AccessDeniedPage({
     </main>
   );
 }
+
+function MaintenanceModePage({ message }: { message?: string }) {
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#eef3ff] px-6 text-[#172033]">
+      <section className="w-full max-w-xl text-center">
+        <img
+          src="/loyola-crest.jpg"
+          alt=""
+          className="mx-auto h-20 w-20 rounded-full border border-[#d8e1f5] bg-white object-contain p-2 shadow-sm"
+        />
+        <p className="mt-7 text-xs font-black uppercase tracking-[0.2em] text-crimson">
+          Scheduled maintenance
+        </p>
+        <h1 className="mt-3 font-serif text-5xl font-bold leading-tight text-navy">
+          We will be back soon.
+        </h1>
+        <p className="mx-auto mt-5 max-w-md text-base leading-7 text-muted-foreground">
+          {message ||
+            "The public website is temporarily offline while Loyola College completes maintenance."}
+        </p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <a
+            href="/login?next=%2F"
+            className="inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+          >
+            <ShieldCheck className="h-4 w-4" />
+            Admin login
+          </a>
+          <a
+            href="/portal"
+            className="inline-flex items-center gap-2 rounded-lg border border-[#c8d4ec] bg-white px-5 py-3 text-sm font-bold text-navy"
+          >
+            <Lock className="h-4 w-4" />
+            Open portal
+          </a>
+        </div>
+      </section>
+    </main>
+  );
+}
 export function App() {
   const rawPath = typeof window === "undefined" ? "/" : window.location.pathname;
   const path = rawPath !== "/" ? rawPath.replace(/\/$/, "") : "/";
   const db = useDb();
+  const auth = useAuth();
+  const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -216,6 +266,34 @@ export function App() {
   const visualPageId = canonicalVisualPageId(path, db);
   const isSystemPath =
     path === "/login" || path === "/portal" || path === "/admin" || path.startsWith("/portal/");
+  const canViewDuringMaintenance =
+    maintenanceStatus?.canViewSite ||
+    Boolean(auth.user && MAINTENANCE_BYPASS_ROLES.includes(auth.user.role));
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isSystemPath) {
+      setMaintenanceStatus(null);
+      return;
+    }
+
+    let cancelled = false;
+    getMaintenanceStatus()
+      .then((status) => {
+        if (!cancelled) setMaintenanceStatus(status);
+      })
+      .catch(() => {
+        if (!cancelled) setMaintenanceStatus(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [auth.user, isSystemPath, path]);
+
+  if (!isSystemPath && maintenanceStatus?.enabled && !canViewDuringMaintenance) {
+    return <MaintenanceModePage message={maintenanceStatus.message} />;
+  }
 
   if (
     !isSystemPath &&
@@ -3711,7 +3789,9 @@ function LoginPage() {
         String(formData.get("email") || ""),
         String(formData.get("password") || ""),
       );
-      window.location.href = "/portal";
+      const nextPath = new URLSearchParams(window.location.search).get("next") || "";
+      window.location.href =
+        nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/portal";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Sign in failed.");
       setSubmitting(false);

@@ -410,6 +410,19 @@ const REPORT_CARD_VIEW_ROLES = [
   ROLES.parent,
 ];
 
+const AUTH_COOKIE_NAME = "loyola_session_token";
+const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const MAINTENANCE_BYPASS_ROLES = [
+  ROLES.master,
+  ROLES.super,
+  ROLES.website,
+  ROLES.eduzync,
+  ROLES.masterEduTrack,
+  ROLES.staff,
+];
+const DEFAULT_MAINTENANCE_MESSAGE =
+  "The public website is temporarily offline while Loyola College completes maintenance.";
+
 const rolePermissionsSeed = [
   [ROLES.master, "website_admin", 1, 1, 1, 1],
   [ROLES.master, "eduzync", 1, 1, 1, 1],
@@ -457,6 +470,7 @@ const rolePermissionsSeed = [
 ];
 
 let accessSchemaReady = false;
+let maintenanceSettingsSchemaReady = false;
 
 async function seedRolePermissions() {
   for (const permission of rolePermissionsSeed) {
@@ -640,9 +654,143 @@ async function ensurePublishRequestsSchema() {
   ]);
 }
 
-function auth(req, res, next) {
+function parseCookieHeader(req) {
+  return String(req.headers.cookie || "")
+    .split(";")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .reduce((cookies, entry) => {
+      const separatorIndex = entry.indexOf("=");
+      if (separatorIndex === -1) return cookies;
+      const key = entry.slice(0, separatorIndex).trim();
+      const value = entry.slice(separatorIndex + 1);
+      if (!key) return cookies;
+      try {
+        cookies[key] = decodeURIComponent(value);
+      } catch {
+        cookies[key] = value;
+      }
+      return cookies;
+    }, {});
+}
+
+function tokenFromRequest(req) {
   const header = req.headers.authorization || "";
-  const token = header.replace("Bearer ", "");
+  const bearerToken = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+  if (bearerToken) return bearerToken;
+  return parseCookieHeader(req)[AUTH_COOKIE_NAME] || "";
+}
+
+function verifiedUserFromRequest(req) {
+  const token = tokenFromRequest(req);
+  if (!token) return null;
+
+  try {
+    const user = jwt.verify(token, process.env.JWT_SECRET);
+    if (user.role === "admin") user.role = ROLES.website;
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+function authCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.COOKIE_SECURE === "true",
+    maxAge: AUTH_COOKIE_MAX_AGE_MS,
+    path: "/",
+  };
+}
+
+function setAuthCookie(res, token) {
+  res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions());
+}
+
+function clearAuthCookie(res) {
+  res.clearCookie(AUTH_COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.COOKIE_SECURE === "true",
+    path: "/",
+  });
+}
+
+function parseBooleanSetting(value, fallback = false) {
+  if (value == null || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(String(value).trim().toLowerCase());
+}
+
+function canBypassMaintenanceRole(role) {
+  return MAINTENANCE_BYPASS_ROLES.includes(role);
+}
+
+function canBypassMaintenance(req) {
+  const user = verifiedUserFromRequest(req);
+  return Boolean(user && canBypassMaintenanceRole(user.role));
+}
+
+async function ensureMaintenanceSettingsTable() {
+  if (maintenanceSettingsSchemaReady) return;
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS system_settings (
+      setting_key VARCHAR(100) PRIMARY KEY,
+      setting_value LONGTEXT NOT NULL,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )
+  `);
+
+  maintenanceSettingsSchemaReady = true;
+}
+
+async function readMaintenanceSettings() {
+  await ensureMaintenanceSettingsTable();
+  const [rows] = await db.query(
+    "SELECT setting_key, setting_value FROM system_settings WHERE setting_key IN ('maintenance_mode', 'maintenance_message')",
+  );
+  const settings = new Map(rows.map((row) => [row.setting_key, row.setting_value]));
+  return {
+    enabled: parseBooleanSetting(
+      settings.get("maintenance_mode"),
+      parseBooleanSetting(process.env.MAINTENANCE_MODE, false),
+    ),
+    message: String(settings.get("maintenance_message") || DEFAULT_MAINTENANCE_MESSAGE),
+  };
+}
+
+async function readMaintenanceSettingsForGate() {
+  try {
+    return await readMaintenanceSettings();
+  } catch (error) {
+    console.warn(`[maintenance] Could not read settings: ${error.message}`);
+    return {
+      enabled: parseBooleanSetting(process.env.MAINTENANCE_MODE, false),
+      message: DEFAULT_MAINTENANCE_MESSAGE,
+    };
+  }
+}
+
+async function writeMaintenanceSettings({ enabled, message }) {
+  await ensureMaintenanceSettingsTable();
+  const cleanMessage = String(message || DEFAULT_MAINTENANCE_MESSAGE).trim().slice(0, 500);
+  await db.query(
+    `
+      INSERT INTO system_settings (setting_key, setting_value)
+      VALUES ('maintenance_mode', ?), ('maintenance_message', ?)
+      ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+    `,
+    [enabled ? "true" : "false", cleanMessage || DEFAULT_MAINTENANCE_MESSAGE],
+  );
+  return {
+    enabled: Boolean(enabled),
+    message: cleanMessage || DEFAULT_MAINTENANCE_MESSAGE,
+  };
+}
+
+function auth(req, res, next) {
+  const token = tokenFromRequest(req);
 
   if (!token) {
     return res.status(401).json({ error: "No token provided" });
@@ -1005,31 +1153,13 @@ async function withLiveTeacherRows(siteDb) {
 }
 
 function canReadPrivateDb(req) {
-  const header = req.headers.authorization || "";
-  const token = header.replace("Bearer ", "");
-  if (!token) return false;
-
-  try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-    if (user.role === "admin") user.role = ROLES.website;
-    return WEBSITE_ADMIN_ROLES.includes(user.role);
-  } catch {
-    return false;
-  }
+  const user = verifiedUserFromRequest(req);
+  return Boolean(user && WEBSITE_ADMIN_ROLES.includes(user.role));
 }
 
 function canManageSystemUsers(req) {
-  const header = req.headers.authorization || "";
-  const token = header.replace("Bearer ", "");
-  if (!token) return false;
-
-  try {
-    const user = jwt.verify(token, process.env.JWT_SECRET);
-    if (user.role === "admin") user.role = ROLES.website;
-    return SYSTEM_OWNER_ROLES.includes(user.role);
-  } catch {
-    return false;
-  }
+  const user = verifiedUserFromRequest(req);
+  return Boolean(user && SYSTEM_OWNER_ROLES.includes(user.role));
 }
 
 async function ensureContentTables() {
@@ -3391,6 +3521,62 @@ app.get("/api/health", async (req, res) => {
       status: "error",
       message: error.message,
     });
+  }
+});
+
+app.get("/api/maintenance", async (req, res) => {
+  try {
+    const settings = await readMaintenanceSettingsForGate();
+    res.json({
+      ...settings,
+      canViewSite: canBypassMaintenance(req),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch("/api/maintenance", websiteAdminOnly, async (req, res) => {
+  try {
+    const current = await readMaintenanceSettings();
+    const next = await writeMaintenanceSettings({
+      enabled: Boolean(req.body?.enabled),
+      message:
+        typeof req.body?.message === "string" ? req.body.message : current.message,
+    });
+    res.json({ success: true, ...next, canViewSite: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+function isPublicContentApiRequest(req) {
+  if (req.method !== "GET") return false;
+  const publicApiPaths = [
+    "/api/site-db",
+    "/api/pages",
+    "/api/news",
+    "/api/notices",
+    "/api/events",
+    "/api/media",
+    "/api/teachers",
+  ];
+  return publicApiPaths.some((apiPath) => req.path === apiPath || req.path.startsWith(`${apiPath}/`));
+}
+
+app.use(async (req, res, next) => {
+  if (!isPublicContentApiRequest(req)) return next();
+
+  try {
+    const settings = await readMaintenanceSettingsForGate();
+    if (!settings.enabled || canBypassMaintenance(req)) return next();
+    return res.status(503).json({
+      error: "Website maintenance is active.",
+      maintenance: true,
+      message: settings.message,
+    });
+  } catch (error) {
+    return next(error);
   }
 });
 
@@ -7752,6 +7938,7 @@ app.post(
       }
 
       const token = createToken(user);
+      setAuthCookie(res, token);
 
       res.json({
         success: true,
@@ -7771,6 +7958,11 @@ app.post(
     }
   },
 );
+
+app.post("/api/logout", (req, res) => {
+  clearAuthCookie(res);
+  res.json({ success: true });
+});
 
 app.get("/api/me", auth, async (req, res) => {
   try {
@@ -7811,6 +8003,98 @@ registerStaffRoutes(app, {
   processStaffProfilePhotoUpload,
 });
 
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function maintenancePageHtml(settings) {
+  const message = escapeHtml(settings.message || DEFAULT_MAINTENANCE_MESSAGE);
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex,nofollow" />
+    <title>Maintenance | Loyola College Negombo</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #eef3ff; color: #172033; }
+      main { width: min(92vw, 560px); padding: 42px 28px; text-align: center; }
+      .crest { width: 78px; height: 78px; border-radius: 999px; object-fit: contain; background: #fff; border: 1px solid #d8e1f5; padding: 8px; box-shadow: 0 14px 36px rgba(8, 40, 111, 0.12); }
+      .eyebrow { margin: 26px 0 10px; color: #b70f1b; font-size: 12px; font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; }
+      h1 { margin: 0; color: #08286f; font-family: Georgia, "Times New Roman", serif; font-size: clamp(34px, 7vw, 52px); line-height: 1.02; }
+      p { margin: 18px auto 0; max-width: 46ch; color: #4b5870; font-size: 16px; line-height: 1.7; }
+      .actions { margin-top: 30px; display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+      a { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; border-radius: 10px; padding: 0 18px; font-size: 14px; font-weight: 800; text-decoration: none; }
+      .primary { background: #08286f; color: #fff; }
+      .secondary { border: 1px solid #c8d4ec; background: #fff; color: #08286f; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img class="crest" src="/loyola-crest.jpg" alt="" />
+      <p class="eyebrow">Scheduled maintenance</p>
+      <h1>We will be back soon.</h1>
+      <p>${message}</p>
+      <div class="actions">
+        <a class="primary" href="/login?next=%2F">Admin login</a>
+        <a class="secondary" href="/portal">Open portal</a>
+      </div>
+    </main>
+  </body>
+</html>`;
+}
+
+function isMaintenanceSystemPath(requestPath) {
+  if (
+    requestPath === "/login" ||
+    requestPath === "/portal" ||
+    requestPath === "/admin" ||
+    requestPath.startsWith("/portal/")
+  ) {
+    return true;
+  }
+
+  if (requestPath.startsWith("/assets/")) return true;
+
+  const assetExtensions = new Set([
+    ".css",
+    ".js",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".svg",
+    ".ico",
+    ".woff",
+    ".woff2",
+  ]);
+  return assetExtensions.has(path.extname(requestPath).toLowerCase());
+}
+
+async function maintenancePageGate(req, res, next) {
+  if (req.method !== "GET" && req.method !== "HEAD") return next();
+  if (isMaintenanceSystemPath(req.path)) return next();
+
+  try {
+    const settings = await readMaintenanceSettingsForGate();
+    if (!settings.enabled || canBypassMaintenance(req)) return next();
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    return res.status(503).type("html").send(maintenancePageHtml(settings));
+  } catch (error) {
+    return next(error);
+  }
+}
+
 const frontendRoot = path.join(__dirname, "..", "public");
 const frontendIndex = path.join(frontendRoot, "index.html");
 const frontendAssets = path.join(frontendRoot, "assets");
@@ -7822,6 +8106,8 @@ if (fs.existsSync(frontendIndex)) {
     res.setHeader("Expires", "0");
     res.sendFile(frontendIndex);
   };
+
+  app.use(maintenancePageGate);
 
   if (process.env.APP_NAME === "edutrack") {
     app.get("/", (req, res) => {

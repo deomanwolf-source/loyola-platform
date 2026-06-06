@@ -1,6 +1,6 @@
 // Local drafts are kept in localStorage; published content is written to MySQL through the backend API.
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { API_URL, authHeaders, loginUser } from "./api";
+import { API_URL, authHeaders, loginUser, logoutUser } from "./api";
 
 export const DEFAULT_ANTHEM_VIDEO_URL = "https://youtu.be/0X2iA064w9k";
 export const DEFAULT_HERO_IMAGE = "/flag1.png";
@@ -2095,6 +2095,7 @@ export async function setAuth(user: User | null) {
     return;
   }
   if (typeof window !== "undefined") {
+    await logoutUser();
     localStorage.removeItem("loyola_token");
     localStorage.removeItem("loyola_user");
   }

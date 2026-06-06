@@ -66,7 +66,13 @@ import {
   uploadFileToBackend,
   uploadFileToBackendInfo,
 } from "@/lib/backend-upload";
-import { API_URL, authHeaders } from "@/lib/api";
+import {
+  API_URL,
+  authHeaders,
+  getMaintenanceStatus,
+  updateMaintenanceMode,
+  type MaintenanceStatus,
+} from "@/lib/api";
 import { createPublishRequest } from "@/lib/publish-requests";
 import { MediaUploadStatus } from "./MediaUploadStatus";
 
@@ -103,6 +109,7 @@ type PanelId =
   | "security"
   | "activity"
   | "backup"
+  | "maintenance"
   | "settings";
 
 const navGroups: {
@@ -130,6 +137,7 @@ const navGroups: {
       { id: "security", label: "Security", icon: ShieldCheck },
       { id: "activity", label: "Activity Logs", icon: ClipboardList },
       { id: "backup", label: "Backup", icon: Database },
+      { id: "maintenance", label: "Maintenance", icon: MonitorSmartphone },
       { id: "settings", label: "Settings", icon: Settings },
     ],
   },
@@ -3069,6 +3077,141 @@ function BackupPanel({ db }: { db: DB }) {
   );
 }
 
+function MaintenancePanel() {
+  const [status, setStatus] = useState<MaintenanceStatus | null>(null);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const loadStatus = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const nextStatus = await getMaintenanceStatus();
+      setStatus(nextStatus);
+      setMessage(nextStatus.message);
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : "Could not load maintenance status.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadStatus();
+  }, [loadStatus]);
+
+  const saveStatus = async (enabled: boolean, nextMessage = message) => {
+    setSaving(true);
+    setError("");
+    try {
+      const nextStatus = await updateMaintenanceMode(enabled, nextMessage);
+      setStatus(nextStatus);
+      setMessage(nextStatus.message);
+      audit(`Maintenance mode ${nextStatus.enabled ? "enabled" : "disabled"}`, "Admin");
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Could not update maintenance.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const enabled = Boolean(status?.enabled);
+
+  return (
+    <div className="space-y-6">
+      <PanelShell title="Maintenance mode" kicker="Public access control">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-black uppercase tracking-[0.16em] text-muted-foreground">
+              Public website
+            </p>
+            <h3 className="mt-2 font-serif text-3xl font-bold text-navy">
+              {enabled ? "Maintenance is ON" : "Website is live"}
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-muted-foreground">
+              When this is on, public visitors see the maintenance screen. Logged-in admin accounts
+              can still open the website, portal, and admin tools.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            role="switch"
+            aria-checked={enabled}
+            disabled={loading || saving}
+            onClick={() => void saveStatus(!enabled)}
+            className={`relative inline-flex h-10 w-20 shrink-0 items-center rounded-full p-1 transition disabled:cursor-wait disabled:opacity-60 ${
+              enabled ? "bg-crimson" : "bg-slate-300"
+            }`}
+          >
+            <span
+              className={`h-8 w-8 rounded-full bg-white shadow transition ${
+                enabled ? "translate-x-10" : "translate-x-0"
+              }`}
+            />
+            <span className="sr-only">Toggle maintenance mode</span>
+          </button>
+        </div>
+
+        <div className="mt-6 grid gap-4">
+          <label className="block">
+            <span className="text-xs font-black uppercase tracking-[0.16em] text-muted-foreground">
+              Public message
+            </span>
+            <TextArea
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              rows={3}
+              maxLength={500}
+              placeholder="Message shown to public visitors during maintenance"
+            />
+          </label>
+
+          {error && (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              {error}
+            </p>
+          )}
+
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              disabled={loading || saving}
+              onClick={() => void saveStatus(enabled)}
+              className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-black text-white disabled:cursor-wait disabled:opacity-60"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Saving" : "Save message"}
+            </button>
+            <a
+              href="/"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-black text-navy"
+            >
+              <MonitorSmartphone className="h-4 w-4" />
+              Preview website
+            </a>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => void loadStatus()}
+              className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-black text-navy disabled:cursor-wait disabled:opacity-60"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </button>
+          </div>
+        </div>
+      </PanelShell>
+    </div>
+  );
+}
+
 function SettingsPanel({ db }: { db: DB }) {
   const socials = db.websiteContent.socials || {};
   const update = (patch: Partial<DB["websiteContent"]>) =>
@@ -3984,6 +4127,7 @@ export function AdminPortal() {
           {activePanel === "security" && <SecurityPanel db={db} />}
           {activePanel === "activity" && <ActivityPanel db={db} />}
           {activePanel === "backup" && <BackupPanel db={db} />}
+          {activePanel === "maintenance" && <MaintenancePanel />}
           {activePanel === "settings" && <SettingsPanel db={db} />}
         </main>
       </div>

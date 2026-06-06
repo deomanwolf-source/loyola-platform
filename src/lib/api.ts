@@ -32,6 +32,7 @@ export async function loginUser(email: string, password: string) {
   try {
     res = await fetch(`${API_URL}/api/login`, {
       method: "POST",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -51,4 +52,61 @@ export async function loginUser(email: string, password: string) {
   localStorage.setItem("loyola_user", JSON.stringify(data.user));
 
   return data;
+}
+
+export async function logoutUser() {
+  try {
+    await fetch(`${API_URL}/api/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    // Local logout still clears browser storage if the API is unavailable.
+  }
+}
+
+export interface MaintenanceStatus {
+  enabled: boolean;
+  message: string;
+  canViewSite: boolean;
+}
+
+export async function getMaintenanceStatus(): Promise<MaintenanceStatus> {
+  const response = await fetch(`${API_URL}/api/maintenance`, {
+    credentials: "include",
+    headers: authHeaders(),
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Could not load maintenance status.");
+  }
+  return {
+    enabled: Boolean(payload.enabled),
+    message: String(payload.message || ""),
+    canViewSite: Boolean(payload.canViewSite),
+  };
+}
+
+export async function updateMaintenanceMode(
+  enabled: boolean,
+  message: string,
+): Promise<MaintenanceStatus> {
+  const response = await fetch(`${API_URL}/api/maintenance`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: authHeaders({
+      "Content-Type": "application/json",
+    }),
+    body: JSON.stringify({ enabled, message }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Could not update maintenance mode.");
+  }
+  return {
+    enabled: Boolean(payload.enabled),
+    message: String(payload.message || ""),
+    canViewSite: Boolean(payload.canViewSite),
+  };
 }
