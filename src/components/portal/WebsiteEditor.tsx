@@ -36,6 +36,10 @@ import {
 } from "@/lib/store";
 import { uploadFileToBackend } from "@/lib/backend-upload";
 import { createPublishRequest } from "@/lib/publish-requests";
+import {
+  VISUAL_BUILDER_CANVAS_STATIC_CSS,
+  normalizeVisualBuilderHtml,
+} from "@/lib/sanitize-visual-content";
 import { MediaUploadStatus } from "./MediaUploadStatus";
 import { VisualEditor } from "./VisualEditor";
 
@@ -264,28 +268,6 @@ type LivePreviewSnapshot = {
   html: string;
   canvasCss: string;
 };
-
-const LIVE_PREVIEW_BUILDER_VISIBILITY_CSS = `
-  .reveal-on-scroll,
-  .reveal-on-scroll.is-revealed,
-  .reveal-stagger,
-  .reveal-stagger > *,
-  .stagger-children > *,
-  .stagger-fast > *,
-  .animate-fade-in-up,
-  .animate-fade-in,
-  .animate-scale-in,
-  .animate-grow-in,
-  .animate-blur-in,
-  .animate-slide-in-right {
-    opacity: 1 !important;
-    visibility: visible !important;
-    transform: none !important;
-    filter: none !important;
-    animation: none !important;
-    transition: none !important;
-  }
-`;
 
 const lceaProgrammes = [
   {
@@ -2081,7 +2063,7 @@ export function WebsiteEditor() {
       }
     });
 
-    cssParts.add(LIVE_PREVIEW_BUILDER_VISIBILITY_CSS);
+    cssParts.add(VISUAL_BUILDER_CANVAS_STATIC_CSS);
 
     return { html, canvasCss: Array.from(cssParts).join("\n\n") };
   }, []);
@@ -2236,6 +2218,7 @@ export function WebsiteEditor() {
 
   const saveVisualContent = async (html: string, css: string) => {
     const pageTitle = db.pages[selectedPage]?.title || selectedPage;
+    const stableHtml = normalizeVisualBuilderHtml(html);
     setSavingState("saving");
     setMessageTone("info");
     setMessage("Saving visual content and uploaded media...");
@@ -2246,7 +2229,7 @@ export function WebsiteEditor() {
         [selectedPage]: {
           ...(current.pages[selectedPage] || {}),
           ...(isLiveRenderedEditorPage(selectedPage) ? { visualMode: "visual" as const } : {}),
-          visualHtml: html,
+          visualHtml: stableHtml,
           visualCss: css,
         },
       },

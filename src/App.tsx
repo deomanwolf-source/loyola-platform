@@ -58,7 +58,12 @@ import {
   getMaintenanceStatus,
   type MaintenanceStatus,
 } from "@/lib/api";
-import { sanitizeVisualCss, sanitizeVisualHtml } from "@/lib/sanitize-visual-content";
+import {
+  VISUAL_BUILDER_STATIC_CSS,
+  normalizeVisualBuilderHtml,
+  sanitizeVisualCss,
+  sanitizeVisualHtml,
+} from "@/lib/sanitize-visual-content";
 
 const StudentPortal = lazy(() =>
   import("@/components/portal/StudentPortal").then((module) => ({ default: module.StudentPortal })),
@@ -315,9 +320,13 @@ export function App() {
     );
 
     const elements = document.querySelectorAll(
-      ".reveal-on-scroll, .reveal-stagger, .public-site main > section, .visual-page section",
+      ".reveal-on-scroll, .reveal-stagger, .public-site main > section",
     );
     elements.forEach((el) => {
+      if (el.closest(".visual-page")) {
+        el.classList.add("is-revealed");
+        return;
+      }
       if (!el.classList.contains("is-revealed")) {
         el.classList.add("reveal-on-scroll");
         observer.observe(el);
@@ -547,7 +556,7 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
 
   if (!page?.visualHtml) return <GenericPage pageId={pageId} />;
 
-  const sanitizedHtml = sanitizeVisualHtml(page.visualHtml);
+  const sanitizedHtml = normalizeVisualBuilderHtml(sanitizeVisualHtml(page.visualHtml));
   const sanitizedCss = sanitizeVisualCss(page.visualCss);
   const title = page.title || pageId.split("/").pop()?.replaceAll("-", " ") || "";
   const body = page.body && page.body.trim() !== "New page content goes here." ? page.body : "";
@@ -555,6 +564,7 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
   return (
     <PublicLayout>
       {sanitizedCss && <style>{sanitizedCss}</style>}
+      <style>{VISUAL_BUILDER_STATIC_CSS}</style>
       {sanitizedHtml ? (
         <div className="visual-page" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
       ) : (

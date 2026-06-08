@@ -6,6 +6,64 @@ const SAFE_URL_PATTERN =
 const UNSAFE_CSS_PATTERN =
   /(?:@import|expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|data\s*:|<\/?style|<\/?script)/gi;
 
+const VISUAL_BUILDER_TRANSIENT_CLASSES = new Set([
+  "reveal-on-scroll",
+  "is-revealed",
+  "reveal-stagger",
+  "stagger-children",
+  "stagger-fast",
+  "animate-fade-in-up",
+  "animate-fade-in",
+  "animate-scale-in",
+  "animate-grow-in",
+  "animate-blur-in",
+  "animate-slide-in-right",
+]);
+
+export const VISUAL_BUILDER_CANVAS_STATIC_CSS = `
+  .reveal-on-scroll,
+  .reveal-on-scroll.is-revealed,
+  .reveal-stagger,
+  .reveal-stagger > *,
+  .stagger-children > *,
+  .stagger-fast > *,
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-grow-in,
+  .animate-blur-in,
+  .animate-slide-in-right {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+`;
+
+export const VISUAL_BUILDER_STATIC_CSS = `
+  .visual-page .reveal-on-scroll,
+  .visual-page .reveal-on-scroll.is-revealed,
+  .visual-page .reveal-stagger,
+  .visual-page .reveal-stagger > *,
+  .visual-page .stagger-children > *,
+  .visual-page .stagger-fast > *,
+  .visual-page .animate-fade-in-up,
+  .visual-page .animate-fade-in,
+  .visual-page .animate-scale-in,
+  .visual-page .animate-grow-in,
+  .visual-page .animate-blur-in,
+  .visual-page .animate-slide-in-right {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+`;
+
 function sanitizeCssDeclaration(value: string) {
   const withoutUnsafeTokens = String(value || "").replace(UNSAFE_CSS_PATTERN, "");
   return withoutUnsafeTokens.replace(/url\(([^)]*)\)/gi, (match, rawUrl) => {
@@ -16,6 +74,39 @@ function sanitizeCssDeclaration(value: string) {
 
 export function sanitizeVisualCss(css?: string) {
   return sanitizeCssDeclaration(css || "").slice(0, 250000);
+}
+
+export function normalizeVisualBuilderHtml(html?: string) {
+  if (!html || typeof document === "undefined") return html || "";
+
+  const template = document.createElement("template");
+  template.innerHTML = html;
+
+  template.content.querySelectorAll<HTMLElement>("*").forEach((element) => {
+    element.removeAttribute("data-website-editor-enabled");
+    element.removeAttribute("data-website-section-active");
+
+    const classValue = element.getAttribute("class");
+    if (!classValue) return;
+
+    const classNames = classValue
+      .split(/\s+/)
+      .map((className) => className.trim())
+      .filter(Boolean)
+      .filter(
+        (className) =>
+          !VISUAL_BUILDER_TRANSIENT_CLASSES.has(className) &&
+          !className.startsWith("animation-delay-"),
+      );
+
+    if (classNames.length > 0) {
+      element.setAttribute("class", classNames.join(" "));
+    } else {
+      element.removeAttribute("class");
+    }
+  });
+
+  return template.innerHTML;
 }
 
 export function sanitizeVisualHtml(html?: string) {
