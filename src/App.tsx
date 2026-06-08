@@ -1011,13 +1011,13 @@ function HomeRequiredSections() {
             <div className="relative">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase text-gold">Live school schedule</p>
+                  <p className="text-xs font-black uppercase text-gold">Annual school schedule</p>
                   <h2 className="mt-2 font-serif text-4xl font-bold leading-tight md:text-5xl">
-                    Calendar
+                    Year Plan
                   </h2>
                   <p className="mt-3 max-w-xl text-sm leading-6 text-white/70">
-                    Key academic dates, college activities, notices, and the live Google Calendar in
-                    one place.
+                    Key academic dates, college activities, notices, and the live Google Calendar
+                    for the school year.
                   </p>
                 </div>
                 {pageIsLive("/calendar") && (
@@ -1035,7 +1035,7 @@ function HomeRequiredSections() {
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 text-sm font-black text-white/80">
                     <Calendar className="h-4 w-4 text-gold" />
-                    Upcoming highlights
+                    Year highlights
                   </div>
 
                   {calendarItems.slice(0, 1).map((event) => {
@@ -1140,7 +1140,7 @@ function HomeRequiredSections() {
               </div>
 
               <p className="mt-6 text-center text-xs font-bold italic text-white/70">
-                Upcoming academic events and religious observances.
+                Annual academic events and religious observances.
               </p>
             </div>
           </div>
