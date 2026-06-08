@@ -260,6 +260,11 @@ function isLiveRenderedEditorPage(pageId: string) {
   return LIVE_RENDERED_EDITOR_PAGE_IDS.has(pageId);
 }
 
+type LivePreviewSnapshot = {
+  html: string;
+  canvasCss: string;
+};
+
 const lceaProgrammes = [
   {
     level: "Pre Starters (Nursery)",
@@ -1558,6 +1563,10 @@ export function WebsiteEditor() {
   const page = db.pages[selectedPage] || db.pages.home;
   const needsApproval = auth.user?.role === "website_admin";
   const selectedPageUsesLiveRenderer = isLiveRenderedEditorPage(selectedPage);
+  const selectedPageUsesVisualOverride =
+    selectedPageUsesLiveRenderer &&
+    page?.visualMode === "visual" &&
+    Boolean(page?.visualHtml?.trim());
   const safeVisualEditorActive = selectedPageUsesLiveRenderer && safeVisualEditorOpen;
 
   const pageIds = useMemo(() => {
@@ -2007,35 +2016,122 @@ export function WebsiteEditor() {
     setMessage("Safe Visual Editor closed. Use the button again to visually select live sections.");
   }, []);
 
-  const openVisualBuilder = () => {
+  const getLivePreviewSnapshot = useCallback((): LivePreviewSnapshot | null => {
+    const doc = previewFrameRef.current?.contentDocument;
+    const main = doc?.querySelector("main");
+    if (!doc || !main) return null;
+
+    const mainClone = main.cloneNode(true) as HTMLElement;
+    mainClone
+      .querySelectorAll<HTMLElement>("[data-website-editor-enabled], [data-website-section-active]")
+      .forEach((element) => {
+        element.removeAttribute("data-website-editor-enabled");
+        element.removeAttribute("data-website-section-active");
+      });
+    mainClone.querySelectorAll("script").forEach((element) => element.remove());
+
+    const html = mainClone.innerHTML.trim();
+    if (!html) return null;
+
+    const cssParts = new Set<string>();
+    doc.querySelectorAll<HTMLStyleElement>("style").forEach((style) => {
+      if (style.id === "loyola-safe-visual-editor-style") return;
+      const css = style.textContent?.trim();
+      if (css) cssParts.add(css);
+    });
+
+    Array.from(doc.styleSheets).forEach((styleSheet) => {
+      const owner = (styleSheet as CSSStyleSheet & { ownerNode?: Node }).ownerNode;
+      if (owner instanceof HTMLElement && owner.id === "loyola-safe-visual-editor-style") return;
+
+      try {
+        const rules = Array.from(styleSheet.cssRules || [])
+          .map((rule) => rule.cssText)
+          .join("\n");
+        if (rules.trim()) cssParts.add(rules);
+      } catch {
+        // Cross-origin stylesheets such as Google Fonts cannot be inspected by the browser.
+      }
+    });
+
+    return { html, canvasCss: Array.from(cssParts).join("\n\n") };
+  }, []);
+
+  const openSafeVisualEditor = () => {
     const savedPage = db.pages[selectedPage];
-    if (isLiveRenderedEditorPage(selectedPage)) {
-      setVisualEditorOpen(false);
-      setVisualEditorInitial(null);
-      setSafeVisualEditorOpen(true);
-      setWidePreview(false);
+    if (!isLiveRenderedEditorPage(selectedPage)) {
       setMessageTone("info");
       setMessage(
-        `Safe Visual Editor is active for '${savedPage?.title || selectedPage}'. Click highlighted live sections in the preview and edit the Content Inspector fields. The coded design stays protected.`,
+        "Safe Visual Editor is only for live coded pages. Opening Full Visual Builder instead.",
       );
-      window.setTimeout(() => {
-        previewFrameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      }, 50);
+      openFullVisualBuilder();
       return;
     }
 
+    setVisualEditorOpen(false);
+    setVisualEditorInitial(null);
+    setSafeVisualEditorOpen(true);
+    setWidePreview(false);
+    setMessageTone("info");
+    setMessage(
+      `Safe Visual Editor is active for '${savedPage?.title || selectedPage}'. Click highlighted live sections in the preview and edit the Content Inspector fields. The coded design stays protected.`,
+    );
+    window.setTimeout(() => {
+      previewFrameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+  };
+
+  const openFullVisualBuilder = () => {
+    const savedPage = db.pages[selectedPage];
     const savedVisualHtml = savedPage?.visualHtml?.trim();
     const templateHtml = visualStarterForPage(db, selectedPage);
     const shouldLoadTemplate = shouldUsePastRectorsTemplate(selectedPage, savedVisualHtml);
+    const liveSnapshot = isLiveRenderedEditorPage(selectedPage) ? getLivePreviewSnapshot() : null;
+    const initialHtml = shouldLoadTemplate
+      ? templateHtml
+      : savedVisualHtml || liveSnapshot?.html || templateHtml;
 
     setVisualEditorInitial({
-      html: shouldLoadTemplate ? templateHtml : savedVisualHtml || templateHtml,
+      html: initialHtml,
       css: savedVisualHtml && !shouldLoadTemplate ? savedPage?.visualCss || "" : "",
-      canvasCss: "",
-      templateHtml,
+      canvasCss: liveSnapshot?.canvasCss || "",
+      templateHtml: liveSnapshot?.html || templateHtml,
     });
+    setSafeVisualEditorOpen(false);
     setVisualEditorOpen(true);
-    setMessage(`Visual Builder opened for '${savedPage?.title || selectedPage}'.`);
+    setMessageTone("info");
+    setMessage(
+      isLiveRenderedEditorPage(selectedPage)
+        ? `Full Visual Builder opened for '${savedPage?.title || selectedPage}'. Saving will make this page use a visual override; the coded design is kept and can be restored.`
+        : `Visual Builder opened for '${savedPage?.title || selectedPage}'.`,
+    );
+  };
+
+  const openVisualBuilder = () => {
+    if (isLiveRenderedEditorPage(selectedPage)) {
+      openSafeVisualEditor();
+      return;
+    }
+    openFullVisualBuilder();
+  };
+
+  const useCodedDesign = () => {
+    const pageTitle = db.pages[selectedPage]?.title || selectedPage;
+    setDb((current) => ({
+      ...current,
+      pages: {
+        ...current.pages,
+        [selectedPage]: {
+          ...(current.pages[selectedPage] || {}),
+          visualMode: "coded",
+        },
+      },
+    }));
+    setMessageTone("info");
+    setMessage(
+      `'${pageTitle}' will use the coded live design again. The saved visual-builder content was kept and can be re-enabled later.`,
+    );
+    audit(`Restored coded design mode for ${selectedPage}`, "Website editor");
   };
 
   const showSyncResult = (
@@ -2106,17 +2202,6 @@ export function WebsiteEditor() {
 
   const saveVisualContent = async (html: string, css: string) => {
     const pageTitle = db.pages[selectedPage]?.title || selectedPage;
-    if (isLiveRenderedEditorPage(selectedPage)) {
-      setVisualEditorOpen(false);
-      setVisualEditorInitial(null);
-      setSavingState("idle");
-      setMessageTone("info");
-      setMessage(
-        `Visual Builder save was skipped for '${pageTitle}' because this page uses the live coded design. No page design was changed.`,
-      );
-      return;
-    }
-
     setSavingState("saving");
     setMessageTone("info");
     setMessage("Saving visual content and uploaded media...");
@@ -2126,6 +2211,7 @@ export function WebsiteEditor() {
         ...current.pages,
         [selectedPage]: {
           ...(current.pages[selectedPage] || {}),
+          ...(isLiveRenderedEditorPage(selectedPage) ? { visualMode: "visual" as const } : {}),
           visualHtml: html,
           visualCss: css,
         },
@@ -2141,7 +2227,11 @@ export function WebsiteEditor() {
       setMessage(
         `Visual content saved as a cloud draft for '${pageTitle}'${
           result.contentVersion ? ` as version ${result.contentVersion}` : ""
-        }. Publish when this page is ready for the public website.`,
+        }. ${
+          isLiveRenderedEditorPage(selectedPage)
+            ? "This page now uses the visual override after publishing; coded design is still kept."
+            : "Publish when this page is ready for the public website."
+        }`,
       );
     } else {
       showSyncResult(`Visual content saved for '${pageTitle}'`, result, "save");
@@ -2193,7 +2283,10 @@ export function WebsiteEditor() {
                 <MonitorSmartphone className="h-4 w-4" />
                 {widePreview ? "Show Panels" : "Wide Editor"}
               </StudioButton>
-              <StudioButton tone="dark" onClick={openVisualBuilder}>
+              <StudioButton
+                tone="dark"
+                onClick={selectedPageUsesLiveRenderer ? openSafeVisualEditor : openFullVisualBuilder}
+              >
                 {selectedPageUsesLiveRenderer ? (
                   <>
                     <Wand2 className="h-4 w-4" />{" "}
@@ -2205,6 +2298,11 @@ export function WebsiteEditor() {
                   </>
                 )}
               </StudioButton>
+              {selectedPageUsesLiveRenderer && (
+                <StudioButton onClick={openFullVisualBuilder}>
+                  <LayoutTemplate className="h-4 w-4" /> Full Visual Builder
+                </StudioButton>
+              )}
               <StudioButton onClick={() => window.open("/", "_blank", "noopener,noreferrer")}>
                 <Eye className="h-4 w-4" /> Preview
               </StudioButton>
@@ -2267,6 +2365,34 @@ export function WebsiteEditor() {
           </span>
           <span className="leading-5">{message}</span>
         </div>
+        {selectedPageUsesLiveRenderer && (
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs font-bold text-slate-600">
+            <span>
+              {selectedPageUsesVisualOverride
+                ? `'${page.title || selectedPage}' is using Full Visual Builder mode.`
+                : `'${page.title || selectedPage}' is using the coded live design.`}
+            </span>
+            {selectedPageUsesVisualOverride ? (
+              <button
+                type="button"
+                onClick={useCodedDesign}
+                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-navy transition hover:bg-slate-100"
+              >
+                <RefreshCw className="h-3.5 w-3.5" />
+                Use coded design
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={openFullVisualBuilder}
+                className="inline-flex items-center gap-2 rounded-lg border border-[#d4a017]/55 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-navy transition hover:bg-[#fff7d6]"
+              >
+                <LayoutTemplate className="h-3.5 w-3.5" />
+                Edit everything
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div
@@ -2894,13 +3020,15 @@ export function WebsiteEditor() {
                 )}
                 <button
                   type="button"
-                  onClick={openVisualBuilder}
+                  onClick={selectedPageUsesLiveRenderer ? openFullVisualBuilder : openVisualBuilder}
                   className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
                 >
                   {selectedPageUsesLiveRenderer ? (
                     <>
                       <Wand2 className="h-4 w-4" />{" "}
-                      {safeVisualEditorActive ? "Safe Editor Active" : "Open Safe Visual Editor"}
+                      {selectedPageUsesVisualOverride
+                        ? "Edit Full Visual Page"
+                        : "Open Full Visual Builder"}
                     </>
                   ) : (
                     <>
@@ -2909,6 +3037,16 @@ export function WebsiteEditor() {
                     </>
                   )}
                 </button>
+                {selectedPageUsesLiveRenderer && (
+                  <button
+                    type="button"
+                    onClick={openSafeVisualEditor}
+                    className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-navy transition hover:bg-slate-50"
+                  >
+                    <Wand2 className="h-4 w-4" />
+                    {safeVisualEditorActive ? "Safe editor active" : "Open safe field editor"}
+                  </button>
+                )}
               </div>
             </div>
 

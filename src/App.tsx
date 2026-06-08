@@ -157,6 +157,15 @@ function isLiveRenderedPage(pageId: string) {
   return LIVE_RENDERED_PAGE_IDS.has(pageId);
 }
 
+function shouldRenderVisualBuilder(
+  pageId: string,
+  page?: { visualMode?: "coded" | "visual"; visualHtml?: string },
+) {
+  if (!page?.visualHtml?.trim()) return false;
+  if (!isLiveRenderedPage(pageId)) return true;
+  return page.visualMode === "visual";
+}
+
 function googleCalendarEmbedUrl(mode: "MONTH" | "AGENDA") {
   const params = new URLSearchParams({
     src: LOYOLA_CALENDAR_ID,
@@ -348,9 +357,8 @@ export function App() {
 
   if (
     !isSystemPath &&
-    !isLiveRenderedPage(visualPageId) &&
     pageIsLive(visualPageId) &&
-    db.pages[visualPageId]?.visualHtml?.trim()
+    shouldRenderVisualBuilder(visualPageId, db.pages[visualPageId])
   ) {
     return <VisualBuilderPage pageId={visualPageId} />;
   }
@@ -612,7 +620,7 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
   };
   const page = db.pages[pageId] || defaultPage;
   const visualHtml = page.visualHtml?.trim();
-  if (visualHtml && !isGenericPastRectorsVisualHtml(visualHtml)) {
+  if (shouldRenderVisualBuilder(pageId, page) && !isGenericPastRectorsVisualHtml(visualHtml)) {
     return <VisualBuilderPage pageId={pageId} />;
   }
 
@@ -3614,7 +3622,7 @@ function ContactPage() {
 function GenericPage({ pageId }: { pageId: string }) {
   const db = useDb();
   const page = db.pages[pageId];
-  if (page?.visualHtml) return <VisualBuilderPage pageId={pageId} />;
+  if (shouldRenderVisualBuilder(pageId, page)) return <VisualBuilderPage pageId={pageId} />;
 
   const title = page?.title || pageId.split("/").pop()?.replaceAll("-", " ") || "Page";
 

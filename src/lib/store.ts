@@ -411,6 +411,7 @@ export interface DB {
       anthemVideoUrl?: string;
       anthemVideoTitle?: string;
       blocks?: PageBlock[];
+      visualMode?: "coded" | "visual";
       visualHtml?: string;
       visualCss?: string;
     }
