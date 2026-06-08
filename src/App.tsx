@@ -162,13 +162,24 @@ function isLiveRenderedPage(pageId: string) {
   return LIVE_RENDERED_PAGE_IDS.has(pageId);
 }
 
+function hasCompleteLiveVisualCapture(html?: string) {
+  if (!html?.trim()) return false;
+  return /data-website-section\s*=\s*["']Hero["']|<section\b[^>]*class\s*=\s*["'][^"']*\bhero\b/i.test(
+    html,
+  );
+}
+
 function shouldRenderVisualBuilder(
   pageId: string,
   page?: { visualMode?: "coded" | "visual"; visualHtml?: string; visualBaseCss?: string },
 ) {
   if (!page?.visualHtml?.trim()) return false;
   if (!isLiveRenderedPage(pageId)) return true;
-  return page.visualMode === "visual" && Boolean(page.visualBaseCss?.trim());
+  return (
+    page.visualMode === "visual" &&
+    Boolean(page.visualBaseCss?.trim()) &&
+    hasCompleteLiveVisualCapture(page.visualHtml)
+  );
 }
 
 function googleCalendarEmbedUrl(mode: "MONTH" | "AGENDA") {

@@ -497,7 +497,7 @@ function pageHeroHtml({
   image: string;
 }) {
   const heroImage = escapeHtml(image || "/loyola-crest.jpg");
-  return `<section class="hero" style="position:relative;display:flex;min-height:420px;align-items:center;overflow:hidden;background:#0a1628;">
+  return `<section data-website-section="Hero" class="hero" style="position:relative;display:flex;min-height:420px;align-items:center;overflow:hidden;background:#0a1628;">
   <img src="${heroImage}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.3;" />
   <div style="position:absolute;inset:0;background:linear-gradient(105deg, rgba(10,22,40,.98), rgba(10,22,40,.84), rgba(183,15,27,.42));"></div>
   <div class="container" style="position:relative;z-index:1;">
