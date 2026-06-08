@@ -1252,38 +1252,7 @@ function HomeVisionMissionIdentity() {
 function HomePage() {
   const db = useDb();
   const content = db.websiteContent;
-  const home = db.homeSections;
   const page = db.pages.home || {};
-  const quickLinks = [
-    {
-      title: "Explore College",
-      body: "About, history, values, and college life.",
-      icon: Landmark,
-      href: "/about",
-    },
-    {
-      title: "View Notices",
-      body: "Important updates, circulars, and exam notices.",
-      icon: FileText,
-      href: "/news",
-    },
-    {
-      title: "Downloads",
-      body: "Forms, timetables, circulars, and school files.",
-      icon: Download,
-      href: "/downloads",
-    },
-    {
-      title: "Upcoming Events",
-      body: "School calendar, sports, clubs, and celebrations.",
-      icon: Calendar,
-      href: "/events",
-    },
-  ];
-  const publicPageIsLive = (href: string) => {
-    const id = href.replace(/^\/+/, "") || "home";
-    return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
-  };
   const heroTitle =
     content.heroTitle?.trim() || "A Tradition of Excellence. A Future of Innovation.";
   const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
@@ -1301,8 +1270,8 @@ function HomePage() {
           gradientClassName="bg-[linear-gradient(105deg,rgb(10_22_40_/0.98),rgb(10_22_40_/0.84),rgb(10_22_40_/0.66))]"
           gridOpacityClassName="opacity-30"
         />
-        <div className="relative mx-auto grid max-w-7xl gap-8 px-5 pb-12 pt-10 sm:px-6 sm:py-16 md:py-20 lg:grid-cols-[minmax(0,1fr)_390px] lg:gap-12 lg:py-28">
-          <div>
+        <div className="relative mx-auto max-w-7xl px-5 pb-12 pt-10 sm:px-6 sm:py-16 md:py-20 lg:py-28">
+          <div className="max-w-4xl">
             <span className="gold-divider mb-5" />
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
               {content.schoolName}
@@ -1313,60 +1282,7 @@ function HomePage() {
             <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/82 sm:text-base md:text-lg lg:mt-6 lg:text-xl">
               {heroText}
             </p>
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <a
-                href="/about"
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-crimson px-5 py-3 text-sm font-bold text-white sm:justify-start sm:px-6"
-              >
-                Explore College <ArrowRight className="h-4 w-4" />
-              </a>
-              <a
-                href="/news"
-                className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/25 px-5 py-3 text-sm font-bold text-white sm:justify-start sm:px-6"
-              >
-                View Notices
-              </a>
-            </div>
-            <div className="stagger-children mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:mt-10 lg:gap-4">
-              {home.stats.map((stat) => (
-                <div
-                  key={stat.id}
-                  className="hover-lift cursor-default rounded-lg border border-white/14 bg-white/10 p-4 lg:p-5"
-                >
-                  <p className="animate-count-up font-serif text-2xl font-bold text-gold-light lg:text-3xl">
-                    {stat.value}
-                  </p>
-                  <p className="mt-2 text-sm text-white/70">{stat.label}</p>
-                </div>
-              ))}
-            </div>
           </div>
-          <aside className="self-center rounded-lg border border-white/14 bg-white/10 p-4 backdrop-blur sm:p-6">
-            <p className="text-sm font-bold text-white">Loyola quick access</p>
-            <div className="mt-5 grid gap-3">
-              {quickLinks
-                .filter((item) => publicPageIsLive(item.href))
-                .map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <a
-                      key={item.title}
-                      href={item.href}
-                      className="grid grid-cols-[42px_1fr_auto] items-center gap-4 rounded-lg bg-white/10 p-4"
-                    >
-                      <span className="grid h-10 w-10 place-items-center rounded-lg bg-white/10 text-gold-light">
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span>
-                        <span className="block text-sm font-semibold">{item.title}</span>
-                        <span className="block text-xs text-white/60">{item.body}</span>
-                      </span>
-                      <ArrowRight className="h-4 w-4 text-white/45" />
-                    </a>
-                  );
-                })}
-            </div>
-          </aside>
         </div>
       </section>
 
