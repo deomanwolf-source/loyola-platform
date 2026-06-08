@@ -1249,6 +1249,276 @@ function HomeVisionMissionIdentity() {
   );
 }
 
+function HomeHeroThreeScene({ logoSrc }: { logoSrc: string }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    let disposed = false;
+    let animationFrame = 0;
+    let renderer: import("three").WebGLRenderer | null = null;
+    const cleanup: Array<() => void> = [];
+
+    import("three")
+      .then((THREE) => {
+        if (disposed || !canvas.isConnected) return;
+
+        const parent = canvas.parentElement;
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+        camera.position.set(0, 0.18, 8.6);
+
+        renderer = new THREE.WebGLRenderer({
+          alpha: true,
+          antialias: true,
+          canvas,
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: true,
+        });
+        renderer.setClearColor(0x000000, 0);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.7));
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+        const ambient = new THREE.AmbientLight(0xffffff, 0.72);
+        scene.add(ambient);
+
+        const keyLight = new THREE.PointLight(0xffd66b, 3.8, 20);
+        keyLight.position.set(2.6, 3.2, 4.2);
+        scene.add(keyLight);
+
+        const coolLight = new THREE.PointLight(0x6fa8ff, 1.45, 18);
+        coolLight.position.set(-4.2, -1.6, 3.8);
+        scene.add(coolLight);
+
+        const heroGroup = new THREE.Group();
+        heroGroup.position.set(0, 0.75, 0);
+        scene.add(heroGroup);
+
+        const aura = new THREE.Mesh(
+          new THREE.IcosahedronGeometry(1.36, 2),
+          new THREE.MeshBasicMaterial({
+            color: 0xf7d96b,
+            transparent: true,
+            opacity: 0.12,
+            wireframe: true,
+          }),
+        );
+        heroGroup.add(aura);
+
+        const glowDisc = new THREE.Mesh(
+          new THREE.CircleGeometry(2.9, 96),
+          new THREE.MeshBasicMaterial({
+            color: 0xd4a017,
+            transparent: true,
+            opacity: 0.1,
+            depthWrite: false,
+          }),
+        );
+        glowDisc.position.z = -0.28;
+        heroGroup.add(glowDisc);
+
+        const haloMaterial = new THREE.MeshStandardMaterial({
+          color: 0xd4a017,
+          emissive: 0x9a6500,
+          emissiveIntensity: 0.42,
+          metalness: 0.86,
+          roughness: 0.28,
+          transparent: true,
+          opacity: 0.74,
+        });
+        const haloGeometry = new THREE.TorusGeometry(1.52, 0.018, 16, 132);
+        const halo = new THREE.Mesh(haloGeometry, haloMaterial);
+        heroGroup.add(halo);
+
+        const outerHalo = new THREE.Mesh(
+          new THREE.TorusGeometry(2.05, 0.012, 16, 144),
+          new THREE.MeshBasicMaterial({
+            color: 0xf7d96b,
+            transparent: true,
+            opacity: 0.42,
+          }),
+        );
+        outerHalo.rotation.x = Math.PI / 2.9;
+        heroGroup.add(outerHalo);
+
+        const medallion = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.9, 0.9, 0.1, 96),
+          new THREE.MeshStandardMaterial({
+            color: 0xf5f7fb,
+            metalness: 0.18,
+            roughness: 0.38,
+            transparent: true,
+            opacity: 0.18,
+          }),
+        );
+        medallion.rotation.x = Math.PI / 2;
+        heroGroup.add(medallion);
+
+        const loader = new THREE.TextureLoader();
+        loader.setCrossOrigin("anonymous");
+        const logoTexture = loader.load(
+          logoSrc,
+          () => {
+            logoTexture.colorSpace = THREE.SRGBColorSpace;
+          },
+          undefined,
+          () => undefined,
+        );
+        const logo = new THREE.Mesh(
+          new THREE.CircleGeometry(0.68, 96),
+          new THREE.MeshBasicMaterial({
+            map: logoTexture,
+            transparent: true,
+            opacity: 0.22,
+          }),
+        );
+        logo.position.z = 0.08;
+        heroGroup.add(logo);
+
+        const particleCount = window.innerWidth < 768 ? 72 : 132;
+        const particlePositions = new Float32Array(particleCount * 3);
+        for (let index = 0; index < particleCount; index += 1) {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = 2.4 + Math.random() * 5.2;
+          particlePositions[index * 3] = Math.cos(angle) * radius;
+          particlePositions[index * 3 + 1] = (Math.random() - 0.5) * 5.4;
+          particlePositions[index * 3 + 2] = -2.6 - Math.random() * 3.8;
+        }
+        const particleGeometry = new THREE.BufferGeometry();
+        particleGeometry.setAttribute(
+          "position",
+          new THREE.BufferAttribute(particlePositions, 3),
+        );
+        const particles = new THREE.Points(
+          particleGeometry,
+          new THREE.PointsMaterial({
+            color: 0xf7d96b,
+            opacity: 0.68,
+            size: 0.046,
+            transparent: true,
+            sizeAttenuation: true,
+          }),
+        );
+        scene.add(particles);
+
+        const streaks = new THREE.Group();
+        const streakMaterial = new THREE.MeshBasicMaterial({
+          color: 0xd4a017,
+          transparent: true,
+          opacity: 0.22,
+        });
+        for (let index = 0; index < 9; index += 1) {
+          const streak = new THREE.Mesh(
+            new THREE.BoxGeometry(0.012, 1.35 + Math.random() * 1.2, 0.012),
+            streakMaterial,
+          );
+          streak.position.set((Math.random() - 0.5) * 7.8, (Math.random() - 0.5) * 4.8, -3.4);
+          streak.rotation.z = 0.68;
+          streaks.add(streak);
+        }
+        scene.add(streaks);
+
+        const pointer = { x: 0, y: 0 };
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        const resize = () => {
+          const bounds = parent?.getBoundingClientRect() ?? canvas.getBoundingClientRect();
+          const width = Math.max(1, Math.floor(bounds.width));
+          const height = Math.max(1, Math.floor(bounds.height));
+          renderer?.setSize(width, height, false);
+          camera.aspect = width / height;
+          camera.updateProjectionMatrix();
+        };
+
+        const handlePointerMove = (event: PointerEvent) => {
+          const bounds = canvas.getBoundingClientRect();
+          pointer.x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 2;
+          pointer.y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 2;
+        };
+
+        window.addEventListener("pointermove", handlePointerMove, { passive: true });
+        cleanup.push(() => window.removeEventListener("pointermove", handlePointerMove));
+
+        const observer = new ResizeObserver(resize);
+        if (parent) observer.observe(parent);
+        cleanup.push(() => observer.disconnect());
+
+        resize();
+
+        const startedAt = performance.now();
+        const render = (now: number) => {
+          if (disposed) return;
+          const elapsed = (now - startedAt) / 1000;
+          const motion = reducedMotion ? 0.18 : 1;
+
+          heroGroup.rotation.y += ((pointer.x * 0.16 - heroGroup.rotation.y) * 0.055) * motion;
+          heroGroup.rotation.x += ((-pointer.y * 0.1 - heroGroup.rotation.x) * 0.055) * motion;
+          heroGroup.position.y = 0.75 + Math.sin(elapsed * 0.92) * 0.08 * motion;
+          halo.rotation.z = elapsed * 0.22 * motion;
+          outerHalo.rotation.z = -elapsed * 0.16 * motion;
+          aura.rotation.y = elapsed * 0.18 * motion;
+          aura.rotation.x = elapsed * 0.11 * motion;
+          glowDisc.rotation.z = elapsed * 0.04 * motion;
+          medallion.rotation.z = Math.sin(elapsed * 0.7) * 0.08 * motion;
+          logo.rotation.z = Math.sin(elapsed * 0.48) * 0.02 * motion;
+          particles.rotation.y = elapsed * 0.025 * motion + pointer.x * 0.045;
+          particles.rotation.x = pointer.y * 0.025;
+          streaks.rotation.z = Math.sin(elapsed * 0.28) * 0.035 * motion;
+          camera.position.x += (pointer.x * 0.2 - camera.position.x) * 0.035 * motion;
+          camera.position.y += (0.18 - pointer.y * 0.12 - camera.position.y) * 0.035 * motion;
+          camera.lookAt(0, 0.35, 0);
+
+          renderer?.render(scene, camera);
+          animationFrame = window.requestAnimationFrame(render);
+        };
+
+        animationFrame = window.requestAnimationFrame(render);
+
+        cleanup.push(() => {
+          window.cancelAnimationFrame(animationFrame);
+          logoTexture.dispose();
+          aura.geometry.dispose();
+          (aura.material as import("three").Material).dispose();
+          glowDisc.geometry.dispose();
+          (glowDisc.material as import("three").Material).dispose();
+          haloGeometry.dispose();
+          haloMaterial.dispose();
+          outerHalo.geometry.dispose();
+          (outerHalo.material as import("three").Material).dispose();
+          medallion.geometry.dispose();
+          (medallion.material as import("three").Material).dispose();
+          logo.geometry.dispose();
+          (logo.material as import("three").Material).dispose();
+          particleGeometry.dispose();
+          (particles.material as import("three").Material).dispose();
+          streaks.children.forEach((child) => {
+            const mesh = child as import("three").Mesh;
+            mesh.geometry.dispose();
+          });
+          streakMaterial.dispose();
+          renderer?.dispose();
+        });
+      })
+      .catch(() => undefined);
+
+    return () => {
+      disposed = true;
+      cleanup.forEach((dispose) => dispose());
+    };
+  }, [logoSrc]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden="true"
+      className="absolute inset-0 h-full w-full opacity-95"
+      data-home-hero-three
+    />
+  );
+}
+
 function HomePage() {
   const db = useDb();
   const content = db.websiteContent;
@@ -1257,6 +1527,7 @@ function HomePage() {
     content.heroTitle?.trim() || "A Tradition of Excellence. A Future of Innovation.";
   const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
   const heroImage = page.image || content.heroImage || db.media.campusImage || DEFAULT_HERO_IMAGE;
+  const logoImage = content.logoImage || "/loyola-crest.jpg";
 
   return (
     <PublicLayout>
@@ -1270,21 +1541,23 @@ function HomePage() {
           gradientClassName="bg-[linear-gradient(105deg,rgb(10_22_40_/0.98),rgb(10_22_40_/0.84),rgb(10_22_40_/0.66))]"
           gridOpacityClassName="opacity-30"
         />
+        <HomeHeroThreeScene logoSrc={logoImage} />
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgb(212_160_23_/0.16),transparent_34%),linear-gradient(180deg,rgb(10_22_40_/0),rgb(10_22_40_/0.22))]" />
         <div className="relative mx-auto grid min-h-[520px] max-w-7xl place-items-center px-5 py-16 text-center sm:px-6 md:min-h-[620px] md:py-24 lg:py-32">
-          <div className="mx-auto max-w-5xl">
+          <div className="home-hero-content mx-auto max-w-5xl">
             <img
-              src={content.logoImage || "/loyola-crest.jpg"}
+              src={logoImage}
               alt="Loyola College crest"
-              className="mx-auto h-24 w-24 rounded-full border border-white/25 bg-white object-contain p-2 shadow-[0_22px_60px_-32px_rgba(255,255,255,0.8)] md:h-28 md:w-28"
+              className="home-hero-crest mx-auto h-24 w-24 rounded-full border border-white/25 bg-white object-contain p-2 shadow-[0_22px_60px_-32px_rgba(255,255,255,0.8)] md:h-28 md:w-28"
             />
             <span className="gold-divider mx-auto mb-5 mt-7" />
             <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-light">
               {content.schoolName}
             </p>
-            <h1 className="mx-auto mt-5 max-w-5xl text-balance font-serif text-5xl font-bold leading-[1.03] sm:text-6xl md:text-7xl lg:mt-7 lg:text-8xl">
+            <h1 className="home-hero-title mx-auto mt-5 max-w-5xl text-balance font-serif text-5xl font-bold leading-[1.03] sm:text-6xl md:text-7xl lg:mt-7 lg:text-8xl">
               {heroTitle}
             </h1>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/82 sm:text-lg md:text-xl lg:mt-7">
+            <p className="home-hero-motto mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/82 sm:text-lg md:text-xl lg:mt-7">
               {heroText}
             </p>
           </div>

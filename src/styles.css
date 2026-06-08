@@ -1194,6 +1194,35 @@
   }
 }
 
+@keyframes heroCrestFloat {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg);
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.2),
+      0 24px 70px -34px rgb(247 217 107 / 0.72);
+  }
+  50% {
+    transform: translate3d(0, -10px, 0) rotateX(4deg) rotateY(-5deg);
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.28),
+      0 32px 86px -34px rgb(247 217 107 / 0.92);
+  }
+}
+
+@keyframes heroTextReveal {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translate3d(0, 24px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
 @keyframes playButtonGlow {
   0%,
   100% {
@@ -1280,6 +1309,27 @@
 
 .animate-pulse-badge {
   animation: pulseBadge 2s ease-in-out infinite;
+}
+
+.home-hero-content {
+  perspective: 1200px;
+}
+
+.home-hero-crest {
+  animation: heroCrestFloat 5.8s ease-in-out infinite;
+  transform-style: preserve-3d;
+  will-change: transform, box-shadow;
+}
+
+.home-hero-title {
+  animation: heroTextReveal 0.92s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+  text-shadow:
+    0 18px 60px rgb(0 0 0 / 0.38),
+    0 0 36px rgb(247 217 107 / 0.12);
+}
+
+.home-hero-motto {
+  animation: heroTextReveal 0.92s cubic-bezier(0.16, 1, 0.3, 1) 0.22s both;
 }
 
 .animation-delay-1 {
