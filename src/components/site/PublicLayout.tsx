@@ -71,7 +71,10 @@ export const SiteHeader = memo(function SiteHeader() {
       .map((child) => [child.label, hrefFor(child.id)] as [string, string]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/80 bg-white/95 shadow-[0_18px_45px_-34px_rgb(10_22_40_/0.55)] backdrop-blur-xl transition-smooth">
+    <header
+      data-website-section="Header"
+      className="sticky top-0 z-50 border-b border-border/80 bg-white/95 shadow-[0_18px_45px_-34px_rgb(10_22_40_/0.55)] backdrop-blur-xl transition-smooth"
+    >
       <div className="hidden border-b border-white/10 bg-navy text-white xl:block">
         <div className="mx-auto flex h-9 max-w-[110rem] items-center justify-between px-4 text-[11px] font-semibold sm:px-6">
           <div className="flex min-w-0 items-center gap-5 text-white/72">
@@ -296,7 +299,7 @@ export const SiteFooter = memo(function SiteFooter() {
   ].filter((item) => item.href);
 
   return (
-    <footer className="bg-navy text-white">
+    <footer data-website-section="Footer" className="bg-navy text-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div>
           <div className="flex items-center gap-3">
@@ -482,7 +485,10 @@ export function PageHeader({
     image || db.websiteContent.heroImage || db.media.campusImage || DEFAULT_HERO_IMAGE;
 
   return (
-    <section className="relative overflow-hidden border-b border-border bg-navy text-white">
+    <section
+      data-website-section="Hero"
+      className="relative overflow-hidden border-b border-border bg-navy text-white"
+    >
       <HeroBackgroundLayer
         fallbackImage={fallbackHeroImage}
         mediaUrl={page?.backgroundMediaUrl}

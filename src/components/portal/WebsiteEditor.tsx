@@ -1206,16 +1206,26 @@ function previewItems(db: DB, pageId: string, section: string) {
   ];
 }
 
+const SAFE_VISUAL_SECTION_SELECTOR = "[data-website-section]";
+
+type SafeVisualEditorDocument = Document & {
+  __loyolaSafeVisualClickHandler?: EventListener;
+};
+
 function PreviewWebsite({
   db,
   selectedPage,
   selectedSection,
   frameRef,
+  visualEditing,
+  onSelectSection,
 }: {
   db: DB;
   selectedPage: string;
   selectedSection: string;
   frameRef: React.RefObject<HTMLIFrameElement | null>;
+  visualEditing: boolean;
+  onSelectSection: (section: string) => void;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const path = pagePath(selectedPage);
@@ -1228,10 +1238,81 @@ function PreviewWebsite({
     );
   }, [db, frameRef]);
 
+  const syncVisualEditingState = useCallback(() => {
+    const doc = frameRef.current?.contentDocument as SafeVisualEditorDocument | undefined;
+    if (!doc) return;
+
+    if (doc.__loyolaSafeVisualClickHandler) {
+      doc.removeEventListener("click", doc.__loyolaSafeVisualClickHandler, true);
+      doc.__loyolaSafeVisualClickHandler = undefined;
+    }
+
+    let style = doc.getElementById("loyola-safe-visual-editor-style") as HTMLStyleElement | null;
+    if (!style) {
+      style = doc.createElement("style");
+      style.id = "loyola-safe-visual-editor-style";
+      doc.head.appendChild(style);
+    }
+
+    if (!visualEditing) {
+      doc.body?.removeAttribute("data-loyola-safe-visual-editor");
+      style.textContent = "";
+      doc.querySelectorAll<HTMLElement>(SAFE_VISUAL_SECTION_SELECTOR).forEach((element) => {
+        element.removeAttribute("data-website-section-active");
+        element.removeAttribute("data-website-editor-enabled");
+      });
+      return;
+    }
+
+    const handlePreviewClick: EventListener = (event) => {
+      const target = event.target as Element | null;
+      const sectionElement =
+        typeof target?.closest === "function"
+          ? (target.closest(SAFE_VISUAL_SECTION_SELECTOR) as HTMLElement | null)
+          : null;
+      const section = sectionElement?.dataset.websiteSection;
+      if (!section) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      onSelectSection(section);
+    };
+
+    doc.__loyolaSafeVisualClickHandler = handlePreviewClick;
+    doc.addEventListener("click", handlePreviewClick, true);
+    doc.body?.setAttribute("data-loyola-safe-visual-editor", "true");
+    style.textContent = `
+      body[data-loyola-safe-visual-editor="true"] ${SAFE_VISUAL_SECTION_SELECTOR} {
+        cursor: pointer !important;
+      }
+      body[data-loyola-safe-visual-editor="true"] ${SAFE_VISUAL_SECTION_SELECTOR}:hover {
+        outline: 3px solid rgba(212, 160, 23, 0.72) !important;
+        outline-offset: -3px !important;
+        box-shadow: inset 0 0 0 9999px rgba(212, 160, 23, 0.035) !important;
+      }
+      body[data-loyola-safe-visual-editor="true"] ${SAFE_VISUAL_SECTION_SELECTOR}[data-website-section-active="true"] {
+        outline: 3px solid #d4a017 !important;
+        outline-offset: -3px !important;
+        box-shadow: inset 0 0 0 9999px rgba(212, 160, 23, 0.055) !important;
+      }
+    `;
+    doc.querySelectorAll<HTMLElement>(SAFE_VISUAL_SECTION_SELECTOR).forEach((element) => {
+      element.setAttribute("data-website-editor-enabled", "true");
+      if (element.dataset.websiteSection === selectedSection) {
+        element.setAttribute("data-website-section-active", "true");
+      } else {
+        element.removeAttribute("data-website-section-active");
+      }
+    });
+  }, [frameRef, onSelectSection, selectedSection, visualEditing]);
+
   useEffect(() => {
-    const frame = window.requestAnimationFrame(postDb);
+    const frame = window.requestAnimationFrame(() => {
+      postDb();
+      syncVisualEditingState();
+    });
     return () => window.cancelAnimationFrame(frame);
-  }, [postDb, src]);
+  }, [postDb, src, syncVisualEditingState]);
 
   return (
     <div className="flex h-[78vh] min-h-[640px] flex-col overflow-hidden rounded-[1.4rem] border border-slate-200 bg-white shadow-elegant">
@@ -1256,13 +1337,22 @@ function PreviewWebsite({
             Preview {path} | {selectedSection}
           </a>
         </div>
+        {visualEditing && (
+          <p className="mt-2 text-[11px] font-semibold text-slate-500">
+            Safe Visual Editor: click highlighted live sections, edit fields in Content Inspector,
+            then Save Draft and Publish.
+          </p>
+        )}
       </div>
       <iframe
         key={src}
         ref={frameRef}
         src={src}
         title="Full website live preview"
-        onLoad={postDb}
+        onLoad={() => {
+          postDb();
+          syncVisualEditingState();
+        }}
         className="min-h-0 flex-1 border-0 bg-white"
       />
       <div className="flex shrink-0 items-center justify-between border-t border-slate-200 bg-slate-50 px-5 py-2 text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
@@ -1884,16 +1974,26 @@ export function WebsiteEditor() {
     setMessage(`Page renamed to '${newName}'.`);
   };
 
+  const selectPreviewSection = useCallback((section: string) => {
+    setSelectedSection(section);
+    setWidePreview(false);
+    setMessageTone("info");
+    setMessage(
+      `Safe Visual Editor selected '${section}'. Edit the matching fields in Content Inspector, then Save Draft and Publish.`,
+    );
+  }, []);
+
   const openVisualBuilder = () => {
     const savedPage = db.pages[selectedPage];
     if (isLiveRenderedEditorPage(selectedPage)) {
       setVisualEditorOpen(false);
       setVisualEditorInitial(null);
+      setWidePreview(false);
       setMessageTone("info");
       setMessage(
-        `'${savedPage?.title || selectedPage}' uses the live coded website design. Opening the live page instead so Save/Publish cannot replace the design with a visual-builder template.`,
+        `Safe Visual Editor is active for '${savedPage?.title || selectedPage}'. Click highlighted live sections in the preview and edit the Content Inspector fields. The coded design stays protected.`,
       );
-      window.open(`${pagePath(selectedPage)}?websiteEditorPreview=1`, "_blank", "noopener,noreferrer");
+      previewFrameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
 
@@ -2069,7 +2169,7 @@ export function WebsiteEditor() {
               <StudioButton tone="dark" onClick={openVisualBuilder}>
                 {selectedPageUsesLiveRenderer ? (
                   <>
-                    <Eye className="h-4 w-4" /> Open Live Page
+                    <Wand2 className="h-4 w-4" /> Safe Visual Editor
                   </>
                 ) : (
                   <>
@@ -2263,6 +2363,8 @@ export function WebsiteEditor() {
             selectedPage={selectedPage}
             selectedSection={selectedSection}
             frameRef={previewFrameRef}
+            visualEditing={selectedPageUsesLiveRenderer}
+            onSelectSection={selectPreviewSection}
           />
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-3.5">
@@ -2768,7 +2870,7 @@ export function WebsiteEditor() {
                 >
                   {selectedPageUsesLiveRenderer ? (
                     <>
-                      <Eye className="h-4 w-4" /> Open Live Page
+                      <Wand2 className="h-4 w-4" /> Open Safe Visual Editor
                     </>
                   ) : (
                     <>

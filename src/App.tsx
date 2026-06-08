@@ -1132,7 +1132,7 @@ function HomeRequiredSections() {
         </div>
       </section>
 
-      <section className="bg-[#f6f7f9] py-14 md:py-20">
+      <section data-website-section="Leadership" className="bg-[#f6f7f9] py-14 md:py-20">
         <div className="mx-auto max-w-7xl px-5 text-center sm:px-6">
           <h2 className="font-serif text-4xl font-bold text-navy md:text-5xl">
             {home.leadershipTitle || "Leadership guiding Loyola College"}
@@ -1246,7 +1246,10 @@ function HomePage() {
 
   return (
     <PublicLayout>
-      <section className="relative isolate overflow-hidden bg-navy text-white">
+      <section
+        data-website-section="Hero"
+        className="relative isolate overflow-hidden bg-navy text-white"
+      >
         <HeroBackgroundLayer
           fallbackImage={heroImage}
           fallbackOpacity={0.38}
