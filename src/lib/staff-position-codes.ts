@@ -44,11 +44,19 @@ export const FIXED_POSITION_CODE_ORDER = [
   "vice-rector",
   "principal-primary",
   "priest-in-charge-middle-upper",
+  "priest-in-charge-advanced-level",
   "sectional-head-upper",
+  "deputy-principal",
   "vice-principal-advanced-level",
   "vice-principal-primary",
   "vice-principal-middle",
   "vice-principal-upper",
+  "academic-coordinator-primary",
+  "academic-coordinator-middle",
+  "academic-coordinator-upper",
+  "academic-coordinator-al-arts-commerce",
+  "academic-coordinator-al-maths-bio",
+  "academic-coordinator-al-technology",
   "assistant-sectional-head-primary",
   "assistant-sectional-head-middle",
   "assistant-sectional-head-advanced-level",
@@ -603,6 +611,15 @@ function parseClassTeacher(code: string) {
   return null;
 }
 
+function parseLegacyClassTeacher(code: string) {
+  const advancedLevelMatch = /^(12|13)-(maths|bio|commerce|arts|technology)-(sin|sinhala|eng|english)(?:-medium)?-([a-d])$/.exec(code);
+  if (!advancedLevelMatch) return null;
+
+  const [, grade, stream, medium, letter] = advancedLevelMatch;
+  const mediumCode = medium === "english" ? "eng" : medium === "sinhala" ? "sin" : medium;
+  return parseClassTeacher(`class-teacher-${grade}-${stream}-${mediumCode}-${letter}`);
+}
+
 export function parsePositionCode(input: unknown): ParsedPositionCode {
   const code = normalizePositionCode(input);
   if (!code) return unknown("");
@@ -610,6 +627,9 @@ export function parsePositionCode(input: unknown): ParsedPositionCode {
   if (code.startsWith("class-teacher-")) {
     return parseClassTeacher(code) || unknown(code);
   }
+
+  const legacyClassTeacher = parseLegacyClassTeacher(code);
+  if (legacyClassTeacher) return legacyClassTeacher;
 
   const gradeHead = /^grade-head-(\d{1,2})$/.exec(code);
   if (gradeHead) {

@@ -23,7 +23,15 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
     id: "academic-1st",
     title: "Academic Staff",
     sideTitle: "1st",
-    codes: ["rector-principal", "vice-rector", "principal-primary", "priest-in-charge-middle-upper", "sectional-head-upper"],
+    codes: [
+      "rector-principal",
+      "vice-rector",
+      "principal-primary",
+      "priest-in-charge-middle-upper",
+      "priest-in-charge-advanced-level",
+      "sectional-head-upper",
+      "deputy-principal",
+    ],
   },
   {
     id: "academic-2nd",
@@ -42,6 +50,11 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
       "subject-head-upper",
       "subject-head-advanced-level",
     ],
+  },
+  {
+    id: "academic-coordinators",
+    title: "Academic Coordinators",
+    match: (position) => position.section === "Academic Coordinators",
   },
   { id: "grade-heads", title: "Grade Heads", match: (position) => position.section === "Grade Heads" },
   { id: "stream-heads", title: "Stream Heads - Advanced Level", match: (position) => position.section === "Stream Heads" },
@@ -130,23 +143,36 @@ export function parseStaffPosition(
     positionCode?: string;
     position_code?: string;
     displayTitle?: string;
+    mainCategory?: string;
+    classOrStream?: string;
+    isKnown?: boolean;
     sortOrder?: number;
   },
 ) {
   const code = normalizePositionCode(input.position_code || input.positionCode || "");
   const parsed = code ? parsePositionCode(code) : parsePositionCode(input.display_title || input.displayTitle || "");
+  const inputMainCategory = input.main_category || input.mainCategory || "";
+  const inputSection = input.section || "";
+  const inputSubsection = input.subsection || "";
+  const inputClassOrStream = input.class_or_stream || input.classOrStream || "";
+  const inputIsKnown = input.is_known ?? input.isKnown;
+  const shouldTrustParsed =
+    parsed.is_known &&
+    (!inputMainCategory ||
+      inputMainCategory === "Uncategorized Staff" ||
+      (inputMainCategory === "Academic Staff" && parsed.main_category !== "Academic Staff"));
   return {
     ...parsed,
     ...input,
     position_code: code || parsed.position_code,
-    main_category: input.main_category || parsed.main_category,
-    section: input.section || parsed.section,
-    subsection: input.subsection || parsed.subsection,
+    main_category: shouldTrustParsed ? parsed.main_category : inputMainCategory || parsed.main_category,
+    section: shouldTrustParsed || !inputSection || inputSection === "Uncategorized Staff" ? parsed.section : inputSection,
+    subsection: shouldTrustParsed || !inputSubsection ? parsed.subsection : inputSubsection,
     grade: input.grade ?? parsed.grade,
     stream: input.stream || parsed.stream,
     medium: input.medium || parsed.medium,
-    class_or_stream: input.class_or_stream || parsed.class_or_stream,
-    is_known: input.is_known ?? parsed.is_known,
+    class_or_stream: shouldTrustParsed || !inputClassOrStream ? parsed.class_or_stream : inputClassOrStream,
+    is_known: shouldTrustParsed ? parsed.is_known : inputIsKnown ?? parsed.is_known,
     display_title: input.display_title || input.displayTitle || parsed.display_title,
     sort_order: Number(input.sort_order || input.sortOrder || parsed.sort_order || staffPositionCodeOrder(code)),
   } as ParsedPositionCode;
