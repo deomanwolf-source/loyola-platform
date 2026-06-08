@@ -216,6 +216,49 @@ function escapeHtml(value?: string) {
 
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 const FACILITIES_PAGE_ID = "the-college/facilities-services";
+const LIVE_RENDERED_EDITOR_PAGE_IDS = new Set([
+  "home",
+  "about",
+  "academics",
+  "admissions",
+  "events",
+  "news",
+  "notices",
+  "sports-clubs",
+  "gallery",
+  "downloads",
+  "student-portal",
+  "contact",
+  "calendar",
+  LCEA_PAGE_ID,
+  "academics/cambridge",
+  FACILITIES_PAGE_ID,
+  "facilities",
+  "facilities-services",
+  "about/college-administration",
+  "college-administration",
+  "about/college-staff",
+  "college-staff",
+  "about/college-anthem-hymn",
+  "college-anthem-hymn",
+  "gallery/photo-gallery",
+  "photo-gallery",
+  "gallery/video-gallery",
+  "video-gallery",
+  "about/college-history",
+  "about/past-rectors-vice-rectors",
+  "college-history",
+  "pastrectors",
+  "past-rectors",
+  "rectors-message",
+  "rector-s-message",
+  "rector-message",
+  "rector-massage",
+]);
+
+function isLiveRenderedEditorPage(pageId: string) {
+  return LIVE_RENDERED_EDITOR_PAGE_IDS.has(pageId);
+}
 
 const lceaProgrammes = [
   {
@@ -1412,6 +1455,7 @@ export function WebsiteEditor() {
 
   const page = db.pages[selectedPage] || db.pages.home;
   const needsApproval = auth.user?.role === "website_admin";
+  const selectedPageUsesLiveRenderer = isLiveRenderedEditorPage(selectedPage);
 
   const pageIds = useMemo(() => {
     const sortedNav = getSortedNav(db.navigation).filter((item) => item.id !== "student-portal");
@@ -1842,6 +1886,17 @@ export function WebsiteEditor() {
 
   const openVisualBuilder = () => {
     const savedPage = db.pages[selectedPage];
+    if (isLiveRenderedEditorPage(selectedPage)) {
+      setVisualEditorOpen(false);
+      setVisualEditorInitial(null);
+      setMessageTone("info");
+      setMessage(
+        `'${savedPage?.title || selectedPage}' uses the live coded website design. Opening the live page instead so Save/Publish cannot replace the design with a visual-builder template.`,
+      );
+      window.open(`${pagePath(selectedPage)}?websiteEditorPreview=1`, "_blank", "noopener,noreferrer");
+      return;
+    }
+
     const savedVisualHtml = savedPage?.visualHtml?.trim();
     const templateHtml = visualStarterForPage(db, selectedPage);
     const shouldLoadTemplate = shouldUsePastRectorsTemplate(selectedPage, savedVisualHtml);
@@ -1924,6 +1979,17 @@ export function WebsiteEditor() {
 
   const saveVisualContent = async (html: string, css: string) => {
     const pageTitle = db.pages[selectedPage]?.title || selectedPage;
+    if (isLiveRenderedEditorPage(selectedPage)) {
+      setVisualEditorOpen(false);
+      setVisualEditorInitial(null);
+      setSavingState("idle");
+      setMessageTone("info");
+      setMessage(
+        `Visual Builder save was skipped for '${pageTitle}' because this page uses the live coded design. No page design was changed.`,
+      );
+      return;
+    }
+
     setSavingState("saving");
     setMessageTone("info");
     setMessage("Saving visual content and uploaded media...");
@@ -2001,7 +2067,15 @@ export function WebsiteEditor() {
                 {widePreview ? "Show Panels" : "Wide Editor"}
               </StudioButton>
               <StudioButton tone="dark" onClick={openVisualBuilder}>
-                <Wand2 className="h-4 w-4" /> Visual Builder
+                {selectedPageUsesLiveRenderer ? (
+                  <>
+                    <Eye className="h-4 w-4" /> Open Live Page
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="h-4 w-4" /> Visual Builder
+                  </>
+                )}
               </StudioButton>
               <StudioButton onClick={() => window.open("/", "_blank", "noopener,noreferrer")}>
                 <Eye className="h-4 w-4" /> Preview
@@ -2692,8 +2766,16 @@ export function WebsiteEditor() {
                   onClick={openVisualBuilder}
                   className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />{" "}
-                  Open Visual Builder
+                  {selectedPageUsesLiveRenderer ? (
+                    <>
+                      <Eye className="h-4 w-4" /> Open Live Page
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />{" "}
+                      Open Visual Builder
+                    </>
+                  )}
                 </button>
               </div>
             </div>

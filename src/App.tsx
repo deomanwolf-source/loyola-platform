@@ -113,6 +113,49 @@ const FACILITIES_PAGE_ID = "the-college/facilities-services";
 
 const LOYOLA_CALENDAR_ID = "loyolacollegeng.official@gmail.com";
 const LOYOLA_CALENDAR_TIME_ZONE = "Asia/Colombo";
+const LIVE_RENDERED_PAGE_IDS = new Set([
+  "home",
+  "about",
+  "academics",
+  "admissions",
+  "events",
+  "news",
+  "notices",
+  "sports-clubs",
+  "gallery",
+  "downloads",
+  "student-portal",
+  "contact",
+  "calendar",
+  LCEA_PAGE_ID,
+  "academics/cambridge",
+  FACILITIES_PAGE_ID,
+  "facilities",
+  "facilities-services",
+  "about/college-administration",
+  "college-administration",
+  "about/college-staff",
+  "college-staff",
+  "about/college-anthem-hymn",
+  "college-anthem-hymn",
+  "gallery/photo-gallery",
+  "photo-gallery",
+  "gallery/video-gallery",
+  "video-gallery",
+  "about/college-history",
+  "about/past-rectors-vice-rectors",
+  "college-history",
+  "pastrectors",
+  "past-rectors",
+  "rectors-message",
+  "rector-s-message",
+  "rector-message",
+  "rector-massage",
+]);
+
+function isLiveRenderedPage(pageId: string) {
+  return LIVE_RENDERED_PAGE_IDS.has(pageId);
+}
 
 function googleCalendarEmbedUrl(mode: "MONTH" | "AGENDA") {
   const params = new URLSearchParams({
@@ -305,7 +348,7 @@ export function App() {
 
   if (
     !isSystemPath &&
-    visualPageId !== "home" &&
+    !isLiveRenderedPage(visualPageId) &&
     pageIsLive(visualPageId) &&
     db.pages[visualPageId]?.visualHtml?.trim()
   ) {
@@ -483,62 +526,6 @@ function visibleSubpages(db: ReturnType<typeof getDb>, parentId: string) {
     .sort((a, b) => a.order - b.order);
 }
 
-function normalizeVisualPageHtml(html: string) {
-  const fallback = { bodyHtml: html, kicker: "", title: "", subtitle: "", image: "" };
-  if (typeof DOMParser === "undefined") return fallback;
-
-  const doc = new DOMParser().parseFromString(`<main>${html}</main>`, "text/html");
-  const main = doc.querySelector("main");
-  if (!main) return fallback;
-
-  const cleanPlaceholder = (value?: string) => {
-    const text = value?.trim() || "";
-    return text === "New page content goes here." ? "" : text;
-  };
-  const isCapturedHero = (element: HTMLElement) => {
-    const className = element.getAttribute("class") || "";
-    return (
-      element.classList.contains("hero") ||
-      (Boolean(element.querySelector("h1")) &&
-        (className.includes("bg-navy") ||
-          className.includes("text-white") ||
-          className.includes("relative overflow-hidden") ||
-          Boolean(element.querySelector(".hero-media")) ||
-          Boolean(element.querySelector(".premium-grid"))))
-    );
-  };
-
-  let kicker = "";
-  let title = "";
-  let subtitle = "";
-  let image = "";
-  let firstElement = Array.from(main.children).find((child) => child instanceof HTMLElement) as
-    | HTMLElement
-    | undefined;
-
-  while (firstElement && isCapturedHero(firstElement)) {
-    const paragraphs = Array.from(firstElement.querySelectorAll("p"))
-      .map((node) => cleanPlaceholder(node.textContent || ""))
-      .filter(Boolean);
-    kicker ||= firstElement.querySelector(".eyebrow")?.textContent?.trim() || paragraphs[0] || "";
-    title ||= firstElement.querySelector("h1")?.textContent?.trim() || "";
-    subtitle ||= paragraphs.find((text) => text !== kicker) || "";
-    image ||= firstElement.querySelector("img")?.getAttribute("src") || "";
-    firstElement.remove();
-    firstElement = Array.from(main.children).find((child) => child instanceof HTMLElement) as
-      | HTMLElement
-      | undefined;
-  }
-
-  return {
-    bodyHtml: main.innerHTML.trim(),
-    kicker,
-    title,
-    subtitle,
-    image,
-  };
-}
-
 function VisualBuilderPage({ pageId }: { pageId: string }) {
   const db = useDb();
   const page = db.pages[pageId];
@@ -547,24 +534,22 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
 
   const sanitizedHtml = sanitizeVisualHtml(page.visualHtml);
   const sanitizedCss = sanitizeVisualCss(page.visualCss);
-  const visual = normalizeVisualPageHtml(sanitizedHtml);
-  const title = visual.title || page.title || pageId.split("/").pop()?.replaceAll("-", " ") || "";
-  const body =
-    visual.subtitle ||
-    (page.body && page.body.trim() !== "New page content goes here." ? page.body : "");
+  const title = page.title || pageId.split("/").pop()?.replaceAll("-", " ") || "";
+  const body = page.body && page.body.trim() !== "New page content goes here." ? page.body : "";
 
   return (
     <PublicLayout>
-      <PageHeader
-        pageId={pageId}
-        kicker={visual.kicker || page.kicker || page.eyebrow || "Page"}
-        title={title}
-        subtitle={body}
-        image={visual.image || page.image || db.media.campusImage || db.websiteContent.heroImage}
-      />
       {sanitizedCss && <style>{sanitizedCss}</style>}
-      {visual.bodyHtml && (
-        <div className="visual-page" dangerouslySetInnerHTML={{ __html: visual.bodyHtml }} />
+      {sanitizedHtml ? (
+        <div className="visual-page" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
+      ) : (
+        <PageHeader
+          pageId={pageId}
+          kicker={page.kicker || page.eyebrow || "Page"}
+          title={title}
+          subtitle={body}
+          image={page.image || db.media.campusImage || db.websiteContent.heroImage}
+        />
       )}
     </PublicLayout>
   );
@@ -3626,6 +3611,8 @@ function ContactPage() {
 function GenericPage({ pageId }: { pageId: string }) {
   const db = useDb();
   const page = db.pages[pageId];
+  if (page?.visualHtml) return <VisualBuilderPage pageId={pageId} />;
+
   const title = page?.title || pageId.split("/").pop()?.replaceAll("-", " ") || "Page";
 
   return (
@@ -3638,15 +3625,7 @@ function GenericPage({ pageId }: { pageId: string }) {
         image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
       />
 
-      {page?.visualHtml ? (
-        <>
-          {sanitizeVisualCss(page.visualCss) && <style>{sanitizeVisualCss(page.visualCss)}</style>}
-          <div
-            className="mx-auto max-w-6xl px-6 py-12"
-            dangerouslySetInnerHTML={{ __html: sanitizeVisualHtml(page.visualHtml) }}
-          />
-        </>
-      ) : page?.blocks && page.blocks.length > 0 ? (
+      {page?.blocks && page.blocks.length > 0 ? (
         <div className="mx-auto max-w-5xl px-6 py-20 space-y-16">
           {page.blocks.map((block) => (
             <section key={block.id} className="w-full">

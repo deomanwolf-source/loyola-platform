@@ -202,7 +202,7 @@ function StaffPhoto({ profile, size = "large" }: { profile: StaffProfile; size?:
 
 const GROUP_SECTION_TITLES: Record<string, string> = {
   "academic-1st": "College Administration",
-  "academic-2nd": "Assistant Sectional Heads and Subject Heads",
+  "academic-2nd": "Vice Principals",
   "academic-coordinators": "Academic Coordinators",
   "grade-heads": "Grade Heads",
   "stream-heads": "Advanced Level Stream Heads",
