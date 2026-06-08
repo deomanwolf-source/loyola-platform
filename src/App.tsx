@@ -1004,67 +1004,145 @@ function HomeRequiredSections() {
 
       <section className="bg-[#f6f7f9] py-12 md:py-16">
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
-          <div className="rounded-lg bg-[#081425] p-6 text-white shadow-elegant md:p-8">
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-serif text-3xl font-bold">Calendar</h2>
-              {pageIsLive("/calendar") && (
-                <a href="/calendar" className="text-xs font-black text-crimson">
-                  All events
-                </a>
-              )}
-            </div>
-            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(420px,1.18fr)]">
-              <div className="space-y-3">
-                {calendarItems.map((event) => {
-                  const parts = eventDateParts(event.date);
-                  return (
-                    <article
-                      key={`${event.title}-${event.date}`}
-                      className="grid grid-cols-[56px_1fr] items-center gap-4 rounded bg-white/8 p-4"
-                    >
-                      <time className="grid h-12 w-12 place-items-center rounded bg-gold text-center text-navy">
-                        <span>
-                          <span className="block text-[10px] font-black leading-none">
-                            {parts.month}
-                          </span>
-                          <span className="block text-lg font-black leading-none">{parts.day}</span>
-                        </span>
-                      </time>
-                      <span>
-                        <span className="block text-sm font-black">{event.title}</span>
-                        <span className="mt-1 block text-xs text-white/70">{event.description}</span>
-                      </span>
-                    </article>
-                  );
-                })}
-                <article className="rounded bg-gold/15 p-5 text-gold-light">
-                  <p className="text-xs font-black uppercase tracking-[0.14em]">Special Notice</p>
-                  <h3 className="mt-2 text-base font-black text-white">
-                    Annual Prize Giving Ceremony
-                  </h3>
-                  <p className="mt-1 text-xs text-white/70">
-                    Schedule details will be published on the student portal.
+          <div className="relative overflow-hidden rounded-lg bg-[#071224] p-5 text-white shadow-[0_28px_80px_-42px_rgba(7,18,36,0.95)] ring-1 ring-white/10 md:p-8 lg:p-9">
+            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0)_42%)]" />
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gold/60" />
+
+            <div className="relative">
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase text-gold">Live school schedule</p>
+                  <h2 className="mt-2 font-serif text-4xl font-bold leading-tight md:text-5xl">
+                    Calendar
+                  </h2>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-white/70">
+                    Key academic dates, college activities, notices, and the live Google Calendar in
+                    one place.
                   </p>
-                </article>
+                </div>
+                {pageIsLive("/calendar") && (
+                  <a
+                    href="/calendar"
+                    className="inline-flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-black text-white transition hover:border-gold/60 hover:bg-gold/15 hover:text-gold-light"
+                  >
+                    All events
+                    <ArrowRight className="h-4 w-4" />
+                  </a>
+                )}
               </div>
 
-              <div className="overflow-hidden rounded bg-white shadow-[0_18px_48px_-34px_rgba(0,0,0,0.7)]">
-                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-                  <p className="text-xs font-black uppercase tracking-[0.14em] text-navy">
-                    Google Calendar
-                  </p>
-                  <span className="text-xs font-bold text-slate-500">Live schedule</span>
+              <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(430px,1.22fr)]">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-black text-white/80">
+                    <Calendar className="h-4 w-4 text-gold" />
+                    Upcoming highlights
+                  </div>
+
+                  {calendarItems.slice(0, 1).map((event) => {
+                    const parts = eventDateParts(event.date);
+                    return (
+                      <article
+                        key={`${event.title}-${event.date}`}
+                        className="rounded-lg border border-white/10 bg-white/[0.09] p-5 shadow-[0_18px_44px_-32px_rgba(0,0,0,0.9)]"
+                      >
+                        <div className="grid gap-4 sm:grid-cols-[72px_1fr] sm:items-center">
+                          <time className="grid h-16 w-16 place-items-center rounded bg-gold text-center text-navy shadow-[0_12px_24px_-18px_rgba(232,180,35,0.9)]">
+                            <span>
+                              <span className="block text-[10px] font-black uppercase leading-none">
+                                {parts.month}
+                              </span>
+                              <span className="mt-1 block text-2xl font-black leading-none">
+                                {parts.day}
+                              </span>
+                            </span>
+                          </time>
+                          <div>
+                            <h3 className="text-lg font-black leading-tight text-white">
+                              {event.title}
+                            </h3>
+                            <p className="mt-2 text-sm leading-6 text-white/70">
+                              {event.description}
+                            </p>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                    {calendarItems.slice(1).map((event) => {
+                      const parts = eventDateParts(event.date);
+                      return (
+                        <article
+                          key={`${event.title}-${event.date}`}
+                          className="grid grid-cols-[54px_1fr] items-center gap-4 rounded border border-white/10 bg-white/[0.06] p-4 transition hover:border-gold/40 hover:bg-white/[0.1]"
+                        >
+                          <time className="grid h-12 w-12 place-items-center rounded bg-white/10 text-center text-gold">
+                            <span>
+                              <span className="block text-[9px] font-black uppercase leading-none">
+                                {parts.month}
+                              </span>
+                              <span className="mt-1 block text-lg font-black leading-none">
+                                {parts.day}
+                              </span>
+                            </span>
+                          </time>
+                          <span>
+                            <span className="block text-sm font-black leading-tight">
+                              {event.title}
+                            </span>
+                            <span className="mt-1 block text-xs leading-5 text-white/60">
+                              {event.description}
+                            </span>
+                          </span>
+                        </article>
+                      );
+                    })}
+                  </div>
+
+                  <article className="rounded-lg border border-gold/35 bg-gold/10 p-5 text-gold-light shadow-[0_18px_44px_-34px_rgba(232,180,35,0.75)]">
+                    <div className="flex items-start gap-3">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded bg-gold/20 text-gold">
+                        <Bell className="h-4 w-4" />
+                      </span>
+                      <div>
+                        <p className="text-xs font-black uppercase text-gold-light">
+                          Special Notice
+                        </p>
+                        <h3 className="mt-2 text-base font-black text-white">
+                          Annual Prize Giving Ceremony
+                        </h3>
+                        <p className="mt-1 text-xs leading-5 text-white/70">
+                          Schedule details will be published on the student portal.
+                        </p>
+                      </div>
+                    </div>
+                  </article>
                 </div>
-                <GoogleCalendarFrame
-                  title="Loyola College Google Calendar"
-                  mode="AGENDA"
-                  className="h-[430px] bg-white"
-                />
+
+                <div className="overflow-hidden rounded-lg bg-white shadow-[0_24px_70px_-38px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+                  <div className="flex flex-col gap-2 border-b border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-xs font-black uppercase text-crimson">Google Calendar</p>
+                      <p className="mt-1 text-sm font-bold text-navy">Live Loyola schedule</p>
+                    </div>
+                    <span className="inline-flex w-fit items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                      Live
+                    </span>
+                  </div>
+                  <GoogleCalendarFrame
+                    title="Loyola College Google Calendar"
+                    mode="AGENDA"
+                    className="h-[460px] bg-white md:h-[500px]"
+                  />
+                </div>
               </div>
+
+              <p className="mt-6 text-center text-xs font-bold italic text-white/70">
+                Upcoming academic events and religious observances.
+              </p>
             </div>
-            <p className="mt-5 text-center text-xs font-bold italic text-white/70">
-              Upcoming academic events and religious observances.
-            </p>
           </div>
         </div>
       </section>
