@@ -282,7 +282,7 @@ function GroupBlock({
         {assignments.map((assignment) => (
           <article
             key={assignment.key}
-            className="flex min-h-[314px] flex-col items-center justify-between rounded-lg border border-slate-200 bg-white px-6 py-6 text-center shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
+            className="flex min-h-[280px] flex-col items-center justify-between rounded-lg border border-slate-200 bg-white px-6 py-6 text-center shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
           >
             <div className="flex flex-col items-center">
               <StaffPhoto profile={assignment.profile} size="small" />
@@ -291,9 +291,6 @@ function GroupBlock({
               </h3>
               <p className="mt-2 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
                 {assignment.position.display_title}
-              </p>
-              <p className="mt-4 min-h-5 text-sm text-slate-500">
-                {positionMeta(assignment.position)}
               </p>
             </div>
             <button
