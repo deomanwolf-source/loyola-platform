@@ -226,10 +226,6 @@
     return entry ? decodeURIComponent(entry.slice(prefix.length)) : "";
   }
 
-  function token() {
-    return "";
-  }
-
   function isManager() {
     return managerRoles.has(state.user?.role);
   }
@@ -2754,11 +2750,6 @@
   }
 
   async function init() {
-    if (!token()) {
-      window.location.href = "/login";
-      return;
-    }
-
     try {
       state.user = await api("/api/me");
       if (!isManager()) {
@@ -2776,7 +2767,7 @@
       renderShell();
     } catch (error) {
       if (error.status === 401) {
-        window.location.href = "/login";
+        window.location.href = `/login?next=${encodeURIComponent("/staff")}`;
         return;
       }
       locked("Staff system could not load", error.message || "Please try again.");
