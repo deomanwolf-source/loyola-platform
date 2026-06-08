@@ -768,119 +768,349 @@ function HomeVisualBuilderSections() {
   );
 }
 
+function hasStructuredHomeVisualContent(html?: string) {
+  const cleanHtml = sanitizeVisualHtml(html).trim();
+  if (!cleanHtml) return false;
+  return (
+    /class\s*=\s*["'][^"']*(?:visual|hero|section|container|grid|card|btn|gjs|home)/i.test(
+      cleanHtml,
+    ) ||
+    /<(?:section|article|figure|header|main|img|video)\b/i.test(cleanHtml)
+  );
+}
+
 function HomeRequiredSections() {
   const db = useDb();
   const home = db.homeSections;
-  const statIcons = [Users, Briefcase, BookOpen, Landmark];
-  const stats = home.stats.length > 0 ? home.stats : [];
   const leadershipCards = [...(home.leadershipCards || [])]
     .filter((card) => card.visible !== false)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
-  const rectorImage =
-    home.rectorImage || db.media.principalImage || db.pages["rectors-message"]?.image || "";
+  const quickActions = [
+    {
+      title: "Explore College",
+      body: "Discover our campus and facilities.",
+      href: "/the-college/facilities-services",
+      icon: Landmark,
+    },
+    {
+      title: "View Upcoming Events",
+      body: "Stay updated on college activities.",
+      href: "/events",
+      icon: Calendar,
+    },
+    {
+      title: "News",
+      body: "Latest announcements and updates.",
+      href: "/news",
+      icon: FileText,
+    },
+  ];
+  const missionPoints = [
+    "To aim at integral education of body, mind and spirit through service and leadership.",
+    "To strive to form a citizen of upright character to achieve excellence in social, religious, academic and industrial spheres.",
+    "To promote character formation based on human and religious values.",
+  ];
+  const clubs = [
+    { title: "Media Unit", icon: Camera },
+    { title: "Science Society", icon: Award },
+    { title: "ICT Society", icon: Film },
+    { title: "Prefects Board", icon: ShieldCheck },
+    { title: "English Literary Association", icon: GraduationCap },
+    { title: "Religious Society", icon: Landmark },
+  ];
+  const academicPreviews = [
+    {
+      title: "Primary Section",
+      body: "Foundational learning, language growth, values, and classroom confidence.",
+      icon: Users,
+    },
+    {
+      title: "Middle School",
+      body: "Structured study habits, co-curricular discovery, and personal formation.",
+      icon: BookOpen,
+    },
+    {
+      title: "Upper School",
+      body: "Exam preparation, leadership, clubs, sports, and disciplined academic focus.",
+      icon: Award,
+    },
+    {
+      title: "Advanced Level",
+      body: "Technology, Science, Commerce, and Arts pathways for senior students.",
+      icon: GraduationCap,
+    },
+  ];
+  const facilities = [
+    { title: "Administration", body: "Central management and governance", icon: Briefcase },
+    { title: "Academic", body: "Curriculum and educational standards", icon: BookOpen },
+    { title: "Finance", body: "Bursary and financial operations", icon: Landmark },
+    { title: "IT Department", body: "Digital infrastructure and support", icon: Film },
+    { title: "Gym", body: "Modern fitness and training center", icon: Trophy },
+    { title: "Swimming Pool", body: "Olympic-standard aquatic facility", icon: Award },
+    { title: "Sports Department", body: "Athletic development and coaching", icon: Trophy },
+  ];
+  const fallbackCalendar = [
+    {
+      title: "Poya Day - Public Holiday",
+      date: "2026-05-01",
+      description: "Religious observance",
+    },
+    {
+      title: "Vesak Festival - School Holiday",
+      date: "2026-05-07",
+      description: "National festival",
+    },
+    {
+      title: "Mid-Term Examinations Begin",
+      date: "2026-05-15",
+      description: "Academic assessment period",
+    },
+  ];
+  const calendarItems =
+    db.events.length > 0
+      ? db.events
+          .slice()
+          .sort((a, b) => String(a.date || a.event_date).localeCompare(String(b.date || b.event_date)))
+          .slice(0, 3)
+          .map((event) => ({
+            title: event.title,
+            date: event.event_date || event.date,
+            description: event.description || event.location || event.type || "College event",
+          }))
+      : fallbackCalendar;
+  const pageIsLive = (href: string) => {
+    const id = href.replace(/^\/+/, "") || "home";
+    return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+  };
+  const eventDateParts = (value: string) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return { month: "MAY", day: "01" };
+    return {
+      month: date.toLocaleString("en", { month: "short" }).toUpperCase(),
+      day: String(date.getDate()).padStart(2, "0"),
+    };
+  };
 
   return (
     <>
-      <section className="border-b border-border bg-white py-16 md:py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[minmax(0,1fr)_520px]">
-          <div>
-            <span className="gold-divider mb-5" />
-            <h2 className="font-serif text-3xl font-bold text-navy md:text-4xl">
-              {home.aboutHeading}
-            </h2>
-            <p className="mt-5 max-w-2xl text-sm leading-7 text-muted-foreground md:text-base">
-              {home.aboutBody}
-            </p>
-            <a
-              href={home.aboutButtonHref || "/about"}
-              className="mt-6 inline-flex rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
-            >
-              {home.aboutButtonLabel || "More Details"}
-            </a>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {stats.map((stat, index) => {
-              const Icon = statIcons[index] || Award;
+      <section className="bg-[#f6f7f9] py-10 md:py-14">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6">
+          <div className="grid gap-4 md:grid-cols-3">
+            {quickActions.map((item) => {
+              const Icon = item.icon;
               return (
-                <article
-                  key={stat.id}
-                  className="rounded-lg border border-border bg-white p-6 text-center shadow-soft"
+                <a
+                  key={item.title}
+                  href={item.href}
+                  className="rounded-lg border border-[#e6e9ef] bg-white px-6 py-8 text-center shadow-[0_12px_36px_-30px_rgba(10,22,40,0.55)] transition hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-soft"
                 >
                   <Icon className="mx-auto h-6 w-6 text-gold" />
-                  <p className="mt-3 font-serif text-3xl font-bold text-navy">{stat.value}</p>
-                  <p className="mt-1 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                    {stat.label}
+                  <h2 className="mt-4 font-serif text-lg font-bold text-navy">{item.title}</h2>
+                  <p className="mt-2 text-xs font-medium text-slate-500">{item.body}</p>
+                </a>
+              );
+            })}
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            <article className="grid min-h-[210px] place-items-center rounded-lg border border-[#e6e9ef] bg-white p-8 text-center shadow-sm">
+              <div>
+                <h2 className="font-serif text-2xl font-bold text-navy">Our Vision</h2>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  To announce God&apos;s Kingdom through Christian values.
+                </p>
+              </div>
+            </article>
+            <article className="rounded-lg border border-[#e6e9ef] bg-white p-8 shadow-sm">
+              <h2 className="text-center font-serif text-3xl font-bold text-navy">Our Mission</h2>
+              <div className="mt-5 space-y-3">
+                {missionPoints.map((point) => (
+                  <p key={point} className="flex gap-2 text-sm leading-6 text-slate-600">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                    <span>{point}</span>
                   </p>
-                </article>
+                ))}
+              </div>
+            </article>
+            <article className="grid min-h-[210px] place-items-center rounded-lg border border-[#e6e9ef] bg-white p-8 text-center shadow-sm">
+              <div>
+                <h2 className="font-serif text-2xl font-bold text-navy">Motto</h2>
+                <p className="mt-3 font-serif text-xl font-bold text-navy">
+                  Veritate ad Lumen et Vitam
+                </p>
+                <p className="mt-2 text-sm font-semibold text-slate-500">
+                  In Truth to Light and Life
+                </p>
+              </div>
+            </article>
+          </div>
+
+          <div className="mt-14 text-center">
+            <h2 className="font-serif text-3xl font-bold text-navy">Extra Curriculars</h2>
+          </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {clubs.map((club) => {
+              const Icon = club.icon;
+              return (
+                <a
+                  key={club.title}
+                  href="/sports-clubs"
+                  className="rounded border border-[#e6e9ef] bg-white px-5 py-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-gold/60"
+                >
+                  <Icon className="mx-auto h-5 w-5 text-gold" />
+                  <p className="mt-3 text-sm font-black text-navy">{club.title}</p>
+                </a>
               );
             })}
           </div>
         </div>
       </section>
 
-      <section className="bg-secondary/30 py-16 md:py-20">
-        <div className="mx-auto grid max-w-7xl gap-8 px-6 lg:grid-cols-[420px_minmax(0,1fr)] lg:items-center">
-          <figure className="overflow-hidden rounded-lg border border-border bg-white shadow-elegant">
-            {rectorImage ? (
-              <img
-                src={rectorImage}
-                alt={home.rectorName}
-                className="aspect-[4/5] w-full object-cover"
-              />
-            ) : (
-              <div className="grid aspect-[4/5] place-items-center bg-white p-12">
-                <img
-                  src="/loyola-crest.jpg"
-                  alt=""
-                  className="h-40 w-40 object-contain opacity-80"
-                />
-              </div>
+      <section className="bg-white py-12 md:py-16">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <h2 className="font-serif text-3xl font-bold text-navy">Academic Composition</h2>
+              <p className="mt-2 text-sm text-slate-500">
+                Guiding students from foundation to advanced studies.
+              </p>
+            </div>
+            {pageIsLive("/academics") && (
+              <a
+                href="/academics"
+                className="inline-flex items-center gap-2 text-xs font-black text-crimson"
+              >
+                Academics overview <ArrowRight className="h-3.5 w-3.5" />
+              </a>
             )}
-          </figure>
-          <article className="rounded-lg border border-border bg-white p-7 shadow-soft md:p-9">
-            <p className="inline-flex rounded bg-navy px-3 py-1.5 text-xs font-black uppercase tracking-[0.16em] text-white">
-              {home.rectorHeading}
-            </p>
-            <h2 className="mt-5 font-serif text-2xl font-bold text-navy md:text-3xl">
-              {home.rectorTitle}
+          </div>
+          <div className="mt-8 grid gap-5 md:grid-cols-4">
+            {academicPreviews.map((item) => {
+              const Icon = item.icon;
+              return (
+                <article
+                  key={item.title}
+                  className="rounded-lg border border-[#e6e9ef] bg-white p-6 shadow-sm"
+                >
+                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-gold">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-5 font-serif text-xl font-bold text-navy">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{item.body}</p>
+                </article>
+              );
+            })}
+          </div>
+
+          <div className="mt-14 rounded-xl border border-[#e6e9ef] bg-[#fafbfc] px-5 py-10 md:px-12 md:py-14">
+            <h2 className="text-center font-serif text-4xl font-bold text-navy md:text-5xl">
+              Office Structure & Facilities
             </h2>
-            <p className="mt-5 whitespace-pre-line text-sm leading-7 text-muted-foreground md:text-base">
-              {home.rectorBody}
-            </p>
-            <p className="mt-6 font-bold text-navy">{home.rectorName}</p>
-            <p className="text-sm font-semibold text-crimson">{home.rectorDesignation}</p>
-          </article>
+            <div className="mx-auto mt-10 grid max-w-6xl gap-5 md:grid-cols-3">
+              {facilities.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <article
+                    key={item.title}
+                    className="grid grid-cols-[44px_1fr] items-center gap-4 rounded border border-[#e6e9ef] bg-white p-4 shadow-sm"
+                  >
+                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-gold">
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <span>
+                      <span className="block text-sm font-black text-navy">{item.title}</span>
+                      <span className="mt-1 block text-xs leading-5 text-slate-500">
+                        {item.body}
+                      </span>
+                    </span>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
-      <section className="bg-white py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <div className="max-w-3xl">
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-                {home.leadershipKicker}
-              </p>
-              <h2 className="mt-3 font-serif text-3xl font-bold text-navy md:text-5xl">
-                {home.leadershipTitle}
-              </h2>
-              <p className="mt-4 text-sm leading-7 text-muted-foreground md:text-base">
-                {home.leadershipBody}
-              </p>
+      <section className="bg-[#f6f7f9] py-12 md:py-16">
+        <div className="mx-auto max-w-7xl px-5 sm:px-6">
+          <div className="rounded-lg bg-[#081425] p-6 text-white shadow-elegant md:p-8">
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="font-serif text-3xl font-bold">Calendar</h2>
+              {pageIsLive("/calendar") && (
+                <a href="/calendar" className="text-xs font-black text-crimson">
+                  All events
+                </a>
+              )}
             </div>
-            <a
-              href="/about/college-administration"
-              className="inline-flex rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
-            >
-              Full administration <ArrowRight className="ml-2 h-4 w-4" />
-            </a>
+            <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,0.82fr)_minmax(420px,1.18fr)]">
+              <div className="space-y-3">
+                {calendarItems.map((event) => {
+                  const parts = eventDateParts(event.date);
+                  return (
+                    <article
+                      key={`${event.title}-${event.date}`}
+                      className="grid grid-cols-[56px_1fr] items-center gap-4 rounded bg-white/8 p-4"
+                    >
+                      <time className="grid h-12 w-12 place-items-center rounded bg-gold text-center text-navy">
+                        <span>
+                          <span className="block text-[10px] font-black leading-none">
+                            {parts.month}
+                          </span>
+                          <span className="block text-lg font-black leading-none">{parts.day}</span>
+                        </span>
+                      </time>
+                      <span>
+                        <span className="block text-sm font-black">{event.title}</span>
+                        <span className="mt-1 block text-xs text-white/70">{event.description}</span>
+                      </span>
+                    </article>
+                  );
+                })}
+                <article className="rounded bg-gold/15 p-5 text-gold-light">
+                  <p className="text-xs font-black uppercase tracking-[0.14em]">Special Notice</p>
+                  <h3 className="mt-2 text-base font-black text-white">
+                    Annual Prize Giving Ceremony
+                  </h3>
+                  <p className="mt-1 text-xs text-white/70">
+                    Schedule details will be published on the student portal.
+                  </p>
+                </article>
+              </div>
+
+              <div className="overflow-hidden rounded bg-white shadow-[0_18px_48px_-34px_rgba(0,0,0,0.7)]">
+                <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-navy">
+                    Google Calendar
+                  </p>
+                  <span className="text-xs font-bold text-slate-500">Live schedule</span>
+                </div>
+                <GoogleCalendarFrame
+                  title="Loyola College Google Calendar"
+                  mode="AGENDA"
+                  className="h-[430px] bg-white"
+                />
+              </div>
+            </div>
+            <p className="mt-5 text-center text-xs font-bold italic text-white/70">
+              Upcoming academic events and religious observances.
+            </p>
           </div>
-          <div className="stagger-children mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        </div>
+      </section>
+
+      <section className="bg-[#f6f7f9] py-14 md:py-20">
+        <div className="mx-auto max-w-7xl px-5 text-center sm:px-6">
+          <h2 className="font-serif text-4xl font-bold text-navy md:text-5xl">
+            {home.leadershipTitle || "Leadership guiding Loyola College"}
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-500">
+            {home.leadershipBody ||
+              "The dedicated administration board steering our institution towards academic and spiritual excellence."}
+          </p>
+          <div className="mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-4">
             {leadershipCards.map((card) => (
-              <article
-                key={card.id}
-                className="rounded-lg border border-border bg-white p-4 text-center shadow-soft"
-              >
-                <div className="overflow-hidden rounded bg-secondary">
+              <article key={card.id} className="text-center">
+                <div className="overflow-hidden rounded-lg bg-[#909090] shadow-soft">
                   {card.image ? (
                     <img
                       src={card.image}
@@ -888,22 +1118,19 @@ function HomeRequiredSections() {
                       className="aspect-[4/5] w-full object-cover"
                     />
                   ) : (
-                    <div className="grid aspect-[4/5] place-items-center bg-secondary/70 p-8">
+                    <div className="grid aspect-[4/5] place-items-center bg-[#909090] p-8">
                       <img
                         src="/loyola-crest.jpg"
                         alt=""
-                        className="h-20 w-20 object-contain opacity-55"
+                        className="h-24 w-24 object-contain opacity-70"
                       />
                     </div>
                   )}
                 </div>
-                <h3 className="mt-4 font-serif text-lg font-bold leading-tight text-navy">
-                  {card.name}
-                </h3>
-                <p className="mt-2 text-xs font-bold uppercase tracking-[0.12em] text-crimson">
+                <h3 className="mt-4 text-sm font-black leading-tight text-navy">{card.name}</h3>
+                <p className="mt-2 text-[11px] font-black uppercase tracking-[0.08em] text-gold">
                   {card.title}
                 </p>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">{card.description}</p>
               </article>
             ))}
           </div>
@@ -1008,26 +1235,6 @@ function HomePage() {
     const id = href.replace(/^\/+/, "") || "home";
     return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   };
-  const academicPreviews = [
-    [
-      "Primary Section",
-      "Foundational learning, language growth, values, and classroom confidence.",
-    ],
-    ["Middle School", "Structured study habits, co-curricular discovery, and personal formation."],
-    [
-      "Upper School",
-      "Exam preparation, leadership, clubs, sports, and disciplined academic focus.",
-    ],
-    ["Advanced Level", "Technology, Science, Commerce, and Arts pathways for senior students."],
-  ];
-  const clubs = [
-    "Media Unit",
-    "Science Society",
-    "ICT Society",
-    "Prefects Board",
-    "English Literary Association",
-    "Religious Society",
-  ];
   const heroTitle =
     content.heroTitle?.trim() || "A Tradition of Excellence. A Future of Innovation.";
   const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
@@ -1114,181 +1321,11 @@ function HomePage() {
         </div>
       </section>
 
-      {page.visualHtml?.trim() ? <HomeVisualBuilderSections /> : <HomeRequiredSections />}
-
-      <section className="bg-secondary/35 py-16 md:py-20">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-                School Calendar
-              </p>
-              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-                Upcoming school dates.
-              </h2>
-            </div>
-            {publicPageIsLive("/calendar") && (
-              <a href="/calendar" className="text-sm font-bold text-crimson">
-                Open full calendar
-              </a>
-            )}
-          </div>
-          <div className="overflow-hidden rounded-lg border border-border bg-white shadow-elegant">
-            <GoogleCalendarFrame
-              title="Loyola College calendar agenda"
-              mode="AGENDA"
-              className="h-[360px] sm:h-[390px]"
-            />
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">Academics</p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-              Academic pathways for every stage.
-            </h2>
-          </div>
-          {publicPageIsLive("/academics") && (
-            <a href="/academics" className="text-sm font-bold text-crimson">
-              Academics overview
-            </a>
-          )}
-        </div>
-        <div className="stagger-children mt-8 grid gap-5 md:grid-cols-4">
-          {academicPreviews.map(([title, body]) => (
-            <article
-              key={title}
-              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
-            >
-              <GraduationCap className="h-7 w-7 text-gold" />
-              <h3 className="mt-4 font-bold text-navy">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <NewsAndEventsPreview />
-
-      <section className="bg-white py-20">
-        <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-[1fr_1fr]">
-          <div>
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-serif text-4xl font-bold text-navy">Sports & Clubs</h2>
-              {publicPageIsLive("/sports-clubs") && (
-                <a href="/sports-clubs" className="text-sm font-bold text-crimson">
-                  View all
-                </a>
-              )}
-            </div>
-            <div className="stagger-children mt-6 grid gap-3 sm:grid-cols-2">
-              {publicPageIsLive("/sports-clubs") &&
-                clubs.map((club) => (
-                  <a
-                    key={club}
-                    href="/sports-clubs"
-                    className="hover-lift rounded-lg border border-border bg-background p-4 text-sm font-semibold text-navy shadow-soft"
-                  >
-                    {club}
-                  </a>
-                ))}
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center justify-between gap-4">
-              <h2 className="font-serif text-4xl font-bold text-navy">Gallery Preview</h2>
-              {publicPageIsLive("/gallery") && (
-                <a href="/gallery" className="text-sm font-bold text-crimson">
-                  Open gallery
-                </a>
-              )}
-            </div>
-            <div className="stagger-children mt-6 grid grid-cols-2 gap-3">
-              {db.gallery
-                .filter((item) => item.visible !== false)
-                .slice(0, 4)
-                .map((item) => {
-                  const images = albumImages(item);
-                  const cover = images[0] || "/loyola-crest.jpg";
-                  return (
-                    <a
-                      key={item.id}
-                      href={albumHref(item)}
-                      className="group relative block aspect-[4/3] overflow-hidden rounded-lg bg-slate-100 shadow-soft transition-smooth hover:-translate-y-1 hover:shadow-elegant focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold"
-                      aria-label={`Open ${item.label} album`}
-                    >
-                      <img
-                        src={cover}
-                        alt={item.label}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 group-focus-visible:scale-105"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-navy/90 via-navy/35 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100" />
-                      <div className="absolute inset-x-0 bottom-0 translate-y-3 p-4 text-white opacity-0 transition-all duration-300 group-hover:translate-y-0 group-hover:opacity-100 group-focus-visible:translate-y-0 group-focus-visible:opacity-100">
-                        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-gold-light">
-                          {images.length || 1} photo{(images.length || 1) === 1 ? "" : "s"}
-                        </p>
-                        <h3 className="mt-1 line-clamp-2 font-serif text-lg font-bold leading-tight">
-                          {item.label}
-                        </h3>
-                        <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-white/78">
-                          {item.description || "Open the full album."}
-                        </p>
-                      </div>
-                    </a>
-                  );
-                })}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[1fr_360px]">
-        <div className="rounded-lg bg-navy p-8 text-white shadow-elegant">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
-            Downloads & Notices
-          </p>
-          <h2 className="mt-4 font-serif text-4xl font-bold">
-            Important school files in one clean place.
-          </h2>
-          <p className="mt-4 max-w-2xl text-white/72">
-            Access circulars, timetables, application forms, notices, event documents, and school
-            resources without searching through duplicated portal links.
-          </p>
-          {publicPageIsLive("/downloads") && (
-            <a
-              href="/downloads"
-              className="mt-6 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-3 text-sm font-bold text-gold-foreground"
-            >
-              Open downloads <ArrowRight className="h-4 w-4" />
-            </a>
-          )}
-        </div>
-        <aside className="rounded-lg border border-border bg-white p-7 shadow-soft">
-          <h2 className="font-serif text-3xl text-navy">Contact Preview</h2>
-          <div className="mt-5 space-y-3 text-sm text-muted-foreground">
-            <p className="flex gap-3">
-              <MapPin className="h-5 w-5 text-gold" /> {content.address}
-            </p>
-            <p className="flex gap-3">
-              <Phone className="h-5 w-5 text-gold" /> {content.phone}
-            </p>
-            <p className="flex gap-3">
-              <Mail className="h-5 w-5 text-gold" /> {content.email}
-            </p>
-          </div>
-          {publicPageIsLive("/contact") && (
-            <a
-              href="/contact"
-              className="mt-6 inline-flex rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
-            >
-              Contact office
-            </a>
-          )}
-        </aside>
-      </section>
+      {hasStructuredHomeVisualContent(page.visualHtml) ? (
+        <HomeVisualBuilderSections />
+      ) : (
+        <HomeRequiredSections />
+      )}
       <SubpagesSection parentId="home" />
     </PublicLayout>
   );
