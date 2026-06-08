@@ -217,8 +217,17 @@
     return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true">${path}</svg>`;
   }
 
+  function cookieValue(name) {
+    const prefix = `${name}=`;
+    const entry = document.cookie
+      .split(";")
+      .map((item) => item.trim())
+      .find((item) => item.startsWith(prefix));
+    return entry ? decodeURIComponent(entry.slice(prefix.length)) : "";
+  }
+
   function token() {
-    return localStorage.getItem("loyola_token") || "";
+    return "";
   }
 
   function isManager() {
@@ -226,8 +235,9 @@
   }
 
   function headers(extra = {}) {
+    const csrfToken = cookieValue("loyola_csrf_token");
     return {
-      Authorization: `Bearer ${token()}`,
+      ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       ...extra,
     };
   }
@@ -236,6 +246,7 @@
     const isForm = options.body instanceof FormData;
     const response = await fetch(path, {
       ...options,
+      credentials: "include",
       headers: headers({
         ...(isForm ? {} : { "Content-Type": "application/json" }),
         ...(options.headers || {}),
@@ -2489,6 +2500,7 @@
     });
     try {
       const response = await fetch(`/api/staff/attendance/export/csv?${params.toString()}`, {
+        credentials: "include",
         headers: headers(),
       });
       if (!response.ok) throw new Error("Attendance export failed.");
@@ -2664,6 +2676,7 @@
   async function downloadCsvTemplate() {
     try {
       const response = await fetch("/api/staff/import-csv/template", {
+        credentials: "include",
         headers: headers(),
         cache: "no-store",
       });

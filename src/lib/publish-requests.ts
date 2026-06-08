@@ -73,6 +73,7 @@ function mapPublishRequest(request: ApiPublishRequest): PublishRequest {
 async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_URL}${path}`, {
     ...init,
+    credentials: "include",
     headers: authHeaders({
       "Content-Type": "application/json",
       ...(init.headers || {}),

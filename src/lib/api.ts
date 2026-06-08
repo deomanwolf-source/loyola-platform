@@ -14,15 +14,27 @@ function normalizeApiUrl(value: string | undefined) {
 
 export const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL) || defaultApiUrl();
 
+const CSRF_COOKIE_NAME = "loyola_csrf_token";
+
+function cookieValue(name: string) {
+  if (typeof document === "undefined") return "";
+  const prefix = `${name}=`;
+  const entry = document.cookie
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(prefix));
+  return entry ? decodeURIComponent(entry.slice(prefix.length)) : "";
+}
+
 export function getAuthToken() {
-  return localStorage.getItem("loyola_token") || "";
+  return "";
 }
 
 export function authHeaders(headers: HeadersInit = {}) {
-  const token = getAuthToken();
+  const csrfToken = cookieValue(CSRF_COOKIE_NAME);
   return {
     ...headers,
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
   };
 }
 
@@ -48,7 +60,7 @@ export async function loginUser(email: string, password: string) {
     throw new Error(data.error || "Login failed");
   }
 
-  localStorage.setItem("loyola_token", data.token);
+  localStorage.removeItem("loyola_token");
   localStorage.setItem("loyola_user", JSON.stringify(data.user));
 
   return data;
@@ -59,10 +71,13 @@ export async function logoutUser() {
     await fetch(`${API_URL}/api/logout`, {
       method: "POST",
       credentials: "include",
+      headers: authHeaders(),
     });
   } catch {
     // Local logout still clears browser storage if the API is unavailable.
   }
+  localStorage.removeItem("loyola_token");
+  localStorage.removeItem("loyola_user");
 }
 
 export interface MaintenanceStatus {

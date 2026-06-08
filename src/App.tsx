@@ -51,6 +51,7 @@ import {
   type Role,
 } from "@/lib/store";
 import { API_URL, authHeaders, getMaintenanceStatus, type MaintenanceStatus } from "@/lib/api";
+import { sanitizeVisualCss, sanitizeVisualHtml } from "@/lib/sanitize-visual-content";
 
 const StudentPortal = lazy(() =>
   import("@/components/portal/StudentPortal").then((module) => ({ default: module.StudentPortal })),
@@ -537,7 +538,9 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
 
   if (!page?.visualHtml) return <GenericPage pageId={pageId} />;
 
-  const visual = normalizeVisualPageHtml(page.visualHtml);
+  const sanitizedHtml = sanitizeVisualHtml(page.visualHtml);
+  const sanitizedCss = sanitizeVisualCss(page.visualCss);
+  const visual = normalizeVisualPageHtml(sanitizedHtml);
   const title = visual.title || page.title || pageId.split("/").pop()?.replaceAll("-", " ") || "";
   const body =
     visual.subtitle ||
@@ -552,7 +555,7 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
         subtitle={body}
         image={visual.image || page.image || db.media.campusImage || db.websiteContent.heroImage}
       />
-      {page.visualCss && <style>{page.visualCss}</style>}
+      {sanitizedCss && <style>{sanitizedCss}</style>}
       {visual.bodyHtml && (
         <div className="visual-page" dangerouslySetInnerHTML={{ __html: visual.bodyHtml }} />
       )}
@@ -743,12 +746,13 @@ function SubpagesSection({ parentId }: { parentId: string }) {
 function HomeVisualBuilderSections() {
   const db = useDb();
   const page = db.pages.home;
-  const html = page?.visualHtml?.trim();
+  const html = sanitizeVisualHtml(page?.visualHtml).trim();
+  const css = sanitizeVisualCss(page?.visualCss);
   if (!html) return null;
 
   return (
     <>
-      {page.visualCss && <style>{page.visualCss}</style>}
+      {css && <style>{css}</style>}
       <div
         className="visual-page home-visual-sections"
         dangerouslySetInnerHTML={{ __html: html }}
@@ -3623,10 +3627,10 @@ function GenericPage({ pageId }: { pageId: string }) {
 
       {page?.visualHtml ? (
         <>
-          {page.visualCss && <style>{page.visualCss}</style>}
+          {sanitizeVisualCss(page.visualCss) && <style>{sanitizeVisualCss(page.visualCss)}</style>}
           <div
             className="mx-auto max-w-6xl px-6 py-12"
-            dangerouslySetInnerHTML={{ __html: page.visualHtml }}
+            dangerouslySetInnerHTML={{ __html: sanitizeVisualHtml(page.visualHtml) }}
           />
         </>
       ) : page?.blocks && page.blocks.length > 0 ? (
@@ -4299,6 +4303,7 @@ function EduTrackIntegratedPage() {
   const apiJson = async (path: string, options: RequestInit = {}) => {
     const res = await fetch(`${API_URL}${path}`, {
       ...options,
+      credentials: "include",
       headers: authHeaders({ "Content-Type": "application/json", ...(options.headers || {}) }),
     });
     const data = await res.json().catch(() => ({}));

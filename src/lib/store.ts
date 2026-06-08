@@ -972,6 +972,7 @@ async function hydrateFromRemoteDb(adoptDraftIfClean = false, force = false) {
       ...(useDraft ? { draft: "1" } : {}),
     });
     const response = await fetch(`${SITE_DB_API}?${query.toString()}`, {
+      credentials: "include",
       headers: {
         Accept: "application/json",
         ...authHeaders(),
@@ -1786,6 +1787,7 @@ async function sendDbToServer(
     try {
       const response = await fetch(endpoint, {
         method: "POST",
+        credentials: "include",
         headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ db }),
         cache: "no-store",

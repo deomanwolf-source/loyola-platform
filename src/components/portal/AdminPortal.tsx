@@ -1215,6 +1215,7 @@ function StorageOverview({ refreshKey = 0 }: { refreshKey?: number }) {
   useEffect(() => {
     let cancelled = false;
     fetch(`${API_URL}/api/media?ts=${Date.now()}`, {
+      credentials: "include",
       headers: { Accept: "application/json", ...authHeaders() },
     })
       .then((response) => (response.ok ? response.json() : []))
@@ -2522,6 +2523,7 @@ function UsersPanel({ db }: { db: DB }) {
     setError("");
     try {
       const response = await fetch(`${API_URL}/api/users`, {
+        credentials: "include",
         headers: authHeaders(),
         cache: "no-store",
       });
@@ -2590,6 +2592,7 @@ function UsersPanel({ db }: { db: DB }) {
         `${API_URL}/api/users${editingId ? `/${encodeURIComponent(editingId)}` : ""}`,
         {
           method: editingId ? "PUT" : "POST",
+          credentials: "include",
           headers: authHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload),
         },
@@ -2625,6 +2628,7 @@ function UsersPanel({ db }: { db: DB }) {
     try {
       const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(user.id)}`, {
         method: "PUT",
+        credentials: "include",
         headers: authHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
           name: user.name,
@@ -2657,6 +2661,7 @@ function UsersPanel({ db }: { db: DB }) {
     try {
       const response = await fetch(`${API_URL}/api/users/${encodeURIComponent(user.id)}`, {
         method: "DELETE",
+        credentials: "include",
         headers: authHeaders(),
       });
       if (!response.ok) throw new Error(await readUserApiError(response));
@@ -4573,6 +4578,7 @@ function StaffPanel({ db }: { db: DB }) {
 
     const response = await fetch(`${API_URL}/api/staff-accounts`, {
       method: "POST",
+      credentials: "include",
       headers: authHeaders({ "Content-Type": "application/json" }),
       body: JSON.stringify({
         teacherId,
@@ -4599,6 +4605,7 @@ function StaffPanel({ db }: { db: DB }) {
       if (!formAccountEnabled && editingId) {
         await fetch(`${API_URL}/api/staff-accounts/${encodeURIComponent(editingId)}`, {
           method: "DELETE",
+          credentials: "include",
           headers: authHeaders(),
         }).catch(() => null);
       }
@@ -4741,6 +4748,7 @@ function StaffPanel({ db }: { db: DB }) {
     try {
       await fetch(`${API_URL}/api/staff-accounts/${encodeURIComponent(id)}`, {
         method: "DELETE",
+        credentials: "include",
         headers: authHeaders(),
       });
     } catch (error) {

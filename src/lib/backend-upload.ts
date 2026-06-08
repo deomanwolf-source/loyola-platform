@@ -69,11 +69,6 @@ async function uploadMedia(
   name: string,
   contentType: string,
 ): Promise<UploadedMediaPayload> {
-  const token = localStorage.getItem("loyola_token");
-  if (!token) {
-    throw new MediaUploadDisabledError("Please log in before uploading media.");
-  }
-
   const file = media instanceof File ? media : new File([media], name, { type: contentType });
   const formData = new FormData();
   formData.append("file", file);
@@ -82,6 +77,7 @@ async function uploadMedia(
     `${API_URL}/api/uploads?folder=${encodeURIComponent(uploadFolder(prefix))}`,
     {
       method: "POST",
+      credentials: "include",
       headers: authHeaders(),
       body: formData,
     },

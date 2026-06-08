@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ComponentType } from "react";
 import { CheckCircle2, CloudOff, Loader2, LogIn, RefreshCw } from "lucide-react";
-import { API_URL, getAuthToken } from "@/lib/api";
+import { API_URL, authHeaders } from "@/lib/api";
 
 type UploadStatus = "checking" | "ready" | "login-required" | "offline";
 
@@ -32,16 +32,6 @@ export function MediaUploadStatus() {
   });
 
   const checkStatus = useCallback(async () => {
-    const token = getAuthToken();
-    if (!token) {
-      setState({
-        status: "login-required",
-        title: "Login required for media uploads",
-        detail: "Sign in to an admin account before uploading images, videos, or documents.",
-      });
-      return;
-    }
-
     setState({
       status: "checking",
       title: "Checking media uploads",
@@ -52,13 +42,15 @@ export function MediaUploadStatus() {
     const timeout = window.setTimeout(() => controller.abort(), 3500);
 
     try {
-      const response = await fetch(`${API_URL}/api/health`, {
+      const response = await fetch(`${API_URL}/api/me`, {
         cache: "no-store",
+        credentials: "include",
+        headers: authHeaders(),
         signal: controller.signal,
       });
       const payload = await response.json().catch(() => null);
 
-      if (response.ok && payload?.status === "ok") {
+      if (response.ok && payload?.id) {
         setState({
           status: "ready",
           title: "Media uploads ready",
@@ -68,9 +60,13 @@ export function MediaUploadStatus() {
       }
 
       setState({
-        status: "offline",
-        title: "Backend health check failed",
-        detail: payload?.message || `The backend at ${API_URL} did not return a healthy response.`,
+        status: response.status === 401 ? "login-required" : "offline",
+        title: response.status === 401 ? "Login required for media uploads" : "Backend check failed",
+        detail:
+          payload?.error ||
+          (response.status === 401
+            ? "Sign in to an admin account before uploading images, videos, or documents."
+            : `The backend at ${API_URL} did not return a healthy response.`),
       });
     } catch {
       setState({

@@ -9,6 +9,10 @@ const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 const { registerStaffRoutes } = require("./routes/staff");
+const {
+  sanitizeSiteDbSecurity,
+  scanVisualContent,
+} = require("./lib/sanitize-visual-content");
 
 dotenv.config();
 
@@ -105,11 +109,45 @@ fs.mkdirSync(reliefUploadDir, { recursive: true });
 app.disable("x-powered-by");
 app.set("trust proxy", true);
 
+function isEduTrackRequestPath(requestPath) {
+  return requestPath === "/edutrack" || requestPath.startsWith("/edutrack/");
+}
+
+function contentSecurityPolicyForRequest(req) {
+  const isEduTrack = isEduTrackRequestPath(req.path);
+  const common = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "media-src 'self' blob: https:",
+    "connect-src 'self' http://localhost:5000 http://127.0.0.1:5000",
+    "frame-src 'self' https://calendar.google.com https://www.youtube.com",
+  ];
+
+  if (isEduTrack) {
+    return [
+      ...common,
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    ].join("; ");
+  }
+
+  return [
+    ...common,
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  ].join("; ");
+}
+
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Content-Security-Policy", contentSecurityPolicyForRequest(req));
   next();
 });
 
@@ -124,6 +162,7 @@ app.use(
 );
 
 app.use(express.json({ limit: "4mb" }));
+app.use(csrfProtection);
 const uploadStaticRoots = [uploadRoot, legacyUploadRoot].filter(
   (root, index, roots) =>
     fs.existsSync(root) &&
@@ -411,6 +450,7 @@ const REPORT_CARD_VIEW_ROLES = [
 ];
 
 const AUTH_COOKIE_NAME = "loyola_session_token";
+const CSRF_COOKIE_NAME = "loyola_csrf_token";
 const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const MAINTENANCE_BYPASS_ROLES = [
   ROLES.master,
@@ -715,6 +755,81 @@ function clearAuthCookie(res) {
     secure: process.env.COOKIE_SECURE === "true",
     path: "/",
   });
+}
+
+function csrfCookieOptions() {
+  return {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.COOKIE_SECURE === "true",
+    maxAge: AUTH_COOKIE_MAX_AGE_MS,
+    path: "/",
+  };
+}
+
+function createCsrfToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function setCsrfCookie(res, token = createCsrfToken()) {
+  res.cookie(CSRF_COOKIE_NAME, token, csrfCookieOptions());
+  return token;
+}
+
+function clearCsrfCookie(res) {
+  res.clearCookie(CSRF_COOKIE_NAME, {
+    httpOnly: false,
+    sameSite: "lax",
+    secure: process.env.COOKIE_SECURE === "true",
+    path: "/",
+  });
+}
+
+function csrfTokensMatch(left, right) {
+  const leftValue = String(left || "");
+  const rightValue = String(right || "");
+  if (!leftValue || !rightValue || leftValue.length !== rightValue.length) return false;
+
+  try {
+    return crypto.timingSafeEqual(Buffer.from(leftValue), Buffer.from(rightValue));
+  } catch {
+    return false;
+  }
+}
+
+function isUnsafeMethod(method) {
+  return ["POST", "PUT", "PATCH", "DELETE"].includes(String(method || "").toUpperCase());
+}
+
+function isCsrfExemptPath(requestPath) {
+  return (
+    requestPath === "/api/login" ||
+    requestPath === "/api/logout" ||
+    requestPath === "/api/csrf" ||
+    requestPath === "/api/health" ||
+    requestPath === "/api/setup-admin" ||
+    requestPath === "/api/internal/sync-teacher-account"
+  );
+}
+
+function csrfProtection(req, res, next) {
+  const cookies = parseCookieHeader(req);
+  const hasAuthCookie = Boolean(cookies[AUTH_COOKIE_NAME]);
+
+  if (!cookies[CSRF_COOKIE_NAME]) {
+    setCsrfCookie(res);
+  }
+
+  if (!isUnsafeMethod(req.method) || isCsrfExemptPath(req.path) || !hasAuthCookie) {
+    return next();
+  }
+
+  const headerToken = req.headers["x-csrf-token"];
+  if (!csrfTokensMatch(cookies[CSRF_COOKIE_NAME], headerToken)) {
+    return res.status(403).json({ error: "Invalid CSRF token" });
+  }
+
+  next();
 }
 
 function parseBooleanSetting(value, fallback = false) {
@@ -3385,7 +3500,8 @@ async function writeSiteDb(siteDb, { mode = "published" } = {}) {
 
   const contentVersion = Date.now();
   const nowIso = new Date(contentVersion).toISOString();
-  const incomingDb = applyExplicitContentDeletes(siteDb, siteDb);
+  const sanitizedInput = sanitizeSiteDbSecurity(siteDb);
+  const incomingDb = applyExplicitContentDeletes(sanitizedInput, sanitizedInput);
   const existingDb = await readSiteDb({ draft: mode === "draft" });
   const publishedDb = mode === "draft" ? await readSiteDb({ draft: false }) : null;
   const deletionAwareExistingDb = applyExplicitContentDeletes(existingDb, incomingDb);
@@ -3522,6 +3638,11 @@ app.get("/api/health", async (req, res) => {
       message: error.message,
     });
   }
+});
+
+app.get("/api/csrf", (req, res) => {
+  const token = setCsrfCookie(res);
+  res.json({ csrfToken: token });
 });
 
 app.get("/api/maintenance", async (req, res) => {
@@ -3816,6 +3937,19 @@ app.get("/api/site-db", async (req, res) => {
   }
 });
 
+app.get("/api/security/visual-content-scan", websiteAdminOnly, async (req, res) => {
+  try {
+    const useDraft = req.query.draft === "1" || req.headers["x-loyola-draft"] === "true";
+    const siteDb = await readSiteDb({ draft: useDraft });
+    res.json({
+      mode: useDraft ? "draft" : "published",
+      issues: scanVisualContent(siteDb),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/site-db", adminOnly, async (req, res) => {
   try {
     if (!req.body?.db || typeof req.body.db !== "object") {
@@ -3872,7 +4006,7 @@ app.post("/api/publish-requests", authRole(ROLES.website), async (req, res) => {
     }
 
     const actor = actorFromRequest(req);
-    const data = scrubUserPasswords(req.body.db);
+    const data = scrubUserPasswords(sanitizeSiteDbSecurity(req.body.db));
     const [result] = await db.query(
       `
         INSERT INTO publish_requests
@@ -7939,6 +8073,7 @@ app.post(
 
       const token = createToken(user);
       setAuthCookie(res, token);
+      setCsrfCookie(res);
 
       res.json({
         success: true,
@@ -7961,6 +8096,7 @@ app.post(
 
 app.post("/api/logout", (req, res) => {
   clearAuthCookie(res);
+  clearCsrfCookie(res);
   res.json({ success: true });
 });
 

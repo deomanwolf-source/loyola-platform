@@ -6627,12 +6627,13 @@
 
     <script type="module">
       /* EduTrack is now connected to Loyola Digital Platform backend.
-   No Firebase is used here. Auth comes from localStorage loyola_token/loyola_user.
+   No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
       const APP_VERSION = "v4.3.0 + Daily Progress + Relief Lock";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
+      const CSRF_COOKIE_NAME = "loyola_csrf_token";
       const API_BASE = (() => {
         const explicit = localStorage.getItem("LOYOLA_API_URL") || window.EDUTRACK_API_URL || "";
         if (explicit) return explicit.replace(/\/$/, "");
@@ -6640,7 +6641,7 @@
         return "";
       })();
       function platformToken() {
-        return localStorage.getItem(PLATFORM_TOKEN_KEY) || "";
+        return "";
       }
       function platformUser() {
         try {
@@ -6649,13 +6650,22 @@
           return null;
         }
       }
+      function cookieValue(name) {
+        const prefix = name + "=";
+        const entry = document.cookie
+          .split(";")
+          .map((item) => item.trim())
+          .find((item) => item.startsWith(prefix));
+        return entry ? decodeURIComponent(entry.slice(prefix.length)) : "";
+      }
       function platformHeaders(extra = {}) {
-        const token = platformToken();
-        return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+        const csrfToken = cookieValue(CSRF_COOKIE_NAME);
+        return { ...extra, ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}) };
       }
       async function apiFetch(path, options = {}) {
         const res = await fetch(`${API_BASE}${path}`, {
           ...options,
+          credentials: "include",
           headers: platformHeaders({
             "Content-Type": "application/json",
             ...(options.headers || {}),
@@ -6691,7 +6701,7 @@
           method: "POST",
           body: JSON.stringify({ email, password }),
         });
-        localStorage.setItem(PLATFORM_TOKEN_KEY, data.token);
+        localStorage.removeItem(PLATFORM_TOKEN_KEY);
         localStorage.setItem(PLATFORM_USER_KEY, JSON.stringify(data.user));
         return { user: makeUserShape(data.user) };
       }
@@ -6704,12 +6714,25 @@
       }
       async function signOut(authArg) {
         if (authArg && authArg.secondary) return;
+        try {
+          await apiFetch("/api/logout", { method: "POST", body: "{}" });
+        } catch {}
         localStorage.removeItem(PLATFORM_TOKEN_KEY);
         localStorage.removeItem(PLATFORM_USER_KEY);
         window.location.href = "/login";
       }
+      async function refreshPlatformSession() {
+        try {
+          const user = await apiFetch("/api/me", { method: "GET" });
+          localStorage.removeItem(PLATFORM_TOKEN_KEY);
+          localStorage.setItem(PLATFORM_USER_KEY, JSON.stringify(user));
+          return user;
+        } catch {
+          return platformUser();
+        }
+      }
       function onAuthStateChanged(_auth, callback) {
-        setTimeout(() => callback(makeUserShape(platformUser())), 0);
+        setTimeout(async () => callback(makeUserShape(await refreshPlatformSession())), 0);
         window.addEventListener("storage", () => callback(makeUserShape(platformUser())));
       }
       async function sendPasswordResetEmail() {
@@ -7267,7 +7290,7 @@
       function tName(id) {
         if (!id) return '<span style="color:var(--muted)">Unassigned</span>';
         const t = allTeachers.find((t) => t.id === id);
-        return t ? t.name : '<span style="color:var(--muted)">Unknown</span>';
+        return t ? escapeHtml(t.name) : '<span style="color:var(--muted)">Unknown</span>';
       }
       function fmtDate(d) {
         if (!d) return "-";
@@ -7834,11 +7857,11 @@
               '<tr><td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar" style="background:' +
               lvlColor(t.level) +
               ';color:#fff;font-size:12px;">' +
-              (t.name[0] || "?").toUpperCase() +
+              escapeHtml((t.name[0] || "?").toUpperCase()) +
               '</div><span style="font-weight:600;">' +
-              t.name +
+              escapeHtml(t.name) +
               '</span></div></td><td style="color:var(--muted);font-size:13px;">' +
-              t.email +
+              escapeHtml(t.email) +
               '</td><td><span class="badge ' +
               lvlShort(t.level) +
               '">' +
@@ -7848,9 +7871,9 @@
               " subject" +
               (sc !== 1 ? "s" : "") +
               '</td><td><div class="inline-actions"><button class="icon-btn del" onclick="deleteTeacher(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               "','" +
-              t.name.replace(/'/g, "\\'") +
+              escapeInlineJsString(t.name) +
               '\')" ><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;"></i></button></div></td></tr>'
             );
           })
@@ -9089,11 +9112,11 @@
               '<div class="card" style="margin-bottom:18px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="display:flex;align-items:center;gap:12px;"><div class="avatar" style="width:40px;height:40px;background:' +
               lvlColor(t.level) +
               ';color:#fff;font-size:15px;">' +
-              (t.name[0] || "?").toUpperCase() +
+              escapeHtml((t.name[0] || "?").toUpperCase()) +
               '</div><div><div style="font-weight:700;">' +
-              t.name +
+              escapeHtml(t.name) +
               '</div><div style="font-size:12px;color:var(--muted);">' +
-              t.email +
+              escapeHtml(t.email) +
               ' | <span class="badge ' +
               lvlShort(t.level) +
               '">' +
@@ -9116,10 +9139,12 @@
               html +=
                 '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:6px;width:170px;min-width:0;">' +
                 (s.term
-                  ? '<span class="term-badge" style="flex-shrink:0;">T' + s.term + "</span>"
+                  ? '<span class="term-badge" style="flex-shrink:0;">T' +
+                    escapeHtml(s.term) +
+                    "</span>"
                   : "") +
                 '<span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-                s.name +
+                escapeHtml(s.name) +
                 '</span></div><div style="flex:1;"><div class="pbar-wrap" style="height:6px;"><div class="pbar" style="width:' +
                 sp +
                 "%;background:" +
@@ -9398,6 +9423,15 @@
         return String(value ?? "").replace(
           /[&<>"']/g,
           (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch],
+        );
+      }
+      function escapeInlineJsString(value) {
+        return escapeHtml(
+          String(value ?? "")
+            .replace(/\\/g, "\\\\")
+            .replace(/'/g, "\\'")
+            .replace(/\r/g, "\\r")
+            .replace(/\n/g, "\\n"),
         );
       }
       function subjectOutlineHtml(subject) {
@@ -10198,21 +10232,21 @@
             const sc = allSubjects.filter((s) => s.teacherId === t.id).length;
             return (
               '<tr><td><div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openTeacherProfile(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               '\')" title="View profile"><div class="avatar" style="background:' +
               levelColor +
               ';color:#fff;font-size:12px;">' +
-              ((t.name && t.name[0]) || "?").toUpperCase() +
+              escapeHtml(((t.name && t.name[0]) || "?").toUpperCase()) +
               '</div><span style="font-weight:600;">' +
-              t.name +
+              escapeHtml(t.name) +
               '</span></div></td><td style="color:var(--muted);font-size:13px;">' +
-              t.email +
+              escapeHtml(t.email) +
               "</td><td style=\"font-family:'DM Mono',monospace;\">" +
-              displayId +
+              escapeHtml(displayId) +
               "</td><td>" +
-              gradesLabel(t) +
+              escapeHtml(gradesLabel(t)) +
               "</td><td style=\"font-family:'DM Mono',monospace;\">" +
-              classIdsLabel(t) +
+              escapeHtml(classIdsLabel(t)) +
               '</td><td><span class="badge ' +
               levelBadge +
               '">' +
@@ -10222,13 +10256,13 @@
               " subject" +
               (sc !== 1 ? "s" : "") +
               '</td><td><div class="inline-actions"><button class="icon-btn" onclick="openTeacherProfile(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               '\')" title="Profile"><i data-lucide="user" style="width:14px;height:14px;display:inline-block;"></i></button><button class="icon-btn" onclick="editTeacher(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               '\')" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px;display:inline-block;"></i></button><button class="icon-btn del" onclick="deleteTeacher(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               "','" +
-              t.name.replace(/'/g, "\\'") +
+              escapeInlineJsString(t.name) +
               '\')" title="Delete"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;"></i></button></div></td></tr>'
             );
           })
@@ -10286,11 +10320,11 @@
               '<div class="card" style="margin-bottom:18px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="display:flex;align-items:center;gap:12px;"><div class="avatar" style="width:40px;height:40px;background:' +
               teacherAccentColor(t) +
               ';color:#fff;font-size:15px;">' +
-              ((t.name && t.name[0]) || "?").toUpperCase() +
+              escapeHtml(((t.name && t.name[0]) || "?").toUpperCase()) +
               '</div><div><div style="font-weight:700;">' +
-              t.name +
+              escapeHtml(t.name) +
               '</div><div style="font-size:12px;color:var(--muted);">' +
-              meta +
+              escapeHtml(meta) +
               ' | <span class="badge ' +
               levelBadge +
               '">' +
@@ -10313,10 +10347,12 @@
               html +=
                 '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:6px;width:170px;min-width:0;">' +
                 (s.term
-                  ? '<span class="term-badge" style="flex-shrink:0;">T' + s.term + "</span>"
+                  ? '<span class="term-badge" style="flex-shrink:0;">T' +
+                    escapeHtml(s.term) +
+                    "</span>"
                   : "") +
                 '<span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-                s.name +
+                escapeHtml(s.name) +
                 '</span></div><div style="flex:1;"><div class="pbar-wrap" style="height:6px;"><div class="pbar" style="width:' +
                 st.pct +
                 "%;background:" +
@@ -10735,21 +10771,21 @@
             const sc = allSubjects.filter((s) => s.teacherId === t.id).length;
             return (
               '<tr><td><div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openTeacherProfile(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               '\')" title="View profile"><div class="avatar" style="background:' +
               levelColor +
               ';color:#fff;font-size:12px;">' +
-              ((t.name && t.name[0]) || "?").toUpperCase() +
+              escapeHtml(((t.name && t.name[0]) || "?").toUpperCase()) +
               '</div><span style="font-weight:600;">' +
-              t.name +
+              escapeHtml(t.name) +
               '</span></div></td><td style="color:var(--muted);font-size:13px;">' +
-              t.email +
+              escapeHtml(t.email) +
               "</td><td style=\"font-family:'DM Mono',monospace;\">" +
-              (t.teacherId || "-") +
+              escapeHtml(t.teacherId || "-") +
               "</td><td>" +
-              gradesLabel(t) +
+              escapeHtml(gradesLabel(t)) +
               "</td><td style=\"font-family:'DM Mono',monospace;\">" +
-              classIdsLabel(t) +
+              escapeHtml(classIdsLabel(t)) +
               '</td><td><span class="badge ' +
               levelBadge +
               '">' +
@@ -10759,13 +10795,13 @@
               " subject" +
               (sc !== 1 ? "s" : "") +
               '</td><td><div class="inline-actions"><button class="icon-btn" onclick="openTeacherProfile(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               '\')" title="Profile"><i data-lucide="user" style="width:14px;height:14px;display:inline-block;"></i></button><button class="icon-btn" onclick="editTeacher(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               '\')" title="Edit"><i data-lucide="pencil" style="width:14px;height:14px;display:inline-block;"></i></button><button class="icon-btn del" onclick="deleteTeacher(\'' +
-              t.id +
+              escapeInlineJsString(t.id) +
               "','" +
-              t.name.replace(/'/g, "\\'") +
+              escapeInlineJsString(t.name) +
               '\')" title="Delete"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;"></i></button></div></td></tr>'
             );
           })
@@ -11692,11 +11728,11 @@
               '<div class="card" style="margin-bottom:18px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;"><div style="display:flex;align-items:center;gap:12px;"><div class="avatar" style="width:40px;height:40px;background:' +
               accentColor +
               ';color:#fff;font-size:15px;">' +
-              ((t.name && t.name[0]) || "?").toUpperCase() +
+              escapeHtml(((t.name && t.name[0]) || "?").toUpperCase()) +
               '</div><div><div style="font-weight:700;">' +
-              t.name +
+              escapeHtml(t.name) +
               '</div><div style="font-size:12px;color:var(--muted);">' +
-              meta +
+              escapeHtml(meta) +
               ' | <span class="badge ' +
               levelBadge +
               '">' +
@@ -11719,10 +11755,12 @@
               html +=
                 '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;"><div style="display:flex;align-items:center;gap:6px;width:170px;min-width:0;">' +
                 (s.term
-                  ? '<span class="term-badge" style="flex-shrink:0;">T' + s.term + "</span>"
+                  ? '<span class="term-badge" style="flex-shrink:0;">T' +
+                    escapeHtml(s.term) +
+                    "</span>"
                   : "") +
                 '<span style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-                s.name +
+                escapeHtml(s.name) +
                 '</span></div><div style="flex:1;"><div class="pbar-wrap" style="height:6px;"><div class="pbar" style="width:' +
                 st.pct +
                 "%;background:" +
@@ -13667,7 +13705,7 @@
         try {
           const res = await fetch(
             API_BASE + "/api/edutrack/daily-syllabus-progress/export/csv" + dailyProgressQuery(),
-            { headers: platformHeaders() },
+            { credentials: "include", headers: platformHeaders() },
           );
           if (!res.ok) throw new Error("CSV export failed");
           const blob = await res.blob();
@@ -14220,7 +14258,7 @@
         try {
           const res = await fetch(
             API_BASE + "/api/edutrack/year-plan-reports/export/csv" + yearPlanReportQuery(),
-            { headers: platformHeaders() },
+            { credentials: "include", headers: platformHeaders() },
           );
           if (!res.ok) throw new Error("CSV export failed");
           const blob = await res.blob();
@@ -14610,6 +14648,7 @@
       async function reliefFetch(path, options = {}) {
         const res = await fetch(`${API_BASE}${path}`, {
           ...options,
+          credentials: "include",
           headers: platformHeaders(options.headers || {}),
         });
         const contentType = res.headers.get("content-type") || "";
@@ -14625,6 +14664,7 @@
       async function reliefBlobFetch(path, options = {}) {
         const res = await fetch(`${API_BASE}${path}`, {
           ...options,
+          credentials: "include",
           headers: platformHeaders(options.headers || {}),
         });
         if (!res.ok) {
