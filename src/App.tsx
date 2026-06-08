@@ -750,35 +750,6 @@ function SubpagesSection({ parentId }: { parentId: string }) {
   );
 }
 
-function HomeVisualBuilderSections() {
-  const db = useDb();
-  const page = db.pages.home;
-  const html = sanitizeVisualHtml(page?.visualHtml).trim();
-  const css = sanitizeVisualCss(page?.visualCss);
-  if (!html) return null;
-
-  return (
-    <>
-      {css && <style>{css}</style>}
-      <div
-        className="visual-page home-visual-sections"
-        dangerouslySetInnerHTML={{ __html: html }}
-      />
-    </>
-  );
-}
-
-function hasStructuredHomeVisualContent(html?: string) {
-  const cleanHtml = sanitizeVisualHtml(html).trim();
-  if (!cleanHtml) return false;
-  return (
-    /class\s*=\s*["'][^"']*(?:visual|hero|section|container|grid|card|btn|gjs|home)/i.test(
-      cleanHtml,
-    ) ||
-    /<(?:section|article|figure|header|main|img|video)\b/i.test(cleanHtml)
-  );
-}
-
 function HomeRequiredSections() {
   const db = useDb();
   const home = db.homeSections;
@@ -1321,11 +1292,7 @@ function HomePage() {
         </div>
       </section>
 
-      {hasStructuredHomeVisualContent(page.visualHtml) ? (
-        <HomeVisualBuilderSections />
-      ) : (
-        <HomeRequiredSections />
-      )}
+      <HomeRequiredSections />
       <SubpagesSection parentId="home" />
     </PublicLayout>
   );
