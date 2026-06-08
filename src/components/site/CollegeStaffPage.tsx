@@ -220,11 +220,18 @@ const GROUP_SECTION_TITLES: Record<string, string> = {
   "non-academic": "Non-Academic Staff",
   "supportive": "Supportive Staff",
   "academic-council": "General Academic Council",
-  "uncategorized": "Other Staff",
 };
 
 function sectionTitle(group: StaffDisplayGroup) {
   return (GROUP_SECTION_TITLES[group.id] || group.title).replace(/^\d+(?:\.\d+)?\s+/, "");
+}
+
+const STAFF_DIRECTORY_GROUPS = STAFF_DISPLAY_GROUPS.filter(
+  (group) => group.id !== "uncategorized",
+);
+
+function isVisibleDirectoryAssignment(assignment: StaffAssignment) {
+  return assignment.group.id !== "uncategorized";
 }
 
 function assignmentStaffType(assignment: StaffAssignment): StaffTypeFilter {
@@ -489,25 +496,30 @@ export function CollegeStaffPage({
     : null;
 
   const assignments = useMemo(() => makeAssignments(profiles), [profiles]);
+  const visibleAssignments = useMemo(
+    () => assignments.filter(isVisibleDirectoryAssignment),
+    [assignments],
+  );
   const query = normalize(search);
   const staffTypeCounts = useMemo(
     () =>
       STAFF_TYPE_FILTERS.reduce(
         (counts, type) => ({
           ...counts,
-          [type]: assignments.filter((assignment) => assignmentStaffType(assignment) === type)
-            .length,
+          [type]: visibleAssignments.filter(
+            (assignment) => assignmentStaffType(assignment) === type,
+          ).length,
         }),
         {} as Record<StaffTypeFilter, number>,
       ),
-    [assignments],
+    [visibleAssignments],
   );
-  const filteredAssignments = assignments.filter(
+  const filteredAssignments = visibleAssignments.filter(
     (assignment) =>
       assignmentStaffType(assignment) === activeStaffType &&
       assignmentMatchesSearch(assignment, query),
   );
-  const grouped = STAFF_DISPLAY_GROUPS.map((group) => ({
+  const grouped = STAFF_DIRECTORY_GROUPS.map((group) => ({
     group,
     assignments: filteredAssignments
       .filter((assignment) => assignment.group.id === group.id)
