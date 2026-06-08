@@ -1219,6 +1219,7 @@ function PreviewWebsite({
   frameRef,
   visualEditing,
   onSelectSection,
+  onCloseVisualEditing,
 }: {
   db: DB;
   selectedPage: string;
@@ -1226,6 +1227,7 @@ function PreviewWebsite({
   frameRef: React.RefObject<HTMLIFrameElement | null>;
   visualEditing: boolean;
   onSelectSection: (section: string) => void;
+  onCloseVisualEditing: () => void;
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const path = pagePath(selectedPage);
@@ -1338,10 +1340,19 @@ function PreviewWebsite({
           </a>
         </div>
         {visualEditing && (
-          <p className="mt-2 text-[11px] font-semibold text-slate-500">
-            Safe Visual Editor: click highlighted live sections, edit fields in Content Inspector,
-            then Save Draft and Publish.
-          </p>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#d4a017]/35 bg-[#fff7d6] px-4 py-3 text-xs font-bold text-[#6d4b00]">
+            <span>
+              Safe Visual Editor is open. Click highlighted live sections, edit the Content
+              Inspector, then Save Draft and Publish.
+            </span>
+            <button
+              type="button"
+              onClick={onCloseVisualEditing}
+              className="rounded-lg border border-[#d4a017]/45 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-navy"
+            >
+              Close
+            </button>
+          </div>
         )}
       </div>
       <iframe
@@ -1535,6 +1546,7 @@ export function WebsiteEditor() {
   );
   const [widePreview, setWidePreview] = useState(false);
   const [leadershipUploadTarget, setLeadershipUploadTarget] = useState<string | null>(null);
+  const [safeVisualEditorOpen, setSafeVisualEditorOpen] = useState(false);
   const [visualEditorOpen, setVisualEditorOpen] = useState(false);
   const [visualEditorInitial, setVisualEditorInitial] = useState<{
     html: string;
@@ -1546,6 +1558,7 @@ export function WebsiteEditor() {
   const page = db.pages[selectedPage] || db.pages.home;
   const needsApproval = auth.user?.role === "website_admin";
   const selectedPageUsesLiveRenderer = isLiveRenderedEditorPage(selectedPage);
+  const safeVisualEditorActive = selectedPageUsesLiveRenderer && safeVisualEditorOpen;
 
   const pageIds = useMemo(() => {
     const sortedNav = getSortedNav(db.navigation).filter((item) => item.id !== "student-portal");
@@ -1560,6 +1573,10 @@ export function WebsiteEditor() {
   useEffect(() => {
     if (!db.pages[selectedPage]) setSelectedPage("home");
   }, [db.pages, selectedPage]);
+
+  useEffect(() => {
+    setSafeVisualEditorOpen(false);
+  }, [selectedPage]);
 
   const updateContent = (patch: Partial<DB["websiteContent"]>) => {
     setDb((current) => ({ ...current, websiteContent: { ...current.websiteContent, ...patch } }));
@@ -1977,10 +1994,17 @@ export function WebsiteEditor() {
   const selectPreviewSection = useCallback((section: string) => {
     setSelectedSection(section);
     setWidePreview(false);
+    setSafeVisualEditorOpen(true);
     setMessageTone("info");
     setMessage(
       `Safe Visual Editor selected '${section}'. Edit the matching fields in Content Inspector, then Save Draft and Publish.`,
     );
+  }, []);
+
+  const closeSafeVisualEditor = useCallback(() => {
+    setSafeVisualEditorOpen(false);
+    setMessageTone("info");
+    setMessage("Safe Visual Editor closed. Use the button again to visually select live sections.");
   }, []);
 
   const openVisualBuilder = () => {
@@ -1988,12 +2012,15 @@ export function WebsiteEditor() {
     if (isLiveRenderedEditorPage(selectedPage)) {
       setVisualEditorOpen(false);
       setVisualEditorInitial(null);
+      setSafeVisualEditorOpen(true);
       setWidePreview(false);
       setMessageTone("info");
       setMessage(
         `Safe Visual Editor is active for '${savedPage?.title || selectedPage}'. Click highlighted live sections in the preview and edit the Content Inspector fields. The coded design stays protected.`,
       );
-      previewFrameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      window.setTimeout(() => {
+        previewFrameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 50);
       return;
     }
 
@@ -2169,7 +2196,8 @@ export function WebsiteEditor() {
               <StudioButton tone="dark" onClick={openVisualBuilder}>
                 {selectedPageUsesLiveRenderer ? (
                   <>
-                    <Wand2 className="h-4 w-4" /> Safe Visual Editor
+                    <Wand2 className="h-4 w-4" />{" "}
+                    {safeVisualEditorActive ? "Safe Editor Active" : "Open Safe Editor"}
                   </>
                 ) : (
                   <>
@@ -2363,8 +2391,9 @@ export function WebsiteEditor() {
             selectedPage={selectedPage}
             selectedSection={selectedSection}
             frameRef={previewFrameRef}
-            visualEditing={selectedPageUsesLiveRenderer}
+            visualEditing={safeVisualEditorActive}
             onSelectSection={selectPreviewSection}
+            onCloseVisualEditing={closeSafeVisualEditor}
           />
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-3.5">
@@ -2870,7 +2899,8 @@ export function WebsiteEditor() {
                 >
                   {selectedPageUsesLiveRenderer ? (
                     <>
-                      <Wand2 className="h-4 w-4" /> Open Safe Visual Editor
+                      <Wand2 className="h-4 w-4" />{" "}
+                      {safeVisualEditorActive ? "Safe Editor Active" : "Open Safe Visual Editor"}
                     </>
                   ) : (
                     <>
