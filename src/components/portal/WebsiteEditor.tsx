@@ -266,8 +266,12 @@ function isLiveRenderedEditorPage(pageId: string) {
 
 type LivePreviewSnapshot = {
   html: string;
-  canvasCss: string;
+  baseCss: string;
 };
+
+function visualCanvasCss(baseCss: string) {
+  return [baseCss.trim(), VISUAL_BUILDER_CANVAS_STATIC_CSS.trim()].filter(Boolean).join("\n\n");
+}
 
 const lceaProgrammes = [
   {
@@ -1565,6 +1569,7 @@ export function WebsiteEditor() {
   const [visualEditorInitial, setVisualEditorInitial] = useState<{
     html: string;
     css: string;
+    baseCss: string;
     canvasCss: string;
     templateHtml: string;
   } | null>(null);
@@ -2063,9 +2068,8 @@ export function WebsiteEditor() {
       }
     });
 
-    cssParts.add(VISUAL_BUILDER_CANVAS_STATIC_CSS);
-
-    return { html, canvasCss: Array.from(cssParts).join("\n\n") };
+    const baseCss = Array.from(cssParts).join("\n\n");
+    return { html, baseCss };
   }, []);
 
   const openSafeVisualEditor = () => {
@@ -2096,11 +2100,16 @@ export function WebsiteEditor() {
     const savedPage = db.pages[selectedPage];
     const savedVisualHtml = savedPage?.visualHtml?.trim();
     const isLivePage = isLiveRenderedEditorPage(selectedPage);
-    const useSavedVisualHtml = !isLivePage && Boolean(savedVisualHtml);
+    const useSavedVisualHtml =
+      Boolean(savedVisualHtml) && (!isLivePage || savedPage?.visualMode === "visual");
     const templateHtml = visualStarterForPage(db, selectedPage);
     const shouldLoadTemplate =
       useSavedVisualHtml && shouldUsePastRectorsTemplate(selectedPage, savedVisualHtml);
     const liveSnapshot = isLivePage ? getLivePreviewSnapshot() : null;
+    const savedBaseCss = savedPage?.visualBaseCss?.trim() || "";
+    const baseCss = useSavedVisualHtml
+      ? savedBaseCss || liveSnapshot?.baseCss || ""
+      : liveSnapshot?.baseCss || "";
     const initialHtml = shouldLoadTemplate
       ? templateHtml
       : useSavedVisualHtml
@@ -2110,7 +2119,8 @@ export function WebsiteEditor() {
     setVisualEditorInitial({
       html: initialHtml,
       css: useSavedVisualHtml && !shouldLoadTemplate ? savedPage?.visualCss || "" : "",
-      canvasCss: liveSnapshot?.canvasCss || "",
+      baseCss,
+      canvasCss: visualCanvasCss(baseCss),
       templateHtml: liveSnapshot?.html || templateHtml,
     });
     setSafeVisualEditorOpen(false);
@@ -2219,6 +2229,7 @@ export function WebsiteEditor() {
   const saveVisualContent = async (html: string, css: string) => {
     const pageTitle = db.pages[selectedPage]?.title || selectedPage;
     const stableHtml = normalizeVisualBuilderHtml(html);
+    const stableBaseCss = visualEditorInitial?.baseCss?.trim() || "";
     setSavingState("saving");
     setMessageTone("info");
     setMessage("Saving visual content and uploaded media...");
@@ -2231,6 +2242,7 @@ export function WebsiteEditor() {
           ...(isLiveRenderedEditorPage(selectedPage) ? { visualMode: "visual" as const } : {}),
           visualHtml: stableHtml,
           visualCss: css,
+          visualBaseCss: stableBaseCss,
         },
       },
     }));

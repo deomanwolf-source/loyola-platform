@@ -414,6 +414,7 @@ export interface DB {
       visualMode?: "coded" | "visual";
       visualHtml?: string;
       visualCss?: string;
+      visualBaseCss?: string;
     }
   >;
   homeSections: {

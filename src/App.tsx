@@ -557,12 +557,14 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
   if (!page?.visualHtml) return <GenericPage pageId={pageId} />;
 
   const sanitizedHtml = normalizeVisualBuilderHtml(sanitizeVisualHtml(page.visualHtml));
+  const sanitizedBaseCss = sanitizeVisualCss(page.visualBaseCss);
   const sanitizedCss = sanitizeVisualCss(page.visualCss);
   const title = page.title || pageId.split("/").pop()?.replaceAll("-", " ") || "";
   const body = page.body && page.body.trim() !== "New page content goes here." ? page.body : "";
 
   return (
     <PublicLayout>
+      {sanitizedBaseCss && <style>{sanitizedBaseCss}</style>}
       {sanitizedCss && <style>{sanitizedCss}</style>}
       <style>{VISUAL_BUILDER_STATIC_CSS}</style>
       {sanitizedHtml ? (

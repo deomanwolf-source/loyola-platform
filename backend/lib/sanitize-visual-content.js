@@ -173,6 +173,9 @@ function sanitizeSiteDbSecurity(siteDb) {
     if (typeof page.visualCss === "string") {
       page.visualCss = sanitizeVisualCss(page.visualCss);
     }
+    if (typeof page.visualBaseCss === "string") {
+      page.visualBaseCss = sanitizeVisualCss(page.visualBaseCss);
+    }
   }
 
   return nextDb;
@@ -186,12 +189,16 @@ function scanVisualContent(siteDb) {
     if (!page || typeof page !== "object") continue;
     const html = typeof page.visualHtml === "string" ? page.visualHtml : "";
     const css = typeof page.visualCss === "string" ? page.visualCss : "";
+    const baseCss = typeof page.visualBaseCss === "string" ? page.visualBaseCss : "";
 
     if (html && UNSAFE_HTML_PATTERN.test(html)) {
       issues.push({ slug, field: "visualHtml", issue: "Potential executable HTML or unsafe URL" });
     }
     if (css && UNSAFE_CSS_PATTERN.test(css)) {
       issues.push({ slug, field: "visualCss", issue: "Potential unsafe CSS token" });
+    }
+    if (baseCss && UNSAFE_CSS_PATTERN.test(baseCss)) {
+      issues.push({ slug, field: "visualBaseCss", issue: "Potential unsafe CSS token" });
     }
   }
 
