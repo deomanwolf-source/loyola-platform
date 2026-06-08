@@ -1236,7 +1236,12 @@ function PreviewWebsite({
 }) {
   const [refreshKey, setRefreshKey] = useState(0);
   const path = pagePath(selectedPage);
-  const src = `${path}?websiteEditorPreview=1&refresh=${refreshKey}`;
+  const previewParams = new URLSearchParams({
+    websiteEditorPreview: "1",
+    refresh: String(refreshKey),
+  });
+  if (isLiveRenderedEditorPage(selectedPage)) previewParams.set("codedPreview", "1");
+  const src = `${path}?${previewParams.toString()}`;
 
   const postDb = useCallback(() => {
     frameRef.current?.contentWindow?.postMessage(
@@ -2084,16 +2089,21 @@ export function WebsiteEditor() {
   const openFullVisualBuilder = () => {
     const savedPage = db.pages[selectedPage];
     const savedVisualHtml = savedPage?.visualHtml?.trim();
+    const isLivePage = isLiveRenderedEditorPage(selectedPage);
+    const useSavedVisualHtml = !isLivePage && Boolean(savedVisualHtml);
     const templateHtml = visualStarterForPage(db, selectedPage);
-    const shouldLoadTemplate = shouldUsePastRectorsTemplate(selectedPage, savedVisualHtml);
-    const liveSnapshot = isLiveRenderedEditorPage(selectedPage) ? getLivePreviewSnapshot() : null;
+    const shouldLoadTemplate =
+      useSavedVisualHtml && shouldUsePastRectorsTemplate(selectedPage, savedVisualHtml);
+    const liveSnapshot = isLivePage ? getLivePreviewSnapshot() : null;
     const initialHtml = shouldLoadTemplate
       ? templateHtml
-      : savedVisualHtml || liveSnapshot?.html || templateHtml;
+      : useSavedVisualHtml
+        ? savedVisualHtml || templateHtml
+        : liveSnapshot?.html || templateHtml;
 
     setVisualEditorInitial({
       html: initialHtml,
-      css: savedVisualHtml && !shouldLoadTemplate ? savedPage?.visualCss || "" : "",
+      css: useSavedVisualHtml && !shouldLoadTemplate ? savedPage?.visualCss || "" : "",
       canvasCss: liveSnapshot?.canvasCss || "",
       templateHtml: liveSnapshot?.html || templateHtml,
     });
@@ -2101,7 +2111,7 @@ export function WebsiteEditor() {
     setVisualEditorOpen(true);
     setMessageTone("info");
     setMessage(
-      isLiveRenderedEditorPage(selectedPage)
+      isLivePage
         ? `Full Visual Builder opened for '${savedPage?.title || selectedPage}'. Saving will make this page use a visual override; the coded design is kept and can be restored.`
         : `Visual Builder opened for '${savedPage?.title || selectedPage}'.`,
     );

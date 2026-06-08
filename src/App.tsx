@@ -289,6 +289,12 @@ export function App() {
   const db = useDb();
   const auth = useAuth();
   const [maintenanceStatus, setMaintenanceStatus] = useState<MaintenanceStatus | null>(null);
+  const searchParams =
+    typeof window === "undefined"
+      ? new URLSearchParams()
+      : new URLSearchParams(window.location.search);
+  const forceCodedPreview =
+    searchParams.has("websiteEditorPreview") && searchParams.get("codedPreview") === "1";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -357,6 +363,7 @@ export function App() {
 
   if (
     !isSystemPath &&
+    !forceCodedPreview &&
     pageIsLive(visualPageId) &&
     shouldRenderVisualBuilder(visualPageId, db.pages[visualPageId])
   ) {
