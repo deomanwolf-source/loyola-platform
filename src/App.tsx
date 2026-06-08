@@ -1013,7 +1013,7 @@ function HomeRequiredSections() {
                 <div>
                   <p className="text-xs font-black uppercase text-gold">Annual school schedule</p>
                   <h2 className="mt-2 font-serif text-4xl font-bold leading-tight md:text-5xl">
-                    Year Plan
+                    Academic Calendar &amp; Year Plan
                   </h2>
                   <p className="mt-3 max-w-xl text-sm leading-6 text-white/70">
                     Key academic dates, college activities, notices, and the live Google Calendar
