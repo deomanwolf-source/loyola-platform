@@ -164,11 +164,11 @@ function isLiveRenderedPage(pageId: string) {
 
 function shouldRenderVisualBuilder(
   pageId: string,
-  page?: { visualMode?: "coded" | "visual"; visualHtml?: string },
+  page?: { visualMode?: "coded" | "visual"; visualHtml?: string; visualBaseCss?: string },
 ) {
   if (!page?.visualHtml?.trim()) return false;
   if (!isLiveRenderedPage(pageId)) return true;
-  return page.visualMode === "visual";
+  return page.visualMode === "visual" && Boolean(page.visualBaseCss?.trim());
 }
 
 function googleCalendarEmbedUrl(mode: "MONTH" | "AGENDA") {

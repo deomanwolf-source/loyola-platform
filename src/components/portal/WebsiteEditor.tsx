@@ -1580,7 +1580,8 @@ export function WebsiteEditor() {
   const selectedPageUsesVisualOverride =
     selectedPageUsesLiveRenderer &&
     page?.visualMode === "visual" &&
-    Boolean(page?.visualHtml?.trim());
+    Boolean(page?.visualHtml?.trim()) &&
+    Boolean(page?.visualBaseCss?.trim());
   const safeVisualEditorActive = selectedPageUsesLiveRenderer && safeVisualEditorOpen;
 
   const pageIds = useMemo(() => {
