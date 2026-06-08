@@ -38,6 +38,7 @@ import {
   DEFAULT_HERO_IMAGE,
   DEFAULT_MAP_EMBED_URL,
   DEFAULT_MAP_URL,
+  authenticateTwoFactor,
   authenticateUser,
   audit,
   getDb,
@@ -50,7 +51,13 @@ import {
   type GalleryVideo,
   type Role,
 } from "@/lib/store";
-import { API_URL, authHeaders, getMaintenanceStatus, type MaintenanceStatus } from "@/lib/api";
+import {
+  API_URL,
+  TwoFactorRequiredError,
+  authHeaders,
+  getMaintenanceStatus,
+  type MaintenanceStatus,
+} from "@/lib/api";
 import { sanitizeVisualCss, sanitizeVisualHtml } from "@/lib/sanitize-visual-content";
 
 const StudentPortal = lazy(() =>
@@ -3783,20 +3790,43 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [twoFactorChallenge, setTwoFactorChallenge] = useState<{
+    token: string;
+    email: string;
+  } | null>(null);
+  const [twoFactorCode, setTwoFactorCode] = useState("");
+
+  const redirectAfterLogin = () => {
+    const nextPath = new URLSearchParams(window.location.search).get("next") || "";
+    window.location.href =
+      nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/portal";
+  };
+
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
     setSubmitting(true);
-    const formData = new FormData(event.currentTarget);
     try {
+      if (twoFactorChallenge) {
+        await authenticateTwoFactor(twoFactorChallenge.token, twoFactorCode);
+        redirectAfterLogin();
+        return;
+      }
+
+      const formData = new FormData(event.currentTarget);
       await authenticateUser(
         String(formData.get("email") || ""),
         String(formData.get("password") || ""),
       );
-      const nextPath = new URLSearchParams(window.location.search).get("next") || "";
-      window.location.href =
-        nextPath.startsWith("/") && !nextPath.startsWith("//") ? nextPath : "/portal";
+      redirectAfterLogin();
     } catch (err) {
+      if (err instanceof TwoFactorRequiredError && err.twoFactorToken) {
+        setTwoFactorChallenge({ token: err.twoFactorToken, email: err.email });
+        setTwoFactorCode("");
+        setError("");
+        setSubmitting(false);
+        return;
+      }
       setError(err instanceof Error ? err.message : "Sign in failed.");
       setSubmitting(false);
     }
@@ -3964,13 +3994,60 @@ function LoginPage() {
               Portal sign in
             </p>
             <h2 className="mt-2 font-serif text-4xl font-bold text-navy leading-tight">
-              Welcome back
+              {twoFactorChallenge ? "Verify sign in" : "Welcome back"}
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Enter your assigned email and password to continue.
+          <p className="mt-2 text-sm text-muted-foreground">
+              {twoFactorChallenge
+                ? `Enter the authentication code for ${twoFactorChallenge.email}.`
+                : "Enter your assigned email and password to continue."}
             </p>
           </div>
 
+          {twoFactorChallenge ? (
+            <div className="mt-7 space-y-5">
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p className="text-sm font-bold text-emerald-900">Two-factor authentication</p>
+                <p className="mt-1 text-xs leading-5 text-emerald-800">
+                  Open your authenticator app and enter the current 6-digit code.
+                </p>
+              </div>
+              <label className="block">
+                <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                  Authentication code
+                </span>
+                <div className="relative mt-2">
+                  <ShieldCheck className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    id="login-two-factor-code"
+                    name="twoFactorCode"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9 ]*"
+                    required
+                    autoComplete="one-time-code"
+                    value={twoFactorCode}
+                    onChange={(event) =>
+                      setTwoFactorCode(event.target.value.replace(/[^\d ]/g, "").slice(0, 8))
+                    }
+                    placeholder="123456"
+                    className="input-line pl-7"
+                  />
+                </div>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setTwoFactorChallenge(null);
+                  setTwoFactorCode("");
+                  setError("");
+                }}
+                className="text-xs font-bold text-slate-500 transition hover:text-navy"
+              >
+                Use a different account
+              </button>
+            </div>
+          ) : (
+            <>
           <div className="mt-7">
             <label className="block">
               <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
@@ -4018,6 +4095,8 @@ function LoginPage() {
               </div>
             </label>
           </div>
+            </>
+          )}
 
           {error && (
             <div className="animate-bounce-in mt-5 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
@@ -4028,7 +4107,10 @@ function LoginPage() {
 
           <button
             id="login-submit"
-            disabled={submitting}
+            disabled={
+              submitting ||
+              Boolean(twoFactorChallenge && twoFactorCode.replace(/\s+/g, "").length < 6)
+            }
             type="submit"
             className="login-submit mt-7 w-full rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white shadow-[0_12px_32px_-16px_rgba(10,22,40,0.6)] transition-all hover:-translate-y-0.5 hover:bg-[#122040] disabled:translate-y-0 disabled:cursor-wait disabled:opacity-60"
           >
@@ -4038,10 +4120,10 @@ function LoginPage() {
                   className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
                   style={{ animation: "spin 0.7s linear infinite" }}
                 />
-                Signing in…
+                {twoFactorChallenge ? "Verifying..." : "Signing in..."}
               </span>
             ) : (
-              "Sign in to portal →"
+              twoFactorChallenge ? "Verify and continue ->" : "Sign in to portal ->"
             )}
           </button>
 

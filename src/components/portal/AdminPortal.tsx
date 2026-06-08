@@ -3458,9 +3458,241 @@ function SettingsPanel({ db }: { db: DB }) {
   );
 }
 
+function TwoFactorSettingsCard() {
+  const auth = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [enabled, setEnabled] = useState(Boolean(auth.user?.twoFactorEnabled));
+  const [secret, setSecret] = useState("");
+  const [otpauthUrl, setOtpauthUrl] = useState("");
+  const [setupCode, setSetupCode] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [disablePassword, setDisablePassword] = useState("");
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [working, setWorking] = useState(false);
+
+  const loadSecurityState = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch(`${API_URL}/api/me/security`, {
+        credentials: "include",
+        headers: authHeaders(),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      const payload = await response.json().catch(() => ({}));
+      setEnabled(Boolean(payload.twoFactorEnabled));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Could not load security status.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadSecurityState();
+  }, [loadSecurityState]);
+
+  const startSetup = async () => {
+    setWorking(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/me/2fa/setup`, {
+        method: "POST",
+        credentials: "include",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+      });
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      const payload = await response.json().catch(() => ({}));
+      setSecret(String(payload.secret || ""));
+      setOtpauthUrl(String(payload.otpauthUrl || ""));
+      setSetupCode("");
+      setMessage("Add this key to your authenticator app, then enter the 6-digit code.");
+    } catch (setupError) {
+      setError(setupError instanceof Error ? setupError.message : "Could not start 2FA setup.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const confirmSetup = async () => {
+    setWorking(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/me/2fa/confirm`, {
+        method: "POST",
+        credentials: "include",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ code: setupCode }),
+      });
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      setEnabled(true);
+      setSecret("");
+      setOtpauthUrl("");
+      setSetupCode("");
+      setMessage("Two-factor authentication is enabled.");
+      if (auth.user) await setAuth({ ...auth.user, twoFactorEnabled: true });
+    } catch (confirmError) {
+      setError(confirmError instanceof Error ? confirmError.message : "Could not enable 2FA.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const disableTwoFactor = async () => {
+    setWorking(true);
+    setError("");
+    setMessage("");
+    try {
+      const response = await fetch(`${API_URL}/api/me/2fa/disable`, {
+        method: "POST",
+        credentials: "include",
+        headers: authHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ password: disablePassword, code: disableCode }),
+      });
+      if (!response.ok) throw new Error(await readUserApiError(response));
+      setEnabled(false);
+      setDisableCode("");
+      setDisablePassword("");
+      setMessage("Two-factor authentication is disabled.");
+      if (auth.user) await setAuth({ ...auth.user, twoFactorEnabled: false });
+    } catch (disableError) {
+      setError(disableError instanceof Error ? disableError.message : "Could not disable 2FA.");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  return (
+    <PanelShell
+      title="Two-factor authentication"
+      kicker="Account security"
+      action={
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-black ${
+            enabled ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+          }`}
+        >
+          {loading ? "Checking" : enabled ? "Enabled" : "Not enabled"}
+        </span>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-sm leading-6 text-muted-foreground">
+          Protect this portal account with a 6-digit code from an authenticator app.
+        </p>
+
+        {!enabled && (
+          <div className="space-y-3">
+            {!secret ? (
+              <button
+                type="button"
+                onClick={() => void startSetup()}
+                disabled={working}
+                className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-3 text-sm font-black text-white disabled:opacity-60"
+              >
+                <ShieldCheck className="h-4 w-4" />
+                {working ? "Starting..." : "Enable 2FA"}
+              </button>
+            ) : (
+              <div className="space-y-3 rounded-2xl border border-border bg-secondary/35 p-4">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                    Manual setup key
+                  </p>
+                  <p className="mt-2 break-all rounded-xl bg-white px-3 py-2 font-mono text-sm font-bold text-navy">
+                    {secret}
+                  </p>
+                </div>
+                {otpauthUrl && (
+                  <a
+                    href={otpauthUrl}
+                    className="inline-flex text-xs font-bold text-crimson underline underline-offset-4"
+                  >
+                    Open authenticator setup link
+                  </a>
+                )}
+                <input
+                  value={setupCode}
+                  onChange={(event) =>
+                    setSetupCode(event.target.value.replace(/[^\d ]/g, "").slice(0, 8))
+                  }
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="6-digit code"
+                  className="input-line"
+                />
+                <button
+                  type="button"
+                  onClick={() => void confirmSetup()}
+                  disabled={working || setupCode.replace(/\s+/g, "").length < 6}
+                  className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-3 text-sm font-black text-navy disabled:opacity-60"
+                >
+                  <CheckCircle2 className="h-4 w-4" />
+                  {working ? "Verifying..." : "Confirm and enable"}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {enabled && (
+          <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto] md:items-end">
+            <input
+              type="password"
+              value={disablePassword}
+              onChange={(event) => setDisablePassword(event.target.value)}
+              placeholder="Current password"
+              className="input-line"
+            />
+            <input
+              value={disableCode}
+              onChange={(event) =>
+                setDisableCode(event.target.value.replace(/[^\d ]/g, "").slice(0, 8))
+              }
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="6-digit code"
+              className="input-line"
+            />
+            <button
+              type="button"
+              onClick={() => void disableTwoFactor()}
+              disabled={
+                working ||
+                !disablePassword ||
+                disableCode.replace(/\s+/g, "").length < 6
+              }
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-crimson disabled:opacity-60"
+            >
+              Disable
+            </button>
+          </div>
+        )}
+
+        {message && (
+          <p className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800">
+            {message}
+          </p>
+        )}
+        {error && (
+          <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800">
+            {error}
+          </p>
+        )}
+      </div>
+    </PanelShell>
+  );
+}
+
 function SecurityPanel({ db }: { db: DB }) {
   return (
-    <PanelShell title="Security center" kicker="Protection">
+    <div className="space-y-6">
+      <TwoFactorSettingsCard />
+      <PanelShell title="Security center" kicker="Protection">
       <div className="grid gap-4 md:grid-cols-3">
         {[
           [
@@ -3494,7 +3726,8 @@ function SecurityPanel({ db }: { db: DB }) {
           </div>
         ))}
       </div>
-    </PanelShell>
+      </PanelShell>
+    </div>
   );
 }
 

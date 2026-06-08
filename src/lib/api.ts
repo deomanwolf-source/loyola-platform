@@ -38,6 +38,25 @@ export function authHeaders(headers: HeadersInit = {}) {
   };
 }
 
+export class TwoFactorRequiredError extends Error {
+  requiresTwoFactor = true;
+  twoFactorToken: string;
+  email: string;
+
+  constructor(twoFactorToken: string, email: string) {
+    super("Enter the 6-digit authentication code from your authenticator app.");
+    this.name = "TwoFactorRequiredError";
+    this.twoFactorToken = twoFactorToken;
+    this.email = email;
+  }
+}
+
+function persistLoggedInUser(user: unknown) {
+  if (!user) return;
+  localStorage.removeItem("loyola_token");
+  localStorage.setItem("loyola_user", JSON.stringify(user));
+}
+
 export async function loginUser(email: string, password: string) {
   let res: Response;
 
@@ -60,9 +79,39 @@ export async function loginUser(email: string, password: string) {
     throw new Error(data.error || "Login failed");
   }
 
-  localStorage.removeItem("loyola_token");
-  localStorage.setItem("loyola_user", JSON.stringify(data.user));
+  if (data.requiresTwoFactor) {
+    localStorage.removeItem("loyola_token");
+    throw new TwoFactorRequiredError(String(data.twoFactorToken || ""), String(data.user?.email || email));
+  }
 
+  persistLoggedInUser(data.user);
+
+  return data;
+}
+
+export async function completeTwoFactorLogin(twoFactorToken: string, code: string) {
+  let res: Response;
+
+  try {
+    res = await fetch(`${API_URL}/api/login/2fa`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ twoFactorToken, code }),
+    });
+  } catch {
+    throw new Error("Portal server is offline. Start the backend and try again.");
+  }
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    throw new Error(data.error || "Two-factor login failed");
+  }
+
+  persistLoggedInUser(data.user);
   return data;
 }
 

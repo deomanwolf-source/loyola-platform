@@ -1,6 +1,6 @@
 // Local drafts are kept in localStorage; published content is written to MySQL through the backend API.
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { API_URL, authHeaders, loginUser, logoutUser } from "./api";
+import { API_URL, authHeaders, completeTwoFactorLogin, loginUser, logoutUser } from "./api";
 
 export const DEFAULT_ANTHEM_VIDEO_URL = "https://youtu.be/0X2iA064w9k";
 export const DEFAULT_HERO_IMAGE = "/flag1.png";
@@ -31,6 +31,7 @@ export interface User {
   role: Role;
   status: string;
   password?: string;
+  twoFactorEnabled?: boolean;
 }
 export interface NavItem {
   id: string;
@@ -2110,6 +2111,13 @@ export async function authenticateUser(email: string, password: string): Promise
   const { user } = await loginUser(email, password);
   await setAuth(user);
   audit(`Signed in to ${user.role} portal`, user.email);
+  return user;
+}
+
+export async function authenticateTwoFactor(twoFactorToken: string, code: string): Promise<User> {
+  const { user } = await completeTwoFactorLogin(twoFactorToken, code);
+  await setAuth(user);
+  audit(`Signed in to ${user.role} portal with 2FA`, user.email);
   return user;
 }
 

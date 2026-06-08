@@ -380,6 +380,160 @@ function createToken(user) {
   );
 }
 
+function createTwoFactorChallengeToken(user) {
+  return jwt.sign(
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      purpose: TWO_FACTOR_CHALLENGE_PURPOSE,
+    },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" },
+  );
+}
+
+function verifyTwoFactorChallengeToken(token) {
+  const payload = jwt.verify(token, process.env.JWT_SECRET);
+  if (payload?.purpose !== TWO_FACTOR_CHALLENGE_PURPOSE) {
+    throw new Error("Invalid two-factor challenge");
+  }
+  return payload;
+}
+
+const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+
+function base32Encode(buffer) {
+  let bits = 0;
+  let value = 0;
+  let output = "";
+
+  for (const byte of buffer) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+
+  if (bits > 0) output += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+  return output;
+}
+
+function base32Decode(value) {
+  const cleanValue = String(value || "")
+    .toUpperCase()
+    .replace(/[^A-Z2-7]/g, "");
+  let bits = 0;
+  let decodedValue = 0;
+  const bytes = [];
+
+  for (const character of cleanValue) {
+    const index = BASE32_ALPHABET.indexOf(character);
+    if (index === -1) continue;
+    decodedValue = (decodedValue << 5) | index;
+    bits += 5;
+    if (bits >= 8) {
+      bytes.push((decodedValue >>> (bits - 8)) & 255);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(bytes);
+}
+
+function generateTwoFactorSecret() {
+  return base32Encode(crypto.randomBytes(20));
+}
+
+function normalizeTotpCode(value) {
+  return String(value || "").replace(/\s+/g, "");
+}
+
+function totpCodeAtStep(secret, step) {
+  const key = base32Decode(secret);
+  if (!key.length) return "";
+
+  const counter = Buffer.alloc(8);
+  const high = Math.floor(step / 0x100000000);
+  const low = step >>> 0;
+  counter.writeUInt32BE(high, 0);
+  counter.writeUInt32BE(low, 4);
+
+  const hmac = crypto.createHmac("sha1", key).update(counter).digest();
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  const binary =
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff);
+
+  return String(binary % 1000000).padStart(6, "0");
+}
+
+function verifyTotpCode(secret, rawCode, options = {}) {
+  const code = normalizeTotpCode(rawCode);
+  if (!/^\d{6}$/.test(code)) return null;
+
+  const windowSize = Number.isFinite(options.window) ? Number(options.window) : 1;
+  const currentStep = Math.floor((options.now || Date.now()) / 30000);
+
+  for (let offset = -windowSize; offset <= windowSize; offset += 1) {
+    const step = currentStep + offset;
+    const expected = totpCodeAtStep(secret, step);
+    if (!expected || expected.length !== code.length) continue;
+    if (crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(code))) return step;
+  }
+
+  return null;
+}
+
+function twoFactorEnabledForUser(user) {
+  return Boolean(Number(user?.two_factor_enabled || 0) && user?.two_factor_secret);
+}
+
+function publicUserPayload(user) {
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    twoFactorEnabled: twoFactorEnabledForUser(user),
+  };
+}
+
+function twoFactorOtpAuthUrl(user, secret) {
+  const label = `${TWO_FACTOR_ISSUER}:${user.email || user.name || user.id}`;
+  const params = new URLSearchParams({
+    secret,
+    issuer: TWO_FACTOR_ISSUER,
+    algorithm: "SHA1",
+    digits: "6",
+    period: "30",
+  });
+  return `otpauth://totp/${encodeURIComponent(label)}?${params.toString()}`;
+}
+
+async function verifyUserTotpAndRecord(user, code) {
+  if (!twoFactorEnabledForUser(user)) return false;
+  const matchedStep = verifyTotpCode(user.two_factor_secret, code);
+  if (matchedStep == null) return false;
+
+  const lastUsedStep =
+    user.two_factor_last_used_step == null ? null : Number(user.two_factor_last_used_step);
+  if (lastUsedStep != null && Number.isFinite(lastUsedStep) && lastUsedStep >= matchedStep) {
+    return false;
+  }
+
+  await db.query("UPDATE users SET two_factor_last_used_step = ? WHERE id = ?", [
+    matchedStep,
+    user.id,
+  ]);
+  return true;
+}
+
 const ROLE_ENUM_SQL = `
   ENUM(
     'masteradmin',
@@ -452,6 +606,8 @@ const REPORT_CARD_VIEW_ROLES = [
 const AUTH_COOKIE_NAME = "loyola_session_token";
 const CSRF_COOKIE_NAME = "loyola_csrf_token";
 const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const TWO_FACTOR_ISSUER = "Loyola College Portal";
+const TWO_FACTOR_CHALLENGE_PURPOSE = "two_factor_login";
 const MAINTENANCE_BYPASS_ROLES = [
   ROLES.master,
   ROLES.super,
@@ -566,6 +722,26 @@ async function ensureAccessTables() {
   await db.query(`ALTER TABLE users MODIFY role ${ROLE_ENUM_SQL}`);
   await ensureTableColumns("users", [
     { name: "external_staff_id", definition: "external_staff_id VARCHAR(80) NULL AFTER id" },
+    {
+      name: "two_factor_enabled",
+      definition: "two_factor_enabled BOOLEAN DEFAULT 0 AFTER password_hash",
+    },
+    {
+      name: "two_factor_secret",
+      definition: "two_factor_secret VARCHAR(128) NULL AFTER two_factor_enabled",
+    },
+    {
+      name: "two_factor_pending_secret",
+      definition: "two_factor_pending_secret VARCHAR(128) NULL AFTER two_factor_secret",
+    },
+    {
+      name: "two_factor_confirmed_at",
+      definition: "two_factor_confirmed_at TIMESTAMP NULL AFTER two_factor_pending_secret",
+    },
+    {
+      name: "two_factor_last_used_step",
+      definition: "two_factor_last_used_step BIGINT NULL AFTER two_factor_confirmed_at",
+    },
     {
       name: "updated_at",
       definition: "updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
@@ -804,6 +980,7 @@ function isUnsafeMethod(method) {
 function isCsrfExemptPath(requestPath) {
   return (
     requestPath === "/api/login" ||
+    requestPath === "/api/login/2fa" ||
     requestPath === "/api/logout" ||
     requestPath === "/api/csrf" ||
     requestPath === "/api/health" ||
@@ -3705,10 +3882,15 @@ app.get("/api/users", masterAdminOnly, async (req, res) => {
   try {
     await ensureAccessTables();
     const [rows] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, created_at FROM users ORDER BY created_at DESC",
+      "SELECT id, external_staff_id, name, email, role, status, two_factor_enabled, created_at FROM users ORDER BY created_at DESC",
     );
 
-    res.json(rows);
+    res.json(
+      rows.map((user) => ({
+        ...user,
+        twoFactorEnabled: Boolean(Number(user.two_factor_enabled || 0)),
+      })),
+    );
   } catch (error) {
     res.status(500).json({
       error: error.message,
@@ -3756,6 +3938,7 @@ app.post("/api/users", masterAdminOnly, async (req, res) => {
         email: accountEmail,
         role: normalizePortalRole(role),
         status: normalizeAccountStatus(status),
+        twoFactorEnabled: false,
       },
     });
   } catch (error) {
@@ -3815,7 +3998,14 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
 
     res.json({
       success: true,
-      user: { id: userId, name: nextName, email: nextEmail, role: nextRole, status: nextStatus },
+      user: {
+        id: userId,
+        name: nextName,
+        email: nextEmail,
+        role: nextRole,
+        status: nextStatus,
+        twoFactorEnabled: twoFactorEnabledForUser(existing),
+      },
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -3832,6 +4022,31 @@ app.delete("/api/users/:id", masterAdminOnly, async (req, res) => {
 
     const [result] = await db.query("UPDATE users SET status = 'Disabled' WHERE id = ?", [userId]);
     res.json({ success: true, disabled: result.affectedRows > 0 });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/users/:id/2fa/reset", masterAdminOnly, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const userId = compactText(req.params.id, 50);
+    if (!userId) return res.status(400).json({ error: "User id is required" });
+
+    const [result] = await db.query(
+      `
+        UPDATE users
+        SET two_factor_enabled = 0,
+            two_factor_secret = NULL,
+            two_factor_pending_secret = NULL,
+            two_factor_confirmed_at = NULL,
+            two_factor_last_used_step = NULL
+        WHERE id = ?
+      `,
+      [userId],
+    );
+
+    res.json({ success: true, reset: result.affectedRows > 0 });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -8071,6 +8286,17 @@ app.post(
         });
       }
 
+      if (twoFactorEnabledForUser(user)) {
+        return res.json({
+          success: true,
+          requiresTwoFactor: true,
+          twoFactorToken: createTwoFactorChallengeToken(user),
+          user: {
+            email: user.email,
+          },
+        });
+      }
+
       const token = createToken(user);
       setAuthCookie(res, token);
       setCsrfCookie(res);
@@ -8078,18 +8304,51 @@ app.post(
       res.json({
         success: true,
         token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status,
-        },
+        user: publicUserPayload(user),
       });
     } catch (error) {
       res.status(500).json({
         error: error.message,
       });
+    }
+  },
+);
+
+app.post(
+  "/api/login/2fa",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: "login-2fa" }),
+  async (req, res) => {
+    try {
+      await ensureAccessTables();
+      const { twoFactorToken, code } = req.body || {};
+      let challenge;
+      try {
+        challenge = verifyTwoFactorChallengeToken(twoFactorToken);
+      } catch {
+        return res.status(401).json({ error: "Two-factor login expired. Sign in again." });
+      }
+
+      const [users] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [challenge.id]);
+      const user = users[0];
+      if (!user || String(user.status || "").toLowerCase() !== "active") {
+        return res.status(401).json({ error: "Invalid two-factor login." });
+      }
+
+      if (!(await verifyUserTotpAndRecord(user, code))) {
+        return res.status(401).json({ error: "Invalid authentication code." });
+      }
+
+      const token = createToken(user);
+      setAuthCookie(res, token);
+      setCsrfCookie(res);
+
+      res.json({
+        success: true,
+        token,
+        user: publicUserPayload(user),
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
   },
 );
@@ -8103,9 +8362,10 @@ app.post("/api/logout", (req, res) => {
 app.get("/api/me", auth, async (req, res) => {
   try {
     await ensureAccessTables();
-    const [users] = await db.query("SELECT id, name, email, role, status FROM users WHERE id = ?", [
-      req.user.id,
-    ]);
+    const [users] = await db.query(
+      "SELECT id, name, email, role, status, two_factor_enabled, two_factor_secret FROM users WHERE id = ?",
+      [req.user.id],
+    );
 
     if (users.length === 0) {
       return res.status(404).json({
@@ -8113,11 +8373,120 @@ app.get("/api/me", auth, async (req, res) => {
       });
     }
 
-    res.json(users[0]);
+    res.json(publicUserPayload(users[0]));
   } catch (error) {
     res.status(500).json({
       error: error.message,
     });
+  }
+});
+
+app.get("/api/me/security", auth, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const [[user]] = await db.query(
+      "SELECT id, name, email, role, status, two_factor_enabled, two_factor_secret FROM users WHERE id = ? LIMIT 1",
+      [req.user.id],
+    );
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({ twoFactorEnabled: twoFactorEnabledForUser(user) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/me/2fa/setup", auth, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const [[user]] = await db.query(
+      "SELECT id, name, email, role, status, two_factor_enabled, two_factor_secret FROM users WHERE id = ? LIMIT 1",
+      [req.user.id],
+    );
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const secret = generateTwoFactorSecret();
+    await db.query("UPDATE users SET two_factor_pending_secret = ? WHERE id = ?", [
+      secret,
+      req.user.id,
+    ]);
+
+    res.json({
+      success: true,
+      secret,
+      otpauthUrl: twoFactorOtpAuthUrl(user, secret),
+      twoFactorEnabled: twoFactorEnabledForUser(user),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/me/2fa/confirm", auth, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const [[user]] = await db.query(
+      "SELECT id, two_factor_pending_secret FROM users WHERE id = ? LIMIT 1",
+      [req.user.id],
+    );
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const pendingSecret = user.two_factor_pending_secret;
+    if (!pendingSecret) {
+      return res.status(400).json({ error: "Start two-factor setup before confirming." });
+    }
+    if (verifyTotpCode(pendingSecret, req.body?.code) == null) {
+      return res.status(400).json({ error: "Invalid authentication code." });
+    }
+
+    await db.query(
+      `
+        UPDATE users
+        SET two_factor_enabled = 1,
+            two_factor_secret = ?,
+            two_factor_pending_secret = NULL,
+            two_factor_confirmed_at = CURRENT_TIMESTAMP,
+            two_factor_last_used_step = NULL
+        WHERE id = ?
+      `,
+      [pendingSecret, req.user.id],
+    );
+
+    res.json({ success: true, twoFactorEnabled: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/me/2fa/disable", auth, async (req, res) => {
+  try {
+    await ensureAccessTables();
+    const [[user]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [req.user.id]);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    const validPassword = await bcrypt.compare(String(req.body?.password || ""), user.password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: "Password is incorrect." });
+    }
+    if (twoFactorEnabledForUser(user) && !(await verifyUserTotpAndRecord(user, req.body?.code))) {
+      return res.status(401).json({ error: "Invalid authentication code." });
+    }
+
+    await db.query(
+      `
+        UPDATE users
+        SET two_factor_enabled = 0,
+            two_factor_secret = NULL,
+            two_factor_pending_secret = NULL,
+            two_factor_confirmed_at = NULL,
+            two_factor_last_used_step = NULL
+        WHERE id = ?
+      `,
+      [req.user.id],
+    );
+
+    res.json({ success: true, twoFactorEnabled: false });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
