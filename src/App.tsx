@@ -1270,16 +1270,21 @@ function HomePage() {
           gradientClassName="bg-[linear-gradient(105deg,rgb(10_22_40_/0.98),rgb(10_22_40_/0.84),rgb(10_22_40_/0.66))]"
           gridOpacityClassName="opacity-30"
         />
-        <div className="relative mx-auto max-w-7xl px-5 pb-12 pt-10 sm:px-6 sm:py-16 md:py-20 lg:py-28">
-          <div className="max-w-4xl">
-            <span className="gold-divider mb-5" />
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
+        <div className="relative mx-auto grid min-h-[520px] max-w-7xl place-items-center px-5 py-16 text-center sm:px-6 md:min-h-[620px] md:py-24 lg:py-32">
+          <div className="mx-auto max-w-5xl">
+            <img
+              src={content.logoImage || "/loyola-crest.jpg"}
+              alt="Loyola College crest"
+              className="mx-auto h-24 w-24 rounded-full border border-white/25 bg-white object-contain p-2 shadow-[0_22px_60px_-32px_rgba(255,255,255,0.8)] md:h-28 md:w-28"
+            />
+            <span className="gold-divider mx-auto mb-5 mt-7" />
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-light">
               {content.schoolName}
             </p>
-            <h1 className="mt-4 max-w-4xl text-balance font-serif text-3xl font-bold leading-[1.12] sm:text-4xl md:text-5xl lg:mt-6 lg:text-7xl">
+            <h1 className="mx-auto mt-5 max-w-5xl text-balance font-serif text-5xl font-bold leading-[1.03] sm:text-6xl md:text-7xl lg:mt-7 lg:text-8xl">
               {heroTitle}
             </h1>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/82 sm:text-base md:text-lg lg:mt-6 lg:text-xl">
+            <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/82 sm:text-lg md:text-xl lg:mt-7">
               {heroText}
             </p>
           </div>
