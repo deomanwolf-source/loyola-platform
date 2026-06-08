@@ -265,6 +265,28 @@ type LivePreviewSnapshot = {
   canvasCss: string;
 };
 
+const LIVE_PREVIEW_BUILDER_VISIBILITY_CSS = `
+  .reveal-on-scroll,
+  .reveal-on-scroll.is-revealed,
+  .reveal-stagger,
+  .reveal-stagger > *,
+  .stagger-children > *,
+  .stagger-fast > *,
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-grow-in,
+  .animate-blur-in,
+  .animate-slide-in-right {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    filter: none !important;
+    animation: none !important;
+    transition: none !important;
+  }
+`;
+
 const lceaProgrammes = [
   {
     level: "Pre Starters (Nursery)",
@@ -2058,6 +2080,8 @@ export function WebsiteEditor() {
         // Cross-origin stylesheets such as Google Fonts cannot be inspected by the browser.
       }
     });
+
+    cssParts.add(LIVE_PREVIEW_BUILDER_VISIBILITY_CSS);
 
     return { html, canvasCss: Array.from(cssParts).join("\n\n") };
   }, []);
