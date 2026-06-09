@@ -17,43 +17,43 @@ const THE_COLLEGE_DEPARTMENT_PAGES = [
     id: "the-college/departments/administration",
     label: "Administration",
     order: 2,
-    body: "The Administration Department coordinates the daily office work, school records, approvals, communication, and governance routines of Loyola College.",
+    body: "The Administration Department manages overall governance, coordination, official communication, policies, approvals, institutional records, and daily administrative operations of the college.",
   },
   {
     id: "the-college/departments/academic",
     label: "Academic",
     order: 3,
-    body: "The Academic Department manages the learning programme, subject structure, teacher assignments, examinations, and academic standards across the school.",
+    body: "The Academic Department manages curriculum implementation, teaching arrangements, subjects, classes, lesson planning, examinations, academic progress, and educational standards.",
   },
   {
     id: "the-college/departments/finance",
     label: "Finance",
     order: 4,
-    body: "The Finance Department supports responsible bursary management, receipts, financial records, purchasing coordination, and reporting for college operations.",
+    body: "The Finance Department manages college income, expenses, budgets, payments, salaries, purchasing, financial records, audits, and financial reporting.",
   },
   {
     id: "the-college/departments/it-department",
     label: "IT Department",
     order: 5,
-    body: "The IT Department maintains the college digital infrastructure, user access, website systems, backups, devices, security checks, and technical support.",
+    body: "The IT Department manages the college's digital infrastructure, systems, websites, networks, user accounts, cybersecurity, devices, software, backups, and technical support.",
   },
   {
     id: "the-college/departments/gym",
     label: "Gym",
     order: 6,
-    body: "The Gym supports physical education, fitness training, athlete conditioning, health awareness, and supervised student development.",
+    body: "The Gym Unit manages fitness programmes, athlete conditioning, exercise facilities, equipment, trainers, bookings, safety, and maintenance.",
   },
   {
     id: "the-college/departments/swimming-pool",
     label: "Swimming Pool",
     order: 7,
-    body: "The Swimming Pool facility supports aquatic training, inter-house events, health and safety routines, and supervised swimming development.",
+    body: "The Swimming Pool Unit manages aquatic training, swimming programmes, pool safety, lifeguards, coaches, facility bookings, equipment, water-quality monitoring, and maintenance.",
   },
   {
     id: "the-college/departments/sports-department",
     label: "Sports Department",
     order: 8,
-    body: "The Sports Department coordinates college sports, coaching, fixtures, inter-house competitions, student leadership, and athletic achievement records.",
+    body: "The Sports Department manages college sports, team development, coaching, competitions, fixtures, sports facilities, athletes, equipment, and achievement records.",
   },
 ] as const;
 
@@ -459,6 +459,7 @@ export interface DB {
       visualHtml?: string;
       visualCss?: string;
       visualBaseCss?: string;
+      sections?: unknown[];
     }
   >;
   homeSections: {
@@ -987,6 +988,7 @@ const SERVER_SAVE_DELAY_MS = 1400;
 const SITE_DB_API = `${API_URL}/api/site-db`;
 const SITE_DB_DRAFT_API = `${SITE_DB_API}/draft`;
 const SITE_DB_PUBLISH_API = `${SITE_DB_API}/publish`;
+const EMPTY_VISUAL_CSS = "/* No page-specific visual CSS overrides. */";
 
 let publishedCache: DB | null = null;
 let draftCache: DB | null = null;
@@ -1805,7 +1807,7 @@ function read(): DB {
 }
 
 function write(next: DB) {
-  const nextDb = normalizeImageFields(next);
+  const nextDb = normalizeUnifiedDraftContent(normalizeImageFields(next));
   if (shouldUseLocalDrafts()) {
     draftWriteVersion += 1;
     draftCache = nextDb;
@@ -1823,6 +1825,32 @@ export function getDb(): DB {
 }
 export function setDb(updater: (db: DB) => DB) {
   write(updater(read()));
+}
+
+function normalizeUnifiedDraftContent(db: DB): DB {
+  const pages = db.pages && typeof db.pages === "object" ? db.pages : {};
+  let changed = false;
+  const nextPages: DB["pages"] = {};
+
+  for (const [id, page] of Object.entries(pages)) {
+    const nextPage = { ...page };
+    const hasVisualHtml = typeof nextPage.visualHtml === "string" && nextPage.visualHtml.trim();
+
+    if (hasVisualHtml) {
+      if (typeof nextPage.visualCss !== "string" || !nextPage.visualCss.trim()) {
+        nextPage.visualCss = EMPTY_VISUAL_CSS;
+        changed = true;
+      }
+      if (typeof nextPage.visualBaseCss !== "string") {
+        nextPage.visualBaseCss = "";
+        changed = true;
+      }
+    }
+
+    nextPages[id] = nextPage;
+  }
+
+  return changed ? { ...db, pages: nextPages } : db;
 }
 
 export type SaveDbResult = {
@@ -1870,12 +1898,13 @@ async function sendDbToServer(
   }
 
   if (typeof window !== "undefined") {
+    const outboundDb = normalizeUnifiedDraftContent(db);
     try {
       const response = await fetch(endpoint, {
         method: "POST",
         credentials: "include",
         headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({ db }),
+        body: JSON.stringify({ db: outboundDb }),
         cache: "no-store",
       });
       if (!response.ok) {
@@ -1910,7 +1939,7 @@ async function sendDbToServer(
         db?: Partial<DB>;
         contentVersion?: number;
       } | null;
-      const savedDb = payload?.db ? mergeStoredDb(payload.db) : normalizeImageFields(db);
+      const savedDb = payload?.db ? mergeStoredDb(payload.db) : normalizeImageFields(outboundDb);
       if (actionLabel === "publish") {
         publishedWriteVersion += 1;
         publishedCache = savedDb;
@@ -1968,11 +1997,11 @@ function scheduleServerPersist(db: DB) {
   }, SERVER_SAVE_DELAY_MS);
 }
 
-export async function saveDbNow(): Promise<SaveDbResult> {
-  const sourceDb = shouldUseLocalDrafts()
-    ? draftCache || readDraftDb()
-    : draftCache || publishedCache || read();
-  const db = normalizeImageFields(sourceDb);
+export async function saveDbNow(snapshot?: DB): Promise<SaveDbResult> {
+  const sourceDb =
+    snapshot ||
+    (shouldUseLocalDrafts() ? draftCache || readDraftDb() : draftCache || publishedCache || read());
+  const db = normalizeUnifiedDraftContent(normalizeImageFields(sourceDb));
   if (shouldUseLocalDrafts()) {
     draftCache = db;
     persistDraftNow();
@@ -1985,9 +2014,9 @@ export async function saveDbNow(): Promise<SaveDbResult> {
   return saveDraftDbToServer(db, { updateDraft: true, sourceDb });
 }
 
-export async function publishDbNow(): Promise<SaveDbResult> {
-  const sourceDb = draftCache || readDraftDb();
-  const db = normalizeImageFields(sourceDb);
+export async function publishDbNow(snapshot?: DB): Promise<SaveDbResult> {
+  const sourceDb = snapshot || draftCache || readDraftDb();
+  const db = normalizeUnifiedDraftContent(normalizeImageFields(sourceDb));
   draftCache = db;
   persistDraftNow();
   pendingServerDb = null;

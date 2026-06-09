@@ -125,20 +125,46 @@ const collegeDepartments = [
     kicker: "The College",
     icon: Briefcase,
     summary:
-      "The Administration Department coordinates the daily office work, school records, approvals, communication, and governance routines of Loyola College.",
+      "The Administration Department manages overall governance, coordination, official communication, policies, approvals, institutional records, and daily administrative operations of the college.",
     responsibilities: [
-      "Manage school office communication, visitor support, records, and official correspondence.",
-      "Coordinate approvals, circulars, meetings, reports, and administration board follow-up work.",
-      "Support admissions, parent inquiries, student records, and document requests through the office.",
-      "Keep school policies, forms, notices, and internal workflows organized for staff and parents.",
+      "Coordinate the work of all departments and sections.",
+      "Implement decisions made by the Rector and Principal.",
+      "Manage official letters, circulars, notices, and administrative documents.",
+      "Maintain institutional records, policies, procedures, and official files.",
+      "Coordinate meetings, appointments, ceremonies, and official programmes.",
+      "Supervise staff responsibilities and departmental performance.",
+      "Approve important requests submitted by departments.",
+      "Coordinate with government offices, education authorities, parents, and external institutions.",
+      "Manage student and staff documentation.",
+      "Monitor the implementation of college policies.",
+      "Handle complaints, inquiries, and official correspondence.",
+      "Prepare institutional reports and annual plans.",
+      "Support emergency and crisis-management procedures.",
     ],
     systemWork: [
-      "Publish official school notices, circulars, events, and parent-facing updates.",
-      "Review website content that belongs to governance, college history, administration, and office services.",
-      "Monitor dashboard summaries for messages, admission inquiries, public pages, and system health.",
-      "Coordinate with Academic, Finance, IT, and Sports teams when records or public updates need approval.",
+      "Manage official notices, circulars, and announcements.",
+      "Approve content submitted by other departments.",
+      "Review administrative reports and requests.",
+      "Maintain staff and institutional records.",
+      "Manage meetings, calendars, and official events.",
+      "Monitor departmental system activities.",
+      "Approve major website and system updates.",
+      "Generate administrative and management reports.",
+      "Manage document approval workflows.",
+      "Control high-level user permissions.",
     ],
-    serviceAreas: ["Office records", "Parent support", "Approvals", "Official notices"],
+    serviceAreas: [
+      "Governance",
+      "Official Records",
+      "Policies",
+      "Approvals",
+      "Meetings",
+      "Communication",
+      "Institutional Reporting",
+      "Department Coordination",
+    ],
+    permissionLevel:
+      "Administration may review, approve, reject, and publish official institutional content. Major system changes should require approval from the Rector, Principal, Master Administrator, or System Creator.",
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/academic`,
@@ -147,20 +173,49 @@ const collegeDepartments = [
     kicker: "The College",
     icon: BookOpen,
     summary:
-      "The Academic Department manages the learning programme, subject structure, teacher assignments, examinations, and academic standards across the school.",
+      "The Academic Department manages curriculum implementation, teaching arrangements, subjects, classes, lesson planning, examinations, academic progress, and educational standards.",
     responsibilities: [
-      "Plan academic sections, classes, subjects, streams, and assessment routines.",
-      "Guide subject heads, sectional heads, teachers, and class teachers on curriculum delivery.",
-      "Coordinate timetables, examination planning, progress reviews, and academic notices.",
-      "Maintain academic quality through lesson coverage, syllabus progress, and student support follow-up.",
+      "Add and update subjects.",
+      "Assign teachers to subjects, classes, grades, and sections.",
+      "Prepare academic timetables.",
+      "Manage class lists and academic sections.",
+      "Coordinate syllabus coverage and lesson planning.",
+      "Monitor teacher academic progress.",
+      "Manage term plans, unit plans, and lesson plans.",
+      "Organize assessments and examinations.",
+      "Review student academic performance.",
+      "Coordinate academic meetings and teacher training.",
+      "Maintain subject and curriculum records.",
+      "Prepare academic notices and calendars.",
+      "Review academic reports before publication.",
+      "Coordinate with section heads, subject heads, and class teachers.",
     ],
     systemWork: [
-      "Add and update subjects, grades, classes, streams, and academic sections.",
-      "Assign teachers to subjects, classes, and syllabus tracking responsibilities.",
-      "Review EduTrack syllabus progress, lesson coverage, student reports, and academic summaries.",
-      "Publish academic calendars, examination notices, class schedules, and learning programme updates.",
+      "Create and update subjects.",
+      "Assign teachers to subjects and classes.",
+      "Manage grades, classes, and sections.",
+      "Upload syllabuses and academic resources.",
+      "Enter term plans, units, topics, and subtopics.",
+      "Monitor syllabus-completion progress.",
+      "Add examination and assessment schedules.",
+      "Review student marks and reports.",
+      "Publish approved academic notices.",
+      "Generate teacher, subject, and class-progress reports.",
+      "Maintain academic calendars.",
+      "Submit academic content for approval.",
     ],
-    serviceAreas: ["Subjects", "Teacher assignments", "Exam planning", "EduTrack progress"],
+    serviceAreas: [
+      "Curriculum",
+      "Teacher Assignments",
+      "Subjects",
+      "Timetables",
+      "Lesson Planning",
+      "Assessments",
+      "Academic Progress",
+      "Educational Standards",
+    ],
+    permissionLevel:
+      "The Academic Department may create and edit academic content. Final publication of major academic information should require authorized approval.",
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/finance`,
@@ -169,42 +224,101 @@ const collegeDepartments = [
     kicker: "The College",
     icon: Landmark,
     summary:
-      "The Finance Department supports responsible bursary management, receipts, financial records, purchasing coordination, and reporting for college operations.",
+      "The Finance Department manages college income, expenses, budgets, payments, salaries, purchasing, financial records, audits, and financial reporting.",
     responsibilities: [
-      "Maintain financial records, receipts, fee-related office support, and bursary documentation.",
-      "Coordinate purchasing requests, service payments, budgets, and department expense follow-up.",
-      "Prepare financial summaries and supporting records for school leadership review.",
-      "Guide families and staff on finance office procedures and required documentation.",
+      "Prepare annual and departmental budgets.",
+      "Record income and expenditure.",
+      "Manage school fees and other payments.",
+      "Issue receipts and payment confirmations.",
+      "Process salaries and staff payments.",
+      "Manage supplier and service-provider payments.",
+      "Review purchase and expense requests.",
+      "Maintain financial ledgers and supporting documents.",
+      "Prepare monthly and annual financial reports.",
+      "Coordinate audits and financial reviews.",
+      "Monitor outstanding payments.",
+      "Manage scholarships, concessions, and refunds.",
+      "Maintain bank and transaction records.",
+      "Protect confidential financial information.",
     ],
     systemWork: [
-      "View finance-related summaries and approved records without exposing edit access to public users.",
-      "Coordinate with Administration on notices, forms, and fee-related public instructions.",
-      "Track finance office service areas, contact information, and document links on the website.",
-      "Use system health summaries to confirm finance-facing forms and files remain available.",
+      "Create fee structures and payment categories.",
+      "Record student and institutional payments.",
+      "Issue digital receipts.",
+      "Monitor outstanding balances.",
+      "Process approved financial requests.",
+      "Manage budgets and departmental allocations.",
+      "Record supplier invoices and payments.",
+      "Track purchases and expenses.",
+      "Generate income, expense, and balance reports.",
+      "Maintain salary and allowance records.",
+      "Upload financial documents.",
+      "Submit major payments for authorization.",
     ],
-    serviceAreas: ["Bursary", "Receipts", "Purchasing", "Financial reports"],
+    serviceAreas: [
+      "Fees",
+      "Payments",
+      "Budgets",
+      "Salaries",
+      "Purchases",
+      "Receipts",
+      "Audits",
+      "Financial Reports",
+    ],
+    permissionLevel:
+      "Finance staff may manage financial records according to assigned roles. Major payments, budget changes, refunds, and sensitive financial reports should require senior approval.",
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/it-department`,
     title: "IT Department",
     cardBody: "Digital infrastructure and support",
     kicker: "The College",
-    icon: Film,
+    icon: ShieldCheck,
     summary:
-      "The IT Department maintains the college digital infrastructure, user access, website systems, backups, devices, security checks, and technical support.",
+      "The IT Department manages the college's digital infrastructure, systems, websites, networks, user accounts, cybersecurity, devices, software, backups, and technical support.",
     responsibilities: [
-      "Maintain website, portals, network access, school devices, software, and technical support routines.",
-      "Support account access, secure login, backups, cybersecurity checks, and system availability.",
-      "Help departments publish accurate information through safe workflows and approved permissions.",
-      "Troubleshoot staff, student, classroom, and office technology issues.",
+      "Maintain the college website and portals.",
+      "Manage servers, networks, internet access, and Wi-Fi.",
+      "Create and manage system accounts.",
+      "Assign approved roles and access permissions.",
+      "Maintain computers, printers, projectors, and digital devices.",
+      "Install and update software.",
+      "Protect systems against malware and unauthorized access.",
+      "Maintain backups and recovery procedures.",
+      "Monitor system performance and availability.",
+      "Provide technical support to staff and departments.",
+      "Maintain IT asset and licence records.",
+      "Manage domains, hosting, SSL certificates, and email services.",
+      "Investigate security incidents.",
+      "Train users in safe system usage.",
+      "Coordinate with developers and service providers.",
     ],
     systemWork: [
-      "Manage user roles, passwords, two-factor access, security scans, backups, and system health checks.",
-      "Maintain the website CMS, EduTrack, Staff Management, ELMS, and Report Cards access points.",
-      "Protect the platform by checking XSS risks, upload safety, CSRF protection, and deployment status.",
-      "Coordinate updates with GitHub/deployment workflow while preserving existing data.",
+      "Create, activate, suspend, and manage user accounts.",
+      "Reset passwords and support account recovery.",
+      "Assign approved permissions.",
+      "Maintain websites, portals, and integrations.",
+      "Monitor login records and system activity.",
+      "Maintain backups and system logs.",
+      "Manage technical-support requests.",
+      "Record devices, repairs, warranties, and licences.",
+      "Publish maintenance and technical notices.",
+      "Monitor security issues.",
+      "Generate IT asset and incident reports.",
+      "Assist departments with technical publishing.",
     ],
-    serviceAreas: ["User access", "Website support", "Security", "Backups"],
+    serviceAreas: [
+      "User Access",
+      "Website Support",
+      "Network Services",
+      "Cybersecurity",
+      "Backups",
+      "Technical Support",
+      "Devices",
+      "Software and Licences",
+    ],
+    permissionLevel:
+      "The IT Department may perform normal technical maintenance. Major database, source-code, permission-structure, hosting, or system-architecture changes must be controlled by the System Creator or Master Administrator.",
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/gym`,
@@ -213,20 +327,48 @@ const collegeDepartments = [
     kicker: "The College",
     icon: Trophy,
     summary:
-      "The Gym supports physical education, fitness training, athlete conditioning, health awareness, and supervised student development.",
+      "The Gym Unit manages fitness programmes, athlete conditioning, exercise facilities, equipment, trainers, bookings, safety, and maintenance.",
     responsibilities: [
-      "Provide safe training space for student fitness, physical education, and sports preparation.",
-      "Coordinate equipment care, usage schedules, and supervised training sessions.",
-      "Support school teams with strength, conditioning, warm-up, and wellness routines.",
-      "Promote discipline, healthy habits, and responsible use of shared facilities.",
+      "Plan student and staff fitness programmes.",
+      "Coordinate strength and conditioning sessions.",
+      "Support sports teams and student athletes.",
+      "Maintain gym equipment and facilities.",
+      "Prepare training schedules.",
+      "Monitor participant attendance.",
+      "Enforce gym safety rules.",
+      "Inspect equipment condition.",
+      "Report damaged or unsafe equipment.",
+      "Manage trainers and authorized supervisors.",
+      "Organize fitness assessments.",
+      "Coordinate facility cleaning and maintenance.",
+      "Manage bookings and approved access.",
+      "Maintain emergency and first-aid procedures.",
     ],
     systemWork: [
-      "Publish gym schedules, notices, facility availability, and student activity updates.",
-      "Coordinate with Sports Department on team training sessions and event preparation.",
-      "Keep facility information, safety notes, and contact guidance available on the public website.",
-      "Share approved achievements or activity highlights through news, events, and gallery pages.",
+      "Publish gym schedules and fitness programmes.",
+      "Manage facility bookings.",
+      "Record athlete and participant attendance.",
+      "Maintain equipment inventory.",
+      "Report equipment damage and maintenance needs.",
+      "Assign trainers and supervisors.",
+      "Record fitness assessments.",
+      "Track training programmes.",
+      "Submit purchase and repair requests.",
+      "Publish approved notices and rules.",
+      "Generate facility-usage reports.",
     ],
-    serviceAreas: ["Fitness training", "Equipment care", "Schedules", "Wellness"],
+    serviceAreas: [
+      "Fitness Training",
+      "Athlete Conditioning",
+      "Equipment",
+      "Facility Bookings",
+      "Safety",
+      "Maintenance",
+      "Fitness Assessments",
+      "Supervision",
+    ],
+    permissionLevel:
+      "The Gym Unit may manage schedules, attendance, equipment, and internal notices. Major purchases, public announcements, and structural facility changes require approval.",
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/swimming-pool`,
@@ -235,20 +377,49 @@ const collegeDepartments = [
     kicker: "The College",
     icon: Award,
     summary:
-      "The Swimming Pool facility supports aquatic training, inter-house events, health and safety routines, and supervised swimming development.",
+      "The Swimming Pool Unit manages aquatic training, swimming programmes, pool safety, lifeguards, coaches, facility bookings, equipment, water-quality monitoring, and maintenance.",
     responsibilities: [
-      "Maintain safe pool usage, supervised sessions, training routines, and aquatic event preparation.",
-      "Coordinate swimming schedules, team practice, competition preparation, and facility care.",
-      "Support physical education, student confidence, water safety, and sports discipline.",
-      "Keep safety guidance and facility rules clear for students, staff, and visitors.",
+      "Organize swimming lessons and training programmes.",
+      "Coordinate swimming coaches and lifeguards.",
+      "Support college swimming teams.",
+      "Prepare training and competition schedules.",
+      "Manage pool access and bookings.",
+      "Enforce aquatic safety rules.",
+      "Monitor water quality and sanitation.",
+      "Maintain rescue and safety equipment.",
+      "Record participant attendance.",
+      "Manage changing rooms and pool facilities.",
+      "Coordinate pool cleaning and maintenance.",
+      "Organize swimming trials and competitions.",
+      "Maintain emergency-response procedures.",
+      "Report accidents, incidents, and hazards.",
     ],
     systemWork: [
-      "Publish swimming schedules, event notices, achievements, and facility updates.",
-      "Coordinate with Sports Department on inter-house meets, training groups, and competition records.",
-      "Keep public event pages and gallery updates accurate after approved swimming activities.",
-      "Share facility notices through website and calendar sections when schedules change.",
+      "Publish swimming schedules.",
+      "Manage pool bookings.",
+      "Register swimmers and participants.",
+      "Assign coaches and lifeguards.",
+      "Record attendance and training progress.",
+      "Maintain equipment records.",
+      "Record water-quality and maintenance checks.",
+      "Report incidents and safety issues.",
+      "Track competition results and achievements.",
+      "Submit repair and purchase requests.",
+      "Generate facility-usage reports.",
+      "Publish approved safety notices.",
     ],
-    serviceAreas: ["Aquatic training", "Pool safety", "Events", "Team practice"],
+    serviceAreas: [
+      "Swimming Training",
+      "Aquatic Safety",
+      "Lifeguards",
+      "Pool Bookings",
+      "Water Quality",
+      "Equipment",
+      "Competitions",
+      "Facility Maintenance",
+    ],
+    permissionLevel:
+      "The Swimming Pool Unit may manage schedules, participants, safety records, and facility operations. Major purchases, public announcements, and facility changes require approval.",
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/sports-department`,
@@ -257,20 +428,50 @@ const collegeDepartments = [
     kicker: "The College",
     icon: Trophy,
     summary:
-      "The Sports Department coordinates college sports, coaching, fixtures, inter-house competitions, student leadership, and athletic achievement records.",
+      "The Sports Department manages college sports, team development, coaching, competitions, fixtures, sports facilities, athletes, equipment, and achievement records.",
     responsibilities: [
-      "Plan sports programmes, team coaching, fixtures, practices, and inter-house competitions.",
-      "Coordinate teachers-in-charge, coaches, captains, student participation, and event logistics.",
-      "Support discipline, teamwork, leadership, fitness, and achievement across sports activities.",
-      "Maintain records of schedules, results, achievements, and sports-related notices.",
+      "Prepare the annual sports programme.",
+      "Organize team selections and trials.",
+      "Coordinate coaches and teachers-in-charge.",
+      "Manage team captains and student athletes.",
+      "Arrange practices and training sessions.",
+      "Organize inter-house and inter-school competitions.",
+      "Manage fixtures, venues, transport, and logistics.",
+      "Register students for competitions.",
+      "Maintain player and team records.",
+      "Record results, awards, medals, and achievements.",
+      "Manage sports equipment and uniforms.",
+      "Coordinate sports grounds and facilities.",
+      "Promote teamwork, fitness, discipline, and leadership.",
+      "Prepare sports reports and budgets.",
+      "Coordinate with parents, associations, sponsors, and alumni.",
     ],
     systemWork: [
-      "Publish fixtures, event schedules, notices, teams, achievements, and sports gallery updates.",
-      "Coordinate with Gym and Swimming Pool facility teams for training and event preparation.",
-      "Maintain public Sports & Clubs information and approved sports news.",
-      "Use calendar and events tools to keep parents and students informed of activities.",
+      "Create and manage sports teams.",
+      "Add players to teams and age groups.",
+      "Assign coaches and teachers-in-charge.",
+      "Publish trials, practices, and fixtures.",
+      "Record attendance and participation.",
+      "Manage competition registrations.",
+      "Record results, awards, and achievements.",
+      "Maintain student-athlete profiles.",
+      "Manage equipment inventories.",
+      "Submit transport and facility requests.",
+      "Upload sports news, photos, and reports.",
+      "Generate player and team-performance reports.",
     ],
-    serviceAreas: ["Fixtures", "Coaching", "Achievements", "Sports calendar"],
+    serviceAreas: [
+      "Teams",
+      "Coaching",
+      "Fixtures",
+      "Competitions",
+      "Student Athletes",
+      "Equipment",
+      "Achievements",
+      "Sports Calendar",
+    ],
+    permissionLevel:
+      "The Sports Department may manage internal sports records and schedules. Official team lists, public results, financial requests, and major announcements should require approval.",
   },
 ];
 
@@ -332,13 +533,18 @@ function hasCompleteLiveVisualCapture(html?: string) {
 
 function shouldRenderVisualBuilder(
   pageId: string,
-  page?: { visualMode?: "coded" | "visual"; visualHtml?: string; visualBaseCss?: string },
+  page?: {
+    visualMode?: "coded" | "visual";
+    visualHtml?: string;
+    visualCss?: string;
+    visualBaseCss?: string;
+  },
 ) {
   if (!page?.visualHtml?.trim()) return false;
+  if (!page.visualBaseCss?.trim() || !page.visualCss?.trim()) return false;
   if (!isLiveRenderedPage(pageId)) return true;
   return (
     page.visualMode === "visual" &&
-    Boolean(page.visualBaseCss?.trim()) &&
     hasCompleteLiveVisualCapture(page.visualHtml)
   );
 }
@@ -744,9 +950,9 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
 
   return (
     <PublicLayout>
+      <style>{VISUAL_BUILDER_STATIC_CSS}</style>
       {sanitizedBaseCss && <style>{sanitizedBaseCss}</style>}
       {sanitizedCss && <style>{sanitizedCss}</style>}
-      <style>{VISUAL_BUILDER_STATIC_CSS}</style>
       {sanitizedHtml ? (
         <div className="visual-page" dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />
       ) : (
@@ -1162,27 +1368,37 @@ function HomeRequiredSections() {
             })}
           </div>
 
-          <div className="mt-14 rounded-xl border border-[#e6e9ef] bg-[#fafbfc] px-5 py-10 md:px-12 md:py-14">
+          <div className="mt-14 rounded-xl border border-[#e6e9ef] bg-[#fafbfc] px-5 py-10 shadow-[0_24px_70px_-60px_rgba(10,22,40,0.65)] md:px-12 md:py-14">
             <h2 className="text-center font-serif text-4xl font-bold text-navy md:text-5xl">
               Office Structure & Facilities
             </h2>
-            <div className="mx-auto mt-10 grid max-w-6xl gap-5 md:grid-cols-3">
+            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 text-slate-500">
+              Each office and facility has a clear role in daily school life, public information,
+              and internal system work.
+            </p>
+            <div className="mx-auto mt-10 grid max-w-6xl gap-5 sm:grid-cols-2 xl:grid-cols-3">
               {facilities.map((item) => {
                 const Icon = item.icon;
                 return (
                   <a
                     key={item.title}
                     href={item.href}
-                    className="grid grid-cols-[44px_1fr] items-center gap-4 rounded border border-[#e6e9ef] bg-white p-4 shadow-sm"
+                    className="group relative overflow-hidden rounded-lg border border-[#dfe5ee] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-[0_22px_50px_-36px_rgba(10,22,40,0.75)]"
                   >
-                    <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-gold">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <span>
-                      <span className="block text-sm font-black text-navy">{item.title}</span>
-                      <span className="mt-1 block text-xs leading-5 text-slate-500">
-                        {item.body}
+                    <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gold via-crimson to-navy opacity-0 transition group-hover:opacity-100" />
+                    <span className="grid grid-cols-[48px_1fr_auto] items-center gap-4">
+                      <span className="grid h-12 w-12 place-items-center rounded-lg bg-slate-100 text-gold ring-1 ring-slate-200 transition group-hover:bg-gold group-hover:text-navy">
+                        <Icon className="h-5 w-5" />
                       </span>
+                      <span className="min-w-0">
+                        <span className="block font-serif text-lg font-bold leading-tight text-navy">
+                          {item.title}
+                        </span>
+                        <span className="mt-1 block text-sm leading-6 text-slate-500">
+                          {item.body}
+                        </span>
+                      </span>
+                      <ArrowRight className="h-4 w-4 shrink-0 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-crimson" />
                     </span>
                   </a>
                 );
@@ -2582,7 +2798,12 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
               </div>
             </div>
 
-            <div className="mt-9 grid gap-4 md:grid-cols-2">
+            <div className="mt-10 border-t border-border pt-8">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Main Responsibilities
+              </p>
+            </div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
               {department.responsibilities.map((item) => (
                 <div key={item} className="flex gap-3 rounded-lg bg-background p-4">
                   <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-gold" />
@@ -2603,6 +2824,12 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
                 </div>
               ))}
             </div>
+            <div className="mt-7 rounded-lg border border-gold/30 bg-gold/10 p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
+                Permission Level
+              </p>
+              <p className="mt-3 text-sm leading-7 text-white/82">{department.permissionLevel}</p>
+            </div>
             <a
               href="/contact"
               className="mt-7 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-3 text-sm font-bold text-navy"
@@ -2621,11 +2848,11 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
                 System Responsibilities
               </p>
               <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-                How this department uses the college systems
+                How {department.title} uses the college systems
               </h2>
               <p className="mt-5 text-sm leading-7 text-muted-foreground">
-                These pages explain what each department handles and how its work connects to the
-                website, EduTrack, staff management, calendars, notices, and internal reporting.
+                This connects the department&apos;s daily work to website publishing, EduTrack,
+                staff management, calendars, notices, documents, reports, and approval workflows.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">

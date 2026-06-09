@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import {
   audit,
+  getDb,
   makeId,
   setDb,
   useDb,
@@ -220,6 +221,16 @@ function escapeHtml(value?: string) {
 
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 const FACILITIES_PAGE_ID = "the-college/facilities-services";
+const EMPTY_VISUAL_CSS = "/* No page-specific visual CSS overrides. */";
+const COLLEGE_DEPARTMENT_PAGE_IDS = [
+  "the-college/departments/administration",
+  "the-college/departments/academic",
+  "the-college/departments/finance",
+  "the-college/departments/it-department",
+  "the-college/departments/gym",
+  "the-college/departments/swimming-pool",
+  "the-college/departments/sports-department",
+];
 const LIVE_RENDERED_EDITOR_PAGE_IDS = new Set([
   "home",
   "about",
@@ -237,6 +248,7 @@ const LIVE_RENDERED_EDITOR_PAGE_IDS = new Set([
   LCEA_PAGE_ID,
   "academics/cambridge",
   FACILITIES_PAGE_ID,
+  ...COLLEGE_DEPARTMENT_PAGE_IDS,
   "facilities",
   "facilities-services",
   "about/college-administration",
@@ -271,6 +283,23 @@ type LivePreviewSnapshot = {
 
 function visualCanvasCss(baseCss: string) {
   return [baseCss.trim(), VISUAL_BUILDER_CANVAS_STATIC_CSS.trim()].filter(Boolean).join("\n\n");
+}
+
+function findVisualPublishIssue(db: DB) {
+  for (const [pageId, page] of Object.entries(db.pages)) {
+    const hasVisualHtml = typeof page.visualHtml === "string" && page.visualHtml.trim();
+    if (!hasVisualHtml || page.visualMode === "coded") continue;
+
+    if (!page.visualBaseCss?.trim()) {
+      return `${displayPageName(pageId)} has visual HTML but no visualBaseCss snapshot. Open the Safe Visual Editor or Full Visual Builder and save the page again before publishing.`;
+    }
+
+    if (!page.visualCss?.trim()) {
+      return `${displayPageName(pageId)} has visual HTML but no visualCss. Save the visual page again before publishing.`;
+    }
+  }
+
+  return "";
 }
 
 const lceaProgrammes = [
@@ -1581,7 +1610,8 @@ export function WebsiteEditor() {
     selectedPageUsesLiveRenderer &&
     page?.visualMode === "visual" &&
     Boolean(page?.visualHtml?.trim()) &&
-    Boolean(page?.visualBaseCss?.trim());
+    Boolean(page?.visualBaseCss?.trim()) &&
+    Boolean(page?.visualCss?.trim());
   const safeVisualEditorActive = selectedPageUsesLiveRenderer && safeVisualEditorOpen;
 
   const pageIds = useMemo(() => {
@@ -2073,6 +2103,28 @@ export function WebsiteEditor() {
     return { html, baseCss };
   }, []);
 
+  const getLatestEditorDb = useCallback((): DB => {
+    const currentDb = getDb();
+    if (!safeVisualEditorOpen || !isLiveRenderedEditorPage(selectedPage)) return currentDb;
+
+    const snapshot = getLivePreviewSnapshot();
+    if (!snapshot?.html.trim()) return currentDb;
+
+    const currentPage = currentDb.pages[selectedPage] || {};
+    return {
+      ...currentDb,
+      pages: {
+        ...currentDb.pages,
+        [selectedPage]: {
+          ...currentPage,
+          visualHtml: snapshot.html,
+          visualBaseCss: snapshot.baseCss || currentPage.visualBaseCss || "",
+          visualCss: currentPage.visualCss?.trim() ? currentPage.visualCss : EMPTY_VISUAL_CSS,
+        },
+      },
+    };
+  }, [getLivePreviewSnapshot, safeVisualEditorOpen, selectedPage]);
+
   const openSafeVisualEditor = () => {
     const savedPage = db.pages[selectedPage];
     if (!isLiveRenderedEditorPage(selectedPage)) {
@@ -2106,7 +2158,7 @@ export function WebsiteEditor() {
     const templateHtml = visualStarterForPage(db, selectedPage);
     const shouldLoadTemplate =
       useSavedVisualHtml && shouldUsePastRectorsTemplate(selectedPage, savedVisualHtml);
-    const liveSnapshot = isLivePage ? getLivePreviewSnapshot() : null;
+    const liveSnapshot = getLivePreviewSnapshot();
     const savedBaseCss = savedPage?.visualBaseCss?.trim() || "";
     const baseCss = useSavedVisualHtml
       ? savedBaseCss || liveSnapshot?.baseCss || ""
@@ -2193,19 +2245,31 @@ export function WebsiteEditor() {
 
   const save = async () => {
     setSavingState("saving");
+    const latestDb = getLatestEditorDb();
+    setDb(() => latestDb);
     audit(`Saved ${selectedPage} / ${selectedSection}`, "Website editor");
-    const result = await saveDbNow();
+    const result = await saveDbNow(latestDb);
     showSyncResult("Draft saved", result, "save");
     setSavingState("idle");
   };
 
   const publish = async () => {
+    const latestDb = getLatestEditorDb();
+    const visualIssue = findVisualPublishIssue(latestDb);
+    if (visualIssue) {
+      setMessageTone("error");
+      setMessage(`Publish blocked: ${visualIssue}`);
+      return;
+    }
+
+    setDb(() => latestDb);
+
     if (needsApproval) {
       setSavingState("submitting");
       audit(`Submitted website changes for approval: ${selectedPage}`, "Website editor");
-      await saveDbNow();
+      await saveDbNow(latestDb);
       try {
-        const request = await createPublishRequest(db);
+        const request = await createPublishRequest(latestDb);
         setMessageTone("info");
         setMessage(`Submitted for approval as request #${request.id}.`);
       } catch (caught) {
@@ -2222,36 +2286,51 @@ export function WebsiteEditor() {
 
     setSavingState("publishing");
     audit(`Published website changes for ${selectedPage}`, "Website editor");
-    const result = await publishDbNow();
+    const result = await publishDbNow(latestDb);
     showSyncResult("Website changes published", result, "publish");
     setSavingState("idle");
   };
 
   const saveVisualContent = async (html: string, css: string) => {
-    const pageTitle = db.pages[selectedPage]?.title || selectedPage;
+    const currentDb = getDb();
+    const pageTitle = currentDb.pages[selectedPage]?.title || selectedPage;
     const stableHtml = normalizeVisualBuilderHtml(html);
+    const stableCss = css.trim() || EMPTY_VISUAL_CSS;
     const stableBaseCss = visualEditorInitial?.baseCss?.trim() || "";
+    if (!stableHtml.trim()) {
+      setMessageTone("error");
+      setMessage("Visual content was not saved because the builder returned empty HTML.");
+      return;
+    }
+    if (!stableBaseCss) {
+      setMessageTone("error");
+      setMessage(
+        "Visual content was not saved because the design CSS snapshot is empty. Reload the preview, open the Visual Builder again, and save after the page finishes loading.",
+      );
+      return;
+    }
     setSavingState("saving");
     setMessageTone("info");
     setMessage("Saving visual content and uploaded media...");
-    setDb((current) => ({
-      ...current,
+    const nextDb: DB = {
+      ...currentDb,
       pages: {
-        ...current.pages,
+        ...currentDb.pages,
         [selectedPage]: {
-          ...(current.pages[selectedPage] || {}),
+          ...(currentDb.pages[selectedPage] || {}),
           ...(isLiveRenderedEditorPage(selectedPage) ? { visualMode: "visual" as const } : {}),
           visualHtml: stableHtml,
-          visualCss: css,
+          visualCss: stableCss,
           visualBaseCss: stableBaseCss,
         },
       },
-    }));
+    };
+    setDb(() => nextDb);
     setVisualEditorOpen(false);
     setVisualEditorInitial(null);
     audit(`Visual builder saved ${selectedPage}`, "Website editor");
 
-    const result = await saveDbNow();
+    const result = await saveDbNow(nextDb);
     if (result.remote) {
       setMessageTone("info");
       setMessage(

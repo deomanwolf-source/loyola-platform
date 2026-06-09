@@ -2786,6 +2786,35 @@ function protectPersistentContentSnapshot(siteDb, existingDb) {
   return nextDb;
 }
 
+function visualSnapshotPublishIssues(siteDb) {
+  const pages = isPlainObject(siteDb?.pages) ? siteDb.pages : {};
+  const issues = [];
+
+  for (const [slug, page] of Object.entries(pages)) {
+    if (!isPlainObject(page)) continue;
+    const visualHtml = typeof page.visualHtml === "string" ? page.visualHtml.trim() : "";
+    if (!visualHtml || page.visualMode === "coded") continue;
+
+    const visualBaseCss =
+      typeof page.visualBaseCss === "string" ? page.visualBaseCss.trim() : "";
+    const visualCss = typeof page.visualCss === "string" ? page.visualCss.trim() : "";
+
+    if (!visualBaseCss) issues.push(`${slug}: missing visualBaseCss`);
+    if (!visualCss) issues.push(`${slug}: missing visualCss`);
+  }
+
+  return issues;
+}
+
+function assertVisualSnapshotsReadyForPublish(siteDb) {
+  const issues = visualSnapshotPublishIssues(siteDb);
+  if (issues.length > 0) {
+    throw new Error(
+      `Publish blocked because visual page CSS snapshots are incomplete. ${issues.join("; ")}`,
+    );
+  }
+}
+
 async function upsertPortalUserAccount(runner, user) {
   const accountId = String(user?.id || `U-${Date.now()}`).trim();
   const accountEmail = normalizeEmail(user?.email || "");
@@ -3678,6 +3707,7 @@ async function writeSiteDb(siteDb, { mode = "published" } = {}) {
   const contentVersion = Date.now();
   const nowIso = new Date(contentVersion).toISOString();
   const sanitizedInput = sanitizeSiteDbSecurity(siteDb);
+  if (mode === "published") assertVisualSnapshotsReadyForPublish(sanitizedInput);
   const incomingDb = applyExplicitContentDeletes(sanitizedInput, sanitizedInput);
   const existingDb = await readSiteDb({ draft: mode === "draft" });
   const publishedDb = mode === "draft" ? await readSiteDb({ draft: false }) : null;
