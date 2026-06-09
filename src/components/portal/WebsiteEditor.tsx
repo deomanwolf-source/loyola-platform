@@ -32,6 +32,7 @@ import {
   saveDbNow,
   useAuth,
   type DB,
+  type HomeLeadershipCard,
   type PageBlockType,
   type PageBlock,
 } from "@/lib/store";
@@ -221,6 +222,94 @@ function escapeHtml(value?: string) {
 
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 const FACILITIES_PAGE_ID = "the-college/facilities-services";
+
+const REQUIRED_HOME_LEADERSHIP_CARDS: HomeLeadershipCard[] = [
+  {
+    id: "LC-LEAD-1",
+    name: "His Eminence Malcolm Cardinal Ranjith",
+    title: "The Archbishop of Colombo",
+    description: "Spiritual leadership and guidance for Catholic education.",
+    image: "",
+    order: 1,
+    visible: true,
+  },
+  {
+    id: "LC-LEAD-2",
+    name: "Very Rev. Fr. Gemunu Dias",
+    title: "General Manager of Catholic Private Schools",
+    description: "Administration and school network leadership.",
+    image: "",
+    order: 2,
+    visible: true,
+  },
+  {
+    id: "LC-LEAD-3",
+    name: "Rev. Dr. D.M.J. Kennedy Perera",
+    title: "Rector / Principal",
+    description: "Rector and Principal of Loyola College.",
+    image: "",
+    order: 3,
+    visible: true,
+  },
+  {
+    id: "LC-LEAD-4",
+    name: "Rev. Fr. W.G. Thilina Pathum",
+    title: "Vice Rector, Prefect of Games",
+    description: "Discipline, student formation, and games leadership.",
+    image: "",
+    order: 4,
+    visible: true,
+  },
+];
+
+function normalizeKennedyTitle(value: string) {
+  return value
+    .replace(/\bRev\.\s*Fr\.\s*D\.?\s*M\.?\s*J\.?\s*Kennedy Perera\b/gi, "Rev. Dr. D.M.J. Kennedy Perera")
+    .replace(/\bRev\.\s*Fr\.\s*Kennedy Perera\b/gi, "Rev. Dr. Kennedy Perera");
+}
+
+function leadershipCardKey(name: string) {
+  return normalizeKennedyTitle(name)
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .replace(/\b(his|eminence|very|rev|fr|dr|mr|mrs|ms)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function mergedHomeLeadershipCards(cards: HomeLeadershipCard[] = []) {
+  const normalizedCards = cards.map((card) => ({
+    ...card,
+    name: normalizeKennedyTitle(card.name),
+  }));
+  const existingByKey = new Map(
+    normalizedCards.map((card) => [leadershipCardKey(card.name), card] as const),
+  );
+  const requiredKeys = new Set(
+    REQUIRED_HOME_LEADERSHIP_CARDS.map((card) => leadershipCardKey(card.name)),
+  );
+
+  const requiredCards = REQUIRED_HOME_LEADERSHIP_CARDS.map((required) => {
+    const existing = existingByKey.get(leadershipCardKey(required.name));
+    if (!existing) return required;
+    return {
+      ...required,
+      ...existing,
+      name: normalizeKennedyTitle(existing.name || required.name),
+      title: existing.title || required.title,
+      description: existing.description || required.description,
+      image: existing.image || required.image,
+      order: required.order,
+      visible: true,
+    };
+  });
+
+  const extraCards = normalizedCards.filter(
+    (card) => card.visible !== false && !requiredKeys.has(leadershipCardKey(card.name)),
+  );
+
+  return [...requiredCards, ...extraCards].sort((a, b) => (a.order || 0) - (b.order || 0));
+}
 const EMPTY_VISUAL_CSS = "/* No page-specific visual CSS overrides. */";
 const COLLEGE_DEPARTMENT_PAGE_IDS = [
   "the-college/departments/administration",
@@ -685,38 +774,7 @@ function homeVisualStarter(db: DB) {
     content.heroTitle?.trim() || page.title || "A Tradition of Excellence. A Future of Innovation.";
   const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
   const stats = home.stats.length ? home.stats : [];
-  const leadershipCards =
-    home.leadershipCards.filter((card) => card.visible !== false).length > 0
-      ? home.leadershipCards.filter((card) => card.visible !== false)
-      : [
-          {
-            id: "lead-1",
-            name: "His Eminence Malcolm Cardinal Ranjith",
-            title: "The Archbishop of Colombo",
-            description: "",
-            image: "/loyola-crest.jpg",
-            order: 1,
-            visible: true,
-          },
-          {
-            id: "lead-2",
-            name: "Very Rev. Fr. Gemunu Dias",
-            title: "General Manager of Catholic Private Schools",
-            description: "",
-            image: "/loyola-crest.jpg",
-            order: 2,
-            visible: true,
-          },
-          {
-            id: "lead-3",
-            name: "Rev. Fr. D.M.J. Kennedy Perera",
-            title: "Rector / Principal",
-            description: "",
-            image: db.media.principalImage || "/loyola-crest.jpg",
-            order: 3,
-            visible: true,
-          },
-        ];
+  const leadershipCards = mergedHomeLeadershipCards(home.leadershipCards);
 
   const newsCards = (db.news.length ? db.news : [{ title: "News & Notices", body: "Important updates and school notices will appear here.", date: "" }])
     .slice(0, 3)
@@ -763,7 +821,7 @@ function homeVisualStarter(db: DB) {
       <p class="eyebrow">${escapeHtml(home.rectorHeading || "Rector's Message")}</p>
       <h2 style="margin-top:12px;">${escapeHtml(home.rectorTitle || "Dear Students, Parents, and Alumni of Loyola College,")}</h2>
       ${paragraphsHtml(home.rectorBody || "Add the rector message here.")}
-      <p class="home-signature">${escapeHtml(home.rectorName || "Rev. Fr. D.M.J. Kennedy Perera")}<br /><span>${escapeHtml(home.rectorDesignation || "Rector / Principal")}</span></p>
+      <p class="home-signature">${escapeHtml(normalizeKennedyTitle(home.rectorName || "Rev. Dr. D.M.J. Kennedy Perera"))}<br /><span>${escapeHtml(home.rectorDesignation || "Rector / Principal")}</span></p>
     </article>
   </div>
 </section>
@@ -832,7 +890,7 @@ function lceaVisualStarter(db: DB) {
       <p class="eyebrow">English Academy</p>
       <h2 style="margin-top:12px;">English learning with Cambridge international standards.</h2>
       ${paragraphsHtml(
-        "Loyola College launched Loyolian Cambridge English Academy on May 1, 2024. The academy is a brain-child of Rev. Fr. Kennedy Perera, the present Rector of Loyola College Negombo, who has held the vision of enhancing the English linguistic capacity of Loyolian students from the day of his installation.\n\nLCEA has opened its doors to students from other schools as well, giving them the opportunity to learn English according to Cambridge international standards.\n\nMore than 700 students are being equipped with standard English at LCEA by a well-qualified staff of 36 teachers.",
+        "Loyola College launched Loyolian Cambridge English Academy on May 1, 2024. The academy is a brain-child of Rev. Dr. Kennedy Perera, the present Rector of Loyola College Negombo, who has held the vision of enhancing the English linguistic capacity of Loyolian students from the day of his installation.\n\nLCEA has opened its doors to students from other schools as well, giving them the opportunity to learn English according to Cambridge international standards.\n\nMore than 700 students are being equipped with standard English at LCEA by a well-qualified staff of 36 teachers.",
       )}
     </article>
     <article class="feature-card" style="background:#0a1628;color:#fff;">
@@ -848,7 +906,7 @@ function lceaVisualStarter(db: DB) {
     <p class="eyebrow">Academy Team</p>
     <h2 style="margin-top:12px;">Leadership and administration</h2>
     ${featureCardsHtml([
-      { kicker: "Rector", title: "Rev. Fr. Kennedy Perera", body: "Rector of Loyola College Negombo" },
+      { kicker: "Rector", title: "Rev. Dr. D.M.J. Kennedy Perera", body: "Rector of Loyola College Negombo" },
       { kicker: "Priest in charge", title: "Fr. Mahima Gunawardena", body: "Loyolian Cambridge English Academy" },
       { kicker: "Manager", title: "Mr. Deepal Fonseka", body: "Academy management" },
       { kicker: "Accountant", title: "Mrs. Reshika Crishelni", body: "Accounts and administration" },

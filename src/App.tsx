@@ -49,6 +49,7 @@ import {
   useDb,
   type GalleryItem,
   type GalleryVideo,
+  type HomeLeadershipCard,
   type Role,
 } from "@/lib/store";
 import {
@@ -116,6 +117,133 @@ const REPORT_CARDS_SYSTEM_URL = "https://intranet.loyolacollege.lk/login";
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 const FACILITIES_PAGE_ID = "the-college/facilities-services";
 const COLLEGE_DEPARTMENT_BASE_ID = "the-college/departments";
+
+const REQUIRED_HOME_LEADERSHIP_CARDS: HomeLeadershipCard[] = [
+  {
+    id: "LC-LEAD-1",
+    name: "His Eminence Malcolm Cardinal Ranjith",
+    title: "The Archbishop of Colombo",
+    description: "Spiritual leadership and guidance for Catholic education.",
+    image: "",
+    order: 1,
+    visible: true,
+  },
+  {
+    id: "LC-LEAD-2",
+    name: "Very Rev. Fr. Gemunu Dias",
+    title: "General Manager of Catholic Private Schools",
+    description: "Administration and school network leadership.",
+    image: "",
+    order: 2,
+    visible: true,
+  },
+  {
+    id: "LC-LEAD-3",
+    name: "Rev. Dr. D.M.J. Kennedy Perera",
+    title: "Rector / Principal",
+    description: "Rector and Principal of Loyola College.",
+    image: "",
+    order: 3,
+    visible: true,
+  },
+  {
+    id: "LC-LEAD-4",
+    name: "Rev. Fr. W.G. Thilina Pathum",
+    title: "Vice Rector, Prefect of Games",
+    description: "Discipline, student formation, and games leadership.",
+    image: "",
+    order: 4,
+    visible: true,
+  },
+];
+
+function normalizeKennedyTitle(value: string) {
+  return value
+    .replace(/\bRev\.\s*Fr\.\s*D\.?\s*M\.?\s*J\.?\s*Kennedy Perera\b/gi, "Rev. Dr. D.M.J. Kennedy Perera")
+    .replace(/\bRev\.\s*Fr\.\s*Kennedy Perera\b/gi, "Rev. Dr. Kennedy Perera");
+}
+
+function leadershipCardKey(name: string) {
+  return normalizeKennedyTitle(name)
+    .toLowerCase()
+    .replace(/[^a-z]+/g, " ")
+    .replace(/\b(his|eminence|very|rev|fr|dr|mr|mrs|ms)\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeLeadershipCard(card: HomeLeadershipCard): HomeLeadershipCard {
+  return {
+    ...card,
+    name: normalizeKennedyTitle(card.name),
+  };
+}
+
+function mergedHomeLeadershipCards(cards: HomeLeadershipCard[] = []) {
+  const normalizedCards = cards.map(normalizeLeadershipCard);
+  const existingByKey = new Map(
+    normalizedCards.map((card) => [leadershipCardKey(card.name), card] as const),
+  );
+  const requiredKeys = new Set(
+    REQUIRED_HOME_LEADERSHIP_CARDS.map((card) => leadershipCardKey(card.name)),
+  );
+
+  const requiredCards = REQUIRED_HOME_LEADERSHIP_CARDS.map((required) => {
+    const existing = existingByKey.get(leadershipCardKey(required.name));
+    if (!existing) return required;
+    return {
+      ...required,
+      ...existing,
+      name: normalizeKennedyTitle(existing.name || required.name),
+      title: existing.title || required.title,
+      description: existing.description || required.description,
+      image: existing.image || required.image,
+      order: required.order,
+      visible: true,
+    };
+  });
+
+  const extraCards = normalizedCards.filter(
+    (card) => card.visible !== false && !requiredKeys.has(leadershipCardKey(card.name)),
+  );
+
+  return [...requiredCards, ...extraCards].sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+function escapeHtmlAttribute(value: string) {
+  return value.replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char] || char,
+  );
+}
+
+function normalizeLeadershipVisualHtml(html: string, homeLeadershipCards: HomeLeadershipCard[]) {
+  let next = normalizeKennedyTitle(html);
+
+  if (/Malcolm Cardinal Ranjith/i.test(next)) return next;
+  if (!/\bleadership-grid\b/i.test(next)) return next;
+
+  const cardinalCard =
+    mergedHomeLeadershipCards(homeLeadershipCards).find((card) =>
+      /Malcolm Cardinal Ranjith/i.test(card.name),
+    ) || REQUIRED_HOME_LEADERSHIP_CARDS[0];
+  const image = escapeHtmlAttribute(cardinalCard.image || "/loyola-crest.jpg");
+  const name = escapeHtmlAttribute(cardinalCard.name);
+  const title = escapeHtmlAttribute(cardinalCard.title);
+  const cardHtml = `<article class="leadership-card"><img src="${image}" alt="" /><div><h3>${name}</h3><span></span><p>${title}</p></div></article>`;
+
+  return next.replace(
+    /(<div\b[^>]*class\s*=\s*["'][^"']*\bleadership-grid\b[^"']*["'][^>]*>)/i,
+    `$1${cardHtml}`,
+  );
+}
 
 const collegeDepartments = [
   {
@@ -942,7 +1070,11 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
 
   if (!page?.visualHtml) return <GenericPage pageId={pageId} />;
 
-  const sanitizedHtml = normalizeVisualBuilderHtml(sanitizeVisualHtml(page.visualHtml));
+  const cleanedVisualHtml = normalizeVisualBuilderHtml(sanitizeVisualHtml(page.visualHtml));
+  const sanitizedHtml =
+    pageId === "home"
+      ? normalizeLeadershipVisualHtml(cleanedVisualHtml, db.homeSections.leadershipCards)
+      : normalizeKennedyTitle(cleanedVisualHtml);
   const sanitizedBaseCss = sanitizeVisualCss(page.visualBaseCss);
   const sanitizedCss = sanitizeVisualCss(page.visualCss);
   const title = page.title || pageId.split("/").pop()?.replaceAll("-", " ") || "";
@@ -1151,9 +1283,7 @@ function SubpagesSection({ parentId }: { parentId: string }) {
 function HomeRequiredSections() {
   const db = useDb();
   const home = db.homeSections;
-  const leadershipCards = [...(home.leadershipCards || [])]
-    .filter((card) => card.visible !== false)
-    .sort((a, b) => (a.order || 0) - (b.order || 0));
+  const leadershipCards = mergedHomeLeadershipCards(home.leadershipCards || []);
   const quickActions = [
     {
       title: "Explore College",
@@ -1724,9 +1854,9 @@ const collegeHistoryParagraphs = [
   "Today with a generous investment, the College shines in her new looks with alluring colours on its walls. Rev. Fr. Sudath is responsible for renovations and refurbishing to the various buildings in the College.",
   "Father Sudath built a Scouts Den in order that the Scouts could keep all their belongings in one place in order. The College office was refurbished during this period and it has a very pleasant atmosphere. The College Auditorium looks great in its present form after being refurbished. The Audio Visual Room is very comfortable and can accommodate 130 persons where conferences and meetings can be conducted. The Medical Unit was refurbished with a great new look and a new Dental chair was installed in the unit for the benefit of the students.",
   "S. V. Fonseka Hall was refurbished with a great new modern look to the old building. Upper School Staff Room was refurbished with a view to provide the staff members with a quiet relaxed environment to concentrate on whatever work during their free time. The College chapel was completely given a new face lift with very picturesque paintings. The canteen was completely turned into a modern unit with all the necessary facilities. The Upper School washrooms for the students were completely given a facelift with new fittings and accessories.",
-  "Rev. Fr. Sudath Gunetileke served as the 4th Rector of the College from 2015 to 2022. He was succeeded by Rev. Fr. Kennedy Perera, who is currently serving as the Rector. Rev. Fr. Kennedy Perera, the current Rector of the college, has undertaken various renovation and development projects in the college. One of the achievements is the renovation of the basketball court, providing the students with a modern and well-maintained facility to engage in sports and physical activity. He has also redesigned the school entrance with new statues, which enhances the aesthetic appeal of the college which add to the overall beauty of the college. A Sports Pavilion, Cadet Billet and a Technical Unit were also constructed and declared opened for the benefit of the students. Fr. Kennedy was also responsible in converting the Badminton Court in the Sports complex into a new chapel for the Primary Section, dedicated to our Patron Saint St. Ignatius of Loyola. Expansion of the Primary Section was done by constructing a new building. A special unit was newly opened in the New Building and named 'Pope Francis Differently Abled Unit'.",
-  "These efforts of Rev. Fr. Kennedy Perera reflect his commitment to uplifting the standard of the education and infrastructure at the college.",
-  "Under Rev. Fr. Kennedy's leadership, the college has continued to strive towards excellence in education and discipline. With current student body of 2,688 and a faculty of 150 teachers, the college has come a long way in its 77 years history and is a source of pride for all those associated with it.",
+  "Rev. Fr. Sudath Gunetileke served as the 4th Rector of the College from 2015 to 2022. He was succeeded by Rev. Dr. Kennedy Perera, who is currently serving as the Rector. Rev. Dr. Kennedy Perera, the current Rector of the college, has undertaken various renovation and development projects in the college. One of the achievements is the renovation of the basketball court, providing the students with a modern and well-maintained facility to engage in sports and physical activity. He has also redesigned the school entrance with new statues, which enhances the aesthetic appeal of the college which add to the overall beauty of the college. A Sports Pavilion, Cadet Billet and a Technical Unit were also constructed and declared opened for the benefit of the students. Rev. Dr. Kennedy was also responsible in converting the Badminton Court in the Sports complex into a new chapel for the Primary Section, dedicated to our Patron Saint St. Ignatius of Loyola. Expansion of the Primary Section was done by constructing a new building. A special unit was newly opened in the New Building and named 'Pope Francis Differently Abled Unit'.",
+  "These efforts of Rev. Dr. Kennedy Perera reflect his commitment to uplifting the standard of the education and infrastructure at the college.",
+  "Under Rev. Dr. Kennedy's leadership, the college has continued to strive towards excellence in education and discipline. With current student body of 2,688 and a faculty of 150 teachers, the college has come a long way in its 77 years history and is a source of pride for all those associated with it.",
 ];
 
 function AboutPage() {
@@ -2165,13 +2295,13 @@ const lceaStats = [
   {
     label: "Launched",
     value: "May 1, 2024",
-    body: "The academy was launched under the vision of Rev. Fr. Kennedy Perera.",
+    body: "The academy was launched under the vision of Rev. Dr. Kennedy Perera.",
     icon: Award,
   },
 ];
 
 const lceaLeadership = [
-  { role: "Rector", names: ["Rev. Fr. Kennedy Perera"] },
+  { role: "Rector", names: ["Rev. Dr. D.M.J. Kennedy Perera"] },
   { role: "Priest in Charge", names: ["Fr. Mahima Gunawardena"] },
   { role: "Manager", names: ["Mr. Deepal Fonseka"] },
   { role: "Accountant", names: ["Mrs. Reshika Crishelni"] },
@@ -2303,7 +2433,7 @@ function LoyolianCambridgeEnglishAcademyPage() {
               <div className="mt-6 space-y-4 break-words text-sm leading-7 text-muted-foreground md:text-base">
                 <p>
                   Loyola College launched Loyolian Cambridge English Academy on May 1, 2024. The
-                  academy is a brain-child of Rev. Fr. Kennedy Perera, the present Rector of Loyola
+                  academy is a brain-child of Rev. Dr. Kennedy Perera, the present Rector of Loyola
                   College Negombo, who has held the vision of enhancing the English linguistic
                   capacity of Loyolian students from the day of his installation.
                 </p>

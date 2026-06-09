@@ -813,14 +813,14 @@ export const seed: DB = {
     pillars: [],
     aboutHeading: "About Our College",
     aboutBody:
-      "Loyola College has a 75 years history that began as an institute in a cadjan hut and has since developed into a well-reputed Catholic school in the Negombo area, managed by the Archdiocese of Colombo. The present Rector of the College, Rev. Fr. Kennedy Perera, is guiding Loyola College to higher shores with his innovative vision of the 21st century.",
+      "Loyola College has a 75 years history that began as an institute in a cadjan hut and has since developed into a well-reputed Catholic school in the Negombo area, managed by the Archdiocese of Colombo. The present Rector of the College, Rev. Dr. Kennedy Perera, is guiding Loyola College to higher shores with his innovative vision of the 21st century.",
     aboutButtonLabel: "More Details",
     aboutButtonHref: "/about",
     rectorHeading: "Rector's Message",
     rectorTitle: "Dear Students, Parents, and Alumni of Loyola College,",
     rectorBody:
       "In today's world of advancing technology, it is essential for us to continually update and modernize our systems. In line with this, we are transitioning from manual systems to web-based online management systems. We have already upgraded our annual calendar and student progress report systems to a web-based portal. We kindly ask for your cooperation as we move forward with these updates to align with current standards.",
-    rectorName: "Rev. Fr. D.M.J. Kennedy Perera",
+    rectorName: "Rev. Dr. D.M.J. Kennedy Perera",
     rectorDesignation: "Rector / Principal",
     rectorImage: "",
     leadershipKicker: "Administration Board",
@@ -848,7 +848,7 @@ export const seed: DB = {
       },
       {
         id: "LC-LEAD-3",
-        name: "Rev. Fr. D.M.J. Kennedy Perera",
+        name: "Rev. Dr. D.M.J. Kennedy Perera",
         title: "Rector / Principal",
         description: "Rector and Principal of Loyola College.",
         image: "",
