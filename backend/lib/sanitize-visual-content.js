@@ -2,9 +2,11 @@ const sanitizeHtml = require("sanitize-html");
 
 const SAFE_URL_PATTERN =
   /^(?:(?:https?:|mailto:|tel:|\/(?!\/)|#|\.\.?\/|uploads\/|assets\/|staff\/|edutrack\/|loyola-crest\.jpg|favicon\.(?:png|jpg)|flag1\.png))/i;
+const SAFE_IFRAME_SRC_PATTERN =
+  /^https:\/\/(?:calendar\.google\.com\/calendar\/embed\b|www\.google\.com\/maps\b)/i;
 
 const UNSAFE_HTML_PATTERN =
-  /<\s*script|<\s*iframe|<\s*object|<\s*embed|<\s*link|<\s*meta|\son[a-z]+\s*=|javascript\s*:|vbscript\s*:|srcdoc\s*=|<\/\s*style/i;
+  /<\s*script|<\s*object|<\s*embed|<\s*link|<\s*meta|\son[a-z]+\s*=|javascript\s*:|vbscript\s*:|srcdoc\s*=|<\/\s*style/i;
 
 const UNSAFE_CSS_PATTERN =
   /(?:@import|expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|data\s*:|<\/?style|<\/?script)/gi;
@@ -26,7 +28,7 @@ function isSafeUrl(value) {
   return !text || SAFE_URL_PATTERN.test(text);
 }
 
-function sanitizeAttributes(attribs = {}) {
+function sanitizeAttributes(attribs = {}, tagName = "") {
   const next = {};
 
   for (const [name, rawValue] of Object.entries(attribs)) {
@@ -34,6 +36,10 @@ function sanitizeAttributes(attribs = {}) {
     const value = String(rawValue || "");
 
     if (attrName.startsWith("on") || attrName === "srcdoc") continue;
+    if (tagName === "iframe") {
+      if (attrName === "src" && !SAFE_IFRAME_SRC_PATTERN.test(value.trim())) continue;
+      if (["allow", "allowfullscreen"].includes(attrName)) continue;
+    }
     if (attrName === "style") {
       const cleanStyle = sanitizeCssDeclaration(value);
       if (cleanStyle.trim()) next[attrName] = cleanStyle;
@@ -113,6 +119,7 @@ function sanitizeVisualHtml(html) {
       "u",
       "ul",
       "video",
+      "iframe",
     ],
     allowedAttributes: {
       "*": [
@@ -129,6 +136,7 @@ function sanitizeVisualHtml(html) {
         "data-*",
         "decoding",
         "fetchpriority",
+        "frameborder",
         "height",
         "href",
         "id",
@@ -138,9 +146,11 @@ function sanitizeVisualHtml(html) {
         "playsinline",
         "poster",
         "preload",
+        "referrerpolicy",
         "rel",
         "role",
         "rowspan",
+        "scrolling",
         "src",
         "style",
         "target",
@@ -156,7 +166,7 @@ function sanitizeVisualHtml(html) {
     enforceHtmlBoundary: true,
     parseStyleAttributes: false,
     transformTags: {
-      "*": (tagName, attribs) => ({ tagName, attribs: sanitizeAttributes(attribs) }),
+      "*": (tagName, attribs) => ({ tagName, attribs: sanitizeAttributes(attribs, tagName) }),
     },
   });
 }
@@ -191,8 +201,16 @@ function scanVisualContent(siteDb) {
     const css = typeof page.visualCss === "string" ? page.visualCss : "";
     const baseCss = typeof page.visualBaseCss === "string" ? page.visualBaseCss : "";
 
-    if (html && UNSAFE_HTML_PATTERN.test(html)) {
+    const htmlWithoutSafeIframes = html.replace(
+      /<iframe\b[^>]*\bsrc=["']https:\/\/(?:calendar\.google\.com\/calendar\/embed\b|www\.google\.com\/maps\b)[^"']*["'][^>]*>\s*<\/iframe>/gi,
+      "",
+    );
+
+    if (htmlWithoutSafeIframes && UNSAFE_HTML_PATTERN.test(htmlWithoutSafeIframes)) {
       issues.push({ slug, field: "visualHtml", issue: "Potential executable HTML or unsafe URL" });
+    }
+    if (/<iframe\b/i.test(htmlWithoutSafeIframes)) {
+      issues.push({ slug, field: "visualHtml", issue: "Unsafe iframe source" });
     }
     if (css && UNSAFE_CSS_PATTERN.test(css)) {
       issues.push({ slug, field: "visualCss", issue: "Potential unsafe CSS token" });

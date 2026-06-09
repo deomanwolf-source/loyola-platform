@@ -33,6 +33,7 @@ interface VisualEditorProps {
   initialCss: string;
   canvasCss?: string;
   templateHtml?: string;
+  sections?: Array<Record<string, unknown>>;
   onSave: (html: string, css: string) => void;
   onClose: () => void;
 }
@@ -43,6 +44,180 @@ type UploadedAssetNotice = {
   url: string;
   kind: "image" | "video" | "file";
 };
+type VisualSectionContent = {
+  title?: unknown;
+  body?: unknown;
+  html?: unknown;
+  renderedHtml?: unknown;
+  visualHtml?: unknown;
+  excerpt?: unknown;
+  description?: unknown;
+};
+type VisualSectionData = VisualSectionContent & {
+  id?: unknown;
+  sectionId?: unknown;
+  key?: unknown;
+  slug?: unknown;
+  type?: unknown;
+  blockType?: unknown;
+  name?: unknown;
+  label?: unknown;
+  content?: VisualSectionContent | string;
+};
+
+function escapeHtml(value?: unknown) {
+  return String(value || "").replace(
+    /[&<>"']/g,
+    (char) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[char] || char,
+  );
+}
+
+function normalizeSectionToken(value?: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function readSectionString(section: VisualSectionData, keys: Array<keyof VisualSectionContent>) {
+  for (const key of keys) {
+    const value = section[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+
+  if (section.content && typeof section.content === "object") {
+    for (const key of keys) {
+      const value = section.content[key];
+      if (typeof value === "string" && value.trim()) return value.trim();
+    }
+  }
+
+  return "";
+}
+
+function getSectionId(section: VisualSectionData | undefined, fallback: string) {
+  if (!section) return normalizeSectionToken(fallback) || fallback;
+  return (
+    normalizeSectionToken(section.id) ||
+    normalizeSectionToken(section.sectionId) ||
+    normalizeSectionToken(section.key) ||
+    normalizeSectionToken(section.slug) ||
+    normalizeSectionToken(section.type) ||
+    normalizeSectionToken(section.blockType) ||
+    normalizeSectionToken(section.name) ||
+    normalizeSectionToken(section.label) ||
+    normalizeSectionToken(section.title) ||
+    normalizeSectionToken(fallback) ||
+    fallback
+  );
+}
+
+function sectionHtml(section: VisualSectionData | undefined) {
+  if (!section) return "";
+
+  const explicitHtml =
+    readSectionString(section, ["html", "renderedHtml", "visualHtml"]) ||
+    (typeof section.content === "string" ? section.content.trim() : "");
+  if (explicitHtml) return explicitHtml;
+
+  const title =
+    readSectionString(section, ["title"]) ||
+    String(section.name || section.label || "Content section").trim();
+  const body = readSectionString(section, ["body", "description", "excerpt"]);
+  if (!title && !body) return "";
+
+  return `<section><div class="container"><p class="eyebrow">${escapeHtml(
+    section.label || section.type || "Section",
+  )}</p><h2 style="margin-top:12px;">${escapeHtml(title)}</h2>${
+    body ? `<p style="margin-top:16px;">${escapeHtml(body)}</p>` : ""
+  }</div></section>`;
+}
+
+function setRootSectionId(html: string, sectionId: string) {
+  if (!html.trim() || typeof document === "undefined") return html;
+
+  const template = document.createElement("template");
+  template.innerHTML = html.trim();
+  const root = Array.from(template.content.children).find(
+    (element): element is HTMLElement => element instanceof HTMLElement,
+  );
+  if (root) {
+    root.setAttribute("data-section-id", sectionId);
+    return template.innerHTML;
+  }
+
+  return html;
+}
+
+function findSection(sections: VisualSectionData[] | undefined, aliases: string[]) {
+  if (!sections?.length) return undefined;
+  const normalizedAliases = aliases.map(normalizeSectionToken).filter(Boolean);
+  return sections.find((section) => {
+    const values = [
+      section.id,
+      section.sectionId,
+      section.key,
+      section.slug,
+      section.type,
+      section.blockType,
+      section.name,
+      section.label,
+      section.title,
+      typeof section.content === "object" ? section.content?.title : "",
+    ]
+      .map(normalizeSectionToken)
+      .filter(Boolean);
+
+    return values.some((value) =>
+      normalizedAliases.some((alias) => value === alias || value.includes(alias)),
+    );
+  });
+}
+
+function normalizeInitialSectionIds(html: string, sections?: VisualSectionData[]) {
+  if (!html.trim() || typeof document === "undefined") return html;
+
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const candidates = Array.from(
+    template.content.querySelectorAll<HTMLElement>(
+      "section, header, footer, nav, main, article[data-section-id], div[data-website-section]",
+    ),
+  );
+
+  candidates.forEach((element, index) => {
+    if (element.dataset.sectionId) return;
+    const section = sections?.[index];
+    const fallback =
+      element.dataset.websiteSection ||
+      element.getAttribute("aria-label") ||
+      element.className ||
+      `${element.tagName.toLowerCase()}-${index + 1}`;
+    element.dataset.sectionId = getSectionId(section, fallback);
+  });
+
+  return template.innerHTML;
+}
+
+function sectionBlockContent(
+  sections: VisualSectionData[] | undefined,
+  blockId: string,
+  aliases: string[],
+  fallbackHtml: string,
+) {
+  const section = findSection(sections, [blockId, ...aliases]);
+  const sectionId = getSectionId(section, blockId);
+  return setRootSectionId(sectionHtml(section) || fallbackHtml, sectionId);
+}
 
 function getUploadFiles(event: AssetUploadEvent): FileList | null {
   if ("dataTransfer" in event && event.dataTransfer) return event.dataTransfer.files;
@@ -288,6 +463,114 @@ const CANVAS_STYLES = `
   .cta-banner .eyebrow {
     color: #f7d96b;
   }
+  .news-grid,
+  .staff-grid,
+  .steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+  }
+  .news-card,
+  .staff-profile-card,
+  .step-card {
+    overflow: hidden;
+    border: 1px solid #dde4ed;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 38px -28px rgba(8, 40, 111, 0.45);
+  }
+  .news-card img,
+  .staff-profile-card img {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    background: #e8edf5;
+  }
+  .news-card div,
+  .staff-profile-card div,
+  .step-card {
+    padding: 22px;
+  }
+  .step-number {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    place-items: center;
+    border-radius: 999px;
+    background: var(--loyola-gold);
+    color: var(--loyola-navy);
+    font-family: Georgia, "Times New Roman", serif;
+    font-size: 1.4rem;
+    font-weight: 900;
+  }
+  .calendar-embed-card,
+  .map-embed-card {
+    overflow: hidden;
+    border: 1px solid #dde4ed;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 16px 38px -28px rgba(8, 40, 111, 0.45);
+  }
+  .calendar-embed-card iframe,
+  .map-embed-card iframe {
+    display: block;
+    width: 100%;
+    min-height: 520px;
+    border: 0;
+  }
+  .accordion-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 28px;
+  }
+  .accordion-list details {
+    border: 1px solid #dde4ed;
+    border-radius: 8px;
+    background: #fff;
+    padding: 18px 20px;
+    box-shadow: 0 12px 30px -26px rgba(8, 40, 111, 0.42);
+  }
+  .accordion-list summary {
+    cursor: pointer;
+    color: var(--loyola-navy);
+    font-weight: 800;
+  }
+  .accordion-list p {
+    margin-top: 12px;
+  }
+  .contact-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 440px;
+    gap: 28px;
+    align-items: start;
+  }
+  .contact-info-list,
+  .nav-editor-list,
+  .footer-link-list {
+    display: grid;
+    gap: 12px;
+    margin-top: 22px;
+  }
+  .contact-info-list article,
+  .nav-editor-list a,
+  .footer-link-list a {
+    border: 1px solid #dde4ed;
+    border-radius: 8px;
+    background: #fff;
+    padding: 16px 18px;
+  }
+  .footer-editor {
+    background: var(--loyola-navy);
+    color: #fff;
+  }
+  .footer-editor h2,
+  .footer-editor h3,
+  .footer-editor p {
+    color: #fff;
+  }
+  .footer-editor .eyebrow {
+    color: #f7d96b;
+  }
   .band { background: var(--loyola-soft); }
   .quote {
     border-left: 4px solid var(--loyola-gold);
@@ -363,7 +646,7 @@ const CANVAS_STYLES = `
   @media (max-width: 760px) {
     section { padding: 52px 22px; }
     .container { width: 100%; }
-    .grid-2, .grid-3, .stats-row, .team-grid, .anthem-media-layout, .home-about-grid, .home-stat-grid, .home-rector-grid, .leadership-grid { grid-template-columns: 1fr; }
+    .grid-2, .grid-3, .stats-row, .team-grid, .anthem-media-layout, .home-about-grid, .home-stat-grid, .home-rector-grid, .leadership-grid, .news-grid, .staff-grid, .steps-grid, .contact-grid { grid-template-columns: 1fr; }
   }
 `;
 
@@ -416,6 +699,7 @@ export function VisualEditor({
   initialCss,
   canvasCss,
   templateHtml,
+  sections,
   onSave,
   onClose,
 }: VisualEditorProps) {
@@ -434,6 +718,7 @@ export function VisualEditor({
   const stylesRef = useRef<HTMLDivElement>(null);
   const layersRef = useRef<HTMLDivElement>(null);
   const traitsRef = useRef<HTMLDivElement>(null);
+  const sectionData = sections as VisualSectionData[] | undefined;
 
   const uploadAssetFiles = useCallback(async (filesLike: FileList | File[]) => {
     const editor = editorRef.current;
@@ -640,35 +925,57 @@ export function VisualEditor({
         });
 
         const blocks = editor.BlockManager;
+        const blockContent = (blockId: string, aliases: string[], fallbackHtml: string) =>
+          sectionBlockContent(sectionData, blockId, aliases, fallbackHtml);
+
         blocks.add("loyola-hero", {
           label: "Hero",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M7 10h8M7 14h5"/></svg>`,
-          content: `<section class="hero"><div class="container"><p class="eyebrow">Loyola College</p><h1 style="max-width:760px;margin-top:18px;">A Tradition of Excellence</h1><p style="max-width:620px;margin-top:20px;font-size:1.1rem;">Replace this text with a strong page introduction.</p><a class="btn gold" href="#" style="margin-top:28px;">Learn More</a></div></section>`,
+          content: blockContent(
+            "loyola-hero",
+            ["hero", "page-hero", "home-hero"],
+            `<section class="hero"><div class="container"><p class="eyebrow">Loyola College</p><h1 style="max-width:760px;margin-top:18px;">A Tradition of Excellence</h1><p style="max-width:620px;margin-top:20px;font-size:1.1rem;">Replace this text with a strong page introduction.</p><a class="btn gold" href="#" style="margin-top:28px;">Learn More</a></div></section>`,
+          ),
         });
         blocks.add("loyola-feature-grid", {
           label: "Feature Grid",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z"/></svg>`,
-          content: `<section><div class="container grid-3"><article class="feature-card"><p class="eyebrow">One</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article><article class="feature-card"><p class="eyebrow">Two</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article><article class="feature-card"><p class="eyebrow">Three</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article></div></section>`,
+          content: blockContent(
+            "loyola-feature-grid",
+            ["features", "feature-grid", "cards", "services"],
+            `<section><div class="container grid-3"><article class="feature-card"><p class="eyebrow">One</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article><article class="feature-card"><p class="eyebrow">Two</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article><article class="feature-card"><p class="eyebrow">Three</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article></div></section>`,
+          ),
         });
         blocks.add("loyola-split", {
           label: "Image + Text",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h7v14H4zM14 7h6M14 11h6M14 15h4"/></svg>`,
-          content: `<section class="band"><div class="container grid-2" style="align-items:center;"><img src="/loyola-crest.jpg" alt="" style="width:100%;border-radius:8px;background:#fff;padding:30px;box-shadow:0 16px 38px -28px rgba(8,40,111,.45);"/><div><p class="eyebrow">Section</p><h2 style="margin-top:12px;">Build a clean content section</h2><p style="margin-top:18px;">Use this area for page copy, admissions details, school life, or programme descriptions.</p><a class="btn" href="#" style="margin-top:24px;">Call to Action</a></div></div></section>`,
+          content: blockContent(
+            "loyola-split",
+            ["split", "image-text", "about", "intro"],
+            `<section class="band"><div class="container grid-2" style="align-items:center;"><img src="/loyola-crest.jpg" alt="" style="width:100%;border-radius:8px;background:#fff;padding:30px;box-shadow:0 16px 38px -28px rgba(8,40,111,.45);"/><div><p class="eyebrow">Section</p><h2 style="margin-top:12px;">Build a clean content section</h2><p style="margin-top:18px;">Use this area for page copy, admissions details, school life, or programme descriptions.</p><a class="btn" href="#" style="margin-top:24px;">Call to Action</a></div></div></section>`,
+          ),
         });
         blocks.add("loyola-quote", {
           label: "Quote",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M7 7h6v6H9v4H5v-6c0-2.2.8-3.6 2-4zM17 7h4v6h-4v4h-4v-6c0-2.2.8-3.6 4-4z"/></svg>`,
-          content: `<section><div class="container"><blockquote class="quote">Veritate ad Lumen et Vitam</blockquote><p class="eyebrow" style="margin-top:18px;">Loyola College</p></div></section>`,
+          content: blockContent(
+            "loyola-quote",
+            ["quote", "motto", "message"],
+            `<section><div class="container"><blockquote class="quote">Veritate ad Lumen et Vitam</blockquote><p class="eyebrow" style="margin-top:18px;">Loyola College</p></div></section>`,
+          ),
         });
         blocks.add("loyola-anthem-media", {
           label: "Anthem Media",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m10 9 5 3-5 3z"/></svg>`,
-          content: `<section class="anthem-media-section">
+          content: blockContent(
+            "loyola-anthem-media",
+            ["anthem", "hymn", "media", "video"],
+            `<section class="anthem-media-section">
   <div class="container anthem-media-layout">
     <div>
       <p class="eyebrow">Watch and Listen</p>
@@ -688,45 +995,150 @@ export function VisualEditor({
     </a>
   </div>
 </section>`,
+          ),
         });
         blocks.add("loyola-stats-row", {
           label: "Stats Row",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 18V9M10 18V5M16 18v-7M22 18V8"/></svg>`,
-          content: `<section class="band"><div class="container"><p class="eyebrow">At a glance</p><h2 style="margin-top:12px;">Loyola by the numbers</h2><div class="stats-row" style="margin-top:28px;"><article class="stat-tile"><strong>100+</strong><span>Years of service</span></article><article class="stat-tile"><strong>2,000+</strong><span>Students</span></article><article class="stat-tile"><strong>90+</strong><span>Teachers</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs and sports</span></article></div></div></section>`,
+          content: blockContent(
+            "loyola-stats-row",
+            ["stats", "statistics", "numbers", "at-a-glance"],
+            `<section class="band"><div class="container"><p class="eyebrow">At a glance</p><h2 style="margin-top:12px;">Loyola by the numbers</h2><div class="stats-row" style="margin-top:28px;"><article class="stat-tile"><strong>100+</strong><span>Years of service</span></article><article class="stat-tile"><strong>2,000+</strong><span>Students</span></article><article class="stat-tile"><strong>90+</strong><span>Teachers</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs and sports</span></article></div></div></section>`,
+          ),
         });
         blocks.add("loyola-home-about", {
           label: "Home About",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h9v14H4zM16 6h4M16 11h4M16 16h4"/></svg>`,
-          content: `<section class="home-about-section"><div class="container home-about-grid"><div><p class="eyebrow">About Our College</p><h2 style="margin-top:12px;">Loyola College at a glance.</h2><p style="margin-top:18px;">Loyola College has a 75 years history that began as an institute in a cadjan hut and has since developed into a well-reputed Catholic school in the Negombo area, managed by the Archdiocese of Colombo.</p><a class="btn" href="/about" style="margin-top:24px;">More Details</a></div><div class="home-stat-grid"><article class="stat-tile"><strong>2,662</strong><span>Students</span></article><article class="stat-tile"><strong>145</strong><span>Academic Staff</span></article><article class="stat-tile"><strong>3</strong><span>Available Labs</span></article><article class="stat-tile"><strong>1</strong><span>Land System</span></article></div></div></section>`,
+          content: blockContent(
+            "loyola-home-about",
+            ["about-college", "home-about", "about"],
+            `<section class="home-about-section"><div class="container home-about-grid"><div><p class="eyebrow">About Our College</p><h2 style="margin-top:12px;">Loyola College at a glance.</h2><p style="margin-top:18px;">Loyola College has a 75 years history that began as an institute in a cadjan hut and has since developed into a well-reputed Catholic school in the Negombo area, managed by the Archdiocese of Colombo.</p><a class="btn" href="/about" style="margin-top:24px;">More Details</a></div><div class="home-stat-grid"><article class="stat-tile"><strong>2,662</strong><span>Students</span></article><article class="stat-tile"><strong>145</strong><span>Academic Staff</span></article><article class="stat-tile"><strong>3</strong><span>Available Labs</span></article><article class="stat-tile"><strong>1</strong><span>Land System</span></article></div></div></section>`,
+          ),
         });
         blocks.add("loyola-rector-message", {
           label: "Rector Message",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M5 4h6v16H5zM14 6h6M14 10h6M14 14h4"/></svg>`,
-          content: `<section class="home-rector-section"><div class="container home-rector-grid"><figure class="home-rector-photo"><img src="/loyola-crest.jpg" alt="Rector portrait placeholder" /></figure><article class="home-rector-message"><p class="eyebrow">Rector's Message</p><h2 style="margin-top:12px;">Dear Students, Parents, and Alumni of Loyola College,</h2><p style="margin-top:18px;">In today's world of advancing technology, it is essential for us to continually update and modernize our systems. We are transitioning from manual systems to web-based online management systems.</p><p style="margin-top:14px;">We kindly ask for your cooperation as we move forward with these updates to align with current standards.</p><p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector / Principal</span></p></article></div></section>`,
+          content: blockContent(
+            "loyola-rector-message",
+            ["rector-message", "principal-message", "message"],
+            `<section class="home-rector-section"><div class="container home-rector-grid"><figure class="home-rector-photo"><img src="/loyola-crest.jpg" alt="Rector portrait placeholder" /></figure><article class="home-rector-message"><p class="eyebrow">Rector's Message</p><h2 style="margin-top:12px;">Dear Students, Parents, and Alumni of Loyola College,</h2><p style="margin-top:18px;">In today's world of advancing technology, it is essential for us to continually update and modernize our systems. We are transitioning from manual systems to web-based online management systems.</p><p style="margin-top:14px;">We kindly ask for your cooperation as we move forward with these updates to align with current standards.</p><p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector / Principal</span></p></article></div></section>`,
+          ),
         });
         blocks.add("loyola-leadership-grid", {
           label: "Leadership Grid",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M5 6h4v5H5zM10 6h4v5h-4zM15 6h4v5h-4zM5 13h4v5H5zM10 13h4v5h-4zM15 13h4v5h-4z"/></svg>`,
-          content: `<section class="home-leadership-section"><div class="container"><div class="home-section-heading"><p class="eyebrow">Administration Board</p><h2 style="margin-top:12px;">Leadership guiding Loyola College.</h2><p style="margin-top:16px;">Meet the spiritual and academic leadership team serving the Loyola College community with faith, discipline, and clear educational direction.</p></div><div class="leadership-grid" style="margin-top:32px;"><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>His Eminence Malcolm Cardinal Ranjith</h3><span></span><p>The Archbishop of Colombo</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Very Rev. Fr. Gemunu Dias</h3><span></span><p>General Manager of Catholic Private Schools</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Rev. Fr. D.M.J. Kennedy Perera</h3><span></span><p>Rector/Principal</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Rev. Fr. W.G. Thilina Pathum</h3><span></span><p>Vice Rector, Prefect of Games</p></div></article></div></div></section>`,
+          content: blockContent(
+            "loyola-leadership-grid",
+            ["leadership", "administration-board", "leaders"],
+            `<section class="home-leadership-section"><div class="container"><div class="home-section-heading"><p class="eyebrow">Administration Board</p><h2 style="margin-top:12px;">Leadership guiding Loyola College.</h2><p style="margin-top:16px;">Meet the spiritual and academic leadership team serving the Loyola College community with faith, discipline, and clear educational direction.</p></div><div class="leadership-grid" style="margin-top:32px;"><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>His Eminence Malcolm Cardinal Ranjith</h3><span></span><p>The Archbishop of Colombo</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Very Rev. Fr. Gemunu Dias</h3><span></span><p>General Manager of Catholic Private Schools</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Rev. Fr. D.M.J. Kennedy Perera</h3><span></span><p>Rector/Principal</p></div></article><article class="leadership-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Rev. Fr. W.G. Thilina Pathum</h3><span></span><p>Vice Rector, Prefect of Games</p></div></article></div></div></section>`,
+          ),
         });
         blocks.add("loyola-team-cards", {
           label: "Team Cards",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c.7-3.2 2.4-5 5-5s4.3 1.8 5 5M11 20c.7-3.2 2.4-5 5-5s4.3 1.8 5 5"/></svg>`,
-          content: `<section><div class="container"><p class="eyebrow">Leadership</p><h2 style="margin-top:12px;">Meet the team</h2><div class="team-grid" style="margin-top:28px;"><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article></div></div></section>`,
+          content: blockContent(
+            "loyola-team-cards",
+            ["team", "staff", "people"],
+            `<section><div class="container"><p class="eyebrow">Leadership</p><h2 style="margin-top:12px;">Meet the team</h2><div class="team-grid" style="margin-top:28px;"><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article><article class="team-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff name</h3><p>Role or department</p></div></article></div></div></section>`,
+          ),
         });
         blocks.add("loyola-cta-banner", {
           label: "Call to Action",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/><path d="M4 5h16v14H4z"/></svg>`,
-          content: `<section><div class="container cta-banner"><div style="position:relative;z-index:1;padding:42px;"><p class="eyebrow">Next step</p><h2 style="max-width:720px;margin-top:12px;">Invite families to connect with Loyola.</h2><p style="max-width:620px;margin-top:16px;">Use this banner for admissions, contact, events, or important announcements.</p><a class="btn gold" href="#" style="margin-top:24px;">Get started</a></div></div></section>`,
+          content: blockContent(
+            "loyola-cta-banner",
+            ["cta", "call-to-action", "next-step"],
+            `<section><div class="container cta-banner"><div style="position:relative;z-index:1;padding:42px;"><p class="eyebrow">Next step</p><h2 style="max-width:720px;margin-top:12px;">Invite families to connect with Loyola.</h2><p style="max-width:620px;margin-top:16px;">Use this banner for admissions, contact, events, or important announcements.</p><a class="btn gold" href="#" style="margin-top:24px;">Get started</a></div></div></section>`,
+          ),
+        });
+        blocks.add("loyola-news-card", {
+          label: "News Cards",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>`,
+          content: blockContent(
+            "loyola-news-card",
+            ["news", "news-card", "notices", "updates"],
+            `<section class="band"><div class="container"><p class="eyebrow">News & Notices</p><h2 style="margin-top:12px;">Latest college updates</h2><div class="news-grid" style="margin-top:28px;"><article class="news-card"><img src="/loyola-crest.jpg" alt="" /><div><p class="eyebrow">May 01, 2026</p><h3 style="margin-top:10px;">News article title</h3><p style="margin-top:10px;">Short announcement excerpt for parents, students, and staff.</p></div></article><article class="news-card"><img src="/loyola-crest.jpg" alt="" /><div><p class="eyebrow">Notice</p><h3 style="margin-top:10px;">Important circular</h3><p style="margin-top:10px;">Use this card for official school updates and circulars.</p></div></article><article class="news-card"><img src="/loyola-crest.jpg" alt="" /><div><p class="eyebrow">Event</p><h3 style="margin-top:10px;">Campus activity</h3><p style="margin-top:10px;">Summarize a recent activity with a clear image and date.</p></div></article></div></div></section>`,
+          ),
+        });
+        blocks.add("loyola-staff-card", {
+          label: "Staff Cards",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"/><path d="M4 21c1-4 3.7-6 8-6s7 2 8 6"/></svg>`,
+          content: blockContent(
+            "loyola-staff-card",
+            ["staff", "staff-card", "teachers", "team"],
+            `<section><div class="container"><p class="eyebrow">Staff Profile</p><h2 style="margin-top:12px;">Staff members and responsibilities</h2><div class="staff-grid" style="margin-top:28px;"><article class="staff-profile-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff member name</h3><p class="eyebrow" style="margin-top:10px;">Role / Position</p><p style="margin-top:10px;">Department or subject responsibility.</p></div></article><article class="staff-profile-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff member name</h3><p class="eyebrow" style="margin-top:10px;">Role / Position</p><p style="margin-top:10px;">Department or subject responsibility.</p></div></article><article class="staff-profile-card"><img src="/loyola-crest.jpg" alt="" /><div><h3>Staff member name</h3><p class="eyebrow" style="margin-top:10px;">Role / Position</p><p style="margin-top:10px;">Department or subject responsibility.</p></div></article></div></div></section>`,
+          ),
+        });
+        blocks.add("loyola-admissions-steps", {
+          label: "Admissions Steps",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M5 6h14M5 12h14M5 18h14"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>`,
+          content: blockContent(
+            "loyola-admissions-steps",
+            ["admissions", "admission-steps", "steps", "application"],
+            `<section class="band"><div class="container"><p class="eyebrow">Admissions</p><h2 style="margin-top:12px;">Application process</h2><div class="steps-grid" style="margin-top:28px;"><article class="step-card"><span class="step-number">1</span><h3 style="margin-top:18px;">Collect information</h3><p style="margin-top:10px;">Read requirements, dates, and required documents.</p></article><article class="step-card"><span class="step-number">2</span><h3 style="margin-top:18px;">Submit application</h3><p style="margin-top:10px;">Send the application with accurate student and parent details.</p></article><article class="step-card"><span class="step-number">3</span><h3 style="margin-top:18px;">Office follow-up</h3><p style="margin-top:10px;">The college office will guide the next steps after review.</p></article></div></div></section>`,
+          ),
+        });
+        blocks.add("loyola-calendar-embed", {
+          label: "Google Calendar",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M8 2v4M16 2v4M5 9h14"/></svg>`,
+          content: blockContent(
+            "loyola-calendar-embed",
+            ["calendar", "google-calendar", "year-plan", "schedule"],
+            `<section class="band"><div class="container"><p class="eyebrow">Academic Calendar</p><h2 style="margin-top:12px;">Live school calendar</h2><p style="margin-top:14px;">Key academic dates, college activities, notices, and the live Google Calendar in one place.</p><div class="calendar-embed-card" style="margin-top:28px;"><iframe title="Loyola College Google Calendar" src="https://calendar.google.com/calendar/embed?src=loyolacollegeng.official%40gmail.com&ctz=Asia%2FColombo" loading="lazy"></iframe></div></div></section>`,
+          ),
+        });
+        blocks.add("loyola-accordion", {
+          label: "FAQ Accordion",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M6 7h12M6 12h12M6 17h12"/></svg>`,
+          content: blockContent(
+            "loyola-accordion",
+            ["accordion", "faq", "questions"],
+            `<section><div class="container"><p class="eyebrow">Information</p><h2 style="margin-top:12px;">Frequently asked questions</h2><div class="accordion-list"><details open><summary>Question title</summary><p>Write the answer here using clear school office language.</p></details><details><summary>Second question</summary><p>Add a useful answer for parents, students, or staff.</p></details><details><summary>Third question</summary><p>Use this section for policies, admissions, facilities, or contact guidance.</p></details></div></div></section>`,
+          ),
+        });
+        blocks.add("loyola-contact-section", {
+          label: "Contact Section",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M12 21s6-5.1 6-11a6 6 0 1 0-12 0c0 5.9 6 11 6 11z"/><circle cx="12" cy="10" r="2"/></svg>`,
+          content: blockContent(
+            "loyola-contact-section",
+            ["contact", "map", "office"],
+            `<section class="band"><div class="container contact-grid"><div><p class="eyebrow">Contact Office</p><h2 style="margin-top:12px;">Visit, write, or call Loyola College.</h2><div class="contact-info-list"><article><p class="eyebrow">Address</p><h3 style="margin-top:8px;">Loyola College, Negombo, Sri Lanka</h3></article><article><p class="eyebrow">Phone</p><h3 style="margin-top:8px;">0312 277 258</h3></article><article><p class="eyebrow">Email</p><h3 style="margin-top:8px;">loyolacollege.negombo@hotmail.com</h3></article></div></div><div class="map-embed-card"><iframe title="Loyola College map" src="https://www.google.com/maps?q=Loyola%20College%20Negombo%2C%20Sri%20Lanka&output=embed" loading="lazy"></iframe></div></div></section>`,
+          ),
+        });
+        blocks.add("loyola-nav-editor", {
+          label: "Navigation List",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>`,
+          content: blockContent(
+            "loyola-nav-editor",
+            ["navigation", "nav", "menu"],
+            `<section><div class="container"><p class="eyebrow">Navigation</p><h2 style="margin-top:12px;">Editable page links</h2><nav class="nav-editor-list"><a href="/">Home</a><a href="/about">About</a><a href="/academics">Academics</a><a href="/events">Events</a><a href="/contact">Contact</a></nav></div></section>`,
+          ),
+        });
+        blocks.add("loyola-footer-editor", {
+          label: "Footer Editor",
+          category: "Loyola Sections",
+          media: `<svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 15h16M8 19v-4"/></svg>`,
+          content: blockContent(
+            "loyola-footer-editor",
+            ["footer", "site-footer", "bottom"],
+            `<footer class="footer-editor" style="padding:64px 40px;"><div class="container grid-3"><div><p class="eyebrow">Loyola College Negombo</p><h2 style="margin-top:12px;">Veritate ad Lumen et Vitam</h2><p style="margin-top:16px;">Faith, learning, discipline, and service.</p></div><div><h3>Quick Links</h3><div class="footer-link-list"><a href="/about">About</a><a href="/news">News & Notices</a><a href="/calendar">Calendar</a></div></div><div><h3>Contact</h3><p style="margin-top:14px;">0312 277 258</p><p style="margin-top:8px;">loyolacollege.negombo@hotmail.com</p><p style="margin-top:18px;">Copyright line goes here.</p></div></div></footer>`,
+          ),
         });
 
-        editor.setComponents(initialHtml || STARTER_HTML);
+        editor.setComponents(normalizeInitialSectionIds(initialHtml || STARTER_HTML, sectionData));
         editor.setStyle(initialCss || "");
         editorRef.current = editor;
         // Reset dirty state after initial load
@@ -761,7 +1173,7 @@ export function VisualEditor({
     ) {
       return;
     }
-    editorRef.current.setComponents(templateHtml);
+    editorRef.current.setComponents(normalizeInitialSectionIds(templateHtml, sectionData));
     editorRef.current.setStyle("");
     setIsDirty(true);
     setSaveConfirmation("Clean page content loaded. Save Page to keep it.");
@@ -816,7 +1228,7 @@ export function VisualEditor({
 
   if (loadError) {
     return (
-      <div className="visual-builder fixed inset-0 z-[200] flex flex-col items-center justify-center gap-6 bg-[#0b1020] text-slate-100">
+      <div className="visual-builder flex h-full min-h-[640px] flex-col items-center justify-center gap-6 bg-[#0b1020] text-slate-100">
         <AlertCircle className="h-16 w-16 text-red-400" />
         <div className="text-center">
           <p className="text-lg font-bold text-white">Visual Builder failed to load</p>
@@ -835,7 +1247,7 @@ export function VisualEditor({
 
   return (
     <div
-      className="visual-builder fixed inset-0 z-[200] flex flex-col bg-[#0b1020] text-slate-100"
+      className="visual-builder relative flex h-full min-h-[640px] flex-col overflow-hidden rounded-[1.4rem] bg-[#0b1020] text-slate-100"
       onDragEnter={handleDragEnter}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -981,7 +1393,7 @@ export function VisualEditor({
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[250px_minmax(0,1fr)_300px]">
+      <div className="grid min-h-0 flex-1 grid-cols-[220px_minmax(360px,1fr)_280px] overflow-x-auto">
         <aside className="flex min-h-0 flex-col border-r border-white/10 bg-[#111827]">
           <PanelHeading icon={LayoutTemplate} title="Elements" />
           <div ref={blocksRef} className="visual-builder-blocks min-h-0 flex-1 overflow-y-auto" />

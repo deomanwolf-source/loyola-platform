@@ -285,6 +285,101 @@ function visualCanvasCss(baseCss: string) {
   return [baseCss.trim(), VISUAL_BUILDER_CANVAS_STATIC_CSS.trim()].filter(Boolean).join("\n\n");
 }
 
+type VisualSectionDraft = Record<string, unknown>;
+
+function isVisualSectionDraft(value: unknown): value is VisualSectionDraft {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeSectionToken(value?: unknown) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/&/g, "and")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+}
+
+function getDraftSectionId(section: VisualSectionDraft, fallback: string) {
+  return (
+    normalizeSectionToken(section.id) ||
+    normalizeSectionToken(section.sectionId) ||
+    normalizeSectionToken(section.key) ||
+    normalizeSectionToken(section.slug) ||
+    normalizeSectionToken(section.type) ||
+    normalizeSectionToken(section.blockType) ||
+    normalizeSectionToken(section.name) ||
+    normalizeSectionToken(section.label) ||
+    normalizeSectionToken(section.title) ||
+    normalizeSectionToken(fallback) ||
+    fallback
+  );
+}
+
+function extractEditableText(element: HTMLElement) {
+  const title =
+    element.querySelector("h1, h2, h3")?.textContent?.replace(/\s+/g, " ").trim() || "";
+  const body = Array.from(element.querySelectorAll("p, li"))
+    .map((node) => node.textContent?.replace(/\s+/g, " ").trim() || "")
+    .filter(Boolean)
+    .filter((text) => text !== title)
+    .join("\n\n");
+
+  return { title, body };
+}
+
+function syncSectionsFromVisualHtml(existingSections: unknown, html: string) {
+  if (typeof document === "undefined" || !html.trim()) {
+    return Array.isArray(existingSections) ? existingSections : [];
+  }
+
+  const template = document.createElement("template");
+  template.innerHTML = html;
+  const sectionElements = Array.from(
+    template.content.querySelectorAll<HTMLElement>("[data-section-id]"),
+  );
+  if (!sectionElements.length) return Array.isArray(existingSections) ? existingSections : [];
+
+  const byId = new Map<string, HTMLElement>();
+  sectionElements.forEach((element, index) => {
+    const id = normalizeSectionToken(element.dataset.sectionId || `section-${index + 1}`);
+    if (id && !byId.has(id)) byId.set(id, element);
+  });
+
+  const currentSections = Array.isArray(existingSections)
+    ? existingSections.filter(isVisualSectionDraft)
+    : [];
+
+  if (!currentSections.length) {
+    return sectionElements.map((element, index) => {
+      const id = normalizeSectionToken(element.dataset.sectionId || `section-${index + 1}`);
+      const text = extractEditableText(element);
+      return {
+        id,
+        title: text.title || `Section ${index + 1}`,
+        body: text.body,
+        html: element.outerHTML,
+      };
+    });
+  }
+
+  return currentSections.map((section, index) => {
+    const sectionId = getDraftSectionId(section, `section-${index + 1}`);
+    const match = byId.get(sectionId);
+    if (!match) return section;
+
+    const text = extractEditableText(match);
+    return {
+      ...section,
+      id: section.id || sectionId,
+      title: text.title || section.title,
+      body: text.body || section.body,
+      html: match.outerHTML,
+      renderedHtml: match.outerHTML,
+    };
+  });
+}
+
 function findVisualPublishIssue(db: DB) {
   for (const [pageId, page] of Object.entries(db.pages)) {
     const hasVisualHtml = typeof page.visualHtml === "string" && page.visualHtml.trim();
@@ -1601,6 +1696,7 @@ export function WebsiteEditor() {
     baseCss: string;
     canvasCss: string;
     templateHtml: string;
+    sections: VisualSectionDraft[];
   } | null>(null);
 
   const page = db.pages[selectedPage] || db.pages.home;
@@ -2175,6 +2271,9 @@ export function WebsiteEditor() {
       baseCss,
       canvasCss: visualCanvasCss(baseCss),
       templateHtml: liveSnapshot?.html || templateHtml,
+      sections: Array.isArray(savedPage?.sections)
+        ? savedPage.sections.filter(isVisualSectionDraft)
+        : [],
     });
     setSafeVisualEditorOpen(false);
     setVisualEditorOpen(true);
@@ -2297,6 +2396,10 @@ export function WebsiteEditor() {
     const stableHtml = normalizeVisualBuilderHtml(html);
     const stableCss = css.trim() || EMPTY_VISUAL_CSS;
     const stableBaseCss = visualEditorInitial?.baseCss?.trim() || "";
+    const stableSections = syncSectionsFromVisualHtml(
+      currentDb.pages[selectedPage]?.sections || visualEditorInitial?.sections || [],
+      stableHtml,
+    );
     if (!stableHtml.trim()) {
       setMessageTone("error");
       setMessage("Visual content was not saved because the builder returned empty HTML.");
@@ -2322,6 +2425,7 @@ export function WebsiteEditor() {
           visualHtml: stableHtml,
           visualCss: stableCss,
           visualBaseCss: stableBaseCss,
+          sections: stableSections,
         },
       },
     };
@@ -2352,20 +2456,6 @@ export function WebsiteEditor() {
 
   return (
     <div className="space-y-5 animate-fade-in-up">
-      {visualEditorOpen && visualEditorInitial && (
-        <VisualEditor
-          initialHtml={visualEditorInitial.html}
-          initialCss={visualEditorInitial.css}
-          canvasCss={visualEditorInitial.canvasCss}
-          templateHtml={visualEditorInitial.templateHtml}
-          onSave={(html, css) => void saveVisualContent(html, css)}
-          onClose={() => {
-            setVisualEditorOpen(false);
-            setVisualEditorInitial(null);
-          }}
-        />
-      )}
-
       {/* ── Premium Header ── */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_32px_-8px_rgba(10,22,40,0.15)]">
         {/* Gradient accent bar */}
@@ -2621,15 +2711,32 @@ export function WebsiteEditor() {
         )}
 
         <main className="space-y-4">
-          <PreviewWebsite
-            db={db}
-            selectedPage={selectedPage}
-            selectedSection={selectedSection}
-            frameRef={previewFrameRef}
-            visualEditing={safeVisualEditorActive}
-            onSelectSection={selectPreviewSection}
-            onCloseVisualEditing={closeSafeVisualEditor}
-          />
+          {visualEditorOpen && visualEditorInitial ? (
+            <div className="h-[78vh] min-h-[640px] overflow-hidden rounded-[1.4rem] border border-slate-200 bg-[#0b1020] shadow-elegant">
+              <VisualEditor
+                initialHtml={visualEditorInitial.html}
+                initialCss={visualEditorInitial.css}
+                canvasCss={visualEditorInitial.canvasCss}
+                templateHtml={visualEditorInitial.templateHtml}
+                sections={visualEditorInitial.sections}
+                onSave={(html, css) => void saveVisualContent(html, css)}
+                onClose={() => {
+                  setVisualEditorOpen(false);
+                  setVisualEditorInitial(null);
+                }}
+              />
+            </div>
+          ) : (
+            <PreviewWebsite
+              db={db}
+              selectedPage={selectedPage}
+              selectedSection={selectedSection}
+              frameRef={previewFrameRef}
+              visualEditing={safeVisualEditorActive}
+              onSelectSection={selectPreviewSection}
+              onCloseVisualEditing={closeSafeVisualEditor}
+            />
+          )}
           <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
             <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-3.5">
               <div className="flex items-center gap-2">

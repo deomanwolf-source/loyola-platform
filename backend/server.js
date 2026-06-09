@@ -124,7 +124,7 @@ function contentSecurityPolicyForRequest(req) {
     "font-src 'self' data: https://fonts.gstatic.com",
     "media-src 'self' blob: https:",
     "connect-src 'self' http://localhost:5000 http://127.0.0.1:5000",
-    "frame-src 'self' https://calendar.google.com https://www.youtube.com",
+    "frame-src 'self' https://calendar.google.com https://www.google.com https://www.youtube.com",
   ];
 
   if (isEduTrack) {

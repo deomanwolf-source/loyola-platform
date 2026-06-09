@@ -2,6 +2,8 @@ import DOMPurify from "dompurify";
 
 const SAFE_URL_PATTERN =
   /^(?:(?:https?:|mailto:|tel:|\/(?!\/)|#|\.\.?\/|uploads\/|assets\/|staff\/|edutrack\/|loyola-crest\.jpg|favicon\.(?:png|jpg)|flag1\.png))/i;
+const SAFE_IFRAME_SRC_PATTERN =
+  /^https:\/\/(?:calendar\.google\.com\/calendar\/embed\b|www\.google\.com\/maps\b)/i;
 
 const UNSAFE_CSS_PATTERN =
   /(?:@import|expression\s*\(|behavior\s*:|-moz-binding|javascript\s*:|vbscript\s*:|data\s*:|<\/?style|<\/?script)/gi;
@@ -170,6 +172,7 @@ export function sanitizeVisualHtml(html?: string) {
       "u",
       "ul",
       "video",
+      "iframe",
     ],
     ADD_ATTR: [
       "class",
@@ -181,7 +184,12 @@ export function sanitizeVisualHtml(html?: string) {
       "controls",
       "data-cover",
       "data-gjs-type",
+      "data-section-id",
       "data-title",
+      "data-website-section",
+      "frameborder",
+      "referrerpolicy",
+      "scrolling",
     ],
     ALLOWED_ATTR: [
       "alt",
@@ -196,9 +204,12 @@ export function sanitizeVisualHtml(html?: string) {
       "controls",
       "data-cover",
       "data-gjs-type",
+      "data-section-id",
       "data-title",
+      "data-website-section",
       "decoding",
       "fetchpriority",
+      "frameborder",
       "height",
       "href",
       "id",
@@ -208,9 +219,11 @@ export function sanitizeVisualHtml(html?: string) {
       "playsinline",
       "poster",
       "preload",
+      "referrerpolicy",
       "rel",
       "role",
       "rowspan",
+      "scrolling",
       "src",
       "style",
       "target",
@@ -219,18 +232,31 @@ export function sanitizeVisualHtml(html?: string) {
       "width",
     ],
     ALLOWED_URI_REGEXP: SAFE_URL_PATTERN,
-    FORBID_TAGS: ["iframe", "script", "style", "object", "embed", "link", "meta"],
+    FORBID_TAGS: ["script", "style", "object", "embed", "link", "meta"],
     FORBID_ATTR: ["srcdoc"],
   });
 }
 
-DOMPurify.addHook("uponSanitizeAttribute", (_node, data) => {
+DOMPurify.addHook("uponSanitizeAttribute", (node, data) => {
   const attrName = data.attrName.toLowerCase();
   const value = String(data.attrValue || "");
+  const tagName = node instanceof Element ? node.tagName.toLowerCase() : "";
 
   if (attrName.startsWith("on") || attrName === "srcdoc") {
     data.keepAttr = false;
     return;
+  }
+
+  if (tagName === "iframe") {
+    if (attrName === "src" && !SAFE_IFRAME_SRC_PATTERN.test(value.trim())) {
+      data.keepAttr = false;
+      return;
+    }
+
+    if (["allow", "allowfullscreen"].includes(attrName)) {
+      data.keepAttr = false;
+      return;
+    }
   }
 
   if (attrName === "style") {
