@@ -115,6 +115,166 @@ const MAINTENANCE_BYPASS_ROLES: Role[] = [
 const REPORT_CARDS_SYSTEM_URL = "https://intranet.loyolacollege.lk/login";
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 const FACILITIES_PAGE_ID = "the-college/facilities-services";
+const COLLEGE_DEPARTMENT_BASE_ID = "the-college/departments";
+
+const collegeDepartments = [
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/administration`,
+    title: "Administration",
+    cardBody: "Central management and governance",
+    kicker: "The College",
+    icon: Briefcase,
+    summary:
+      "The Administration Department coordinates the daily office work, school records, approvals, communication, and governance routines of Loyola College.",
+    responsibilities: [
+      "Manage school office communication, visitor support, records, and official correspondence.",
+      "Coordinate approvals, circulars, meetings, reports, and administration board follow-up work.",
+      "Support admissions, parent inquiries, student records, and document requests through the office.",
+      "Keep school policies, forms, notices, and internal workflows organized for staff and parents.",
+    ],
+    systemWork: [
+      "Publish official school notices, circulars, events, and parent-facing updates.",
+      "Review website content that belongs to governance, college history, administration, and office services.",
+      "Monitor dashboard summaries for messages, admission inquiries, public pages, and system health.",
+      "Coordinate with Academic, Finance, IT, and Sports teams when records or public updates need approval.",
+    ],
+    serviceAreas: ["Office records", "Parent support", "Approvals", "Official notices"],
+  },
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/academic`,
+    title: "Academic",
+    cardBody: "Curriculum and educational standards",
+    kicker: "The College",
+    icon: BookOpen,
+    summary:
+      "The Academic Department manages the learning programme, subject structure, teacher assignments, examinations, and academic standards across the school.",
+    responsibilities: [
+      "Plan academic sections, classes, subjects, streams, and assessment routines.",
+      "Guide subject heads, sectional heads, teachers, and class teachers on curriculum delivery.",
+      "Coordinate timetables, examination planning, progress reviews, and academic notices.",
+      "Maintain academic quality through lesson coverage, syllabus progress, and student support follow-up.",
+    ],
+    systemWork: [
+      "Add and update subjects, grades, classes, streams, and academic sections.",
+      "Assign teachers to subjects, classes, and syllabus tracking responsibilities.",
+      "Review EduTrack syllabus progress, lesson coverage, student reports, and academic summaries.",
+      "Publish academic calendars, examination notices, class schedules, and learning programme updates.",
+    ],
+    serviceAreas: ["Subjects", "Teacher assignments", "Exam planning", "EduTrack progress"],
+  },
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/finance`,
+    title: "Finance",
+    cardBody: "Bursary and financial operations",
+    kicker: "The College",
+    icon: Landmark,
+    summary:
+      "The Finance Department supports responsible bursary management, receipts, financial records, purchasing coordination, and reporting for college operations.",
+    responsibilities: [
+      "Maintain financial records, receipts, fee-related office support, and bursary documentation.",
+      "Coordinate purchasing requests, service payments, budgets, and department expense follow-up.",
+      "Prepare financial summaries and supporting records for school leadership review.",
+      "Guide families and staff on finance office procedures and required documentation.",
+    ],
+    systemWork: [
+      "View finance-related summaries and approved records without exposing edit access to public users.",
+      "Coordinate with Administration on notices, forms, and fee-related public instructions.",
+      "Track finance office service areas, contact information, and document links on the website.",
+      "Use system health summaries to confirm finance-facing forms and files remain available.",
+    ],
+    serviceAreas: ["Bursary", "Receipts", "Purchasing", "Financial reports"],
+  },
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/it-department`,
+    title: "IT Department",
+    cardBody: "Digital infrastructure and support",
+    kicker: "The College",
+    icon: Film,
+    summary:
+      "The IT Department maintains the college digital infrastructure, user access, website systems, backups, devices, security checks, and technical support.",
+    responsibilities: [
+      "Maintain website, portals, network access, school devices, software, and technical support routines.",
+      "Support account access, secure login, backups, cybersecurity checks, and system availability.",
+      "Help departments publish accurate information through safe workflows and approved permissions.",
+      "Troubleshoot staff, student, classroom, and office technology issues.",
+    ],
+    systemWork: [
+      "Manage user roles, passwords, two-factor access, security scans, backups, and system health checks.",
+      "Maintain the website CMS, EduTrack, Staff Management, ELMS, and Report Cards access points.",
+      "Protect the platform by checking XSS risks, upload safety, CSRF protection, and deployment status.",
+      "Coordinate updates with GitHub/deployment workflow while preserving existing data.",
+    ],
+    serviceAreas: ["User access", "Website support", "Security", "Backups"],
+  },
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/gym`,
+    title: "Gym",
+    cardBody: "Modern fitness and training center",
+    kicker: "The College",
+    icon: Trophy,
+    summary:
+      "The Gym supports physical education, fitness training, athlete conditioning, health awareness, and supervised student development.",
+    responsibilities: [
+      "Provide safe training space for student fitness, physical education, and sports preparation.",
+      "Coordinate equipment care, usage schedules, and supervised training sessions.",
+      "Support school teams with strength, conditioning, warm-up, and wellness routines.",
+      "Promote discipline, healthy habits, and responsible use of shared facilities.",
+    ],
+    systemWork: [
+      "Publish gym schedules, notices, facility availability, and student activity updates.",
+      "Coordinate with Sports Department on team training sessions and event preparation.",
+      "Keep facility information, safety notes, and contact guidance available on the public website.",
+      "Share approved achievements or activity highlights through news, events, and gallery pages.",
+    ],
+    serviceAreas: ["Fitness training", "Equipment care", "Schedules", "Wellness"],
+  },
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/swimming-pool`,
+    title: "Swimming Pool",
+    cardBody: "Olympic-standard aquatic facility",
+    kicker: "The College",
+    icon: Award,
+    summary:
+      "The Swimming Pool facility supports aquatic training, inter-house events, health and safety routines, and supervised swimming development.",
+    responsibilities: [
+      "Maintain safe pool usage, supervised sessions, training routines, and aquatic event preparation.",
+      "Coordinate swimming schedules, team practice, competition preparation, and facility care.",
+      "Support physical education, student confidence, water safety, and sports discipline.",
+      "Keep safety guidance and facility rules clear for students, staff, and visitors.",
+    ],
+    systemWork: [
+      "Publish swimming schedules, event notices, achievements, and facility updates.",
+      "Coordinate with Sports Department on inter-house meets, training groups, and competition records.",
+      "Keep public event pages and gallery updates accurate after approved swimming activities.",
+      "Share facility notices through website and calendar sections when schedules change.",
+    ],
+    serviceAreas: ["Aquatic training", "Pool safety", "Events", "Team practice"],
+  },
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/sports-department`,
+    title: "Sports Department",
+    cardBody: "Athletic development and coaching",
+    kicker: "The College",
+    icon: Trophy,
+    summary:
+      "The Sports Department coordinates college sports, coaching, fixtures, inter-house competitions, student leadership, and athletic achievement records.",
+    responsibilities: [
+      "Plan sports programmes, team coaching, fixtures, practices, and inter-house competitions.",
+      "Coordinate teachers-in-charge, coaches, captains, student participation, and event logistics.",
+      "Support discipline, teamwork, leadership, fitness, and achievement across sports activities.",
+      "Maintain records of schedules, results, achievements, and sports-related notices.",
+    ],
+    systemWork: [
+      "Publish fixtures, event schedules, notices, teams, achievements, and sports gallery updates.",
+      "Coordinate with Gym and Swimming Pool facility teams for training and event preparation.",
+      "Maintain public Sports & Clubs information and approved sports news.",
+      "Use calendar and events tools to keep parents and students informed of activities.",
+    ],
+    serviceAreas: ["Fixtures", "Coaching", "Achievements", "Sports calendar"],
+  },
+];
+
+const COLLEGE_DEPARTMENT_PAGE_IDS = new Set(collegeDepartments.map((department) => department.id));
 
 const LOYOLA_CALENDAR_ID = "loyolacollegeng.official@gmail.com";
 const LOYOLA_CALENDAR_TIME_ZONE = "Asia/Colombo";
@@ -135,6 +295,7 @@ const LIVE_RENDERED_PAGE_IDS = new Set([
   LCEA_PAGE_ID,
   "academics/cambridge",
   FACILITIES_PAGE_ID,
+  ...COLLEGE_DEPARTMENT_PAGE_IDS,
   "facilities",
   "facilities-services",
   "about/college-administration",
@@ -433,6 +594,14 @@ export function App() {
     pageIsLive(FACILITIES_PAGE_ID)
   ) {
     return <FacilitiesServicesPage />;
+  }
+
+  const requestedDepartmentPageId = path.replace(/^\/+/, "");
+  if (
+    COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedDepartmentPageId) &&
+    pageIsLive(requestedDepartmentPageId)
+  ) {
+    return <CollegeDepartmentPage pageId={requestedDepartmentPageId} />;
   }
 
   if (path === "/" || path === "") return <HomePage />;
@@ -834,15 +1003,12 @@ function HomeRequiredSections() {
       icon: GraduationCap,
     },
   ];
-  const facilities = [
-    { title: "Administration", body: "Central management and governance", icon: Briefcase },
-    { title: "Academic", body: "Curriculum and educational standards", icon: BookOpen },
-    { title: "Finance", body: "Bursary and financial operations", icon: Landmark },
-    { title: "IT Department", body: "Digital infrastructure and support", icon: Film },
-    { title: "Gym", body: "Modern fitness and training center", icon: Trophy },
-    { title: "Swimming Pool", body: "Olympic-standard aquatic facility", icon: Award },
-    { title: "Sports Department", body: "Athletic development and coaching", icon: Trophy },
-  ];
+  const facilities = collegeDepartments.map((department) => ({
+    title: department.title,
+    body: department.cardBody,
+    icon: department.icon,
+    href: `/${department.id}`,
+  }));
   const fallbackCalendar = [
     {
       title: "Poya Day - Public Holiday",
@@ -1004,8 +1170,9 @@ function HomeRequiredSections() {
               {facilities.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <article
+                  <a
                     key={item.title}
+                    href={item.href}
                     className="grid grid-cols-[44px_1fr] items-center gap-4 rounded border border-[#e6e9ef] bg-white p-4 shadow-sm"
                   >
                     <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-gold">
@@ -1017,7 +1184,7 @@ function HomeRequiredSections() {
                         {item.body}
                       </span>
                     </span>
-                  </article>
+                  </a>
                 );
               })}
             </div>
@@ -2363,6 +2530,152 @@ function FacilitiesServicesPage() {
                     ))}
                   </ul>
                 </article>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    </PublicLayout>
+  );
+}
+
+function CollegeDepartmentPage({ pageId }: { pageId: string }) {
+  const db = useDb();
+  const department =
+    collegeDepartments.find((item) => item.id === pageId) || collegeDepartments[0];
+  const page = db.pages[pageId];
+  const Icon = department.icon;
+  const relatedDepartments = collegeDepartments.filter((item) => item.id !== department.id);
+  const title = page?.title || department.title;
+  const body =
+    page?.body && page.body.trim() !== "New page content goes here."
+      ? page.body
+      : department.summary;
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId={pageId}
+        kicker={page?.kicker || department.kicker}
+        title={title}
+        subtitle={body}
+        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
+
+      <section className="bg-page-soft py-16 md:py-20">
+        <div className="mx-auto grid max-w-7xl gap-8 px-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <article className="rounded-lg border border-border bg-white p-7 shadow-soft md:p-9">
+            <div className="flex flex-wrap items-start gap-5">
+              <span className="grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-gold/15 text-gold">
+                <Icon className="h-8 w-8" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                  Department Profile
+                </p>
+                <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                  What the {department.title} does
+                </h2>
+                <p className="mt-5 max-w-3xl text-sm leading-7 text-muted-foreground md:text-base">
+                  {department.summary}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-9 grid gap-4 md:grid-cols-2">
+              {department.responsibilities.map((item) => (
+                <div key={item} className="flex gap-3 rounded-lg bg-background p-4">
+                  <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-gold" />
+                  <p className="text-sm leading-7 text-slate-700">{item}</p>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <aside className="rounded-lg border border-border bg-navy p-7 text-white shadow-elegant">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-light">
+              Service Areas
+            </p>
+            <div className="mt-6 grid gap-3">
+              {department.serviceAreas.map((area) => (
+                <div key={area} className="rounded-lg border border-white/10 bg-white/10 p-4">
+                  <p className="font-serif text-2xl font-bold">{area}</p>
+                </div>
+              ))}
+            </div>
+            <a
+              href="/contact"
+              className="mt-7 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-3 text-sm font-bold text-navy"
+            >
+              Contact office <ArrowRight className="h-4 w-4" />
+            </a>
+          </aside>
+        </div>
+      </section>
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                System Responsibilities
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                How this department uses the college systems
+              </h2>
+              <p className="mt-5 text-sm leading-7 text-muted-foreground">
+                These pages explain what each department handles and how its work connects to the
+                website, EduTrack, staff management, calendars, notices, and internal reporting.
+              </p>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              {department.systemWork.map((item) => (
+                <article key={item} className="rounded-lg border border-border bg-background p-5">
+                  <CheckCircle2 className="h-5 w-5 text-gold" />
+                  <p className="mt-4 text-sm font-medium leading-7 text-navy">{item}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-page-soft py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                The College
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                Other departments
+              </h2>
+            </div>
+            <a
+              href={`/${FACILITIES_PAGE_ID}`}
+              className="inline-flex items-center gap-2 text-sm font-bold text-crimson"
+            >
+              Facilities overview <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {relatedDepartments.map((item) => {
+              const RelatedIcon = item.icon;
+              return (
+                <a
+                  key={item.id}
+                  href={`/${item.id}`}
+                  className="group rounded-lg border border-border bg-white p-5 shadow-soft transition-smooth hover:-translate-y-1 hover:border-gold"
+                >
+                  <span className="grid h-11 w-11 place-items-center rounded-lg bg-gold/15 text-gold">
+                    <RelatedIcon className="h-5 w-5" />
+                  </span>
+                  <h3 className="mt-4 font-serif text-2xl font-bold text-navy">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-muted-foreground">{item.cardBody}</p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
+                    Open department <ArrowRight className="h-4 w-4" />
+                  </span>
+                </a>
               );
             })}
           </div>

@@ -12,6 +12,50 @@ export const DEFAULT_FOOTER_COPYRIGHT_LINE =
 export const DEFAULT_DEVELOPER_CREDIT =
   "Developed by Hasintha Arunalu Niroshan | 12 - Technology Stream | 2027 Batch | Website Development";
 const BUNDLED_STATIC_ASSETS = new Set(["/flag1.png", "/loyola-crest.jpg"]);
+const THE_COLLEGE_DEPARTMENT_PAGES = [
+  {
+    id: "the-college/departments/administration",
+    label: "Administration",
+    order: 2,
+    body: "The Administration Department coordinates the daily office work, school records, approvals, communication, and governance routines of Loyola College.",
+  },
+  {
+    id: "the-college/departments/academic",
+    label: "Academic",
+    order: 3,
+    body: "The Academic Department manages the learning programme, subject structure, teacher assignments, examinations, and academic standards across the school.",
+  },
+  {
+    id: "the-college/departments/finance",
+    label: "Finance",
+    order: 4,
+    body: "The Finance Department supports responsible bursary management, receipts, financial records, purchasing coordination, and reporting for college operations.",
+  },
+  {
+    id: "the-college/departments/it-department",
+    label: "IT Department",
+    order: 5,
+    body: "The IT Department maintains the college digital infrastructure, user access, website systems, backups, devices, security checks, and technical support.",
+  },
+  {
+    id: "the-college/departments/gym",
+    label: "Gym",
+    order: 6,
+    body: "The Gym supports physical education, fitness training, athlete conditioning, health awareness, and supervised student development.",
+  },
+  {
+    id: "the-college/departments/swimming-pool",
+    label: "Swimming Pool",
+    order: 7,
+    body: "The Swimming Pool facility supports aquatic training, inter-house events, health and safety routines, and supervised swimming development.",
+  },
+  {
+    id: "the-college/departments/sports-department",
+    label: "Sports Department",
+    order: 8,
+    body: "The Sports Department coordinates college sports, coaching, fixtures, inter-house competitions, student leadership, and athletic achievement records.",
+  },
+] as const;
 
 export type Role =
   | "masteradmin"
@@ -604,6 +648,13 @@ export const seed: DB = {
       visible: true,
       parentId: "the-college",
     },
+    ...THE_COLLEGE_DEPARTMENT_PAGES.map((department) => ({
+      id: department.id,
+      label: department.label,
+      order: department.order,
+      visible: true,
+      parentId: "the-college",
+    })),
     { id: "admissions", label: "Admissions", order: 4, visible: true },
     { id: "news", label: "News & Notices", order: 5, visible: true },
     { id: "events", label: "Events", order: 6, visible: true },
@@ -681,6 +732,16 @@ export const seed: DB = {
       title: "Facilities & Services",
       body: "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life.",
     },
+    ...Object.fromEntries(
+      THE_COLLEGE_DEPARTMENT_PAGES.map((department) => [
+        department.id,
+        {
+          kicker: "The College",
+          title: department.label,
+          body: department.body,
+        },
+      ]),
+    ),
     events: {
       kicker: "Events",
       title: "Events",
@@ -1388,6 +1449,28 @@ function ensureTheCollegePages(db: DB): DB {
     });
     changed = true;
   }
+
+  THE_COLLEGE_DEPARTMENT_PAGES.forEach((department) => {
+    if (!pages[department.id]) {
+      pages[department.id] = {
+        kicker: "The College",
+        title: department.label,
+        body: department.body,
+      };
+      changed = true;
+    }
+
+    if (!navigation.some((item) => item.id === department.id)) {
+      navigation.push({
+        id: department.id,
+        label: department.label,
+        order: department.order,
+        visible: true,
+        parentId: "the-college",
+      });
+      changed = true;
+    }
+  });
 
   return changed ? { ...db, pages, navigation } : db;
 }
