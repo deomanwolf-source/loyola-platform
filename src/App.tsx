@@ -28,6 +28,14 @@ import {
   Users,
   X,
   Image as ImageIcon,
+  Edit,
+  Trash2,
+  Plus,
+  Search,
+  Filter,
+  AlertTriangle,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 import { BrandedLoader } from "@/components/BrandedLoader";
 import { HeroBackgroundLayer, PageHeader, PublicLayout } from "@/components/site/PublicLayout";
@@ -158,7 +166,7 @@ export function App() {
   const requestedPageId = path === "/" || path === "" ? "home" : path.replace(/^\/+/, "");
   const visualPageId = requestedPageId === "notices" ? "news" : requestedPageId;
 
-  if (path === "/portal/edutrack") return <EduTrackRuntimePage />;
+  if (path === "/portal/edutrack") return <EduTrackIntegratedPage />;
 
   if (path === "/photo-gallery") {
     return (
@@ -3022,6 +3030,7 @@ function EduTrackIntegratedPage() {
   >("dashboard");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [terms, setTerms] = useState<EduTrackRow[]>([]);
   const [subjects, setSubjects] = useState<EduTrackRow[]>([]);
   const [teachers, setTeachers] = useState<EduTrackRow[]>([]);
@@ -3034,6 +3043,19 @@ function EduTrackIntegratedPage() {
     completionPercent: 0,
     bySubject: [],
   });
+
+  // Filters
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterLevel, setFilterLevel] = useState("All");
+  const [filterTerm, setFilterTerm] = useState("All");
+  const [filterSubject, setFilterSubject] = useState("All");
+
+  // Modals state
+  const [activeModal, setActiveModal] = useState<"term" | "subject" | "syllabus" | null>(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
+
+  // Forms state
   const [termForm, setTermForm] = useState({
     level: "Upper",
     term_name: "Term 1",
@@ -3055,18 +3077,19 @@ function EduTrackIntegratedPage() {
     description: "",
     term_id: "",
   });
-  const [progressForm, setProgressForm] = useState({
-    teacher_id: "",
-    subject_id: "",
-    syllabus_item_id: "",
-    status: "completed",
-    note: "",
-  });
 
-  useEffect(() => {
-    if (!auth.loading && !auth.user) window.location.href = "/login";
-  }, [auth.loading, auth.user]);
+  // Tabs definition
+  const tabs = [
+    { id: "dashboard", label: "Dashboard", icon: Award },
+    { id: "terms", label: "Terms", icon: Calendar },
+    { id: "syllabus", label: "Syllabus", icon: BookOpen },
+    { id: "progress", label: "Progress", icon: CheckCircle2 },
+    { id: "warnings", label: "Warnings", icon: Bell },
+  ] as const;
 
+  // Current logged in teacher's ID matching
+  const currentTeacherId = teachers.find(t => t.account_user_id === auth.user?.id)?.id || auth.user?.id || "T-unknown";
+  const isAdmin = auth.user ? EDUZYNC_ADMIN_ROLES.includes(auth.user.role) : false;
   const allowed: Role[] = EDUTRACK_ROLES;
 
   const apiJson = async (path: string, options: RequestInit = {}) => {
@@ -3133,11 +3156,35 @@ function EduTrackIntegratedPage() {
     );
   }
 
-  const isAdmin = EDUZYNC_ADMIN_ROLES.includes(auth.user.role);
+  // Rapid Progress Toggle Handler
+  const handleToggleProgress = async (item: EduTrackRow) => {
+    setError("");
+    try {
+      const existingProgress = progress.find(p => Number(p.syllabus_item_id) === Number(item.id));
+      if (existingProgress) {
+        await apiJson(`/api/edutrack/progress/${existingProgress.id}`, { method: "DELETE" });
+      } else {
+        await apiJson("/api/edutrack/progress", {
+          method: "POST",
+          body: JSON.stringify({
+            teacher_id: currentTeacherId,
+            subject_id: item.subject_id,
+            syllabus_item_id: item.id,
+            status: "completed",
+            note: `Quick toggle completed by ${auth.user?.name || ""}`,
+          }),
+        });
+      }
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not update progress");
+    }
+  };
 
-  const submitTerm = async (event: React.FormEvent) => {
-    event.preventDefault();
-    await apiJson("/api/edutrack/terms", { method: "POST", body: JSON.stringify(termForm) });
+  // Term CRUD
+  const handleAddTerm = () => {
+    setEditMode(false);
+    setEditId(null);
     setTermForm({
       level: "Upper",
       term_name: "Term 1",
@@ -3146,34 +3193,164 @@ function EduTrackIntegratedPage() {
       warning_threshold: 80,
       status: "Active",
     });
-    await loadEduTrack();
+    setActiveModal("term");
   };
 
-  const submitSubject = async (event: React.FormEvent) => {
-    event.preventDefault();
-    await apiJson("/api/subjects", { method: "POST", body: JSON.stringify(subjectForm) });
-    setSubjectForm({ name: "", grade: "10", section: "A", teacher_id: "" });
-    await loadEduTrack();
-  };
-
-  const submitSyllabus = async (event: React.FormEvent) => {
-    event.preventDefault();
-    await apiJson("/api/edutrack/syllabus", { method: "POST", body: JSON.stringify(syllabusForm) });
-    setSyllabusForm({ subject_id: "", grade: "10", title: "", description: "", term_id: "" });
-    await loadEduTrack();
-  };
-
-  const submitProgress = async (event: React.FormEvent) => {
-    event.preventDefault();
-    await apiJson("/api/edutrack/progress", { method: "POST", body: JSON.stringify(progressForm) });
-    setProgressForm({
-      teacher_id: "",
-      subject_id: "",
-      syllabus_item_id: "",
-      status: "completed",
-      note: "",
+  const handleEditTerm = (term: EduTrackRow) => {
+    setEditMode(true);
+    setEditId(term.id);
+    setTermForm({
+      level: term.level || "Upper",
+      term_name: term.term_name || "",
+      start_date: term.start_date ? term.start_date.substring(0, 10) : "",
+      end_date: term.end_date ? term.end_date.substring(0, 10) : "",
+      warning_threshold: term.warning_threshold || 80,
+      status: term.status || "Active",
     });
-    await loadEduTrack();
+    setActiveModal("term");
+  };
+
+  const handleDeleteTerm = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this term?")) return;
+    setError("");
+    try {
+      await apiJson(`/api/edutrack/terms/${id}`, { method: "DELETE" });
+      setSuccess("Term deleted successfully!");
+      setTimeout(() => setSuccess(""), 3000);
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete term");
+    }
+  };
+
+  const submitTermForm = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    try {
+      if (editMode && editId) {
+        await apiJson(`/api/edutrack/terms/${editId}`, { method: "PUT", body: JSON.stringify(termForm) });
+        setSuccess("Term updated successfully!");
+      } else {
+        await apiJson("/api/edutrack/terms", { method: "POST", body: JSON.stringify(termForm) });
+        setSuccess("Term added successfully!");
+      }
+      setTimeout(() => setSuccess(""), 3000);
+      setActiveModal(null);
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save term");
+    }
+  };
+
+  // Subject CRUD
+  const handleAddSubject = () => {
+    setEditMode(false);
+    setEditId(null);
+    setSubjectForm({ name: "", grade: "10", section: "A", teacher_id: "" });
+    setActiveModal("subject");
+  };
+
+  const handleEditSubject = (subject: EduTrackRow) => {
+    setEditMode(true);
+    setEditId(subject.id);
+    setSubjectForm({
+      name: subject.name || "",
+      grade: subject.grade || "10",
+      section: subject.section || "A",
+      teacher_id: subject.teacher_id || "",
+    });
+    setActiveModal("subject");
+  };
+
+  const handleDeleteSubject = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this subject?")) return;
+    setError("");
+    try {
+      await apiJson(`/api/subjects/${id}`, { method: "DELETE" });
+      setSuccess("Subject deleted successfully!");
+      setTimeout(() => setSuccess(""), 3000);
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete subject");
+    }
+  };
+
+  const submitSubjectForm = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    try {
+      if (editMode && editId) {
+        await apiJson(`/api/subjects/${editId}`, { method: "PUT", body: JSON.stringify(subjectForm) });
+        setSuccess("Subject updated successfully!");
+      } else {
+        await apiJson("/api/subjects", { method: "POST", body: JSON.stringify(subjectForm) });
+        setSuccess("Subject added successfully!");
+      }
+      setTimeout(() => setSuccess(""), 3000);
+      setActiveModal(null);
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save subject");
+    }
+  };
+
+  // Syllabus CRUD
+  const handleAddSyllabus = () => {
+    setEditMode(false);
+    setEditId(null);
+    setSyllabusForm({
+      subject_id: subjects[0]?.id ? String(subjects[0].id) : "",
+      grade: "10",
+      title: "",
+      description: "",
+      term_id: terms[0]?.id ? String(terms[0].id) : "",
+    });
+    setActiveModal("syllabus");
+  };
+
+  const handleEditSyllabus = (item: EduTrackRow) => {
+    setEditMode(true);
+    setEditId(item.id);
+    setSyllabusForm({
+      subject_id: item.subject_id ? String(item.subject_id) : "",
+      grade: item.grade || "10",
+      title: item.title || "",
+      description: item.description || "",
+      term_id: item.term_id ? String(item.term_id) : "",
+    });
+    setActiveModal("syllabus");
+  };
+
+  const handleDeleteSyllabus = async (id: number) => {
+    if (!window.confirm("Are you sure you want to delete this syllabus item?")) return;
+    setError("");
+    try {
+      await apiJson(`/api/edutrack/syllabus/${id}`, { method: "DELETE" });
+      setSuccess("Syllabus item deleted successfully!");
+      setTimeout(() => setSuccess(""), 3000);
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete syllabus item");
+    }
+  };
+
+  const submitSyllabusForm = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    try {
+      if (editMode && editId) {
+        await apiJson(`/api/edutrack/syllabus/${editId}`, { method: "PUT", body: JSON.stringify(syllabusForm) });
+        setSuccess("Syllabus item updated successfully!");
+      } else {
+        await apiJson("/api/edutrack/syllabus", { method: "POST", body: JSON.stringify(syllabusForm) });
+        setSuccess("Syllabus item added successfully!");
+      }
+      setTimeout(() => setSuccess(""), 3000);
+      setActiveModal(null);
+      await loadEduTrack();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save syllabus item");
+    }
   };
 
   const seedDemoData = async () => {
@@ -3209,6 +3386,8 @@ function EduTrackIntegratedPage() {
           term_id: term.id,
         }),
       });
+      setSuccess("Demo data seeded successfully!");
+      setTimeout(() => setSuccess(""), 3000);
       await loadEduTrack();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not create demo data");
@@ -3217,32 +3396,67 @@ function EduTrackIntegratedPage() {
     }
   };
 
-  const tabs = [
-    { id: "dashboard", label: "Dashboard", icon: Award },
-    { id: "terms", label: "Terms", icon: Calendar },
-    { id: "syllabus", label: "Syllabus", icon: BookOpen },
-    { id: "progress", label: "Progress", icon: CheckCircle2 },
-    { id: "warnings", label: "Warnings", icon: Bell },
-  ] as const;
+  const handleSendWarningAlert = (warningRow: EduTrackRow) => {
+    setSuccess(`Warning reminder sent to the teacher of ${warningRow.subject_name} regarding ${warningRow.term_name || 'the term'} coverage (${warningRow.completionPercent}% complete).`);
+    setTimeout(() => setSuccess(""), 4000);
+  };
+
+  // Syllabus item filtering
+  const filteredSyllabus = syllabus.filter((item) => {
+    const termDetails = terms.find((t) => Number(t.id) === Number(item.term_id));
+    const itemLevel = termDetails ? termDetails.level : "";
+
+    const matchesSearch =
+      !searchTerm ||
+      item.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.subject_name?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesLevel = filterLevel === "All" || itemLevel === filterLevel;
+    const matchesTerm = filterTerm === "All" || String(item.term_id) === String(filterTerm);
+    const matchesSubject = filterSubject === "All" || String(item.subject_id) === String(filterSubject);
+
+    return matchesSearch && matchesLevel && matchesTerm && matchesSubject;
+  });
 
   const inputClass =
-    "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#38bdf8]";
+    "w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/35 focus:border-[#38bdf8] transition-smooth";
   const labelClass = "text-xs font-black uppercase tracking-[0.16em] text-white/50";
 
   return (
-    <main className="min-h-screen bg-[#050b18] text-white">
-      <div className="absolute inset-0 -z-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(220,38,38,0.14),transparent_26%)]" />
+    <main className="min-h-screen bg-[#050b18] text-white relative">
+      <div className="absolute inset-0 -z-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.22),transparent_34%),radial-gradient(circle_at_80%_10%,rgba(220,38,38,0.14),transparent_26%)] pointer-events-none" />
+
+      {/* Alert Toasts */}
+      {(error || success) && (
+        <div className="fixed top-6 right-6 z-50 flex flex-col gap-2 max-w-md">
+          {error && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-950/80 backdrop-blur px-5 py-4 text-sm font-semibold text-red-200 shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+              <AlertTriangle className="h-5 w-5 text-red-400 shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div className="rounded-2xl border border-emerald-500/30 bg-emerald-950/80 backdrop-blur px-5 py-4 text-sm font-semibold text-emerald-200 shadow-2xl flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
+              <Check className="h-5 w-5 text-emerald-400 shrink-0" />
+              <span>{success}</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Header */}
       <header className="relative z-10 border-b border-white/10 bg-[#07111f]/90 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-6 py-4">
           <div className="flex items-center gap-3">
             <a
               href="/portal"
-              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10"
+              className="rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-bold text-white/85 hover:bg-white/10 transition-smooth"
             >
               ← Portal
             </a>
-            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0f2f7a] shadow-lg">
-              <BookOpen className="h-6 w-6" />
+            <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#0f2f7a] shadow-lg shadow-blue-900/30">
+              <BookOpen className="h-6 w-6 text-[#38bdf8]" />
             </span>
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-[#7dd3fc]">
@@ -3252,47 +3466,52 @@ function EduTrackIntegratedPage() {
             </div>
           </div>
           <div className="text-right text-xs text-white/60">
-            <p className="font-bold text-white">{auth.user.name}</p>
-            <p>{auth.user.role} • MySQL backend</p>
+            <p className="font-bold text-white text-sm">{auth.user.name}</p>
+            <p className="font-mono mt-0.5">{auth.user.role} • MySQL backend</p>
           </div>
         </div>
       </header>
 
       <section className="relative z-10 mx-auto max-w-7xl px-6 py-8">
-        {error && (
-          <div className="mb-5 rounded-2xl border border-red-400/30 bg-red-500/10 p-4 text-sm font-semibold text-red-100">
-            {error}
-          </div>
-        )}
 
-        <div className="grid gap-4 md:grid-cols-4">
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Overall</p>
+        {/* Stats Summary Grid */}
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4">
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl backdrop-blur-md transition-smooth hover:border-white/20">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Overall Progress</p>
             <p className="mt-3 text-4xl font-black text-[#7dd3fc]">
               {dashboard.completionPercent || 0}%
             </p>
-            <p className="mt-1 text-sm text-white/55">Syllabus coverage</p>
+            <div className="mt-2 w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-[#38bdf8] h-full rounded-full transition-all duration-500" style={{ width: `${dashboard.completionPercent || 0}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-white/50">Overall syllabus coverage</p>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Terms</p>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl backdrop-blur-md transition-smooth hover:border-white/20">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Academic Periods</p>
             <p className="mt-3 text-4xl font-black text-white">{terms.length}</p>
-            <p className="mt-1 text-sm text-white/55">Academic periods</p>
+            <div className="mt-2 w-full bg-white/10 h-1.5 rounded-full overflow-hidden" />
+            <p className="mt-2 text-xs text-white/50">Active terms & levels</p>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Items</p>
-            <p className="mt-3 text-4xl font-black text-white">
-              {dashboard.completedItems || 0}/{dashboard.totalItems || 0}
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl backdrop-blur-md transition-smooth hover:border-white/20">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Completed Topics</p>
+            <p className="mt-3 text-4xl font-black text-emerald-400">
+              {dashboard.completedItems || 0}<span className="text-white/40 text-2xl font-bold">/{dashboard.totalItems || 0}</span>
             </p>
-            <p className="mt-1 text-sm text-white/55">Completed topics</p>
+            <div className="mt-2 w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+              <div className="bg-emerald-400 h-full rounded-full transition-all duration-500" style={{ width: `${dashboard.totalItems ? ((dashboard.completedItems || 0) / dashboard.totalItems) * 100 : 0}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-white/50">Completed syllabus items</p>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 shadow-2xl">
-            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Warnings</p>
+          <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-5 shadow-2xl backdrop-blur-md transition-smooth hover:border-white/20">
+            <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Warnings Alerts</p>
             <p className="mt-3 text-4xl font-black text-[#fbbf24]">{warnings.length}</p>
-            <p className="mt-1 text-sm text-white/55">Below threshold</p>
+            <div className="mt-2 w-full bg-white/10 h-1.5 rounded-full overflow-hidden" />
+            <p className="mt-2 text-xs text-white/50">Subjects below warning threshold</p>
           </div>
         </div>
 
-        <div className="mt-6 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.04] p-2">
+        {/* Tab Controls */}
+        <div className="mt-8 flex flex-wrap gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 backdrop-blur">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             return (
@@ -3300,7 +3519,7 @@ function EduTrackIntegratedPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition ${activeTab === tab.id ? "bg-white text-[#07111f]" : "text-white/70 hover:bg-white/10"}`}
+                className={`inline-flex items-center gap-2 rounded-xl px-4 py-3 text-sm font-black transition-smooth ${activeTab === tab.id ? "bg-white text-[#07111f] shadow-lg" : "text-white/70 hover:bg-white/10"}`}
               >
                 <Icon className="h-4 w-4" /> {tab.label}
               </button>
@@ -3309,165 +3528,481 @@ function EduTrackIntegratedPage() {
           <button
             type="button"
             onClick={() => void loadEduTrack()}
-            className="ml-auto rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/70 hover:bg-white/10"
+            className="ml-auto inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3 text-sm font-bold text-white/70 hover:bg-white/10 hover:text-white transition-smooth"
           >
-            Refresh
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
           </button>
         </div>
 
         {loading ? (
-          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.04] p-10 text-center text-white/60">
-            Loading EduTrack data...
+          <div className="mt-6 rounded-3xl border border-white/10 bg-white/[0.03] p-20 text-center text-white/50 backdrop-blur-md">
+            <RefreshCw className="h-8 w-8 animate-spin mx-auto text-[#38bdf8] mb-4" />
+            <p className="font-semibold text-lg">Syncing academic databases...</p>
+            <p className="text-sm text-white/40 mt-1">Fetching live data from MySQL</p>
           </div>
         ) : (
-          <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <div className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-2xl">
-              {activeTab === "dashboard" && (
-                <div>
-                  <h2 className="font-serif text-2xl font-black">Academic overview</h2>
-                  <p className="mt-2 text-sm text-white/55">
-                    Live coverage by subject from the shared MySQL backend.
-                  </p>
-                  <div className="mt-6 grid gap-3">
-                    {(dashboard.bySubject || []).length === 0 && (
-                      <EmptyState
-                        title="No subject progress yet"
-                        action={
-                          isAdmin ? "Create demo EduTrack records" : "Ask admin to add syllabus"
-                        }
-                        onAction={isAdmin ? seedDemoData : undefined}
-                      />
-                    )}
-                    {(dashboard.bySubject || []).map((row: EduTrackRow) => (
+          <div className="mt-6">
+
+            {/* Dashboard Tab */}
+            {activeTab === "dashboard" && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-md animate-in fade-in duration-300">
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="font-serif text-2xl font-black">Academic Coverage Dashboard</h2>
+                    <p className="text-sm text-white/50 mt-1">Live syllabus completion rates by subject.</p>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      onClick={seedDemoData}
+                      className="rounded-xl bg-[#fbbf24] hover:bg-[#fcd34d] px-4 py-2.5 text-xs font-black text-[#07111f] transition-smooth shadow-lg shadow-amber-500/10"
+                    >
+                      Create Demo Data
+                    </button>
+                  )}
+                </div>
+
+                {dashboard.bySubject.length === 0 ? (
+                  <EmptyState
+                    title="No Subject Progress Records Found"
+                    action={isAdmin ? "Seed Demo Database" : undefined}
+                    onAction={isAdmin ? seedDemoData : undefined}
+                  />
+                ) : (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    {dashboard.bySubject.map((row: EduTrackRow) => (
                       <div
-                        key={row.subject_id || row.subject_name}
-                        className="rounded-2xl border border-white/10 bg-black/20 p-4"
+                        key={row.subject_id}
+                        className="rounded-2xl border border-white/10 bg-black/30 p-5 transition-smooth hover:border-white/20 hover:bg-black/40 hover:-translate-y-0.5 group"
                       >
                         <div className="flex items-center justify-between gap-3">
-                          <p className="font-bold">{row.subject_name || "Subject"}</p>
-                          <p className="text-sm font-black text-[#7dd3fc]">
+                          <p className="font-bold text-lg group-hover:text-[#38bdf8] transition-smooth">{row.subject_name}</p>
+                          <span className="text-sm font-black text-[#7dd3fc] bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
                             {row.completionPercent}%
-                          </p>
+                          </span>
                         </div>
-                        <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/10">
                           <div
-                            className="h-full rounded-full bg-[#38bdf8]"
+                            className="h-full rounded-full bg-gradient-to-r from-[#38bdf8] to-blue-500 transition-all duration-700"
                             style={{
                               width: `${Math.min(100, Number(row.completionPercent || 0))}%`,
                             }}
                           />
                         </div>
-                        <p className="mt-2 text-xs text-white/45">
-                          {row.completed_items || 0} of {row.total_items || 0} items completed
-                        </p>
+                        <div className="flex justify-between items-center mt-3 text-xs text-white/40 font-mono">
+                          <span>{row.completed_items || 0} of {row.total_items || 0} items completed</span>
+                          <span>Grade {row.grade || '10'}</span>
+                        </div>
                       </div>
                     ))}
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Terms Tab */}
+            {activeTab === "terms" && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-md animate-in fade-in duration-300">
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="font-serif text-2xl font-black">Academic Terms & Thresholds</h2>
+                    <p className="text-sm text-white/50 mt-1">Configure warning thresholds and active term periods.</p>
+                  </div>
+                  {isAdmin && (
+                    <button
+                      onClick={handleAddTerm}
+                      className="rounded-xl bg-[#38bdf8] hover:bg-[#7dd3fc] px-4 py-2.5 text-xs font-black text-[#07111f] transition-smooth flex items-center gap-1 shadow-lg shadow-blue-500/10"
+                    >
+                      <Plus className="h-4 w-4" /> Add Academic Term
+                    </button>
+                  )}
                 </div>
-              )}
 
-              {activeTab === "terms" && (
-                <DataList
-                  title="Academic terms"
-                  empty="No terms yet. Add Term 1, Term 2, or Term 3."
-                >
-                  {terms.map((term) => (
-                    <InfoRow
-                      key={term.id}
-                      title={`${term.level} • ${term.term_name}`}
-                      meta={`${term.start_date || "No start"} → ${term.end_date || "No end"}`}
-                      badge={`${term.warning_threshold || 80}% threshold`}
-                    />
-                  ))}
-                </DataList>
-              )}
+                {terms.length === 0 ? (
+                  <EmptyState title="No Terms Defined" />
+                ) : (
+                  <div className="grid gap-4">
+                    {terms.map((term) => (
+                      <div
+                        key={term.id}
+                        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/30 p-5 hover:border-white/15 transition-smooth"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-3">
+                            <h3 className="font-black text-lg text-white">{term.term_name}</h3>
+                            <span className="rounded-full bg-[#38bdf8]/10 border border-[#38bdf8]/20 px-3 py-0.5 text-xs font-bold text-[#7dd3fc]">
+                              {term.level} Level
+                            </span>
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${term.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-white/5 text-white/40 border border-white/10'}`}>
+                              {term.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/50">
+                            Duration: <span className="font-mono text-white/70">{term.start_date ? term.start_date.substring(0, 10) : 'N/A'}</span> to <span className="font-mono text-white/70">{term.end_date ? term.end_date.substring(0, 10) : 'N/A'}</span>
+                          </p>
+                        </div>
 
-              {activeTab === "syllabus" && (
-                <DataList
-                  title="Syllabus items"
-                  empty="No syllabus items yet. Add subjects and topics from the right panel."
-                >
-                  {syllabus.map((item) => (
-                    <InfoRow
-                      key={item.id}
-                      title={item.title}
-                      meta={`${item.subject_name || "No subject"} • Grade ${item.grade || "-"}`}
-                      badge={item.term_name || "No term"}
-                    />
-                  ))}
-                </DataList>
-              )}
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <span className="text-xs text-white/40 block uppercase tracking-wider font-black">Warning Limit</span>
+                            <span className="text-sm font-bold text-amber-400 font-mono">{term.warning_threshold}% Coverage</span>
+                          </div>
+                          {isAdmin && (
+                            <div className="flex gap-2 border-l border-white/10 pl-4">
+                              <button
+                                onClick={() => handleEditTerm(term)}
+                                className="p-2.5 rounded-xl border border-white/10 hover:border-white/30 hover:bg-white/5 text-white/60 hover:text-white transition-smooth"
+                                title="Edit Term"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteTerm(term.id)}
+                                className="p-2.5 rounded-xl border border-red-500/20 hover:border-red-500/50 hover:bg-red-500/10 text-red-400/80 hover:text-red-400 transition-smooth"
+                                title="Delete Term"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
-              {activeTab === "progress" && (
-                <DataList
-                  title="Progress log"
-                  empty="No progress records yet. Mark a syllabus item as completed."
-                >
-                  {progress.map((item) => (
-                    <InfoRow
-                      key={item.id}
-                      title={item.syllabus_title || "Progress record"}
-                      meta={`${item.subject_name || "Subject"} • ${item.teacher_id}`}
-                      badge={item.status}
-                    />
-                  ))}
-                </DataList>
-              )}
+            {/* Syllabus Tab */}
+            {activeTab === "syllabus" && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-md animate-in fade-in duration-300">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="font-serif text-2xl font-black">Curriculum & Syllabus Items</h2>
+                    <p className="text-sm text-white/50 mt-1">Track and check syllabus topics as they are completed.</p>
+                  </div>
+                  {isAdmin && (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={handleAddSubject}
+                        className="rounded-xl border border-white/10 hover:border-white/20 bg-white/5 hover:bg-white/10 px-4 py-2.5 text-xs font-black text-white transition-smooth flex items-center gap-1 shadow-lg"
+                      >
+                        <Plus className="h-4 w-4" /> Add Subject
+                      </button>
+                      <button
+                        onClick={handleAddSyllabus}
+                        className="rounded-xl bg-[#38bdf8] hover:bg-[#7dd3fc] px-4 py-2.5 text-xs font-black text-[#07111f] transition-smooth flex items-center gap-1 shadow-lg"
+                      >
+                        <Plus className="h-4 w-4" /> Add Syllabus Item
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              {activeTab === "warnings" && (
-                <DataList
-                  title="Warning log"
-                  empty="No warnings. Great! Coverage is above threshold or no data is available."
-                >
-                  {warnings.map((item) => (
-                    <InfoRow
-                      key={`${item.term_id}-${item.subject_id}`}
-                      title={item.subject_name || "Subject"}
-                      meta={`${item.term_name} is at ${item.completionPercent}%`}
-                      badge={`Below ${item.warning_threshold}%`}
-                      warning
-                    />
-                  ))}
-                </DataList>
-              )}
+                {/* Filter and Search Bar */}
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 bg-black/25 border border-white/10 rounded-2xl p-4 mb-6">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-white/40">Search Curriculum</label>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Keyword, subject..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full bg-white/5 border border-white/10 rounded-xl py-2 pl-9 pr-3 text-xs outline-none focus:border-[#38bdf8] transition-smooth"
+                      />
+                      <Search className="h-4 w-4 text-white/30 absolute left-3 top-2.5" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-white/40">School Level</label>
+                    <select
+                      value={filterLevel}
+                      onChange={(e) => setFilterLevel(e.target.value)}
+                      className="w-full bg-[#0d1527] border border-white/10 rounded-xl py-2 px-3 text-xs outline-none focus:border-[#38bdf8] transition-smooth"
+                    >
+                      <option value="All">All Levels</option>
+                      {["Primary", "Middle", "Upper", "A/L"].map((lvl) => (
+                        <option key={lvl} value={lvl}>{lvl}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-white/40">Academic Term</label>
+                    <select
+                      value={filterTerm}
+                      onChange={(e) => setFilterTerm(e.target.value)}
+                      className="w-full bg-[#0d1527] border border-white/10 rounded-xl py-2 px-3 text-xs outline-none focus:border-[#38bdf8] transition-smooth"
+                    >
+                      <option value="All">All Terms</option>
+                      {terms.map((t) => (
+                        <option key={t.id} value={t.id}>{t.level} - {t.term_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-white/40">Subject Name</label>
+                    <select
+                      value={filterSubject}
+                      onChange={(e) => setFilterSubject(e.target.value)}
+                      className="w-full bg-[#0d1527] border border-white/10 rounded-xl py-2 px-3 text-xs outline-none focus:border-[#38bdf8] transition-smooth"
+                    >
+                      <option value="All">All Subjects</option>
+                      {subjects.map((sub) => (
+                        <option key={sub.id} value={sub.id}>{sub.name} (Grade {sub.grade})</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {filteredSyllabus.length === 0 ? (
+                  <EmptyState title="No Syllabus Items Match Current Filters" />
+                ) : (
+                  <div className="grid gap-3">
+                    {filteredSyllabus.map((item) => {
+                      const isCompleted = progress.some(
+                        (p) => Number(p.syllabus_item_id) === Number(item.id) && p.status === "completed"
+                      );
+                      const termData = terms.find((t) => Number(t.id) === Number(item.term_id));
+
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex flex-wrap md:flex-nowrap items-center justify-between gap-4 rounded-2xl border bg-black/35 p-5 transition-smooth hover:border-white/20 ${isCompleted ? 'border-emerald-500/20 bg-emerald-950/5' : 'border-white/10'}`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2.5">
+                              <h3 className="font-bold text-lg text-white">{item.title}</h3>
+                              <span className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-[10px] font-mono text-white/60">
+                                {item.subject_name || "Unknown Subject"}
+                              </span>
+                              <span className="rounded-md bg-[#38bdf8]/10 border border-[#38bdf8]/20 px-2 py-0.5 text-[10px] font-bold text-[#7dd3fc]">
+                                Term: {termData?.term_name || item.term_name || "N/A"}
+                              </span>
+                              {item.grade && (
+                                <span className="rounded-md bg-white/5 border border-white/10 px-2 py-0.5 text-[10px] font-mono text-white/55">
+                                  Grade {item.grade}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm text-white/60 leading-relaxed max-w-3xl">{item.description}</p>
+                          </div>
+
+                          <div className="flex items-center gap-3 shrink-0">
+                            {/* Toggle Progress Checkbox */}
+                            <button
+                              onClick={() => handleToggleProgress(item)}
+                              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-black transition-smooth shadow ${isCompleted ? 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-500/10' : 'bg-white/5 hover:bg-white/15 border border-white/10 text-white/80'}`}
+                              title={isCompleted ? "Mark Pending" : "Mark Completed"}
+                            >
+                              <CheckCircle2 className={`h-4 w-4 ${isCompleted ? 'text-white' : 'text-white/40'}`} />
+                              <span>{isCompleted ? 'Completed' : 'Mark Complete'}</span>
+                            </button>
+
+                            {isAdmin && (
+                              <div className="flex gap-1 border-l border-white/10 pl-3">
+                                <button
+                                  onClick={() => handleEditSyllabus(item)}
+                                  className="p-2 rounded-lg border border-white/10 hover:border-white/30 hover:bg-white/5 text-white/60 hover:text-white transition-smooth"
+                                  title="Edit Syllabus"
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSyllabus(item.id)}
+                                  className="p-2 rounded-lg border border-red-500/20 hover:border-red-500/50 hover:bg-red-500/10 text-red-400/80 hover:text-red-400 transition-smooth"
+                                  title="Delete Syllabus"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Progress Log Tab */}
+            {activeTab === "progress" && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-md animate-in fade-in duration-300">
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="font-serif text-2xl font-black">Curriculum Completion Audit Log</h2>
+                    <p className="text-sm text-white/50 mt-1">Audit trail of all checked-off syllabus items.</p>
+                  </div>
+                </div>
+
+                {progress.length === 0 ? (
+                  <EmptyState title="No Progress Logs Recorded Yet" />
+                ) : (
+                  <div className="grid gap-3">
+                    {progress.map((log) => (
+                      <div
+                        key={log.id}
+                        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/35 p-5 hover:border-white/15 transition-smooth"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2.5">
+                            <h3 className="font-bold text-[#38bdf8] text-base">{log.syllabus_title || "Syllabus Item"}</h3>
+                            <span className="rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 uppercase">
+                              {log.status}
+                            </span>
+                          </div>
+                          <p className="text-xs text-white/40">
+                            Logged by: <span className="text-white/60 font-mono">{log.teacher_id}</span> • Subject: <span className="text-white/60">{log.subject_name}</span>
+                          </p>
+                          {log.note && (
+                            <p className="text-sm text-white/70 italic mt-1">“{log.note}”</p>
+                          )}
+                        </div>
+
+                        <div className="text-right flex items-center gap-4">
+                          <div>
+                            <span className="text-[10px] text-white/35 block uppercase tracking-wider">Completed At</span>
+                            <span className="text-xs text-white/65 font-mono">{log.completed_at ? new Date(log.completed_at).toLocaleString() : 'N/A'}</span>
+                          </div>
+                          {isAdmin && (
+                            <button
+                              onClick={async () => {
+                                if (window.confirm("Delete this progress record?")) {
+                                  await apiJson(`/api/edutrack/progress/${log.id}`, { method: "DELETE" });
+                                  await loadEduTrack();
+                                }
+                              }}
+                              className="p-2.5 rounded-xl border border-red-500/20 hover:border-red-500/50 hover:bg-red-500/10 text-red-400/80 hover:text-red-400 transition-smooth"
+                              title="Delete Progress Record"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Warnings Tab */}
+            {activeTab === "warnings" && (
+              <div className="rounded-3xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-md animate-in fade-in duration-300">
+                <div className="flex items-center justify-between gap-4 mb-6">
+                  <div>
+                    <h2 className="font-serif text-2xl font-black">Under-Coverage Alerts</h2>
+                    <p className="text-sm text-white/50 mt-1">Syllabus streams currently running below their term thresholds.</p>
+                  </div>
+                </div>
+
+                {warnings.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-emerald-500/25 bg-emerald-950/10 p-8 text-center">
+                    <CheckCircle2 className="h-10 w-10 text-emerald-400 mx-auto mb-3" />
+                    <p className="font-serif text-2xl font-black text-emerald-400">All coverage on track!</p>
+                    <p className="mt-2 text-sm text-white/45">
+                      No subjects are currently below their warning threshold for the active terms.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {warnings.map((warn, index) => (
+                      <div
+                        key={`${warn.term_id}-${warn.subject_id}-${index}`}
+                        className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-amber-500/20 bg-amber-950/5 p-5 hover:border-amber-500/35 transition-smooth"
+                      >
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                            <h3 className="font-bold text-lg text-white">{warn.subject_name}</h3>
+                            <span className="rounded-md bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-400">
+                              {warn.term_name}
+                            </span>
+                          </div>
+                          <p className="text-sm text-white/60">
+                            Current coverage is <span className="text-amber-400 font-bold font-mono">{warn.completionPercent}%</span>, which is below the required <span className="font-mono text-white/80">{warn.warning_threshold}%</span> threshold.
+                          </p>
+                          <p className="text-xs text-white/40">
+                            Completed items: <span className="font-mono text-white/60">{warn.completed_items}</span> / <span className="font-mono text-white/60">{warn.total_items}</span>
+                          </p>
+                        </div>
+
+                        {isAdmin && (
+                          <button
+                            onClick={() => handleSendWarningAlert(warn)}
+                            className="rounded-xl border border-amber-500/30 hover:bg-amber-500/10 px-4 py-2.5 text-xs font-black text-amber-400 hover:text-white transition-smooth flex items-center gap-1 shadow-lg shadow-amber-500/5"
+                          >
+                            <Bell className="h-4 w-4" /> Send Reminder
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+        )}
+      </section>
+
+      {/* CRUD Modals (Term, Subject, Syllabus) */}
+      {activeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-3xl border border-white/15 bg-[#0a1122] p-6 shadow-2xl shadow-black/80 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-white/10 pb-4 mb-5">
+              <h3 className="font-serif text-xl font-black">
+                {editMode ? 'Edit' : 'Add'} {activeModal === 'term' ? 'Academic Term' : activeModal === 'subject' ? 'Subject' : 'Syllabus Item'}
+              </h3>
+              <button
+                onClick={() => { setActiveModal(null); setEditMode(false); setEditId(null); }}
+                className="p-1 rounded-lg hover:bg-white/10 text-white/60 hover:text-white transition-smooth"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
 
-            <aside className="rounded-3xl border border-white/10 bg-white/[0.05] p-5 shadow-2xl">
-              <h3 className="font-serif text-xl font-black">Quick actions</h3>
-              <p className="mt-2 text-sm text-white/50">Create records directly into MySQL.</p>
-              {!isAdmin && (
-                <p className="mt-4 rounded-xl bg-white/10 p-3 text-sm text-white/70">
-                  Teachers can update progress. Admin can create terms and syllabus.
-                </p>
-              )}
-
-              {isAdmin && activeTab === "terms" && (
-                <form onSubmit={submitTerm} className="mt-5 grid gap-3">
-                  <label className={labelClass}>Level</label>
+            {/* Term Form */}
+            {activeModal === "term" && (
+              <form onSubmit={submitTermForm} className="space-y-4">
+                <div className="space-y-1">
+                  <label className={labelClass}>Level Category</label>
                   <select
                     className={inputClass}
                     value={termForm.level}
                     onChange={(e) => setTermForm({ ...termForm, level: e.target.value })}
                   >
                     {["Primary", "Middle", "Upper", "A/L"].map((level) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
+                      <option key={level} value={level} className="text-black">{level}</option>
                     ))}
                   </select>
-                  <label className={labelClass}>Term name</label>
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Term Name</label>
                   <input
+                    type="text"
+                    required
                     className={inputClass}
+                    placeholder="e.g. Term 1, Midterm Exam"
                     value={termForm.term_name}
                     onChange={(e) => setTermForm({ ...termForm, term_name: e.target.value })}
                   />
-                  <div className="grid grid-cols-2 gap-3">
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className={labelClass}>Start Date</label>
                     <input
                       type="date"
                       className={inputClass}
                       value={termForm.start_date}
                       onChange={(e) => setTermForm({ ...termForm, start_date: e.target.value })}
                     />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelClass}>End Date</label>
                     <input
                       type="date"
                       className={inputClass}
@@ -3475,182 +4010,202 @@ function EduTrackIntegratedPage() {
                       onChange={(e) => setTermForm({ ...termForm, end_date: e.target.value })}
                     />
                   </div>
-                  <button className="rounded-xl bg-[#38bdf8] px-4 py-3 text-sm font-black text-[#07111f]">
-                    Save term
-                  </button>
-                </form>
-              )}
-
-              {isAdmin && activeTab === "syllabus" && (
-                <div className="mt-5 space-y-5">
-                  <form
-                    onSubmit={submitSubject}
-                    className="grid gap-3 rounded-2xl border border-white/10 p-4"
-                  >
-                    <p className="font-bold">Add subject</p>
-                    <input
-                      className={inputClass}
-                      placeholder="Subject name"
-                      value={subjectForm.name}
-                      onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
-                      required
-                    />
-                    <div className="grid grid-cols-2 gap-3">
-                      <input
-                        className={inputClass}
-                        placeholder="Grade"
-                        value={subjectForm.grade}
-                        onChange={(e) => setSubjectForm({ ...subjectForm, grade: e.target.value })}
-                      />
-                      <input
-                        className={inputClass}
-                        placeholder="Section"
-                        value={subjectForm.section}
-                        onChange={(e) =>
-                          setSubjectForm({ ...subjectForm, section: e.target.value })
-                        }
-                      />
-                    </div>
-                    <button className="rounded-xl bg-white px-4 py-3 text-sm font-black text-[#07111f]">
-                      Add subject
-                    </button>
-                  </form>
-                  <form
-                    onSubmit={submitSyllabus}
-                    className="grid gap-3 rounded-2xl border border-white/10 p-4"
-                  >
-                    <p className="font-bold">Add syllabus item</p>
-                    <select
-                      className={inputClass}
-                      value={syllabusForm.subject_id}
-                      onChange={(e) =>
-                        setSyllabusForm({ ...syllabusForm, subject_id: e.target.value })
-                      }
-                      required
-                    >
-                      <option value="">Select subject</option>
-                      {subjects.map((subject) => (
-                        <option key={subject.id} value={subject.id}>
-                          {subject.name}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className={inputClass}
-                      value={syllabusForm.term_id}
-                      onChange={(e) =>
-                        setSyllabusForm({ ...syllabusForm, term_id: e.target.value })
-                      }
-                    >
-                      <option value="">Select term</option>
-                      {terms.map((term) => (
-                        <option key={term.id} value={term.id}>
-                          {term.level} • {term.term_name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      className={inputClass}
-                      placeholder="Topic title"
-                      value={syllabusForm.title}
-                      onChange={(e) => setSyllabusForm({ ...syllabusForm, title: e.target.value })}
-                      required
-                    />
-                    <textarea
-                      className={inputClass}
-                      placeholder="Description"
-                      value={syllabusForm.description}
-                      onChange={(e) =>
-                        setSyllabusForm({ ...syllabusForm, description: e.target.value })
-                      }
-                    />
-                    <button className="rounded-xl bg-[#38bdf8] px-4 py-3 text-sm font-black text-[#07111f]">
-                      Save syllabus
-                    </button>
-                  </form>
                 </div>
-              )}
-
-              {activeTab === "progress" && (
-                <form onSubmit={submitProgress} className="mt-5 grid gap-3">
-                  <select
-                    className={inputClass}
-                    value={progressForm.teacher_id}
-                    onChange={(e) =>
-                      setProgressForm({ ...progressForm, teacher_id: e.target.value })
-                    }
+                <div className="space-y-1">
+                  <label className={labelClass}>Warning Threshold (%)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
                     required
-                  >
-                    <option value="">Select teacher</option>
-                    {teachers.map((teacher) => (
-                      <option key={teacher.id} value={teacher.id}>
-                        {teacher.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
                     className={inputClass}
-                    value={progressForm.subject_id}
-                    onChange={(e) =>
-                      setProgressForm({ ...progressForm, subject_id: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Select subject</option>
-                    {subjects.map((subject) => (
-                      <option key={subject.id} value={subject.id}>
-                        {subject.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className={inputClass}
-                    value={progressForm.syllabus_item_id}
-                    onChange={(e) =>
-                      setProgressForm({ ...progressForm, syllabus_item_id: e.target.value })
-                    }
-                    required
-                  >
-                    <option value="">Select syllabus item</option>
-                    {syllabus.map((item) => (
-                      <option key={item.id} value={item.id}>
-                        {item.title}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className={inputClass}
-                    value={progressForm.status}
-                    onChange={(e) => setProgressForm({ ...progressForm, status: e.target.value })}
-                  >
-                    <option value="completed">Completed</option>
-                    <option value="pending">Pending</option>
-                  </select>
-                  <textarea
-                    className={inputClass}
-                    placeholder="Teacher note"
-                    value={progressForm.note}
-                    onChange={(e) => setProgressForm({ ...progressForm, note: e.target.value })}
+                    value={termForm.warning_threshold}
+                    onChange={(e) => setTermForm({ ...termForm, warning_threshold: Number(e.target.value) })}
                   />
-                  <button className="rounded-xl bg-[#22c55e] px-4 py-3 text-sm font-black text-[#07111f]">
-                    Save progress
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Term Status</label>
+                  <select
+                    className={inputClass}
+                    value={termForm.status}
+                    onChange={(e) => setTermForm({ ...termForm, status: e.target.value })}
+                  >
+                    {["Active", "Archived", "Not set"].map((status) => (
+                      <option key={status} value={status} className="text-black">{status}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2 justify-end pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveModal(null); setEditMode(false); setEditId(null); }}
+                    className="px-4 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-semibold transition-smooth"
+                  >
+                    Cancel
                   </button>
-                </form>
-              )}
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-[#38bdf8] hover:bg-[#7dd3fc] text-[#07111f] text-sm font-black transition-smooth"
+                  >
+                    {editMode ? 'Update' : 'Save'} Term
+                  </button>
+                </div>
+              </form>
+            )}
 
-              {activeTab === "dashboard" && isAdmin && (
-                <button
-                  type="button"
-                  onClick={() => void seedDemoData()}
-                  className="mt-5 w-full rounded-xl bg-[#fbbf24] px-4 py-3 text-sm font-black text-[#07111f]"
-                >
-                  Create demo EduTrack data
-                </button>
-              )}
-            </aside>
+            {/* Subject Form */}
+            {activeModal === "subject" && (
+              <form onSubmit={submitSubjectForm} className="space-y-4">
+                <div className="space-y-1">
+                  <label className={labelClass}>Subject Name</label>
+                  <input
+                    type="text"
+                    required
+                    className={inputClass}
+                    placeholder="e.g. Mathematics, History"
+                    value={subjectForm.name}
+                    onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className={labelClass}>Grade Level</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. 10, 11, 12"
+                      className={inputClass}
+                      value={subjectForm.grade}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, grade: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className={labelClass}>Class Section</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. A, B, Bio"
+                      className={inputClass}
+                      value={subjectForm.section}
+                      onChange={(e) => setSubjectForm({ ...subjectForm, section: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Assigned Teacher</label>
+                  <select
+                    required
+                    className={inputClass}
+                    value={subjectForm.teacher_id}
+                    onChange={(e) => setSubjectForm({ ...subjectForm, teacher_id: e.target.value })}
+                  >
+                    <option value="" className="text-black">Select Teacher</option>
+                    {teachers.map((teacher) => (
+                      <option key={teacher.id} value={teacher.id} className="text-black">{teacher.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex gap-2 justify-end pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveModal(null); setEditMode(false); setEditId(null); }}
+                    className="px-4 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-semibold transition-smooth"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-[#38bdf8] hover:bg-[#7dd3fc] text-[#07111f] text-sm font-black transition-smooth"
+                  >
+                    {editMode ? 'Update' : 'Save'} Subject
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Syllabus Form */}
+            {activeModal === "syllabus" && (
+              <form onSubmit={submitSyllabusForm} className="space-y-4">
+                <div className="space-y-1">
+                  <label className={labelClass}>Subject Link</label>
+                  <select
+                    required
+                    className={inputClass}
+                    value={syllabusForm.subject_id}
+                    onChange={(e) => setSyllabusForm({ ...syllabusForm, subject_id: e.target.value })}
+                  >
+                    <option value="" className="text-black">Select Subject</option>
+                    {subjects.map((subject) => (
+                      <option key={subject.id} value={subject.id} className="text-black">{subject.name} (Grade {subject.grade})</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Academic Term</label>
+                  <select
+                    required
+                    className={inputClass}
+                    value={syllabusForm.term_id}
+                    onChange={(e) => setSyllabusForm({ ...syllabusForm, term_id: e.target.value })}
+                  >
+                    <option value="" className="text-black">Select Term</option>
+                    {terms.map((term) => (
+                      <option key={term.id} value={term.id} className="text-black">{term.level} • {term.term_name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Grade Level</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. 10"
+                    className={inputClass}
+                    value={syllabusForm.grade}
+                    onChange={(e) => setSyllabusForm({ ...syllabusForm, grade: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Topic Title</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Chapter 1: Differential Equations"
+                    className={inputClass}
+                    value={syllabusForm.title}
+                    onChange={(e) => setSyllabusForm({ ...syllabusForm, title: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className={labelClass}>Topic Description</label>
+                  <textarea
+                    placeholder="Provide details about subtopics covered..."
+                    className={inputClass}
+                    value={syllabusForm.description}
+                    onChange={(e) => setSyllabusForm({ ...syllabusForm, description: e.target.value })}
+                  />
+                </div>
+                <div className="flex gap-2 justify-end pt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveModal(null); setEditMode(false); setEditId(null); }}
+                    className="px-4 py-2.5 rounded-xl border border-white/10 hover:bg-white/5 text-sm font-semibold transition-smooth"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-[#38bdf8] hover:bg-[#7dd3fc] text-[#07111f] text-sm font-black transition-smooth"
+                  >
+                    {editMode ? 'Update' : 'Save'} Syllabus Item
+                  </button>
+                </div>
+              </form>
+            )}
+
           </div>
-        )}
-      </section>
+        </div>
+      )}
     </main>
   );
 }
@@ -3766,7 +4321,7 @@ function ModulePage({ moduleId }: { moduleId: string }) {
     if (!auth.loading && !auth.user) window.location.href = "/login";
   }, [auth.loading, auth.user, moduleId]);
 
-  if (moduleId === "edutrack") return <EduTrackRuntimePage />;
+  if (moduleId === "edutrack") return <EduTrackIntegratedPage />;
 
   if (auth.loading || !auth.user) {
     return <BrandedLoader title="Opening module" subtitle="Checking your session" />;

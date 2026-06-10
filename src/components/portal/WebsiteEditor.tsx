@@ -505,7 +505,6 @@ function homeVisualStarter() {
   </div>
 </section>`;
 }
-}
 
 function visualStarterForPage(db: DB, pageId: string) {
   const page = db.pages[pageId] || db.pages.home || {};
