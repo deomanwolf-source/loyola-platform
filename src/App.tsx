@@ -845,6 +845,7 @@ export function App() {
   const pageIsLive = (id: string) =>
     Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   const visualPageId = canonicalVisualPageId(path, db);
+  const staffPageIsLive = pageIsLive("about/college-staff") || pageIsLive("college-staff");
   const isSystemPath =
     path === "/login" || path === "/portal" || path === "/admin" || path.startsWith("/portal/");
   const canViewDuringMaintenance =
@@ -874,6 +875,28 @@ export function App() {
 
   if (!isSystemPath && maintenanceStatus?.enabled && !canViewDuringMaintenance) {
     return <MaintenanceModePage message={maintenanceStatus.message} />;
+  }
+
+  if (
+    !isSystemPath &&
+    (path === "/about/college-staff" || path === "/college-staff") &&
+    staffPageIsLive
+  ) {
+    const requestedStaffPageId = path.replace(/^\/+/, "");
+    return (
+      <CollegeStaffPage
+        pageId={pageIsLive(requestedStaffPageId) ? requestedStaffPageId : "about/college-staff"}
+      />
+    );
+  }
+
+  if (!isSystemPath && path.startsWith("/staff/")) {
+    return (
+      <CollegeStaffPage
+        pageId="about/college-staff"
+        profileSlug={path.split("/").filter(Boolean)[1] || ""}
+      />
+    );
   }
 
   if (
