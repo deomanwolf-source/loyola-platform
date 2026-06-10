@@ -2529,6 +2529,7 @@ export function WebsiteEditor() {
         ...currentDb.pages,
         [selectedPage]: {
           ...currentPage,
+          visualMode: "coded",
           visualHtml: snapshot.html,
           visualBaseCss: snapshot.baseCss || currentPage.visualBaseCss || "",
           visualCss: currentPage.visualCss?.trim() ? currentPage.visualCss : EMPTY_VISUAL_CSS,

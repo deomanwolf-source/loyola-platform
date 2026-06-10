@@ -894,7 +894,14 @@ export function App() {
   const pageIsLive = (id: string) =>
     Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   const visualPageId = canonicalVisualPageId(path, db);
+  const requestedPageId = path.replace(/^\/+/, "");
   const staffPageIsLive = pageIsLive("about/college-staff") || pageIsLive("college-staff");
+  const preferCodedRenderer =
+    (path === "/calendar" && pageIsLive("calendar")) ||
+    ([`/${LCEA_PAGE_ID}`, "/academics/cambridge"].includes(path) && pageIsLive(LCEA_PAGE_ID)) ||
+    ([`/${FACILITIES_PAGE_ID}`, "/facilities", "/facilities-services"].includes(path) &&
+      pageIsLive(FACILITIES_PAGE_ID)) ||
+    (COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedPageId) && pageIsLive(requestedPageId));
   const isSystemPath =
     path === "/login" || path === "/portal" || path === "/admin" || path.startsWith("/portal/");
   const canViewDuringMaintenance =
@@ -950,6 +957,7 @@ export function App() {
 
   if (
     !isSystemPath &&
+    !preferCodedRenderer &&
     !forceCodedPreview &&
     pageIsLive(visualPageId) &&
     shouldRenderVisualBuilder(visualPageId, db.pages[visualPageId])
@@ -1002,12 +1010,11 @@ export function App() {
     return <FacilitiesServicesPage />;
   }
 
-  const requestedDepartmentPageId = path.replace(/^\/+/, "");
   if (
-    COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedDepartmentPageId) &&
-    pageIsLive(requestedDepartmentPageId)
+    COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedPageId) &&
+    pageIsLive(requestedPageId)
   ) {
-    return <CollegeDepartmentPage pageId={requestedDepartmentPageId} />;
+    return <CollegeDepartmentPage pageId={requestedPageId} />;
   }
 
   if (path === "/" || path === "") return <HomePage />;
