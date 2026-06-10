@@ -404,6 +404,14 @@ export interface PastRectorProfile {
   image: string;
 }
 
+export interface FacilityItem {
+  title: string;
+  category: string;
+  image: string;
+  body: string;
+  highlights: string[];
+}
+
 export interface DB {
   contentVersion: number;
   publishedAt: string;
@@ -468,6 +476,7 @@ export interface DB {
       visualBaseCss?: string;
       sections?: unknown[];
       pastRectorProfiles?: PastRectorProfile[];
+      facilityItems?: FacilityItem[];
     }
   >;
   homeSections: {

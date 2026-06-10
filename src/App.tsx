@@ -26,8 +26,10 @@ import {
   ShieldCheck,
   Trophy,
   Users,
+  Waves,
   X,
   Image as ImageIcon,
+  type LucideIcon,
 } from "lucide-react";
 import { BrandedLoader } from "@/components/BrandedLoader";
 import { HeroBackgroundLayer, PageHeader, PublicLayout } from "@/components/site/PublicLayout";
@@ -49,6 +51,7 @@ import {
   useDb,
   type GalleryItem,
   type GalleryVideo,
+  type FacilityItem,
   type HomeLeadershipCard,
   type PastRectorProfile,
   type Role,
@@ -2547,14 +2550,13 @@ function LoyolianCambridgeEnglishAcademyPage() {
 
 const facilityImageBase = "https://www.loyolacollege.lk/frontend/assets/img/facilities";
 
-const facilitiesServices = [
+const defaultFacilitiesServices: FacilityItem[] = [
   {
     title: "Audio Visual Room",
     category: "Learning & Media",
     image: `${facilityImageBase}/AUDIO-VISUAL-ROOM-300x250.jpg`,
     body: "A presentation-ready learning space for conferences, seminars, screenings, and media-assisted teaching.",
     highlights: ["Presentations", "Workshops", "Media learning"],
-    icon: Film,
   },
   {
     title: "SV Fonseka Hall",
@@ -2562,7 +2564,6 @@ const facilitiesServices = [
     image: `${facilityImageBase}/SV-FONSEKA-300x250.jpg`,
     body: "A central college hall for assemblies, formal gatherings, celebrations, and student programmes.",
     highlights: ["Assemblies", "Ceremonies", "College events"],
-    icon: Landmark,
   },
   {
     title: "Library",
@@ -2570,7 +2571,6 @@ const facilitiesServices = [
     image: `${facilityImageBase}/LIBRARY-300x250.jpg`,
     body: "A quiet academic resource space that supports reading habits, research, reference work, and independent study.",
     highlights: ["Reading", "Reference", "Research"],
-    icon: BookOpen,
   },
   {
     title: "Smart Class Room",
@@ -2578,7 +2578,6 @@ const facilitiesServices = [
     image: `${facilityImageBase}/SMART-CLASS-ROOM-300x250.jpg`,
     body: "A technology-enabled classroom that helps teachers deliver clear, visual, and interactive lessons.",
     highlights: ["Smart lessons", "Digital tools", "Interactive teaching"],
-    icon: GraduationCap,
   },
   {
     title: "Canteen",
@@ -2586,7 +2585,13 @@ const facilitiesServices = [
     image: `${facilityImageBase}/CANTEEN-300x250.jpg`,
     body: "A daily service point for students, supporting refreshment, routine, and practical campus life.",
     highlights: ["Refreshments", "Daily service", "Student care"],
-    icon: Users,
+  },
+  {
+    title: "Main Chapel",
+    category: "Faith Formation",
+    image: "",
+    body: "The main chapel supports school Masses, prayer services, retreats, confession, and the Catholic spiritual life of the college.",
+    highlights: ["Holy Mass", "Prayer", "Retreats"],
   },
   {
     title: "St. Ignatius Chapel",
@@ -2594,7 +2599,6 @@ const facilitiesServices = [
     image: `${facilityImageBase}/ST-IGNATIUS-CHAPEL-300x250.jpg`,
     body: "A sacred space for prayer, reflection, Catholic formation, and the spiritual life of the college community.",
     highlights: ["Prayer", "Reflection", "Faith life"],
-    icon: ShieldCheck,
   },
   {
     title: "Cadet Billet",
@@ -2602,7 +2606,6 @@ const facilitiesServices = [
     image: `${facilityImageBase}/CADET-BILLET-300x250.jpg`,
     body: "A dedicated space that supports cadet activities, discipline, leadership training, and student responsibility.",
     highlights: ["Cadets", "Leadership", "Discipline"],
-    icon: Award,
   },
   {
     title: "Scout Den",
@@ -2610,7 +2613,6 @@ const facilitiesServices = [
     image: `${facilityImageBase}/SCOUT-DEN-300x250.jpg`,
     body: "A home base for scouts to organize equipment, plan activities, and build practical leadership skills.",
     highlights: ["Scouts", "Planning", "Teamwork"],
-    icon: Trophy,
   },
   {
     title: "Auditorium",
@@ -2618,9 +2620,69 @@ const facilitiesServices = [
     image: `${facilityImageBase}/auditorium-300x250.jpg`,
     body: "A refined venue for meetings, conferences, performances, presentations, and large school gatherings.",
     highlights: ["Performances", "Meetings", "Conferences"],
-    icon: Camera,
+  },
+  {
+    title: "Gym",
+    category: "Sports & Fitness",
+    image: "",
+    body: "A training space for student fitness, athletic conditioning, indoor practice, equipment use, and guided physical development.",
+    highlights: ["Fitness", "Training", "Conditioning"],
+  },
+  {
+    title: "Swimming Pool",
+    category: "Aquatics",
+    image: "",
+    body: "An aquatic facility for swimming training, water safety, school practices, competitions, and student wellbeing.",
+    highlights: ["Swimming", "Water safety", "Training"],
   },
 ];
+
+const facilityIconByTitle: Record<string, LucideIcon> = {
+  "Audio Visual Room": Film,
+  "SV Fonseka Hall": Landmark,
+  Library: BookOpen,
+  "Smart Class Room": GraduationCap,
+  Canteen: Users,
+  "Main Chapel": ShieldCheck,
+  "St. Ignatius Chapel": ShieldCheck,
+  "Cadet Billet": Award,
+  "Scout Den": Trophy,
+  Auditorium: Camera,
+  Gym: Trophy,
+  "Swimming Pool": Waves,
+};
+
+type FacilityDisplayItem = FacilityItem & { icon: LucideIcon };
+
+function editableFacilityItems(page?: { facilityItems?: FacilityItem[] }): FacilityItem[] {
+  const saved = page?.facilityItems;
+  const savedItems = Array.isArray(saved) ? saved : [];
+  const savedByTitle = new Map(savedItems.map((facility) => [facility.title, facility]));
+  const defaultTitles = new Set(defaultFacilitiesServices.map((facility) => facility.title));
+  const source = [
+    ...defaultFacilitiesServices.map((facility) => ({
+      ...facility,
+      ...(savedByTitle.get(facility.title) || {}),
+    })),
+    ...savedItems.filter((facility) => !defaultTitles.has(facility.title)),
+  ];
+  return source.map((facility) => ({
+    title: facility.title || "Campus facility",
+    category: facility.category || "Facility",
+    image: facility.image || "",
+    body: facility.body || "Add facility details.",
+    highlights: Array.isArray(facility.highlights)
+      ? facility.highlights.filter(Boolean)
+      : [],
+  }));
+}
+
+function facilityDisplayItems(page?: { facilityItems?: FacilityItem[] }): FacilityDisplayItem[] {
+  return editableFacilityItems(page).map((facility) => ({
+    ...facility,
+    icon: facilityIconByTitle[facility.title] || Landmark,
+  }));
+}
 
 const facilityGroups = [
   {
@@ -2638,26 +2700,68 @@ const facilityGroups = [
   {
     title: "Service, Faith & Leadership",
     body: "Daily services and formation spaces that support wellbeing, discipline, faith, and student leadership.",
-    items: ["Canteen", "St. Ignatius Chapel", "Cadet Billet", "Scout Den"],
+    items: ["Canteen", "Main Chapel", "St. Ignatius Chapel", "Cadet Billet", "Scout Den"],
     icon: ShieldCheck,
   },
+  {
+    title: "Sports & Aquatics",
+    body: "Training and wellness spaces for fitness, swimming, sports practice, and student physical development.",
+    items: ["Gym", "Swimming Pool"],
+    icon: Trophy,
+  },
 ];
+
+function FacilityMedia({
+  facility,
+  className,
+}: {
+  facility: FacilityDisplayItem;
+  className: string;
+}) {
+  const [failed, setFailed] = useState(false);
+  const Icon = facility.icon;
+
+  if (facility.image && !failed) {
+    return (
+      <img
+        src={facility.image}
+        alt={`${facility.title} facility`}
+        onError={() => setFailed(true)}
+        className={className}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`${className} grid place-items-center bg-[linear-gradient(135deg,#071224,#12233b)] text-center text-white`}
+    >
+      <div className="grid gap-3 px-4">
+        <span className="mx-auto grid h-14 w-14 place-items-center rounded-lg bg-gold/15 text-gold ring-1 ring-gold/25">
+          <Icon className="h-7 w-7" />
+        </span>
+        <span className="text-xs font-black uppercase tracking-[0.18em] text-white/75">
+          {facility.title}
+        </span>
+      </div>
+    </div>
+  );
+}
 
 function FacilitiesServicesPage() {
   const db = useDb();
   const page = db.pages[FACILITIES_PAGE_ID];
+  const facilities = facilityDisplayItems(page);
   const pageBody =
     page?.body && page.body.trim() !== "New page content goes here." ? page.body : "";
   const heroImage =
     page?.image ||
-    facilitiesServices[8]?.image ||
     db.media.campusImage ||
-    db.websiteContent.heroImage;
-  const imageFallback = db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE;
-
-  const handleFacilityImageError = (event: React.SyntheticEvent<HTMLImageElement>) => {
-    event.currentTarget.src = imageFallback;
-  };
+    db.websiteContent.heroImage ||
+    DEFAULT_HERO_IMAGE;
+  const formationSpaces = facilities.filter((facility) =>
+    /faith|formation|leadership|discipline/i.test(`${facility.category} ${facility.title}`),
+  ).length;
 
   return (
     <PublicLayout>
@@ -2689,9 +2793,9 @@ function FacilitiesServicesPage() {
               </p>
               <div className="mt-8 grid gap-3 sm:grid-cols-3">
                 {[
-                  ["9", "Featured facilities"],
-                  ["3", "Learning zones"],
-                  ["4", "Formation spaces"],
+                  [String(facilities.length), "Featured facilities"],
+                  [String(facilityGroups.length), "Service areas"],
+                  [String(formationSpaces || 4), "Formation spaces"],
                 ].map(([value, label]) => (
                   <div key={label} className="rounded-lg bg-background p-4">
                     <p className="font-serif text-3xl font-bold text-navy">{value}</p>
@@ -2705,12 +2809,10 @@ function FacilitiesServicesPage() {
 
             <aside className="min-w-0 overflow-hidden rounded-lg border border-border bg-navy text-white shadow-elegant">
               <div className="grid grid-cols-2 gap-1 p-1">
-                {facilitiesServices.slice(0, 4).map((facility) => (
-                  <img
+                {facilities.slice(0, 4).map((facility) => (
+                  <FacilityMedia
                     key={facility.title}
-                    src={facility.image}
-                    alt=""
-                    onError={handleFacilityImageError}
+                    facility={facility}
                     className="aspect-[4/3] w-full object-cover"
                   />
                 ))}
@@ -2752,7 +2854,7 @@ function FacilitiesServicesPage() {
           </div>
 
           <div className="stagger-children mt-9 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {facilitiesServices.map((facility) => {
+            {facilities.map((facility) => {
               const Icon = facility.icon;
               return (
                 <article
@@ -2760,10 +2862,8 @@ function FacilitiesServicesPage() {
                   className="group min-w-0 overflow-hidden rounded-lg border border-border bg-white shadow-soft"
                 >
                   <div className="relative overflow-hidden bg-navy">
-                    <img
-                      src={facility.image}
-                      alt={`${facility.title} facility`}
-                      onError={handleFacilityImageError}
+                    <FacilityMedia
+                      facility={facility}
                       className="aspect-[16/10] w-full object-cover transition-smooth group-hover:scale-105"
                     />
                     <span className="absolute left-4 top-4 inline-flex rounded-full bg-white/92 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-navy shadow-soft">

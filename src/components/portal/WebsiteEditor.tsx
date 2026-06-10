@@ -35,6 +35,7 @@ import {
   type HomeLeadershipCard,
   type PageBlockType,
   type PageBlock,
+  type FacilityItem,
   type PastRectorProfile,
 } from "@/lib/store";
 import { uploadFileToBackend } from "@/lib/backend-upload";
@@ -567,62 +568,130 @@ const lceaProgrammes = [
   },
 ];
 
-const facilitiesTemplateItems = [
+const facilitiesTemplateItems: FacilityItem[] = [
   {
     title: "Audio Visual Room",
     category: "Learning & Media",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/AUDIO-VISUAL-ROOM-300x250.jpg",
     body: "A presentation-ready learning space for conferences, seminars, screenings, and media-assisted teaching.",
+    highlights: ["Presentations", "Workshops", "Media learning"],
   },
   {
     title: "SV Fonseka Hall",
     category: "Assembly & Events",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/SV-FONSEKA-300x250.jpg",
     body: "A central college hall for assemblies, formal gatherings, celebrations, and student programmes.",
+    highlights: ["Assemblies", "Ceremonies", "College events"],
   },
   {
     title: "Library",
     category: "Study & Reading",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/LIBRARY-300x250.jpg",
     body: "A quiet academic resource space that supports reading habits, research, reference work, and independent study.",
+    highlights: ["Reading", "Reference", "Research"],
   },
   {
     title: "Smart Class Room",
     category: "Digital Learning",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/SMART-CLASS-ROOM-300x250.jpg",
     body: "A technology-enabled classroom that helps teachers deliver clear, visual, and interactive lessons.",
+    highlights: ["Smart lessons", "Digital tools", "Interactive teaching"],
   },
   {
     title: "Canteen",
     category: "Student Services",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/CANTEEN-300x250.jpg",
     body: "A daily service space for refreshments, meals, and student needs during school hours.",
+    highlights: ["Refreshments", "Daily service", "Student care"],
+  },
+  {
+    title: "Main Chapel",
+    category: "Faith Formation",
+    image: "",
+    body: "The main chapel supports school Masses, prayer services, retreats, confession, and the Catholic spiritual life of the college.",
+    highlights: ["Holy Mass", "Prayer", "Retreats"],
   },
   {
     title: "St. Ignatius Chapel",
     category: "Faith & Prayer",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/ST-IGNATIUS-CHAPEL-300x250.jpg",
     body: "A sacred chapel for prayer, reflection, worship, and the Catholic identity of Loyola College.",
+    highlights: ["Prayer", "Reflection", "Faith life"],
   },
   {
     title: "Cadet Billet",
     category: "Discipline & Leadership",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/CADET-BILLET-300x250.jpg",
     body: "A dedicated space for cadet activities, training preparation, teamwork, and discipline.",
+    highlights: ["Cadets", "Leadership", "Discipline"],
   },
   {
     title: "Scout Den",
     category: "Clubs & Leadership",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/SCOUT-DEN-300x250.jpg",
     body: "A home base for scouts to organize equipment, plan activities, and build practical leadership skills.",
+    highlights: ["Scouts", "Planning", "Teamwork"],
   },
   {
     title: "Auditorium",
     category: "Performance & Meetings",
     image: "https://www.loyolacollege.lk/frontend/assets/img/facilities/auditorium-300x250.jpg",
     body: "A refined venue for meetings, conferences, performances, presentations, and large school gatherings.",
+    highlights: ["Performances", "Meetings", "Conferences"],
+  },
+  {
+    title: "Gym",
+    category: "Sports & Fitness",
+    image: "",
+    body: "A training space for student fitness, athletic conditioning, indoor practice, equipment use, and guided physical development.",
+    highlights: ["Fitness", "Training", "Conditioning"],
+  },
+  {
+    title: "Swimming Pool",
+    category: "Aquatics",
+    image: "",
+    body: "An aquatic facility for swimming training, water safety, school practices, competitions, and student wellbeing.",
+    highlights: ["Swimming", "Water safety", "Training"],
   },
 ];
+
+function editableFacilityItems(page?: DB["pages"][string]): FacilityItem[] {
+  const savedItems = Array.isArray(page?.facilityItems) ? page.facilityItems : [];
+  const savedByTitle = new Map(savedItems.map((facility) => [facility.title, facility]));
+  const defaultTitles = new Set(facilitiesTemplateItems.map((facility) => facility.title));
+  const source = [
+    ...facilitiesTemplateItems.map((facility) => ({
+      ...facility,
+      ...(savedByTitle.get(facility.title) || {}),
+    })),
+    ...savedItems.filter((facility) => !defaultTitles.has(facility.title)),
+  ];
+
+  return source.map((facility) => ({
+    title: facility.title || "Campus facility",
+    category: facility.category || "Facility",
+    image: facility.image || "",
+    body: facility.body || "Add facility details.",
+    highlights: Array.isArray(facility.highlights)
+      ? facility.highlights.filter(Boolean)
+      : [],
+  }));
+}
+
+function facilityImageHtml(facility: FacilityItem, aspect = "16/10") {
+  const image = facility.image?.trim() || "";
+  const isLegacyExternal = image.includes("www.loyolacollege.lk/frontend/assets/img/facilities");
+  if (image && !isLegacyExternal) {
+    return `<img src="${escapeHtml(image)}" alt="${escapeHtml(facility.title)} facility" style="width:100%;aspect-ratio:${aspect};object-fit:cover;border-radius:8px;background:#fff;" />`;
+  }
+
+  return `<div style="display:grid;place-items:center;width:100%;aspect-ratio:${aspect};border-radius:8px;background:linear-gradient(135deg,#071224,#12233b);color:#fff;text-align:center;">
+    <div>
+      <div style="display:grid;place-items:center;width:58px;height:58px;margin:0 auto;border-radius:10px;background:rgba(212,160,23,.16);border:1px solid rgba(247,217,107,.35);color:#f7d96b;font-size:28px;">+</div>
+      <p style="margin-top:12px;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.78);">${escapeHtml(facility.title)}</p>
+    </div>
+  </div>`;
+}
 
 const PAST_RECTORS_PAGE_IDS = new Set([
   "about/college-history",
@@ -964,9 +1033,9 @@ function lceaVisualStarter(db: DB) {
 
 function facilitiesVisualStarter(db: DB) {
   const page = db.pages[FACILITIES_PAGE_ID] || {};
+  const facilities = editableFacilityItems(page);
   const image =
     page.image ||
-    facilitiesTemplateItems[8]?.image ||
     db.media.campusImage ||
     db.websiteContent.heroImage ||
     "/loyola-crest.jpg";
@@ -989,19 +1058,16 @@ function facilitiesVisualStarter(db: DB) {
       <h2 style="margin-top:12px;">Purpose-built spaces for study, service, worship, and school life.</h2>
       <p style="margin-top:18px;">Loyola College Negombo provides facilities that support classroom learning, co-curricular formation, spiritual life, leadership development, student service, and major school gatherings.</p>
       <div class="stats-row" style="margin-top:28px;grid-template-columns:repeat(3,minmax(0,1fr));">
-        <article class="stat-tile"><strong>9</strong><span>Featured facilities</span></article>
-        <article class="stat-tile"><strong>3</strong><span>Learning zones</span></article>
-        <article class="stat-tile"><strong>4</strong><span>Formation spaces</span></article>
+        <article class="stat-tile"><strong>${escapeHtml(String(facilities.length))}</strong><span>Featured facilities</span></article>
+        <article class="stat-tile"><strong>4</strong><span>Service areas</span></article>
+        <article class="stat-tile"><strong>5</strong><span>Formation spaces</span></article>
       </div>
     </article>
     <article class="feature-card" style="background:#0a1628;color:#fff;">
       <div class="grid-2" style="gap:6px;">
-        ${facilitiesTemplateItems
+        ${facilities
           .slice(0, 4)
-          .map(
-            (facility) =>
-              `<img src="${escapeHtml(facility.image)}" alt="" style="width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:6px;" />`,
-          )
+          .map((facility) => facilityImageHtml(facility, "4/3"))
           .join("")}
       </div>
       <p class="eyebrow" style="margin-top:24px;color:#f7d96b;">Facilities Network</p>
@@ -1015,15 +1081,27 @@ function facilitiesVisualStarter(db: DB) {
   <div class="container">
     <p class="eyebrow">Explore Facilities</p>
     <h2 style="margin-top:12px;">Campus facilities and student services</h2>
-    ${featureCardsHtml(
-      facilitiesTemplateItems.map((facility) => ({
-        kicker: facility.category,
-        title: facility.title,
-        body: facility.body,
-        image: facility.image,
-      })),
-      "grid-3",
-    )}
+    <div class="grid-3" style="margin-top:30px;">
+      ${facilities
+        .map(
+          (facility) => `<article class="feature-card" style="overflow:hidden;padding:0;">
+        ${facilityImageHtml(facility)}
+        <div style="padding:24px;">
+          <p class="eyebrow">${escapeHtml(facility.category)}</p>
+          <h3 style="margin-top:12px;">${escapeHtml(facility.title)}</h3>
+          <p style="margin-top:10px;">${escapeHtml(facility.body)}</p>
+          ${
+            facility.highlights.length
+              ? `<p style="margin-top:16px;color:#64748b;font-size:.85rem;">${facility.highlights
+                  .map(escapeHtml)
+                  .join(" | ")}</p>`
+              : ""
+          }
+        </div>
+      </article>`,
+        )
+        .join("")}
+    </div>
   </div>
 </section>
 
@@ -1042,7 +1120,11 @@ function facilitiesVisualStarter(db: DB) {
       },
       {
         title: "Service, Faith & Leadership",
-        body: "Canteen, St. Ignatius Chapel, Cadet Billet, and Scout Den support wellbeing, faith, discipline, and student leadership.",
+        body: "Canteen, Main Chapel, St. Ignatius Chapel, Cadet Billet, and Scout Den support wellbeing, faith, discipline, and student leadership.",
+      },
+      {
+        title: "Sports & Aquatics",
+        body: "Gym and Swimming Pool support fitness, aquatic training, sports practice, and student physical development.",
       },
     ])}
   </div>
@@ -1753,6 +1835,7 @@ export function WebsiteEditor() {
   const rectorInputRef = useRef<HTMLInputElement>(null);
   const leadershipImageInputRef = useRef<HTMLInputElement>(null);
   const pastRectorImageInputRef = useRef<HTMLInputElement>(null);
+  const facilityImageInputRef = useRef<HTMLInputElement>(null);
   const pageImageInputRef = useRef<HTMLInputElement>(null);
   const anthemVideoCoverInputRef = useRef<HTMLInputElement>(null);
   const backgroundMediaInputRef = useRef<HTMLInputElement>(null);
@@ -1767,6 +1850,7 @@ export function WebsiteEditor() {
   const [widePreview, setWidePreview] = useState(false);
   const [leadershipUploadTarget, setLeadershipUploadTarget] = useState<string | null>(null);
   const [pastRectorUploadTarget, setPastRectorUploadTarget] = useState<number | null>(null);
+  const [facilityUploadTarget, setFacilityUploadTarget] = useState<number | null>(null);
   const [safeVisualEditorOpen, setSafeVisualEditorOpen] = useState(false);
   const [visualEditorOpen, setVisualEditorOpen] = useState(false);
   const [visualEditorInitial, setVisualEditorInitial] = useState<{
@@ -1804,6 +1888,10 @@ export function WebsiteEditor() {
   );
   const inspectorPastRectorProfiles = useMemo(
     () => editablePastRectorProfiles(db.pages[selectedPage]),
+    [db.pages, selectedPage],
+  );
+  const inspectorFacilityItems = useMemo(
+    () => editableFacilityItems(db.pages[selectedPage]),
     [db.pages, selectedPage],
   );
 
@@ -1869,6 +1957,54 @@ export function WebsiteEditor() {
 
   const removePastRectorProfile = (index: number) => {
     setPastRectorProfiles(inspectorPastRectorProfiles.filter((_, currentIndex) => currentIndex !== index));
+  };
+
+  const setFacilityItems = (items: FacilityItem[]) => {
+    setDb((current) => ({
+      ...current,
+      pages: {
+        ...current.pages,
+        [selectedPage]: {
+          ...(current.pages[selectedPage] || {}),
+          facilityItems: items,
+        },
+      },
+    }));
+  };
+
+  const updateFacilityItem = (index: number, patch: Partial<FacilityItem>) => {
+    setDb((current) => {
+      const items = editableFacilityItems(current.pages[selectedPage]);
+      if (!items[index]) return current;
+      items[index] = { ...items[index], ...patch };
+      return {
+        ...current,
+        pages: {
+          ...current.pages,
+          [selectedPage]: {
+            ...(current.pages[selectedPage] || {}),
+            facilityItems: items,
+          },
+        },
+      };
+    });
+  };
+
+  const addFacilityItem = () => {
+    setFacilityItems([
+      ...inspectorFacilityItems,
+      {
+        title: "New facility",
+        category: "Facility",
+        image: "",
+        body: "Add facility details.",
+        highlights: [],
+      },
+    ]);
+  };
+
+  const removeFacilityItem = (index: number) => {
+    setFacilityItems(inspectorFacilityItems.filter((_, currentIndex) => currentIndex !== index));
   };
 
   const updateHomeSection = (patch: Partial<DB["homeSections"]>) => {
@@ -2070,6 +2206,23 @@ export function WebsiteEditor() {
       setMessage(error instanceof Error ? error.message : "Past rector photo upload failed.");
     } finally {
       setPastRectorUploadTarget(null);
+    }
+  };
+
+  const uploadFacilityImage = async (index: number, file?: File) => {
+    if (!file) return;
+    try {
+      setMessage("Optimizing facility photo...");
+      const optimized = await compressImage(file);
+      setMessage("Uploading facility photo...");
+      const imageUrl = await uploadFileToBackend("site-images/facilities", file);
+
+      updateFacilityItem(index, { image: imageUrl });
+      setMessage(`Facility photo uploaded: ${optimized.original} to ${optimized.optimized}`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Facility photo upload failed.");
+    } finally {
+      setFacilityUploadTarget(null);
     }
   };
 
@@ -3381,6 +3534,106 @@ export function WebsiteEditor() {
                         ))}
                       </div>
                     )}
+                    {selectedPage === FACILITIES_PAGE_ID && (
+                      <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
+                            Facility cards
+                          </p>
+                          <button
+                            type="button"
+                            onClick={addFacilityItem}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Add
+                          </button>
+                        </div>
+                        {inspectorFacilityItems.map((facility, index) => (
+                          <div
+                            key={`${facility.title}-${index}`}
+                            className="space-y-3 rounded-xl border border-slate-200 bg-white p-3"
+                          >
+                            {facility.image && (
+                              <img
+                                src={facility.image}
+                                alt=""
+                                className="max-h-56 w-full rounded-lg bg-slate-100 object-cover"
+                              />
+                            )}
+                            <Field label="Title">
+                              <input
+                                value={facility.title}
+                                onChange={(e) =>
+                                  updateFacilityItem(index, { title: e.target.value })
+                                }
+                                className="input-line"
+                              />
+                            </Field>
+                            <Field label="Category">
+                              <input
+                                value={facility.category}
+                                onChange={(e) =>
+                                  updateFacilityItem(index, { category: e.target.value })
+                                }
+                                className="input-line"
+                              />
+                            </Field>
+                            <Field label="Body">
+                              <textarea
+                                value={facility.body}
+                                onChange={(e) =>
+                                  updateFacilityItem(index, { body: e.target.value })
+                                }
+                                rows={4}
+                                className="input-line resize-none"
+                              />
+                            </Field>
+                            <Field label="Highlights">
+                              <input
+                                value={facility.highlights.join(", ")}
+                                onChange={(e) =>
+                                  updateFacilityItem(index, {
+                                    highlights: e.target.value
+                                      .split(",")
+                                      .map((item) => item.trim())
+                                      .filter(Boolean),
+                                  })
+                                }
+                                placeholder="Swimming, Water safety, Training"
+                                className="input-line"
+                              />
+                            </Field>
+                            <Field label="Image URL">
+                              <input
+                                value={facility.image}
+                                onChange={(e) =>
+                                  updateFacilityItem(index, { image: e.target.value })
+                                }
+                                placeholder="Paste image URL or upload below"
+                                className="input-line"
+                              />
+                            </Field>
+                            <div className="grid gap-2">
+                              <StudioButton
+                                tone="gold"
+                                onClick={() => {
+                                  setFacilityUploadTarget(index);
+                                  facilityImageInputRef.current?.click();
+                                }}
+                              >
+                                <Upload className="h-4 w-4" /> Upload photo
+                              </StudioButton>
+                              <StudioButton onClick={() => updateFacilityItem(index, { image: "" })}>
+                                <Trash2 className="h-4 w-4" /> Remove photo
+                              </StudioButton>
+                              <StudioButton onClick={() => removeFacilityItem(index)}>
+                                <Trash2 className="h-4 w-4" /> Remove facility
+                              </StudioButton>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {selectedPage === "about/college-anthem-hymn" && (
                       <div className="rounded-xl border border-[#d4a017]/30 bg-[#d4a017]/5 p-4">
                         <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
@@ -3577,6 +3830,18 @@ export function WebsiteEditor() {
                         pastRectorUploadTarget,
                         e.target.files?.[0],
                       );
+                    }
+                    e.currentTarget.value = "";
+                  }}
+                />
+                <input
+                  ref={facilityImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (facilityUploadTarget !== null) {
+                      void uploadFacilityImage(facilityUploadTarget, e.target.files?.[0]);
                     }
                     e.currentTarget.value = "";
                   }}
