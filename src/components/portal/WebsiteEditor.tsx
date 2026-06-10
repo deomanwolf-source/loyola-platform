@@ -1777,6 +1777,10 @@ export function WebsiteEditor() {
     ];
   }, [db.navigation, db.pages]);
   const visibleNav = useMemo(() => getSortedNav(db.navigation), [db.navigation]);
+  const inspectorLeadershipCards = useMemo(
+    () => mergedHomeLeadershipCards(db.homeSections.leadershipCards),
+    [db.homeSections.leadershipCards],
+  );
 
   useEffect(() => {
     if (!db.pages[selectedPage]) setSelectedPage("home");
@@ -1811,15 +1815,24 @@ export function WebsiteEditor() {
     id: string,
     patch: Partial<DB["homeSections"]["leadershipCards"][number]>,
   ) => {
-    setDb((current) => ({
-      ...current,
-      homeSections: {
-        ...current.homeSections,
-        leadershipCards: current.homeSections.leadershipCards.map((card) =>
-          card.id === id ? { ...card, ...patch } : card,
-        ),
-      },
-    }));
+    setDb((current) => {
+      const existingCards = current.homeSections.leadershipCards;
+      const existingCard = existingCards.find((card) => card.id === id);
+      const requiredCard = mergedHomeLeadershipCards(existingCards).find((card) => card.id === id);
+      const leadershipCards = existingCard
+        ? existingCards.map((card) => (card.id === id ? { ...card, ...patch } : card))
+        : requiredCard
+          ? [...existingCards, { ...requiredCard, ...patch }]
+          : existingCards;
+
+      return {
+        ...current,
+        homeSections: {
+          ...current.homeSections,
+          leadershipCards,
+        },
+      };
+    });
   };
 
   const updateHomeStat = (id: string, patch: Partial<DB["homeSections"]["stats"][number]>) => {
@@ -1870,7 +1883,13 @@ export function WebsiteEditor() {
             title: "Leadership role",
             description: "",
             image: "",
-            order: current.homeSections.leadershipCards.length + 1,
+            order:
+              Math.max(
+                0,
+                ...mergedHomeLeadershipCards(current.homeSections.leadershipCards).map(
+                  (card) => card.order || 0,
+                ),
+              ) + 1,
             visible: true,
           },
         ],
@@ -3104,99 +3123,96 @@ export function WebsiteEditor() {
                             className="input-line resize-none"
                           />
                         </Field>
-                        {db.homeSections.leadershipCards
-                          .slice()
-                          .sort((a, b) => (a.order || 0) - (b.order || 0))
-                          .map((card) => (
-                            <div
-                              key={card.id}
-                              className="space-y-3 rounded-xl border border-slate-200 bg-white p-3"
-                            >
-                              {card.image && (
-                                <img
-                                  src={card.image}
-                                  alt=""
-                                  className="aspect-[4/5] w-full rounded-lg object-cover"
-                                />
-                              )}
-                              <Field label="Name">
+                        {inspectorLeadershipCards.map((card) => (
+                          <div
+                            key={card.id}
+                            className="space-y-3 rounded-xl border border-slate-200 bg-white p-3"
+                          >
+                            {card.image && (
+                              <img
+                                src={card.image}
+                                alt=""
+                                className="aspect-[4/5] w-full rounded-lg object-cover"
+                              />
+                            )}
+                            <Field label="Name">
+                              <input
+                                value={card.name}
+                                onChange={(e) =>
+                                  updateLeadershipCard(card.id, { name: e.target.value })
+                                }
+                                className="input-line"
+                              />
+                            </Field>
+                            <Field label="Role">
+                              <input
+                                value={card.title}
+                                onChange={(e) =>
+                                  updateLeadershipCard(card.id, { title: e.target.value })
+                                }
+                                className="input-line"
+                              />
+                            </Field>
+                            <Field label="Description">
+                              <textarea
+                                value={card.description}
+                                onChange={(e) =>
+                                  updateLeadershipCard(card.id, { description: e.target.value })
+                                }
+                                rows={3}
+                                className="input-line resize-none"
+                              />
+                            </Field>
+                            <Field label="Image URL">
+                              <input
+                                value={card.image}
+                                onChange={(e) =>
+                                  updateLeadershipCard(card.id, { image: e.target.value })
+                                }
+                                className="input-line"
+                              />
+                            </Field>
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              <Field label="Order">
                                 <input
-                                  value={card.name}
+                                  type="number"
+                                  value={card.order || 0}
                                   onChange={(e) =>
-                                    updateLeadershipCard(card.id, { name: e.target.value })
+                                    updateLeadershipCard(card.id, {
+                                      order: Number(e.target.value) || 0,
+                                    })
                                   }
                                   className="input-line"
                                 />
                               </Field>
-                              <Field label="Role">
+                              <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-navy">
                                 <input
-                                  value={card.title}
+                                  type="checkbox"
+                                  checked={card.visible !== false}
                                   onChange={(e) =>
-                                    updateLeadershipCard(card.id, { title: e.target.value })
+                                    updateLeadershipCard(card.id, { visible: e.target.checked })
                                   }
-                                  className="input-line"
+                                  className="accent-[#d4a017]"
                                 />
-                              </Field>
-                              <Field label="Description">
-                                <textarea
-                                  value={card.description}
-                                  onChange={(e) =>
-                                    updateLeadershipCard(card.id, { description: e.target.value })
-                                  }
-                                  rows={3}
-                                  className="input-line resize-none"
-                                />
-                              </Field>
-                              <Field label="Image URL">
-                                <input
-                                  value={card.image}
-                                  onChange={(e) =>
-                                    updateLeadershipCard(card.id, { image: e.target.value })
-                                  }
-                                  className="input-line"
-                                />
-                              </Field>
-                              <div className="grid gap-2 sm:grid-cols-2">
-                                <Field label="Order">
-                                  <input
-                                    type="number"
-                                    value={card.order || 0}
-                                    onChange={(e) =>
-                                      updateLeadershipCard(card.id, {
-                                        order: Number(e.target.value) || 0,
-                                      })
-                                    }
-                                    className="input-line"
-                                  />
-                                </Field>
-                                <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-navy">
-                                  <input
-                                    type="checkbox"
-                                    checked={card.visible !== false}
-                                    onChange={(e) =>
-                                      updateLeadershipCard(card.id, { visible: e.target.checked })
-                                    }
-                                    className="accent-[#d4a017]"
-                                  />
-                                  Show
-                                </label>
-                              </div>
-                              <div className="grid gap-2">
-                                <StudioButton
-                                  tone="gold"
-                                  onClick={() => {
-                                    setLeadershipUploadTarget(card.id);
-                                    leadershipImageInputRef.current?.click();
-                                  }}
-                                >
-                                  <Upload className="h-4 w-4" /> Upload photo
-                                </StudioButton>
-                                <StudioButton onClick={() => removeLeadershipCard(card.id)}>
-                                  <Trash2 className="h-4 w-4" /> Remove card
-                                </StudioButton>
-                              </div>
+                                Show
+                              </label>
                             </div>
-                          ))}
+                            <div className="grid gap-2">
+                              <StudioButton
+                                tone="gold"
+                                onClick={() => {
+                                  setLeadershipUploadTarget(card.id);
+                                  leadershipImageInputRef.current?.click();
+                                }}
+                              >
+                                <Upload className="h-4 w-4" /> Upload photo
+                              </StudioButton>
+                              <StudioButton onClick={() => removeLeadershipCard(card.id)}>
+                                <Trash2 className="h-4 w-4" /> Remove card
+                              </StudioButton>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </>
