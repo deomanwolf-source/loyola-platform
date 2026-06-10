@@ -35,6 +35,7 @@ import {
   type HomeLeadershipCard,
   type PageBlockType,
   type PageBlock,
+  type PastRectorProfile,
 } from "@/lib/store";
 import { uploadFileToBackend } from "@/lib/backend-upload";
 import { createPublishRequest } from "@/lib/publish-requests";
@@ -676,6 +677,16 @@ const pastRectorProfiles = [
   },
 ];
 
+function editablePastRectorProfiles(page?: DB["pages"][string]): PastRectorProfile[] {
+  const saved = page?.pastRectorProfiles;
+  const source = Array.isArray(saved) && saved.length ? saved : pastRectorProfiles;
+  return source.map((profile) => ({
+    name: profile.name || "Past rector",
+    years: profile.years || "",
+    image: profile.image || "",
+  }));
+}
+
 function isPastRectorsPage(pageId: string) {
   return PAST_RECTORS_PAGE_IDS.has(pageId);
 }
@@ -1046,6 +1057,7 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
   );
   const image =
     page.image || db.media.campusImage || db.websiteContent.heroImage || "/loyola-crest.jpg";
+  const profiles = editablePastRectorProfiles(page);
 
   return `${pageHeroHtml({
     kicker: page.kicker || "Faith, learning, discipline, and service.",
@@ -1071,14 +1083,14 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
     <p class="eyebrow">Profile Records</p>
     <h2 style="margin-top:12px;">Rector Profiles</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:28px;margin-top:32px;">
-      ${pastRectorProfiles
+      ${profiles
         .map(
           (profile) => `<article class="feature-card" style="overflow:hidden;padding:0;">
         <div style="border-bottom:1px solid #dde4ed;padding:22px 24px;">
           <h3>${escapeHtml(profile.name)}</h3>
           <p class="eyebrow" style="margin-top:10px;">Service Period: ${escapeHtml(profile.years)}</p>
         </div>
-        <img src="${escapeHtml(profile.image)}" alt="${escapeHtml(profile.name)} profile" loading="lazy" style="width:100%;max-height:720px;object-fit:contain;background:#fff;" />
+        <img src="${escapeHtml(profile.image || "/loyola-crest.jpg")}" alt="${escapeHtml(profile.name)} profile" loading="lazy" style="width:100%;max-height:720px;object-fit:contain;background:#fff;" />
       </article>`,
         )
         .join("")}
@@ -1740,6 +1752,7 @@ export function WebsiteEditor() {
   const principalInputRef = useRef<HTMLInputElement>(null);
   const rectorInputRef = useRef<HTMLInputElement>(null);
   const leadershipImageInputRef = useRef<HTMLInputElement>(null);
+  const pastRectorImageInputRef = useRef<HTMLInputElement>(null);
   const pageImageInputRef = useRef<HTMLInputElement>(null);
   const anthemVideoCoverInputRef = useRef<HTMLInputElement>(null);
   const backgroundMediaInputRef = useRef<HTMLInputElement>(null);
@@ -1753,6 +1766,7 @@ export function WebsiteEditor() {
   );
   const [widePreview, setWidePreview] = useState(false);
   const [leadershipUploadTarget, setLeadershipUploadTarget] = useState<string | null>(null);
+  const [pastRectorUploadTarget, setPastRectorUploadTarget] = useState<number | null>(null);
   const [safeVisualEditorOpen, setSafeVisualEditorOpen] = useState(false);
   const [visualEditorOpen, setVisualEditorOpen] = useState(false);
   const [visualEditorInitial, setVisualEditorInitial] = useState<{
@@ -1788,6 +1802,10 @@ export function WebsiteEditor() {
     () => mergedHomeLeadershipCards(db.homeSections.leadershipCards),
     [db.homeSections.leadershipCards],
   );
+  const inspectorPastRectorProfiles = useMemo(
+    () => editablePastRectorProfiles(db.pages[selectedPage]),
+    [db.pages, selectedPage],
+  );
 
   useEffect(() => {
     if (!db.pages[selectedPage]) setSelectedPage("home");
@@ -1809,6 +1827,48 @@ export function WebsiteEditor() {
         [selectedPage]: { ...(current.pages[selectedPage] || {}), [key]: value },
       },
     }));
+  };
+
+  const setPastRectorProfiles = (profiles: PastRectorProfile[]) => {
+    setDb((current) => ({
+      ...current,
+      pages: {
+        ...current.pages,
+        [selectedPage]: {
+          ...(current.pages[selectedPage] || {}),
+          pastRectorProfiles: profiles,
+        },
+      },
+    }));
+  };
+
+  const updatePastRectorProfile = (index: number, patch: Partial<PastRectorProfile>) => {
+    setDb((current) => {
+      const profiles = editablePastRectorProfiles(current.pages[selectedPage]);
+      if (!profiles[index]) return current;
+      profiles[index] = { ...profiles[index], ...patch };
+      return {
+        ...current,
+        pages: {
+          ...current.pages,
+          [selectedPage]: {
+            ...(current.pages[selectedPage] || {}),
+            pastRectorProfiles: profiles,
+          },
+        },
+      };
+    });
+  };
+
+  const addPastRectorProfile = () => {
+    setPastRectorProfiles([
+      ...inspectorPastRectorProfiles,
+      { name: "New past rector", years: "", image: "" },
+    ]);
+  };
+
+  const removePastRectorProfile = (index: number) => {
+    setPastRectorProfiles(inspectorPastRectorProfiles.filter((_, currentIndex) => currentIndex !== index));
   };
 
   const updateHomeSection = (patch: Partial<DB["homeSections"]>) => {
@@ -1991,6 +2051,25 @@ export function WebsiteEditor() {
       setMessage(error instanceof Error ? error.message : "Leadership photo upload failed.");
     } finally {
       setLeadershipUploadTarget(null);
+    }
+  };
+
+  const uploadPastRectorProfileImage = async (index: number, file?: File) => {
+    if (!file) return;
+    try {
+      setMessage("Optimizing past rector photo...");
+      const optimized = await compressImage(file);
+      setMessage("Uploading past rector photo...");
+      const imageUrl = await uploadFileToBackend("site-images/past-rectors", file);
+
+      updatePastRectorProfile(index, { image: imageUrl });
+      setMessage(
+        `Past rector photo uploaded: ${optimized.original} to ${optimized.optimized}`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Past rector photo upload failed.");
+    } finally {
+      setPastRectorUploadTarget(null);
     }
   };
 
@@ -3226,6 +3305,82 @@ export function WebsiteEditor() {
                 ) : (
                   <>
                     <PageBlockEditor pageId={selectedPage} />
+                    {isPastRectorsPage(selectedPage) && (
+                      <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
+                            Past rector photos
+                          </p>
+                          <button
+                            type="button"
+                            onClick={addPastRectorProfile}
+                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy"
+                          >
+                            <Plus className="h-3.5 w-3.5" /> Add
+                          </button>
+                        </div>
+                        {inspectorPastRectorProfiles.map((profile, index) => (
+                          <div
+                            key={`${profile.name}-${index}`}
+                            className="space-y-3 rounded-xl border border-slate-200 bg-white p-3"
+                          >
+                            {profile.image && (
+                              <img
+                                src={profile.image}
+                                alt=""
+                                className="max-h-72 w-full rounded-lg bg-slate-100 object-contain"
+                              />
+                            )}
+                            <Field label="Name">
+                              <input
+                                value={profile.name}
+                                onChange={(e) =>
+                                  updatePastRectorProfile(index, { name: e.target.value })
+                                }
+                                className="input-line"
+                              />
+                            </Field>
+                            <Field label="Service period">
+                              <input
+                                value={profile.years}
+                                onChange={(e) =>
+                                  updatePastRectorProfile(index, { years: e.target.value })
+                                }
+                                placeholder="1949 - 1987"
+                                className="input-line"
+                              />
+                            </Field>
+                            <Field label="Image URL">
+                              <input
+                                value={profile.image}
+                                onChange={(e) =>
+                                  updatePastRectorProfile(index, { image: e.target.value })
+                                }
+                                placeholder="Paste image URL or upload below"
+                                className="input-line"
+                              />
+                            </Field>
+                            <div className="grid gap-2">
+                              <StudioButton
+                                tone="gold"
+                                onClick={() => {
+                                  setPastRectorUploadTarget(index);
+                                  pastRectorImageInputRef.current?.click();
+                                }}
+                              >
+                                <Upload className="h-4 w-4" /> Upload photo
+                              </StudioButton>
+                              <StudioButton onClick={() => updatePastRectorProfile(index, { image: "" })}>
+                                <Trash2 className="h-4 w-4" /> Remove photo
+                              </StudioButton>
+                              <StudioButton onClick={() => removePastRectorProfile(index)}>
+                                <Trash2 className="h-4 w-4" /> Remove profile
+                              </StudioButton>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {selectedPage === "about/college-anthem-hymn" && (
                       <div className="rounded-xl border border-[#d4a017]/30 bg-[#d4a017]/5 p-4">
                         <p className="mb-3 text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
@@ -3407,6 +3562,21 @@ export function WebsiteEditor() {
                   onChange={(e) => {
                     if (leadershipUploadTarget) {
                       void uploadLeadershipCardImage(leadershipUploadTarget, e.target.files?.[0]);
+                    }
+                    e.currentTarget.value = "";
+                  }}
+                />
+                <input
+                  ref={pastRectorImageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (pastRectorUploadTarget !== null) {
+                      void uploadPastRectorProfileImage(
+                        pastRectorUploadTarget,
+                        e.target.files?.[0],
+                      );
                     }
                     e.currentTarget.value = "";
                   }}

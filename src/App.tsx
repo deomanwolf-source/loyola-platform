@@ -50,6 +50,7 @@ import {
   type GalleryItem,
   type GalleryVideo,
   type HomeLeadershipCard,
+  type PastRectorProfile,
   type Role,
 } from "@/lib/store";
 import {
@@ -1209,6 +1210,16 @@ const pastRectorProfiles = [
   },
 ];
 
+function editablePastRectorProfiles(page?: { pastRectorProfiles?: PastRectorProfile[] }) {
+  const saved = page?.pastRectorProfiles;
+  const source = Array.isArray(saved) && saved.length ? saved : pastRectorProfiles;
+  return source.map((profile) => ({
+    name: profile.name || "Past rector",
+    years: profile.years || "",
+    image: profile.image || "",
+  }));
+}
+
 function isGenericPastRectorsVisualHtml(html?: string) {
   if (!html || html.includes("past-rectors-collage.jpeg")) return false;
   return (
@@ -1234,6 +1245,7 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
 
   const body =
     page.body && page.body.trim() !== "New page content goes here." ? page.body : defaultPage.body;
+  const profiles = editablePastRectorProfiles(page);
 
   return (
     <PublicLayout>
@@ -1269,9 +1281,9 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
             </p>
             <h2 className="mt-3 font-serif text-3xl font-bold text-navy">Rector Profiles</h2>
             <div className="mt-8 grid gap-8 lg:grid-cols-2">
-              {pastRectorProfiles.map((profile) => (
+              {profiles.map((profile, index) => (
                 <article
-                  key={profile.image}
+                  key={`${profile.name}-${index}`}
                   className="overflow-hidden rounded-xl border border-border bg-white shadow-soft"
                 >
                   <div className="border-b border-border px-5 py-4">
@@ -1281,7 +1293,7 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
                     </p>
                   </div>
                   <img
-                    src={profile.image}
+                    src={profile.image || "/loyola-crest.jpg"}
                     alt={`${profile.name} profile`}
                     loading="lazy"
                     className="mx-auto w-full max-w-[560px] bg-white object-contain"

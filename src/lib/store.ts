@@ -398,6 +398,12 @@ export interface PageBlock {
   };
 }
 
+export interface PastRectorProfile {
+  name: string;
+  years: string;
+  image: string;
+}
+
 export interface DB {
   contentVersion: number;
   publishedAt: string;
@@ -461,6 +467,7 @@ export interface DB {
       visualCss?: string;
       visualBaseCss?: string;
       sections?: unknown[];
+      pastRectorProfiles?: PastRectorProfile[];
     }
   >;
   homeSections: {
