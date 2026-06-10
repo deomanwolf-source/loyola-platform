@@ -2409,7 +2409,7 @@ function registerStaffRoutes(app, context) {
       return counts;
     }, {});
     const attendanceByStatus = attendanceStatusRows.reduce((counts, row) => {
-      counts[row.status || "Unmarked"] = Number(row.total || 0);
+      counts[row.status || "Present"] = Number(row.total || 0);
       return counts;
     }, {});
     const leaveToday =
@@ -2555,7 +2555,7 @@ function registerStaffRoutes(app, context) {
     return profiles.map((profile) => {
       const record = byProfile.get(String(profile.id)) || null;
       const computedSection = staffAttendanceSection(profile);
-      const status = record?.status || "";
+      const status = record?.status || "Present";
       return {
         attendance_id: record?.id || null,
         id: record?.id || null,
@@ -2584,18 +2584,16 @@ function registerStaffRoutes(app, context) {
 
   function attendanceSummary(rows) {
     const byStatus = Object.fromEntries(attendanceStatuses.map((status) => [status, 0]));
-    let unmarked = 0;
     rows.forEach((row) => {
-      if (!row.status) {
-        unmarked += 1;
-      } else if (Object.prototype.hasOwnProperty.call(byStatus, row.status)) {
-        byStatus[row.status] += 1;
+      const status = row.status || "Present";
+      if (Object.prototype.hasOwnProperty.call(byStatus, status)) {
+        byStatus[status] += 1;
       }
     });
     return {
       totalStaff: rows.length,
       ...byStatus,
-      Unmarked: unmarked,
+      Unmarked: 0,
     };
   }
 
@@ -2833,7 +2831,7 @@ function registerStaffRoutes(app, context) {
             row.section,
             row.staff_type,
             row.position,
-            row.status || "Unmarked",
+            row.status || "Present",
             row.note,
             row.last_updated,
           ]

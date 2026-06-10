@@ -387,6 +387,10 @@
       .replace(/(^-|-$)/g, "");
   }
 
+  function attendanceDisplayStatus(row = {}) {
+    return row.status || "Present";
+  }
+
   function loginAccountHtml(person = {}) {
     const hasLogin = Boolean(person.user_id || person.account_status || person.account_email);
     if (!hasLogin) {
@@ -693,7 +697,10 @@
         staff_type: state.filters.attendanceStaffType || "All",
         search: state.filters.attendanceSearch || "",
       });
-      state.attendance = await api(`/api/staff/attendance?${params.toString()}`);
+      const attendance = await api(`/api/staff/attendance?${params.toString()}`);
+      state.attendance = Array.isArray(attendance)
+        ? attendance.map((row) => ({ ...row, status: row.status || "Present" }))
+        : [];
     }
     if (view === "leave") state.leave = await api("/api/staff-leave");
     if (view === "documents") state.documents = await api("/api/staff-documents");
@@ -1388,10 +1395,16 @@
   function attendanceHtml() {
     const currentDate = state.filters.date || today();
     const summary = attendanceStatuses.reduce((counts, [status]) => {
-      counts[status] = state.attendance.filter((row) => row.status === status).length;
+      counts[status] = state.attendance.filter((row) => attendanceDisplayStatus(row) === status).length;
       return counts;
     }, {});
-    const unmarked = state.attendance.filter((row) => !row.status).length;
+    const leaveTotal =
+      (summary["Duty Leave"] || 0) +
+      (summary["Maternity Leave"] || 0) +
+      (summary["Short Leave"] || 0) +
+      (summary["Half Day"] || 0) +
+      (summary["Leave Approved"] || 0) +
+      (summary.Informed || 0);
     return `
       <div class="module-toolbar">
         <div class="filter-grid attendance-filter-grid">
@@ -1425,7 +1438,7 @@
         <div class="attendance-summary-card good"><strong>${esc(summary.Present || 0)}</strong><span>Present</span></div>
         <div class="attendance-summary-card bad"><strong>${esc(summary.Absent || 0)}</strong><span>Absent</span></div>
         <div class="attendance-summary-card warn"><strong>${esc(summary["Late to Come"] || 0)}</strong><span>Late</span></div>
-        <div class="attendance-summary-card"><strong>${esc(unmarked)}</strong><span>Unmarked</span></div>
+        <div class="attendance-summary-card warn"><strong>${esc(leaveTotal)}</strong><span>Leave / Other</span></div>
       </div>
       <div class="attendance-legend">
         ${attendanceStatuses.map(([status, abbr]) => `<span><b>${esc(abbr)}</b>${esc(status)}</span>`).join("")}
@@ -1447,8 +1460,9 @@
             ${
               state.attendance.length
                 ? state.attendance
-                    .map(
-                      (row) => `
+                    .map((row) => {
+                      const activeStatus = attendanceDisplayStatus(row);
+                      return `
                         <tr>
                           <td data-label="Staff ID"><strong>${esc(row.staff_id || row.staff_profile_id || "")}</strong></td>
                           <td data-label="Name">
@@ -1465,7 +1479,7 @@
                                 .map(
                                   ([status, abbr, title]) => `
                                     <button
-                                      class="attendance-status-btn ${row.status === status ? "selected" : ""} ${esc(statusClass(status))}"
+                                      class="attendance-status-btn ${activeStatus === status ? "selected" : ""} ${esc(statusClass(status))}"
                                       type="button"
                                       title="${esc(title)}"
                                       data-attendance-status="${esc(status)}"
@@ -1481,8 +1495,8 @@
                           </td>
                           <td data-label="Last Updated">${esc(row.last_updated ? new Date(row.last_updated).toLocaleString() : "-")}</td>
                         </tr>
-                      `,
-                    )
+                      `;
+                    })
                     .join("")
                 : `<tr><td colspan="7" class="empty">No staff loaded for these filters.</td></tr>`
             }
@@ -2388,7 +2402,6 @@
 
   async function saveAttendanceBulk() {
     const records = state.attendance
-      .filter((row) => row.status || row.note)
       .map((row) => ({
         staff_profile_id: row.staff_profile_id || row.staff_id,
         staff_id: row.staff_id || row.staff_profile_id,
@@ -2396,11 +2409,11 @@
         section: row.section || "",
         staff_type: row.staff_type || "",
         position: row.position || "",
-        status: row.status || "Present",
+        status: attendanceDisplayStatus(row),
         note: row.note || "",
       }));
     if (!records.length) {
-      setNotice("Select at least one attendance status before saving.", "error");
+      setNotice("Load staff before saving attendance.", "error");
       return;
     }
     try {
@@ -2420,30 +2433,73 @@
       staffId: row.staff_id || row.staff_profile_id || "",
       name: row.staff_name || row.full_name || "",
       section: row.section || "",
-      position: row.position || "",
-      status: row.status || "Unmarked",
+      status: attendanceDisplayStatus(row),
       note: row.note || row.reason || "",
     }));
   }
 
   function printAttendanceReport() {
     const rows = attendanceReportRows();
-    const summary = attendanceStatuses
-      .map(([status]) => `${status}: ${rows.filter((row) => row.status === status).length}`)
-      .join(" | ");
-    const tableRows = rows
+    const statusCounts = attendanceStatuses.reduce((counts, [status]) => {
+      counts[status] = rows.filter((row) => row.status === status).length;
+      return counts;
+    }, {});
+    const leaveTotal =
+      (statusCounts["Duty Leave"] || 0) +
+      (statusCounts["Maternity Leave"] || 0) +
+      (statusCounts["Short Leave"] || 0) +
+      (statusCounts["Half Day"] || 0) +
+      (statusCounts["Leave Approved"] || 0) +
+      (statusCounts.Informed || 0);
+    const summaryCards = [
+      ["Total Staff", rows.length, "total"],
+      ["Present", statusCounts.Present || 0, "present"],
+      ["Absent", statusCounts.Absent || 0, "absent"],
+      ["Late", statusCounts["Late to Come"] || 0, "late"],
+      ["Leave / Other", leaveTotal, "leave"],
+    ]
       .map(
-        (row) => `
-          <tr>
-            <td>${esc(row.staffId)}</td>
-            <td>${esc(row.name)}</td>
-            <td>${esc(row.section)}</td>
-            <td>${esc(row.position)}</td>
-            <td>${esc(row.status)}</td>
-            <td>${esc(row.note)}</td>
-          </tr>
+        ([label, value, tone]) => `
+          <div class="summary-card ${esc(tone)}">
+            <strong>${esc(value)}</strong>
+            <span>${esc(label)}</span>
+          </div>
         `,
       )
+      .join("");
+    const groupedRows = rows.reduce((groups, row) => {
+      const section = row.section || "Unassigned Section";
+      if (!groups[section]) groups[section] = [];
+      groups[section].push(row);
+      return groups;
+    }, {});
+    const sectionBlocks = Object.entries(groupedRows)
+      .map(([section, sectionRows]) => {
+        const tableRows = sectionRows
+          .map(
+            (row) => `
+              <tr>
+                <td>${esc(row.staffId)}</td>
+                <td>${esc(row.name)}</td>
+                <td><span class="status-pill ${esc(statusClass(row.status))}">${esc(row.status)}</span></td>
+                <td>${esc(row.note)}</td>
+              </tr>
+            `,
+          )
+          .join("");
+        return `
+          <section class="section-block">
+            <div class="section-title">
+              <span>${esc(section)}</span>
+              <strong>${esc(sectionRows.length)} staff</strong>
+            </div>
+            <table>
+              <thead><tr><th>Staff ID</th><th>Name</th><th>Status</th><th>Note</th></tr></thead>
+              <tbody>${tableRows}</tbody>
+            </table>
+          </section>
+        `;
+      })
       .join("");
     const win = window.open("", "_blank");
     if (!win) return;
@@ -2453,32 +2509,53 @@
         <head>
           <title>Daily Staff Attendance Report</title>
           <style>
-            body{font-family:Arial,sans-serif;color:#111827;padding:24px}
-            h1{font-size:20px;margin:0}
-            h2{font-size:16px;margin:4px 0 18px}
-            table{width:100%;border-collapse:collapse;font-size:12px}
-            th,td{border:1px solid #d1d5db;padding:6px;text-align:left;vertical-align:top}
-            th{background:#f3f4f6}
-            .meta{font-size:12px;margin:12px 0 16px}
-            .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}
-            .sig div{border-top:1px solid #111827;padding-top:8px}
+            @page{margin:14mm}
+            *{box-sizing:border-box}
+            body{margin:0;background:#eef3f8;color:#111827;font-family:Arial,sans-serif}
+            .report{max-width:1120px;margin:0 auto;padding:18px}
+            .hero{border-radius:16px;background:linear-gradient(135deg,#08286f,#0f766e);color:#fff;padding:22px 24px}
+            h1{font-size:25px;line-height:1.1;margin:0;font-weight:900}
+            h2{font-size:15px;margin:6px 0 0;color:#dbeafe;text-transform:uppercase;letter-spacing:.12em}
+            .meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 16px}
+            .meta div{border:1px solid #d8e2f3;border-radius:10px;background:#fff;padding:10px 12px;font-size:11px}
+            .meta b{display:block;color:#64748b;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+            .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0 18px}
+            .summary-card{border:1px solid #d8e2f3;border-top:4px solid #08286f;border-radius:12px;background:#fff;padding:12px}
+            .summary-card strong{display:block;color:#08286f;font-family:Georgia,serif;font-size:28px;line-height:1}
+            .summary-card span{display:block;margin-top:5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}
+            .summary-card.present{border-top-color:#10b981}.summary-card.absent{border-top-color:#dc2626}.summary-card.late,.summary-card.leave{border-top-color:#f59e0b}
+            .section-block{overflow:hidden;margin:16px 0;border:1px solid #d8e2f3;border-radius:14px;background:#fff;break-inside:avoid}
+            .section-title{display:flex;justify-content:space-between;align-items:center;background:#eaf2ff;color:#08286f;padding:10px 12px;font-weight:900}
+            .section-title strong{border-radius:999px;background:#fff;padding:4px 10px;color:#475569;font-size:11px}
+            table{width:100%;border-collapse:collapse;font-size:11px}
+            th,td{border-top:1px solid #e5ecf6;padding:7px 9px;text-align:left;vertical-align:top}
+            th{background:#f8fafc;color:#475569;font-size:9px;letter-spacing:.12em;text-transform:uppercase}
+            tbody tr:nth-child(even){background:#f9fbff}
+            .status-pill{display:inline-flex;border-radius:999px;padding:4px 8px;background:#e2e8f0;color:#334155;font-size:10px;font-weight:900}
+            .status-pill.present{background:#d1fae5;color:#047857}.status-pill.absent{background:#fee2e2;color:#b91c1c}
+            .status-pill.late-to-come,.status-pill.duty-leave,.status-pill.maternity-leave,.status-pill.short-leave,.status-pill.half-day,.status-pill.leave-approved,.status-pill.informed{background:#fef3c7;color:#a16207}
+            .empty{border:1px dashed #b7c5db;border-radius:14px;background:#fff;padding:24px;text-align:center;color:#64748b}
+            .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:42px;font-size:12px}
+            .sig div{border-top:1px solid #64748b;padding-top:8px;color:#475569}
+            @media print{body{background:#fff}.report{padding:0}.hero,.section-block,.summary-card,.meta div{box-shadow:none}}
           </style>
         </head>
         <body>
-          <h1>Loyola College Negombo</h1>
-          <h2>Daily Staff Attendance Report</h2>
-          <div class="meta">
-            Date: ${esc(state.filters.date || today())}<br>
-            Section: ${esc(state.filters.attendanceSection || "All Sections")}<br>
-            Generated by: ${esc(state.user?.name || state.user?.email || "-")}<br>
-            Generated at: ${esc(new Date().toLocaleString())}<br>
-            ${esc(summary)}
-          </div>
-          <table>
-            <thead><tr><th>Staff ID</th><th>Name</th><th>Section</th><th>Position</th><th>Status</th><th>Note</th></tr></thead>
-            <tbody>${tableRows || '<tr><td colspan="6">No records</td></tr>'}</tbody>
-          </table>
-          <div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div>
+          <main class="report">
+            <div class="hero">
+              <h1>Loyola College Negombo</h1>
+              <h2>Daily Staff Attendance Report</h2>
+            </div>
+            <div class="meta">
+              <div><b>Date</b>${esc(state.filters.date || today())}</div>
+              <div><b>Section Filter</b>${esc(state.filters.attendanceSection || "All Sections")}</div>
+              <div><b>Generated By</b>${esc(state.user?.name || state.user?.email || "-")}</div>
+              <div><b>Generated At</b>${esc(new Date().toLocaleString())}</div>
+            </div>
+            <div class="summary">${summaryCards}</div>
+            ${sectionBlocks || '<div class="empty">No attendance records found.</div>'}
+            <div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div>
+          </main>
         </body>
       </html>
     `);
