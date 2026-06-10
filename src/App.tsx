@@ -80,19 +80,20 @@ const AdminPortal = lazy(() =>
 );
 
 const MASTER_ROLES: Role[] = ["masteradmin"];
-const WEBSITE_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "website_admin"];
+const WEBSITE_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "website_admin", "viewadmin"];
 const EDUZYNC_ADMIN_ROLES: Role[] = [
   "masteradmin",
   "superadmin",
   "master_edutrack_admin",
   "eduzync_admin",
 ];
-const STAFF_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "staff_admin"];
+const STAFF_ADMIN_ROLES: Role[] = ["masteradmin", "superadmin", "staff_admin", "viewadmin"];
 const EDUTRACK_ROLES: Role[] = [
   "masteradmin",
   "superadmin",
   "master_edutrack_admin",
   "eduzync_admin",
+  "viewadmin",
   "teacher",
 ];
 const ELMS_ROLES: Role[] = ["masteradmin", "superadmin", "teacher", "student"];
@@ -112,6 +113,7 @@ const MAINTENANCE_BYPASS_ROLES: Role[] = [
   "eduzync_admin",
   "master_edutrack_admin",
   "staff_admin",
+  "viewadmin",
 ];
 const REPORT_CARDS_SYSTEM_URL = "https://intranet.loyolacollege.lk/login";
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
@@ -758,6 +760,7 @@ function roleLabel(role: Role) {
     master_edutrack_admin: "Master EduTrack Admin",
     eduzync_admin: "EduTrack Admin",
     staff_admin: "Staff Admin",
+    viewadmin: "View Admin",
     teacher: "Teacher",
     student: "Student",
     parent: "Parent",
@@ -5090,6 +5093,7 @@ function EduTrackIntegratedPage() {
 
   const currentUser = auth.user;
   const isAdmin = EDUZYNC_ADMIN_ROLES.includes(currentUser.role);
+  const isViewAdmin = currentUser.role === "viewadmin";
 
   const submitTerm = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -5154,7 +5158,11 @@ function EduTrackIntegratedPage() {
   const teacherDisplayName =
     teachers.find((teacher) => String(teacher.id) === String(progressForm.teacher_id || currentUser.id))
       ?.name || currentUser.name;
-  const workspaceMode = isAdmin ? "Admin workspace" : "Teacher workspace";
+  const workspaceMode = isViewAdmin
+    ? "View-only workspace"
+    : isAdmin
+      ? "Admin workspace"
+      : "Teacher workspace";
 
   const inputClass =
     "w-full rounded-md border border-[#cfd8e7] bg-white px-3 py-2.5 text-sm text-[#172033] outline-none placeholder:text-slate-400 focus:border-[#08286f] focus:ring-2 focus:ring-[#08286f]/15";
@@ -5387,7 +5395,9 @@ function EduTrackIntegratedPage() {
               </h3>
               {!isAdmin && (
                 <p className="mt-4 rounded-md border border-[#d8e1f5] bg-[#f7faff] p-3 text-sm text-slate-600">
-                  Teachers can update progress. Admin can create terms and syllabus.
+                  {isViewAdmin
+                    ? "View Admin can inspect EduTrack records but cannot create or update data."
+                    : "Teachers can update progress. Admin can create terms and syllabus."}
                 </p>
               )}
 
@@ -5556,7 +5566,7 @@ function EduTrackIntegratedPage() {
                 <ReadOnlyPanel title="Syllabus is managed by EduTrack admins." />
               )}
 
-              {activeTab === "progress" && (
+              {activeTab === "progress" && !isViewAdmin && (
                 <form onSubmit={submitProgress} className="mt-5 grid gap-3">
                   {isAdmin ? (
                     <select
@@ -5633,6 +5643,9 @@ function EduTrackIntegratedPage() {
                   <button className={primaryButtonClass}>Save progress</button>
                 </form>
               )}
+              {activeTab === "progress" && isViewAdmin && (
+                <ReadOnlyPanel title="Progress records are view-only for this account." />
+              )}
 
               {activeTab === "dashboard" && (
                 <div className="mt-5 grid gap-3">
@@ -5657,9 +5670,9 @@ function EduTrackIntegratedPage() {
                   <button
                     type="button"
                     onClick={() => setActiveTab("progress")}
-                    className={isAdmin ? secondaryButtonClass : primaryButtonClass}
+                    className={isAdmin || isViewAdmin ? secondaryButtonClass : primaryButtonClass}
                   >
-                    Update progress
+                    {isViewAdmin ? "View progress" : "Update progress"}
                   </button>
                 </div>
               )}
@@ -5828,8 +5841,12 @@ function EduTrackRuntimePage() {
 
   if (!EDUTRACK_ROLES.includes(auth.user.role)) {
     return (
-      <AccessDeniedPage message="EduTrack is available for Master Admin, Super Admin, EduTrack Admin, and Teacher accounts." />
+      <AccessDeniedPage message="EduTrack is available for Master Admin, Super Admin, EduTrack Admin, View Admin, and Teacher accounts." />
     );
+  }
+
+  if (auth.user.role === "viewadmin") {
+    return <EduTrackIntegratedPage />;
   }
 
   return (
@@ -5973,6 +5990,7 @@ function PortalRouter({ role }: { role: Role }) {
     eduzync_admin: <ModulePage moduleId="eduzync" />,
     master_edutrack_admin: <ModulePage moduleId="edutrack" />,
     staff_admin: <StaffPortalRedirect />,
+    viewadmin: <AdminPortal />,
     superadmin: <AdminPortal />,
     masteradmin: <AdminPortal />,
   };

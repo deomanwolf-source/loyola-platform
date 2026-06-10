@@ -101,6 +101,7 @@ const adminRoles: Role[] = [
   "website_admin",
   "eduzync_admin",
   "staff_admin",
+  "viewadmin",
   "superadmin",
   "masteradmin",
 ];
@@ -249,6 +250,7 @@ function AdminUsersPanel() {
             <option value="website_admin">Website Admin</option>
             <option value="eduzync_admin">EduTrack Admin</option>
             <option value="staff_admin">Staff Admin</option>
+            <option value="viewadmin">View Admin</option>
             <option value="superadmin">Super Admin</option>
             <option value="masteradmin">Master Admin</option>
             <option value="teacher">Teacher</option>
@@ -535,6 +537,7 @@ function roleLabel(role: Role) {
     master_edutrack_admin: "Master EduTrack Admin",
     eduzync_admin: "EduTrack Admin",
     staff_admin: "Staff Admin",
+    viewadmin: "View Admin",
     student: "Student",
     parent: "Parent",
     teacher: "Teacher",

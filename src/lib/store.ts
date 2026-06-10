@@ -64,6 +64,7 @@ export type Role =
   | "eduzync_admin"
   | "master_edutrack_admin"
   | "staff_admin"
+  | "viewadmin"
   | "teacher"
   | "student"
   | "parent";
@@ -916,6 +917,7 @@ export const seed: DB = {
         desc: "EduTrack unlocks, reports, and audit control",
       },
       { id: "staff_admin", label: "Staff Admin", desc: "Staff profiles and records" },
+      { id: "viewadmin", label: "View Admin", desc: "Read-only system overview" },
       { id: "superadmin", label: "Super Admin", desc: "Full school system access" },
       { id: "masteradmin", label: "Master Admin", desc: "Full system access" },
     ],

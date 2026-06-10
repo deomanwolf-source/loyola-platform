@@ -542,6 +542,7 @@ const ROLE_ENUM_SQL = `
     'eduzync_admin',
     'master_edutrack_admin',
     'staff_admin',
+    'viewadmin',
     'teacher',
     'student',
     'parent'
@@ -556,6 +557,7 @@ const ROLE_ENUM_MIGRATION_SQL = `
     'eduzync_admin',
     'master_edutrack_admin',
     'staff_admin',
+    'viewadmin',
     'teacher',
     'student',
     'parent',
@@ -570,20 +572,22 @@ const ROLES = {
   eduzync: "eduzync_admin",
   masterEduTrack: "master_edutrack_admin",
   staff: "staff_admin",
+  view: "viewadmin",
   teacher: "teacher",
   student: "student",
   parent: "parent",
 };
 
 const SYSTEM_OWNER_ROLES = [ROLES.master, ROLES.super];
-const WEBSITE_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.website];
+const WEBSITE_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.website, ROLES.view];
 const EDUZYNC_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync];
-const STAFF_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.staff];
+const STAFF_ADMIN_ROLES = [ROLES.master, ROLES.super, ROLES.staff, ROLES.view];
 const SCHOOL_DATA_READ_ROLES = [
   ROLES.master,
   ROLES.super,
   ROLES.masterEduTrack,
   ROLES.eduzync,
+  ROLES.view,
   ROLES.teacher,
 ];
 const EDUTRACK_ROLES = [
@@ -591,6 +595,7 @@ const EDUTRACK_ROLES = [
   ROLES.super,
   ROLES.masterEduTrack,
   ROLES.eduzync,
+  ROLES.view,
   ROLES.teacher,
 ];
 const REPORT_CARD_VIEW_ROLES = [
@@ -615,6 +620,7 @@ const MAINTENANCE_BYPASS_ROLES = [
   ROLES.eduzync,
   ROLES.masterEduTrack,
   ROLES.staff,
+  ROLES.view,
 ];
 const DEFAULT_MAINTENANCE_MESSAGE =
   "The public website is temporarily offline while Loyola College completes maintenance.";
@@ -643,6 +649,16 @@ const rolePermissionsSeed = [
   [ROLES.website, "news", 1, 1, 1, 0],
   [ROLES.website, "notices", 1, 1, 1, 0],
   [ROLES.website, "events", 1, 1, 1, 0],
+  [ROLES.view, "website_admin", 1, 0, 0, 0],
+  [ROLES.view, "edutrack", 1, 0, 0, 0],
+  [ROLES.view, "staff", 1, 0, 0, 0],
+  [ROLES.view, "students", 1, 0, 0, 0],
+  [ROLES.view, "teachers", 1, 0, 0, 0],
+  [ROLES.view, "subjects", 1, 0, 0, 0],
+  [ROLES.view, "media", 1, 0, 0, 0],
+  [ROLES.view, "news", 1, 0, 0, 0],
+  [ROLES.view, "notices", 1, 0, 0, 0],
+  [ROLES.view, "events", 1, 0, 0, 0],
   [ROLES.eduzync, "eduzync", 1, 1, 1, 1],
   [ROLES.eduzync, "students", 1, 1, 1, 1],
   [ROLES.eduzync, "teachers", 1, 1, 1, 1],
@@ -1144,6 +1160,51 @@ function schoolDataReadOnly(req, res, next) {
 
 function teacherOrAdmin(req, res, next) {
   return authRole(...EDUTRACK_ROLES)(req, res, next);
+}
+
+function isViewAdminRole(role) {
+  return role === ROLES.view;
+}
+
+const VIEW_ADMIN_WRITE_PROTECTED_PREFIXES = [
+  "/api/site-db",
+  "/api/pages",
+  "/api/publish-requests",
+  "/api/uploads",
+  "/api/users",
+  "/api/staff",
+  "/api/staff-",
+  "/api/edutrack",
+  "/api/students",
+  "/api/teachers",
+  "/api/subjects",
+  "/api/parents",
+  "/api/classes",
+  "/api/enrollments",
+  "/api/media",
+  "/api/maintenance",
+];
+
+function isViewAdminWriteProtectedPath(requestPath) {
+  return VIEW_ADMIN_WRITE_PROTECTED_PREFIXES.some((prefix) =>
+    prefix.endsWith("-")
+      ? requestPath.startsWith(prefix)
+      : requestPath === prefix || requestPath.startsWith(`${prefix}/`),
+  );
+}
+
+function viewAdminWriteGuard(req, res, next) {
+  if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+  if (!isViewAdminWriteProtectedPath(req.path)) return next();
+
+  const user = verifiedUserFromRequest(req);
+  if (isViewAdminRole(user?.role)) {
+    return res.status(403).json({
+      error: "View Admin accounts are read-only and cannot change system data.",
+    });
+  }
+
+  return next();
 }
 
 function parseJsonField(value, fallback = null) {
@@ -3829,6 +3890,8 @@ async function fetchPublishRequest(id) {
   return rows[0] || null;
 }
 
+app.use(viewAdminWriteGuard);
+
 app.get("/api/health", async (req, res) => {
   try {
     await ensureAccessTables();
@@ -5430,7 +5493,7 @@ app.get("/api/edutrack/warnings", teacherOrAdmin, async (req, res) => {
 const DAILY_COMPLETION_STATUSES = new Set(["Completed", "Partially Completed", "Not Completed"]);
 
 function isEduTrackAdminUser(req) {
-  return EDUZYNC_ADMIN_ROLES.includes(req.user?.role);
+  return EDUZYNC_ADMIN_ROLES.includes(req.user?.role) || isViewAdminRole(req.user?.role);
 }
 
 function isEduTrackMasterUser(req) {
@@ -7711,7 +7774,8 @@ app.delete("/api/edutrack/relief-assignments/:id", edutrackMasterOnly, async (re
 });
 
 function eduTrackRole(role) {
-  if ([ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync].includes(role)) return "admin";
+  if ([ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync, ROLES.view].includes(role))
+    return "admin";
   if (role === "teacher") return "teacher";
   return role || "teacher";
 }

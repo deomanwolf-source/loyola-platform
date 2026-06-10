@@ -76,7 +76,7 @@ import {
 import { createPublishRequest } from "@/lib/publish-requests";
 import { MediaUploadStatus } from "./MediaUploadStatus";
 
-const adminRoles: Role[] = ["website_admin", "superadmin", "masteradmin"];
+const adminRoles: Role[] = ["website_admin", "superadmin", "masteradmin", "viewadmin"];
 const IMAGE_TYPES = ["image/jpeg", "image/png"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -149,6 +149,7 @@ const protectedAdminPanels = new Set<PanelId>(["users", "activity", "backup", "s
 
 function canAccessAdminPanel(role: Role | undefined, panel: PanelId) {
   if (!role || !adminRoles.includes(role)) return false;
+  if (role === "viewadmin") return panel === "dashboard";
   if (fullAccessAdminRoles.includes(role)) return true;
   if (ownerOnlyAdminPanels.has(panel)) return false;
   if (role === "superadmin") return true;
@@ -382,10 +383,12 @@ function DashboardPanel({
   db,
   setActive,
   availablePanels,
+  role,
 }: {
   db: DB;
   setActive: (id: PanelId) => void;
   availablePanels: PanelId[];
+  role?: Role;
 }) {
   const mediaCount =
     db.gallery.length +
@@ -393,6 +396,109 @@ function DashboardPanel({
     db.downloads.length +
     (db.websiteContent.logoImage ? 1 : 0) +
     (db.websiteContent.heroImage ? 1 : 0);
+  const viewOnly = role === "viewadmin";
+  const staffCount = db.teachers.length;
+  const latestPublish = db.publishedAt ? new Date(db.publishedAt).toLocaleString() : "Not recorded";
+
+  if (viewOnly) {
+    const overviewCards: {
+      title: string;
+      href: string;
+      icon: React.ComponentType<{ className?: string }>;
+      meta: string;
+    }[] = [
+      {
+        title: "Website",
+        href: "/",
+        icon: Globe,
+        meta: "Published pages, news, notices, media, and public content.",
+      },
+      {
+        title: "EduTrack",
+        href: "/portal/edutrack",
+        icon: GraduationCap,
+        meta: "Academic terms, syllabus coverage, progress, warnings, and reports.",
+      },
+      {
+        title: "Staff Management",
+        href: "/staff",
+        icon: Briefcase,
+        meta: "Staff profiles, departments, attendance summaries, documents, and notices.",
+      },
+    ];
+
+    return (
+      <div className="space-y-6">
+        <PanelShell title="System Overview" kicker="View Admin">
+          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-900">
+            This account is view-only. It can inspect website, EduTrack, and staff summaries, but
+            cannot save, publish, upload, import, or delete data.
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 stagger-children">
+            <StatCard
+              icon={FileText}
+              label="Website pages"
+              value={Object.keys(db.pages).length}
+              hint="Readable page records"
+              accent
+            />
+            <StatCard
+              icon={Bell}
+              label="News / Notices"
+              value={db.news.length}
+              hint="Published content"
+            />
+            <StatCard icon={Users} label="Staff profiles" value={staffCount} hint="Live staff rows" />
+            <StatCard icon={ImageIcon} label="Media" value={mediaCount} hint="Images / downloads" />
+          </div>
+        </PanelShell>
+
+        <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+          <PanelShell title="Read-only apps" kicker="Open summary views">
+            <div className="grid gap-3 md:grid-cols-3 stagger-children">
+              {overviewCards.map(({ title, href, icon: Icon, meta }) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="rounded-2xl border border-border bg-secondary/45 p-5 text-left transition-smooth hover:-translate-y-1 hover:border-gold hover:bg-white hover:shadow-soft"
+                >
+                  <Icon className="h-7 w-7 text-gold" />
+                  <p className="mt-3 font-bold text-navy">{title}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{meta}</p>
+                  <span className="mt-4 inline-flex rounded-full border border-border bg-white px-3 py-1 text-xs font-black text-navy">
+                    View only
+                  </span>
+                </a>
+              ))}
+            </div>
+          </PanelShell>
+
+          <PanelShell title="System health" kicker="Read only">
+            <div className="space-y-4">
+              {[
+                ["Permission mode", "View only"],
+                ["Database", "Connected"],
+                ["Last publish", latestPublish],
+                ["Website editor", "Locked"],
+                ["Write actions", "Blocked"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/50 px-4 py-3"
+                >
+                  <span className="text-sm font-semibold text-muted-foreground">{label}</span>
+                  <span className="max-w-[170px] truncate rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
+                    {value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </PanelShell>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 stagger-children">
@@ -2453,6 +2559,7 @@ const userRoleOptions: Role[] = [
   "website_admin",
   "eduzync_admin",
   "staff_admin",
+  "viewadmin",
   "teacher",
   "student",
   "parent",
@@ -2464,6 +2571,7 @@ const rolePermissionRows: { role: Role; access: string; scope: string }[] = [
   { role: "website_admin", access: "Website", scope: "Pages, media, news, notices, events" },
   { role: "eduzync_admin", access: "School data", scope: "Students, classes, teachers, EduTrack" },
   { role: "staff_admin", access: "Staff", scope: "Staff profiles, documents, leave, notices" },
+  { role: "viewadmin", access: "View only", scope: "Website, EduTrack, staff summaries" },
   { role: "teacher", access: "Teacher", scope: "EduTrack, classes, report cards" },
   { role: "student", access: "Student", scope: "ELMS, profile, reports" },
   { role: "parent", access: "Parent", scope: "Child profile and reports" },
@@ -2683,7 +2791,7 @@ function UsersPanel({ db }: { db: DB }) {
   });
   const activeUsers = users.filter((user) => user.status === "Active").length;
   const adminUsers = users.filter((user) =>
-    ["masteradmin", "superadmin", "website_admin", "eduzync_admin", "staff_admin"].includes(
+    ["masteradmin", "superadmin", "website_admin", "eduzync_admin", "staff_admin", "viewadmin"].includes(
       user.role,
     ),
   ).length;
@@ -2945,6 +3053,7 @@ function LocalUsersPanel({ db }: { db: DB }) {
             <option value="website_admin">Website Admin</option>
             <option value="eduzync_admin">EduTrack Admin</option>
             <option value="staff_admin">Staff Admin</option>
+            <option value="viewadmin">View Admin</option>
             <option value="superadmin">Super Admin</option>
             <option value="masteradmin">Master Admin</option>
           </select>
@@ -2961,7 +3070,7 @@ function LocalUsersPanel({ db }: { db: DB }) {
         <div className="space-y-3">
           {db.users
             .filter((u) =>
-              ["website_admin", "eduzync_admin", "staff_admin", "superadmin", "masteradmin"].includes(
+              ["website_admin", "eduzync_admin", "staff_admin", "viewadmin", "superadmin", "masteradmin"].includes(
                 u.role,
               ),
             )
@@ -3751,6 +3860,7 @@ function formatRole(role?: Role) {
     master_edutrack_admin: "Master EduTrack Admin",
     eduzync_admin: "EduTrack Admin",
     staff_admin: "Staff Admin",
+    viewadmin: "View Admin",
     teacher: "Teacher",
     student: "Student",
     parent: "Parent",
@@ -4085,6 +4195,7 @@ export function AdminPortal() {
   const fallbackPanel = visiblePanelIds[0] || "dashboard";
   const activePanel = visiblePanelIds.includes(active) ? active : fallbackPanel;
   const needsApproval = auth.user?.role === "website_admin";
+  const isViewAdmin = auth.user?.role === "viewadmin";
 
   useEffect(() => {
     if (!auth.loading && !auth.user) {
@@ -4131,8 +4242,8 @@ export function AdminPortal() {
           <ShieldCheck className="mx-auto h-10 w-10 text-crimson" />
           <h1 className="mt-4 font-serif text-4xl font-bold text-navy">Access Denied</h1>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Website Studio is available only for Website Admin, Super Admin, and Master Admin
-            accounts.
+            Website Studio is available only for Website Admin, Super Admin, Master Admin, and View
+            Admin accounts.
           </p>
           <a
             href="/portal"
@@ -4305,33 +4416,37 @@ export function AdminPortal() {
               >
                 <MonitorSmartphone className="h-4 w-4" /> Preview
               </button>
-              <button
-                type="button"
-                disabled={savingState !== "idle"}
-                onClick={() => void saveDraft()}
-                className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-black text-white disabled:opacity-60"
-              >
-                <Save className="h-4 w-4" /> {savingState === "saving" ? "Saving" : "Save"}
-              </button>
-              <button
-                type="button"
-                disabled={savingState !== "idle"}
-                onClick={() => void publish()}
-                className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-sm font-black text-navy disabled:opacity-60"
-              >
-                {needsApproval ? (
-                  <Send className="h-4 w-4" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4" />
-                )}{" "}
-                {savingState === "publishing"
-                  ? "Publishing"
-                  : savingState === "submitting"
-                    ? "Submitting"
-                    : needsApproval
-                      ? "Submit for Approval"
-                      : "Publish"}
-              </button>
+              {!isViewAdmin && (
+                <>
+                  <button
+                    type="button"
+                    disabled={savingState !== "idle"}
+                    onClick={() => void saveDraft()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-black text-white disabled:opacity-60"
+                  >
+                    <Save className="h-4 w-4" /> {savingState === "saving" ? "Saving" : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingState !== "idle"}
+                    onClick={() => void publish()}
+                    className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-sm font-black text-navy disabled:opacity-60"
+                  >
+                    {needsApproval ? (
+                      <Send className="h-4 w-4" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" />
+                    )}{" "}
+                    {savingState === "publishing"
+                      ? "Publishing"
+                      : savingState === "submitting"
+                        ? "Submitting"
+                        : needsApproval
+                          ? "Submit for Approval"
+                          : "Publish"}
+                  </button>
+                </>
+              )}
               <span
                 className={`inline-flex max-w-full items-center rounded-xl border px-3 py-2.5 text-xs font-black ${
                   saveMessageTone === "error"
@@ -4346,7 +4461,12 @@ export function AdminPortal() {
         </header>
         <main className="p-4 md:p-8">
           {activePanel === "dashboard" && (
-            <DashboardPanel db={db} setActive={setActive} availablePanels={visiblePanelIds} />
+            <DashboardPanel
+              db={db}
+              setActive={setActive}
+              availablePanels={visiblePanelIds}
+              role={auth.user.role}
+            />
           )}
           {activePanel === "studio" && <WebsiteEditor />}
           {activePanel === "approvals" &&

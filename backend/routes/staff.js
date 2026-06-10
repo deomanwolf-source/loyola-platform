@@ -25,15 +25,23 @@ function registerStaffRoutes(app, context) {
     processStaffProfilePhotoUpload,
   } = context;
 
-  const staffManagerOnly = staffAdminOnly || authRole(ROLES.master, ROLES.super, ROLES.staff);
+  const staffManagerOnly =
+    staffAdminOnly || authRole(ROLES.master, ROLES.super, ROLES.staff, ROLES.view);
   const attendanceManagerOnly = authRole(
     ROLES.master,
     ROLES.super,
     ROLES.staff,
     ROLES.masterEduTrack,
     ROLES.eduzync,
+    ROLES.view,
   );
-  const staffSelfOrManager = authRole(ROLES.master, ROLES.super, ROLES.staff, ROLES.teacher);
+  const staffSelfOrManager = authRole(
+    ROLES.master,
+    ROLES.super,
+    ROLES.staff,
+    ROLES.view,
+    ROLES.teacher,
+  );
 
   let staffSchemaReady = false;
   const websitePlaces = [

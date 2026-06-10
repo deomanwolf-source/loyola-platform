@@ -1,6 +1,6 @@
 (function () {
   const app = document.getElementById("app");
-  const managerRoles = new Set(["masteradmin", "superadmin", "staff_admin"]);
+  const managerRoles = new Set(["masteradmin", "superadmin", "staff_admin", "viewadmin"]);
 
   const state = {
     user: null,
@@ -152,6 +152,12 @@
     ["audit", "Audit History", "System activity"],
   ];
 
+  function visibleModules() {
+    return isReadOnly()
+      ? modules.filter(([id]) => id !== "form")
+      : modules;
+  }
+
   const moduleIcons = {
     dashboard: "grid",
     profiles: "users",
@@ -237,6 +243,14 @@
     return managerRoles.has(state.user?.role);
   }
 
+  function isReadOnly() {
+    return state.user?.role === "viewadmin";
+  }
+
+  function readOnlyNotice() {
+    setNotice("View Admin accounts are read-only. This action is blocked.", "error");
+  }
+
   function headers(extra = {}) {
     const csrfToken = cookieValue("loyola_csrf_token");
     return {
@@ -278,6 +292,7 @@
   }
 
   function roleLabel(role) {
+    if (role === "viewadmin") return "View Admin";
     return String(role || "")
       .replace(/_/g, " ")
       .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -732,6 +747,16 @@
   }
 
   async function setView(view, options = {}) {
+    if (isReadOnly() && view === "form") {
+      state.view = "profiles";
+      state.editingId = "";
+      state.editingPositionId = "";
+      await loadViewData("profiles").catch((error) => setNotice(error.message, "error"));
+      history.replaceState(null, "", "#profiles");
+      renderShell();
+      readOnlyNotice();
+      return;
+    }
     state.view = view;
     if (view !== "form" || options.newRecord) state.editingId = "";
     if (view === "form" && options.editingId) state.editingId = options.editingId;
@@ -821,7 +846,11 @@
           <h2>Professional staff control center</h2>
           <p>Today's staff overview for HR, attendance, documents, and internal notices.</p>
         </div>
-        <button class="button gold" type="button" data-action="new-staff">${icon("plus")} Add Staff</button>
+        ${
+          isReadOnly()
+            ? `<span class="status active">View only</span>`
+            : `<button class="button gold" type="button" data-action="new-staff">${icon("plus")} Add Staff</button>`
+        }
       </div>
       <div class="metric-grid">
         ${metric("Total Staff", d.total || state.staff.length, "", "users", "Master profile count")}
@@ -919,12 +948,12 @@
           }
           <div class="form-actions">
             <button class="button ghost" type="button" data-action="cancel-import">Cancel Import</button>
+            ${invalid.length ? `<button class="button ghost" type="button" data-action="download-error-report">${icon("download")} Error Report</button>` : ""}
             ${
-              invalid.length
-                ? `<button class="button ghost" type="button" data-action="download-error-report">${icon("download")} Error Report</button>`
-                : ""
+              isReadOnly()
+                ? `<span class="status inactive">Import locked</span>`
+                : `<button class="button primary" type="button" data-action="confirm-import">${icon("plus")} Confirm Import</button>`
             }
-            <button class="button primary" type="button" data-action="confirm-import">${icon("plus")} Confirm Import</button>
           </div>
         </div>
       `,
@@ -971,8 +1000,14 @@
                           <td data-label="Status"><span class="status ${esc(statusClass(person.status))}">${esc(person.status || "Active")}</span></td>
                           <td data-label="Login Account">${loginAccountHtml(person)}</td>
                           <td class="right">
-                            <button class="icon-button" title="Edit staff" data-edit="${esc(person.id)}">${icon("file")} Edit</button>
-                            <button class="icon-button danger" title="Delete staff" data-delete="${esc(person.id)}">${icon("trash")} Delete</button>
+                            ${
+                              isReadOnly()
+                                ? `<span class="status inactive">View only</span>`
+                                : `
+                                  <button class="icon-button" title="Edit staff" data-edit="${esc(person.id)}">${icon("file")} Edit</button>
+                                  <button class="icon-button danger" title="Delete staff" data-delete="${esc(person.id)}">${icon("trash")} Delete</button>
+                                `
+                            }
                           </td>
                         </tr>
                       `,
@@ -1005,10 +1040,16 @@
           </label>
         </div>
         <div class="toolbar-actions">
-          <button class="button ghost" type="button" data-action="download-template">${icon("download")} Download CSV Template</button>
-          <label class="button ghost import-button">${icon("download")} Import Staff CSV<input id="import-csv-file" type="file" accept=".csv,text/csv" /></label>
+          ${
+            isReadOnly()
+              ? `<span class="status active">View only</span>`
+              : `
+                <button class="button ghost" type="button" data-action="download-template">${icon("download")} Download CSV Template</button>
+                <label class="button ghost import-button">${icon("download")} Import Staff CSV<input id="import-csv-file" type="file" accept=".csv,text/csv" /></label>
+              `
+          }
           <button class="button" type="button" data-action="export">${icon("download")} Export CSV</button>
-          <button class="button gold" type="button" data-action="new-staff">${icon("plus")} Add Staff</button>
+          ${isReadOnly() ? "" : `<button class="button gold" type="button" data-action="new-staff">${icon("plus")} Add Staff</button>`}
         </div>
       </div>
       ${csvImportPreviewHtml()}
@@ -1090,57 +1131,65 @@
         </div>
       </div>
       <div class="split-grid wide-right">
-        ${panel(
-          editing ? "Edit Position" : "Add New Position",
-          "Disabled positions remain safe for already assigned staff but do not appear for new selections.",
-          `
-            <form id="position-master-form" class="compact-form position-master-form">
-              <label class="field">
-                <span>Position Title</span>
-                <input name="position_title" value="${esc(editing?.position_title || "")}" required placeholder="Example: Discipline Coordinator" />
-              </label>
-              <label class="field">
-                <span>Category</span>
-                <input name="category" list="position-category-options" value="${esc(editing?.category || "Subject Teachers")}" required />
-                <datalist id="position-category-options">
-                  ${categoryOptions.map((item) => `<option value="${esc(item)}"></option>`).join("")}
-                </datalist>
-              </label>
-              <label class="field">
-                <span>Department</span>
-                <select name="department">${optionList(departmentOptions, editing?.department || "Academic Department")}</select>
-              </label>
-              <label class="field">
-                <span>Website Place</span>
-                <select name="website_place">${optionList(positionWebsitePlaces, editing?.website_place || "Subject Teachers")}</select>
-              </label>
-              <label class="field">
-                <span>Default Staff Type</span>
-                <select name="default_staff_type">${optionList(staffTypes, editing?.default_staff_type || "Academic Staff")}</select>
-              </label>
-              <label class="field">
-                <span>Display Order</span>
-                <input name="display_order" type="number" step="1" value="${esc(editing?.display_order ?? state.positionMaster.length + 1)}" />
-              </label>
-              <label class="field">
-                <span>Status</span>
-                <select name="status">${optionList(["Active", "Disabled"], editing?.status || "Active")}</select>
-              </label>
-              <label class="check">
-                <input name="visible_on_website" type="checkbox" ${(editing?.visible_on_website ?? true) ? "checked" : ""} />
-                <span>Visible on website by default</span>
-              </label>
-              <label class="field">
-                <span>Description</span>
-                <textarea name="description" placeholder="Optional internal note">${esc(editing?.description || "")}</textarea>
-              </label>
-              <div class="form-actions">
-                ${editing ? `<button class="button ghost" type="button" data-action="cancel-position-edit">Cancel Edit</button>` : ""}
-                <button class="button primary" type="submit">${editing ? "Update Position" : "Add Position"}</button>
-              </div>
-            </form>
-          `,
-        )}
+        ${
+          isReadOnly()
+            ? panel(
+                "Position Settings",
+                "Read-only position reference",
+                `<div class="empty">View Admin can inspect position setup but cannot create, edit, disable, or delete positions.</div>`,
+              )
+            : panel(
+                editing ? "Edit Position" : "Add New Position",
+                "Disabled positions remain safe for already assigned staff but do not appear for new selections.",
+                `
+                  <form id="position-master-form" class="compact-form position-master-form">
+                    <label class="field">
+                      <span>Position Title</span>
+                      <input name="position_title" value="${esc(editing?.position_title || "")}" required placeholder="Example: Discipline Coordinator" />
+                    </label>
+                    <label class="field">
+                      <span>Category</span>
+                      <input name="category" list="position-category-options" value="${esc(editing?.category || "Subject Teachers")}" required />
+                      <datalist id="position-category-options">
+                        ${categoryOptions.map((item) => `<option value="${esc(item)}"></option>`).join("")}
+                      </datalist>
+                    </label>
+                    <label class="field">
+                      <span>Department</span>
+                      <select name="department">${optionList(departmentOptions, editing?.department || "Academic Department")}</select>
+                    </label>
+                    <label class="field">
+                      <span>Website Place</span>
+                      <select name="website_place">${optionList(positionWebsitePlaces, editing?.website_place || "Subject Teachers")}</select>
+                    </label>
+                    <label class="field">
+                      <span>Default Staff Type</span>
+                      <select name="default_staff_type">${optionList(staffTypes, editing?.default_staff_type || "Academic Staff")}</select>
+                    </label>
+                    <label class="field">
+                      <span>Display Order</span>
+                      <input name="display_order" type="number" step="1" value="${esc(editing?.display_order ?? state.positionMaster.length + 1)}" />
+                    </label>
+                    <label class="field">
+                      <span>Status</span>
+                      <select name="status">${optionList(["Active", "Disabled"], editing?.status || "Active")}</select>
+                    </label>
+                    <label class="check">
+                      <input name="visible_on_website" type="checkbox" ${(editing?.visible_on_website ?? true) ? "checked" : ""} />
+                      <span>Visible on website by default</span>
+                    </label>
+                    <label class="field">
+                      <span>Description</span>
+                      <textarea name="description" placeholder="Optional internal note">${esc(editing?.description || "")}</textarea>
+                    </label>
+                    <div class="form-actions">
+                      ${editing ? `<button class="button ghost" type="button" data-action="cancel-position-edit">Cancel Edit</button>` : ""}
+                      <button class="button primary" type="submit">${editing ? "Update Position" : "Add Position"}</button>
+                    </div>
+                  </form>
+                `,
+              )
+        }
         ${panel(
           "Position Master",
           `${rows.length} position${rows.length === 1 ? "" : "s"} visible`,
@@ -1175,8 +1224,14 @@
                               <td data-label="Status"><span class="status ${esc(statusClass(position.status))}">${esc(position.status || "Active")}</span></td>
                               <td data-label="Order">${esc(position.display_order || 0)}</td>
                               <td class="right">
-                                <button class="icon-button" title="Edit position" data-edit-position="${esc(position.id)}">${icon("file")} Edit</button>
-                                <button class="icon-button danger" title="Delete position" data-delete-position="${esc(position.id)}">${icon("trash")} Delete</button>
+                                ${
+                                  isReadOnly()
+                                    ? `<span class="status inactive">View only</span>`
+                                    : `
+                                      <button class="icon-button" title="Edit position" data-edit-position="${esc(position.id)}">${icon("file")} Edit</button>
+                                      <button class="icon-button danger" title="Delete position" data-delete-position="${esc(position.id)}">${icon("trash")} Delete</button>
+                                    `
+                                }
                               </td>
                             </tr>
                           `,
@@ -1307,6 +1362,13 @@
   }
 
   function staffFormHtml() {
+    if (isReadOnly()) {
+      return panel(
+        "Staff Profiles",
+        "Read-only access",
+        `<div class="empty">View Admin accounts can inspect staff profiles but cannot create or edit staff records.</div>`,
+      );
+    }
     const person = state.editingId ? state.staff.find((item) => item.id === state.editingId) : null;
     const isEdit = Boolean(person);
     const id = isEdit ? person.id : state.nextId;
@@ -1438,8 +1500,14 @@
         </div>
         <div class="toolbar-actions">
           <button class="button ghost" type="button" data-action="load-attendance">${icon("refresh")} Load Staff</button>
-          <button class="button gold" type="button" data-action="mark-all-present">${icon("calendar")} Mark All Present</button>
-          <button class="button primary" type="button" data-action="save-attendance">${icon("shield")} Save Attendance</button>
+          ${
+            isReadOnly()
+              ? `<span class="status active">View only</span>`
+              : `
+                <button class="button gold" type="button" data-action="mark-all-present">${icon("calendar")} Mark All Present</button>
+                <button class="button primary" type="button" data-action="save-attendance">${icon("shield")} Save Attendance</button>
+              `
+          }
           <button class="button ghost" type="button" data-action="print-attendance">${icon("file")} Print Daily Report</button>
           <button class="button ghost" type="button" data-action="export-attendance">${icon("download")} Export CSV</button>
         </div>
@@ -1485,24 +1553,30 @@
                           <td data-label="Section">${esc(row.section || "-")}</td>
                           <td data-label="Position">${esc(row.position || "-")}</td>
                           <td data-label="Status">
-                            <div class="attendance-status-buttons">
-                              ${attendanceStatuses
-                                .map(
-                                  ([status, abbr, title]) => `
-                                    <button
-                                      class="attendance-status-btn ${activeStatus === status ? "selected" : ""} ${esc(statusClass(status))}"
-                                      type="button"
-                                      title="${esc(title)}"
-                                      data-attendance-status="${esc(status)}"
-                                      data-staff-id="${esc(row.staff_profile_id || row.staff_id)}"
-                                    >${esc(abbr)}</button>
-                                  `,
-                                )
-                                .join("")}
-                            </div>
+                            ${
+                              isReadOnly()
+                                ? `<span class="status ${esc(statusClass(activeStatus))}">${esc(activeStatus)}</span>`
+                                : `
+                                  <div class="attendance-status-buttons">
+                                    ${attendanceStatuses
+                                      .map(
+                                        ([status, abbr, title]) => `
+                                          <button
+                                            class="attendance-status-btn ${activeStatus === status ? "selected" : ""} ${esc(statusClass(status))}"
+                                            type="button"
+                                            title="${esc(title)}"
+                                            data-attendance-status="${esc(status)}"
+                                            data-staff-id="${esc(row.staff_profile_id || row.staff_id)}"
+                                          >${esc(abbr)}</button>
+                                        `,
+                                      )
+                                      .join("")}
+                                  </div>
+                                `
+                            }
                           </td>
                           <td data-label="Note">
-                            <input class="attendance-note" data-attendance-note="${esc(row.staff_profile_id || row.staff_id)}" value="${esc(row.note || row.reason || "")}" placeholder="Optional" />
+                            <input class="attendance-note" data-attendance-note="${esc(row.staff_profile_id || row.staff_id)}" value="${esc(row.note || row.reason || "")}" placeholder="Optional" ${isReadOnly() ? "readonly" : ""} />
                           </td>
                           <td data-label="Last Updated">${esc(row.last_updated ? new Date(row.last_updated).toLocaleString() : "-")}</td>
                         </tr>
@@ -1520,10 +1594,17 @@
   function leaveHtml() {
     return `
       <div class="split-grid wide-right">
-        ${panel(
-          "New Leave Request",
-          "Create staff leave for approval",
-          `<form id="leave-form" class="compact-form">
+        ${
+          isReadOnly()
+            ? panel(
+                "Leave Requests",
+                "Read-only leave overview",
+                `<div class="empty">View Admin can inspect leave requests but cannot submit, approve, or reject leave.</div>`,
+              )
+            : panel(
+                "New Leave Request",
+                "Create staff leave for approval",
+                `<form id="leave-form" class="compact-form">
             <label class="field">
               <span>Staff Member</span>
               <select name="staff_id" required>
@@ -1543,7 +1624,8 @@
             </label>
             <button class="button primary" type="submit">${icon("clock")} Submit Leave</button>
           </form>`,
-        )}
+              )
+        }
         ${panel(
           "Leave Requests",
           "Approve or reject staff leave",
@@ -1558,8 +1640,14 @@
                           <small>${esc(item.leave_type)} / ${esc(String(item.start_date).slice(0, 10))} to ${esc(String(item.end_date).slice(0, 10))}</small>
                         </span>
                         <em class="status ${esc(statusClass(item.status))}">${esc(item.status)}</em>
-                        <button class="icon-button" data-leave-status="${esc(item.id)}:Approved">${icon("shield")} Approve</button>
-                        <button class="icon-button danger" data-leave-status="${esc(item.id)}:Rejected">${icon("trash")} Reject</button>
+                        ${
+                          isReadOnly()
+                            ? `<span class="status inactive">View only</span>`
+                            : `
+                              <button class="icon-button" data-leave-status="${esc(item.id)}:Approved">${icon("shield")} Approve</button>
+                              <button class="icon-button danger" data-leave-status="${esc(item.id)}:Rejected">${icon("trash")} Reject</button>
+                            `
+                        }
                       </div>
                     `,
                   )
@@ -1574,10 +1662,17 @@
   function documentsHtml() {
     return `
       <div class="split-grid wide-right">
-        ${panel(
-          "Upload Document",
-          "PDF files are stored in uploads/staff/documents",
-          `<form id="document-form" class="compact-form">
+        ${
+          isReadOnly()
+            ? panel(
+                "Staff Documents",
+                "Read-only document index",
+                `<div class="empty">View Admin can inspect document records and open existing file links, but cannot upload or delete files.</div>`,
+              )
+            : panel(
+                "Upload Document",
+                "PDF files are stored in uploads/staff/documents",
+                `<form id="document-form" class="compact-form">
             <label class="field">
               <span>Staff Member</span>
               <select name="staff_id" required>
@@ -1596,20 +1691,29 @@
             </label>
             <button class="button primary" type="submit">${icon("file")} Upload Document</button>
           </form>`,
-        )}
+              )
+        }
         ${panel(
           "Staff Documents",
           `${state.documents.length} files`,
           tableHtml(
-            ["Staff", "Title", "Type", "Uploaded", ""],
+            isReadOnly() ? ["Staff", "Title", "Type", "Uploaded"] : ["Staff", "Title", "Type", "Uploaded", ""],
             state.documents,
-            (row) => [
-              row.full_name || row.staff_id,
-              `<a href="${esc(row.file_url)}" target="_blank" rel="noreferrer">${esc(row.title)}</a>`,
-              row.document_type || "-",
-              String(row.created_at || "").slice(0, 10),
-              `<button class="icon-button danger" data-delete-document="${esc(row.id)}">${icon("trash")} Delete</button>`,
-            ],
+            (row) =>
+              isReadOnly()
+                ? [
+                    row.full_name || row.staff_id,
+                    `<a href="${esc(row.file_url)}" target="_blank" rel="noreferrer">${esc(row.title)}</a>`,
+                    row.document_type || "-",
+                    String(row.created_at || "").slice(0, 10),
+                  ]
+                : [
+                    row.full_name || row.staff_id,
+                    `<a href="${esc(row.file_url)}" target="_blank" rel="noreferrer">${esc(row.title)}</a>`,
+                    row.document_type || "-",
+                    String(row.created_at || "").slice(0, 10),
+                    `<button class="icon-button danger" data-delete-document="${esc(row.id)}">${icon("trash")} Delete</button>`,
+                  ],
             true,
           ),
         )}
@@ -1620,10 +1724,17 @@
   function noticesHtml() {
     return `
       <div class="split-grid wide-right">
-        ${panel(
-          "Publish Staff Notice",
-          "Internal update for staff system users",
-          `<form id="notice-form" class="compact-form">
+        ${
+          isReadOnly()
+            ? panel(
+                "Staff Notices",
+                "Read-only notice board",
+                `<div class="empty">View Admin can inspect staff notices but cannot publish or delete notices.</div>`,
+              )
+            : panel(
+                "Publish Staff Notice",
+                "Internal update for staff system users",
+                `<form id="notice-form" class="compact-form">
             ${field("Title", "title", "", "required")}
             <label class="field">
               <span>Audience</span>
@@ -1639,7 +1750,8 @@
             </label>
             <button class="button primary" type="submit">${icon("bell")} Publish Notice</button>
           </form>`,
-        )}
+              )
+        }
         ${panel(
           "Staff Notices",
           `${state.notices.length} notices`,
@@ -1653,7 +1765,7 @@
                         <h3>${esc(item.title)}</h3>
                         <p>${esc(item.body || "")}</p>
                         <small>${esc(item.audience)} / ${esc(String(item.created_at || "").slice(0, 10))}</small>
-                        <button class="icon-button danger" data-delete-notice="${esc(item.id)}">${icon("trash")} Delete</button>
+                        ${isReadOnly() ? `<span class="status inactive">View only</span>` : `<button class="icon-button danger" data-delete-notice="${esc(item.id)}">${icon("trash")} Delete</button>`}
                       </article>
                     `,
                   )
@@ -1670,6 +1782,7 @@
       ["masteradmin", "Full access", "All apps, all staff actions"],
       ["superadmin", "Full access", "All apps except highest ownership tasks"],
       ["staff_admin", "Staff system", "Profiles, accounts, attendance, leave, documents"],
+      ["viewadmin", "View only", "Read-only summaries for website, EduTrack, and staff"],
       ["teacher", "Self service", "Own profile, attendance, leave, documents"],
       ["website_admin", "No staff access", "Website CMS only"],
       ["eduzync_admin", "Academic access", "EduTrack and academic data only"],
@@ -1757,7 +1870,7 @@
             </span>
           </a>
           <nav class="nav">
-            ${modules
+            ${visibleModules()
               .map(
                 ([id, label, sub]) => `
                   <button class="${state.view === id ? "active" : ""}" data-view="${id}">
@@ -1781,7 +1894,7 @@
           <header class="topbar">
             <div>
               <p class="eyebrow">staff.domain.com ready</p>
-              <h1>${esc(modules.find(([id]) => id === state.view)?.[1] || "Staff Management")}</h1>
+              <h1>${esc(visibleModules().find(([id]) => id === state.view)?.[1] || "Staff Management")}</h1>
               <p class="topbar-subtitle">${esc(viewSubtitles[state.view] || "")}</p>
             </div>
             <div class="top-actions">
@@ -1797,6 +1910,11 @@
           </header>
           <section class="content">
             <div id="notice" class="notice"></div>
+            ${
+              isReadOnly()
+                ? `<div class="notice show">View Admin mode: staff data is read-only. Create, update, upload, import, and delete actions are locked.</div>`
+                : ""
+            }
             ${renderContent()}
           </section>
         </main>
@@ -1807,10 +1925,15 @@
 
   async function openNewStaffForm(event) {
     if (event) event.preventDefault();
+    if (isReadOnly()) {
+      readOnlyNotice();
+      return;
+    }
     await setView("form", { newRecord: true });
   }
 
   function bindStaffRowActions(root = document) {
+    if (isReadOnly()) return;
     root.querySelectorAll("[data-edit]").forEach((button) => {
       button.addEventListener("click", () => setView("form", { editingId: button.dataset.edit }));
     });
@@ -2151,6 +2274,10 @@
   }
 
   async function uploadFile(file, folder) {
+    if (isReadOnly()) {
+      readOnlyNotice();
+      throw new Error("View Admin accounts are read-only.");
+    }
     const form = new FormData();
     form.append("file", file);
     return api(`/api/uploads?folder=${encodeURIComponent(folder)}`, {
@@ -2165,6 +2292,10 @@
   }
 
   async function uploadStaffProfilePhoto(file) {
+    if (isReadOnly()) {
+      readOnlyNotice();
+      throw new Error("View Admin accounts are read-only.");
+    }
     const staffId = currentStaffFormId();
     const form = new FormData();
     form.append("file", file);
@@ -2175,6 +2306,11 @@
   }
 
   async function uploadProfilePhoto(event) {
+    if (isReadOnly()) {
+      readOnlyNotice();
+      if (event?.target) event.target.value = "";
+      return;
+    }
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     try {
@@ -2197,12 +2333,14 @@
   }
 
   function clearProfilePhoto() {
+    if (isReadOnly()) return readOnlyNotice();
     document.getElementById("profile-image").value = "";
     document.getElementById("photo-box").innerHTML =
       `<div><strong>No Photo</strong><span>Upload JPG or PNG</span></div>`;
   }
 
   function addAdditionalPosition() {
+    if (isReadOnly()) return readOnlyNotice();
     const list = document.getElementById("positions-list");
     if (!list) return;
     list.querySelector(".empty")?.remove();
@@ -2222,6 +2360,7 @@
   }
 
   function removeAdditionalPosition(target) {
+    if (isReadOnly()) return readOnlyNotice();
     const row = target.closest ? target.closest("[data-position-row]") : target;
     const list = document.getElementById("positions-list");
     if (!row || !list) return;
@@ -2283,6 +2422,7 @@
 
   async function submitStaffForm(event) {
     event.preventDefault();
+    if (isReadOnly()) return readOnlyNotice();
     const form = event.currentTarget;
     const button = form.querySelector("button[type='submit']");
     const data = new FormData(form);
@@ -2323,6 +2463,7 @@
   }
 
   async function deleteStaff(id) {
+    if (isReadOnly()) return readOnlyNotice();
     if (!id || !confirm("Delete this staff profile and disable linked account?")) return;
     try {
       await api(`/api/staff/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -2335,12 +2476,14 @@
   }
 
   function editPositionMaster(id) {
+    if (isReadOnly()) return readOnlyNotice();
     state.editingPositionId = id || "";
     renderShell();
   }
 
   async function submitPositionMasterForm(event) {
     event.preventDefault();
+    if (isReadOnly()) return readOnlyNotice();
     const form = event.currentTarget;
     const button = form.querySelector("button[type='submit']");
     const data = new FormData(form);
@@ -2372,6 +2515,7 @@
   }
 
   async function deletePositionMaster(id) {
+    if (isReadOnly()) return readOnlyNotice();
     if (
       !id ||
       !confirm("Delete this position? If it is assigned to staff, delete will be blocked.")
@@ -2389,6 +2533,7 @@
   }
 
   function setAttendanceStatus(staffId, status) {
+    if (isReadOnly()) return readOnlyNotice();
     state.attendance = state.attendance.map((row) =>
       String(row.staff_profile_id || row.staff_id) === String(staffId)
         ? { ...row, status }
@@ -2398,6 +2543,7 @@
   }
 
   function setAttendanceNote(staffId, note) {
+    if (isReadOnly()) return readOnlyNotice();
     state.attendance = state.attendance.map((row) =>
       String(row.staff_profile_id || row.staff_id) === String(staffId)
         ? { ...row, note }
@@ -2406,12 +2552,14 @@
   }
 
   function markAllAttendancePresent() {
+    if (isReadOnly()) return readOnlyNotice();
     state.attendance = state.attendance.map((row) => ({ ...row, status: "Present" }));
     renderShell();
     setNotice("All loaded staff marked Present. Click Save Attendance to store it.", "success");
   }
 
   async function saveAttendanceBulk() {
+    if (isReadOnly()) return readOnlyNotice();
     const records = state.attendance
       .map((row) => ({
         staff_profile_id: row.staff_profile_id || row.staff_id,
@@ -2604,6 +2752,7 @@
 
   async function submitLeave(event) {
     event.preventDefault();
+    if (isReadOnly()) return readOnlyNotice();
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
     try {
       await api("/api/staff-leave", { method: "POST", body: JSON.stringify(payload) });
@@ -2615,6 +2764,7 @@
   }
 
   async function updateLeaveStatus(value) {
+    if (isReadOnly()) return readOnlyNotice();
     const [id, status] = String(value || "").split(":");
     if (!id || !status) return;
     try {
@@ -2631,6 +2781,7 @@
 
   async function submitDocument(event) {
     event.preventDefault();
+    if (isReadOnly()) return readOnlyNotice();
     const form = event.currentTarget;
     const payload = Object.fromEntries(new FormData(form).entries());
     const file = document.getElementById("document-file").files[0];
@@ -2651,6 +2802,7 @@
   }
 
   async function deleteDocument(id) {
+    if (isReadOnly()) return readOnlyNotice();
     if (!id || !confirm("Delete this document record?")) return;
     try {
       await api(`/api/staff-documents/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -2663,6 +2815,7 @@
 
   async function submitNotice(event) {
     event.preventDefault();
+    if (isReadOnly()) return readOnlyNotice();
     const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
     try {
       await api("/api/staff-notices", { method: "POST", body: JSON.stringify(payload) });
@@ -2674,6 +2827,7 @@
   }
 
   async function deleteNotice(id) {
+    if (isReadOnly()) return readOnlyNotice();
     if (!id || !confirm("Delete this notice?")) return;
     try {
       await api(`/api/staff-notices/${encodeURIComponent(id)}`, { method: "DELETE" });
@@ -2685,6 +2839,11 @@
   }
 
   async function importStaffCsv(event) {
+    if (isReadOnly()) {
+      readOnlyNotice();
+      if (event?.target) event.target.value = "";
+      return;
+    }
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     if (!file.name.toLowerCase().endsWith(".csv")) {
@@ -2710,6 +2869,7 @@
   }
 
   async function previewStaffCsvImport() {
+    if (isReadOnly()) return readOnlyNotice();
     const result = await api("/api/staff/import-csv/preview", {
       method: "POST",
       body: JSON.stringify({
@@ -2724,6 +2884,7 @@
   }
 
   async function confirmStaffCsvImport() {
+    if (isReadOnly()) return readOnlyNotice();
     if (!state.csvImport.csv) return;
     try {
       const result = await api("/api/staff/import-csv", {
