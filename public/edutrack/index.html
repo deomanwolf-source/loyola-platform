@@ -14352,11 +14352,23 @@
         return params.toString();
       }
 
+      function eduTrackAttendanceDisplayStatus(row = {}) {
+        return row.status || "Present";
+      }
+
+      function eduTrackAttendanceStatusClass(status) {
+        return String(status || "Present")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/(^-|-$)/g, "");
+      }
+
       function eduTrackAttendanceStatusBadge(status) {
+        const displayStatus = status || "Present";
         const color =
-          status === "Present" || status === "Leave Approved"
+          displayStatus === "Present" || displayStatus === "Leave Approved"
             ? "var(--accent2)"
-            : status === "Absent"
+            : displayStatus === "Absent"
               ? "#f87171"
               : "var(--warn)";
         return (
@@ -14365,7 +14377,7 @@
           ";color:" +
           color +
           '">' +
-          escapeHtml(status || "Unmarked") +
+          escapeHtml(displayStatus) +
           "</span>"
         );
       }
@@ -14388,8 +14400,15 @@
       function renderEduTrackAttendanceSummary() {
         const box = document.getElementById("esa-summary");
         if (!box) return;
-        const count = (status) => eduTrackStaffAttendance.filter((row) => row.status === status).length;
-        const unmarked = eduTrackStaffAttendance.filter((row) => !row.status).length;
+        const count = (status) =>
+          eduTrackStaffAttendance.filter((row) => eduTrackAttendanceDisplayStatus(row) === status).length;
+        const leaveTotal =
+          count("Duty Leave") +
+          count("Maternity Leave") +
+          count("Short Leave") +
+          count("Half Day") +
+          count("Leave Approved") +
+          count("Informed");
         box.innerHTML =
           '<div class="stat-card"><div class="stat-label">Total Staff</div><div class="stat-val">' +
           eduTrackStaffAttendance.length +
@@ -14399,8 +14418,8 @@
           count("Absent") +
           '</div></div><div class="stat-card"><div class="stat-label">Late</div><div class="stat-val">' +
           count("Late to Come") +
-          '</div></div><div class="stat-card"><div class="stat-label">Unmarked</div><div class="stat-val">' +
-          unmarked +
+          '</div></div><div class="stat-card"><div class="stat-label">Leave / Other</div><div class="stat-val">' +
+          leaveTotal +
           "</div></div>";
       }
 
@@ -14418,9 +14437,10 @@
           .map((row) => {
             const staffId = row.staff_profile_id || row.staff_id || "";
             const displayStaffId = attendanceRowDisplayId(row);
+            const activeStatus = eduTrackAttendanceDisplayStatus(row);
             const buttons = eduTrackAttendanceStatuses
               .map(([status, code]) => {
-                const selected = row.status === status;
+                const selected = activeStatus === status;
                 const color =
                   status === "Present" || status === "Leave Approved"
                     ? "var(--accent2)"
@@ -14460,7 +14480,7 @@
               '</td><td><div style="display:flex;gap:5px;flex-wrap:wrap;min-width:390px">' +
               buttons +
               "</div><div style=\"margin-top:6px\">" +
-              eduTrackAttendanceStatusBadge(row.status) +
+              eduTrackAttendanceStatusBadge(activeStatus) +
               '</div></td><td><input class="quick-input" style="min-width:180px" value="' +
               escapeHtml(row.note || row.reason || "") +
               '" oninput="setEduTrackStaffAttendanceNote(\'' +
@@ -14478,7 +14498,10 @@
         if (tbody) tbody.innerHTML = '<tr><td colspan="7">Loading staff attendance...</td></tr>';
         try {
           const rows = await apiFetch("/api/staff/attendance?" + eduTrackAttendanceParams());
-          eduTrackStaffAttendance = filterEduTrackTeacherAttendanceRows(rows);
+          eduTrackStaffAttendance = filterEduTrackTeacherAttendanceRows(rows).map((row) => ({
+            ...row,
+            status: row.status || "Present",
+          }));
           renderEduTrackStaffAttendance();
         } catch (error) {
           if (tbody) {
@@ -14520,20 +14543,18 @@
       };
 
       window.saveEduTrackStaffAttendance = async function () {
-        const records = eduTrackStaffAttendance
-          .filter((row) => row.status || row.note)
-          .map((row) => ({
-            staff_profile_id: row.staff_profile_id || row.staff_id,
-            staff_id: row.staff_id || row.staff_profile_id,
-            attendance_date: eduTrackAttendanceDate(),
-            section: row.section || "",
-            staff_type: row.staff_type || "",
-            position: row.position || "",
-            status: row.status || "Present",
-            note: row.note || "",
-          }));
+        const records = eduTrackStaffAttendance.map((row) => ({
+          staff_profile_id: row.staff_profile_id || row.staff_id,
+          staff_id: row.staff_id || row.staff_profile_id,
+          attendance_date: eduTrackAttendanceDate(),
+          section: row.section || "",
+          staff_type: row.staff_type || "",
+          position: row.position || "",
+          status: eduTrackAttendanceDisplayStatus(row),
+          note: row.note || "",
+        }));
         if (!records.length) {
-          showToast("Select at least one status before saving.", "err");
+          showToast("Load staff before saving attendance.", "err");
           return;
         }
         try {
@@ -14576,7 +14597,7 @@
                 row.section || "",
                 row.staff_type || "",
                 row.position || "",
-                row.status || "Unmarked",
+                eduTrackAttendanceDisplayStatus(row),
                 row.note || row.reason || "",
                 row.last_updated || "",
               ]),
@@ -14600,39 +14621,132 @@
       };
 
       window.printEduTrackStaffAttendance = function () {
-        const rows = eduTrackStaffAttendance
+        const reportRows = eduTrackStaffAttendance.map((row) => ({
+          staffId: attendanceRowDisplayId(row),
+          name: row.staff_name || row.full_name || "",
+          section: row.section || "Unassigned Section",
+          status: eduTrackAttendanceDisplayStatus(row),
+          note: row.note || row.reason || "",
+        }));
+        const statusCounts = eduTrackAttendanceStatuses.reduce((counts, [status]) => {
+          counts[status] = reportRows.filter((row) => row.status === status).length;
+          return counts;
+        }, {});
+        const leaveTotal =
+          (statusCounts["Duty Leave"] || 0) +
+          (statusCounts["Maternity Leave"] || 0) +
+          (statusCounts["Short Leave"] || 0) +
+          (statusCounts["Half Day"] || 0) +
+          (statusCounts["Leave Approved"] || 0) +
+          (statusCounts.Informed || 0);
+        const summaryCards = [
+          ["Total Staff", reportRows.length, "total"],
+          ["Present", statusCounts.Present || 0, "present"],
+          ["Absent", statusCounts.Absent || 0, "absent"],
+          ["Late", statusCounts["Late to Come"] || 0, "late"],
+          ["Leave / Other", leaveTotal, "leave"],
+        ]
           .map(
-            (row) =>
-              "<tr><td>" +
-              escapeHtml(row.staff_id || row.staff_profile_id || "") +
-              "</td><td>" +
-              escapeHtml(row.staff_name || row.full_name || "") +
-              "</td><td>" +
-              escapeHtml(row.section || "") +
-              "</td><td>" +
-              escapeHtml(row.position || "") +
-              "</td><td>" +
-              escapeHtml(row.status || "Unmarked") +
-              "</td><td>" +
-              escapeHtml(row.note || row.reason || "") +
-              "</td></tr>",
+            ([label, value, tone]) => `
+              <div class="summary-card ${escapeHtml(tone)}">
+                <strong>${escapeHtml(value)}</strong>
+                <span>${escapeHtml(label)}</span>
+              </div>
+            `,
           )
+          .join("");
+        const groupedRows = reportRows.reduce((groups, row) => {
+          const section = row.section || "Unassigned Section";
+          if (!groups[section]) groups[section] = [];
+          groups[section].push(row);
+          return groups;
+        }, {});
+        const sectionBlocks = Object.entries(groupedRows)
+          .map(([section, sectionRows]) => {
+            const tableRows = sectionRows
+              .map(
+                (row) => `
+                  <tr>
+                    <td>${escapeHtml(row.staffId)}</td>
+                    <td>${escapeHtml(row.name)}</td>
+                    <td><span class="status-pill ${escapeHtml(eduTrackAttendanceStatusClass(row.status))}">${escapeHtml(row.status)}</span></td>
+                    <td>${escapeHtml(row.note)}</td>
+                  </tr>
+                `,
+              )
+              .join("");
+            return `
+              <section class="section-block">
+                <div class="section-title">
+                  <span>${escapeHtml(section)}</span>
+                  <strong>${escapeHtml(sectionRows.length)} staff</strong>
+                </div>
+                <table>
+                  <thead><tr><th>Staff ID</th><th>Name</th><th>Status</th><th>Note</th></tr></thead>
+                  <tbody>${tableRows}</tbody>
+                </table>
+              </section>
+            `;
+          })
           .join("");
         const win = window.open("", "_blank");
         if (!win) return;
-        win.document.write(
-          "<!doctype html><html><head><title>Daily Staff Attendance Report</title><style>body{font-family:Arial,sans-serif;color:#111827;padding:24px}h1{font-size:20px;margin:0}h2{font-size:16px;margin:4px 0 18px}table{width:100%;border-collapse:collapse;font-size:12px}th,td{border:1px solid #d1d5db;padding:6px;vertical-align:top}th{background:#f3f4f6}.sig{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}.sig div{border-top:1px solid #111827;padding-top:8px}</style></head><body><h1>Loyola College Negombo</h1><h2>Daily Staff Attendance Report</h2><p>Date: " +
-            escapeHtml(eduTrackAttendanceDate()) +
-            "<br>Section: " +
-            escapeHtml(document.getElementById("esa-section")?.value || "All Sections") +
-            "<br>Generated by: " +
-            escapeHtml(cud?.name || "-") +
-            "<br>Generated at: " +
-            escapeHtml(new Date().toLocaleString()) +
-            '</p><table><thead><tr><th>Staff ID</th><th>Name</th><th>Section</th><th>Position</th><th>Status</th><th>Note</th></tr></thead><tbody>' +
-            (rows || '<tr><td colspan="6">No records</td></tr>') +
-            '</tbody></table><div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div></body></html>',
-        );
+        win.document.write(`
+          <!doctype html>
+          <html>
+            <head>
+              <title>Daily Staff Attendance Report</title>
+              <style>
+                @page{margin:14mm}
+                *{box-sizing:border-box}
+                body{margin:0;background:#eef4f8;color:#111827;font-family:Arial,sans-serif}
+                .report{max-width:1120px;margin:0 auto;padding:18px}
+                .hero{border-radius:16px;background:linear-gradient(135deg,#08286f,#0f766e);color:#fff;padding:22px 24px}
+                h1{font-size:25px;line-height:1.1;margin:0;font-weight:900}
+                h2{font-size:15px;margin:6px 0 0;color:#dbeafe;text-transform:uppercase}
+                .meta{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 16px}
+                .meta div{border:1px solid #d8e2f3;border-radius:10px;background:#fff;padding:10px 12px;font-size:11px}
+                .meta b{display:block;color:#64748b;font-size:9px;text-transform:uppercase}
+                .summary{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:14px 0 18px}
+                .summary-card{border:1px solid #d8e2f3;border-top:4px solid #08286f;border-radius:12px;background:#fff;padding:12px}
+                .summary-card strong{display:block;color:#08286f;font-family:Georgia,serif;font-size:28px;line-height:1}
+                .summary-card span{display:block;margin-top:5px;color:#64748b;font-size:10px;font-weight:900;text-transform:uppercase}
+                .summary-card.present{border-top-color:#10b981}.summary-card.absent{border-top-color:#dc2626}.summary-card.late,.summary-card.leave{border-top-color:#f59e0b}
+                .section-block{overflow:hidden;margin:16px 0;border:1px solid #d8e2f3;border-radius:14px;background:#fff;break-inside:avoid}
+                .section-title{display:flex;justify-content:space-between;align-items:center;background:#eaf2ff;color:#08286f;padding:10px 12px;font-weight:900}
+                .section-title strong{border-radius:999px;background:#fff;padding:4px 10px;color:#475569;font-size:11px}
+                table{width:100%;border-collapse:collapse;font-size:11px}
+                th,td{border-top:1px solid #e5ecf6;padding:7px 9px;text-align:left;vertical-align:top}
+                th{background:#f8fafc;color:#475569;font-size:9px;text-transform:uppercase}
+                tbody tr:nth-child(even){background:#f9fbff}
+                .status-pill{display:inline-flex;border-radius:999px;padding:4px 8px;background:#e2e8f0;color:#334155;font-size:10px;font-weight:900}
+                .status-pill.present{background:#d1fae5;color:#047857}.status-pill.absent{background:#fee2e2;color:#b91c1c}
+                .status-pill.late-to-come,.status-pill.duty-leave,.status-pill.maternity-leave,.status-pill.short-leave,.status-pill.half-day,.status-pill.leave-approved,.status-pill.informed{background:#fef3c7;color:#a16207}
+                .empty{border:1px dashed #b7c5db;border-radius:14px;background:#fff;padding:24px;text-align:center;color:#64748b}
+                .sig{display:grid;grid-template-columns:repeat(3,1fr);gap:28px;margin-top:42px;font-size:12px}
+                .sig div{border-top:1px solid #64748b;padding-top:8px;color:#475569}
+                @media print{body{background:#fff}.report{padding:0}.hero,.section-block,.summary-card,.meta div{box-shadow:none}}
+              </style>
+            </head>
+            <body>
+              <main class="report">
+                <div class="hero">
+                  <h1>Loyola College Negombo</h1>
+                  <h2>Daily Staff Attendance Report</h2>
+                </div>
+                <div class="meta">
+                  <div><b>Date</b>${escapeHtml(eduTrackAttendanceDate())}</div>
+                  <div><b>Section Filter</b>${escapeHtml(document.getElementById("esa-section")?.value || "All Sections")}</div>
+                  <div><b>Generated By</b>${escapeHtml(cud?.name || "-")}</div>
+                  <div><b>Generated At</b>${escapeHtml(new Date().toLocaleString())}</div>
+                </div>
+                <div class="summary">${summaryCards}</div>
+                ${sectionBlocks || '<div class="empty">No attendance records found.</div>'}
+                <div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div>
+              </main>
+            </body>
+          </html>
+        `);
         win.document.close();
         win.focus();
         win.print();
