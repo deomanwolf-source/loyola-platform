@@ -245,6 +245,42 @@ function normalizeLeadershipVisualHtml(html: string, homeLeadershipCards: HomeLe
   );
 }
 
+function removeHomeVisualCalendarHighlights(html: string) {
+  if (!/Year highlights|Annual Prize Giving Ceremony/i.test(html)) return html;
+  if (typeof DOMParser === "undefined") return html;
+
+  const doc = new DOMParser().parseFromString(`<div data-home-visual-root>${html}</div>`, "text/html");
+  const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
+  let highlightNode = walker.nextNode();
+  let highlightColumn: Element | null = null;
+
+  while (highlightNode) {
+    if (/Year highlights/i.test(highlightNode.textContent || "")) {
+      let current = highlightNode.parentElement;
+      while (current && current !== doc.body) {
+        if (
+          current.className.includes("space-y-4") &&
+          /Annual Prize Giving Ceremony|Poya Day|Vesak Festival/i.test(current.textContent || "")
+        ) {
+          highlightColumn = current;
+          break;
+        }
+        current = current.parentElement;
+      }
+      break;
+    }
+    highlightNode = walker.nextNode();
+  }
+
+  if (!highlightColumn?.parentElement) return html;
+
+  const calendarWrapper = highlightColumn.parentElement;
+  highlightColumn.remove();
+  calendarWrapper.setAttribute("class", "mx-auto mt-8 max-w-5xl");
+
+  return doc.querySelector("[data-home-visual-root]")?.innerHTML || html;
+}
+
 const collegeDepartments = [
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/administration`,
@@ -1096,7 +1132,9 @@ function VisualBuilderPage({ pageId }: { pageId: string }) {
   const cleanedVisualHtml = normalizeVisualBuilderHtml(sanitizeVisualHtml(page.visualHtml));
   const sanitizedHtml =
     pageId === "home"
-      ? normalizeLeadershipVisualHtml(cleanedVisualHtml, db.homeSections.leadershipCards)
+      ? removeHomeVisualCalendarHighlights(
+          normalizeLeadershipVisualHtml(cleanedVisualHtml, db.homeSections.leadershipCards),
+        )
       : normalizeKennedyTitle(cleanedVisualHtml);
   const sanitizedBaseCss = sanitizeVisualCss(page.visualBaseCss);
   const sanitizedCss = sanitizeVisualCss(page.visualCss);
@@ -1368,46 +1406,9 @@ function HomeRequiredSections() {
     icon: department.icon,
     href: `/${department.id}`,
   }));
-  const fallbackCalendar = [
-    {
-      title: "Poya Day - Public Holiday",
-      date: "2026-05-01",
-      description: "Religious observance",
-    },
-    {
-      title: "Vesak Festival - School Holiday",
-      date: "2026-05-07",
-      description: "National festival",
-    },
-    {
-      title: "Mid-Term Examinations Begin",
-      date: "2026-05-15",
-      description: "Academic assessment period",
-    },
-  ];
-  const calendarItems =
-    db.events.length > 0
-      ? db.events
-          .slice()
-          .sort((a, b) => String(a.date || a.event_date).localeCompare(String(b.date || b.event_date)))
-          .slice(0, 3)
-          .map((event) => ({
-            title: event.title,
-            date: event.event_date || event.date,
-            description: event.description || event.location || event.type || "College event",
-          }))
-      : fallbackCalendar;
   const pageIsLive = (href: string) => {
     const id = href.replace(/^\/+/, "") || "home";
     return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
-  };
-  const eventDateParts = (value: string) => {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return { month: "MAY", day: "01" };
-    return {
-      month: date.toLocaleString("en", { month: "short" }).toUpperCase(),
-      day: String(date.getDate()).padStart(2, "0"),
-    };
   };
 
   return (
@@ -1590,95 +1591,7 @@ function HomeRequiredSections() {
                 )}
               </div>
 
-              <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,0.78fr)_minmax(430px,1.22fr)]">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-black text-white/80">
-                    <Calendar className="h-4 w-4 text-gold" />
-                    Year highlights
-                  </div>
-
-                  {calendarItems.slice(0, 1).map((event) => {
-                    const parts = eventDateParts(event.date);
-                    return (
-                      <article
-                        key={`${event.title}-${event.date}`}
-                        className="rounded-lg border border-white/10 bg-white/[0.09] p-5 shadow-[0_18px_44px_-32px_rgba(0,0,0,0.9)]"
-                      >
-                        <div className="grid gap-4 sm:grid-cols-[72px_1fr] sm:items-center">
-                          <time className="grid h-16 w-16 place-items-center rounded bg-gold text-center text-navy shadow-[0_12px_24px_-18px_rgba(232,180,35,0.9)]">
-                            <span>
-                              <span className="block text-[10px] font-black uppercase leading-none">
-                                {parts.month}
-                              </span>
-                              <span className="mt-1 block text-2xl font-black leading-none">
-                                {parts.day}
-                              </span>
-                            </span>
-                          </time>
-                          <div>
-                            <h3 className="text-lg font-black leading-tight text-white">
-                              {event.title}
-                            </h3>
-                            <p className="mt-2 text-sm leading-6 text-white/70">
-                              {event.description}
-                            </p>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                    {calendarItems.slice(1).map((event) => {
-                      const parts = eventDateParts(event.date);
-                      return (
-                        <article
-                          key={`${event.title}-${event.date}`}
-                          className="grid grid-cols-[54px_1fr] items-center gap-4 rounded border border-white/10 bg-white/[0.06] p-4 transition hover:border-gold/40 hover:bg-white/[0.1]"
-                        >
-                          <time className="grid h-12 w-12 place-items-center rounded bg-white/10 text-center text-gold">
-                            <span>
-                              <span className="block text-[9px] font-black uppercase leading-none">
-                                {parts.month}
-                              </span>
-                              <span className="mt-1 block text-lg font-black leading-none">
-                                {parts.day}
-                              </span>
-                            </span>
-                          </time>
-                          <span>
-                            <span className="block text-sm font-black leading-tight">
-                              {event.title}
-                            </span>
-                            <span className="mt-1 block text-xs leading-5 text-white/60">
-                              {event.description}
-                            </span>
-                          </span>
-                        </article>
-                      );
-                    })}
-                  </div>
-
-                  <article className="rounded-lg border border-gold/35 bg-gold/10 p-5 text-gold-light shadow-[0_18px_44px_-34px_rgba(232,180,35,0.75)]">
-                    <div className="flex items-start gap-3">
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded bg-gold/20 text-gold">
-                        <Bell className="h-4 w-4" />
-                      </span>
-                      <div>
-                        <p className="text-xs font-black uppercase text-gold-light">
-                          Special Notice
-                        </p>
-                        <h3 className="mt-2 text-base font-black text-white">
-                          Annual Prize Giving Ceremony
-                        </h3>
-                        <p className="mt-1 text-xs leading-5 text-white/70">
-                          Schedule details will be published on the student portal.
-                        </p>
-                      </div>
-                    </div>
-                  </article>
-                </div>
-
+              <div className="mx-auto mt-8 max-w-5xl">
                 <div className="overflow-hidden rounded-lg bg-white shadow-[0_24px_70px_-38px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
                   <div className="flex flex-col gap-2 border-b border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
@@ -1693,7 +1606,7 @@ function HomeRequiredSections() {
                   <GoogleCalendarFrame
                     title="Loyola College Google Calendar"
                     mode="AGENDA"
-                    className="h-[460px] bg-white md:h-[500px]"
+                    className="h-[520px] bg-white md:h-[580px]"
                   />
                 </div>
               </div>
