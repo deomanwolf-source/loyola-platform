@@ -1168,37 +1168,44 @@ const pastRectorProfiles = [
   {
     name: "S. V. Goonesekera Mahatha",
     years: "1949 - 1987",
-    image: "/assets/past-rectors/sv-sir.jpeg",
+    image:
+      "https://loyolacollege.lk/uploads/site-images/visual-builder/1780529888865-cc345cce1545-1.sv_sir.jpg.webp",
   },
   {
     name: "J. E. Noyel Dabare Mahatha",
     years: "1987 - 1994",
-    image: "/assets/past-rectors/noyel-sir.jpeg",
+    image:
+      "https://loyolacollege.lk/uploads/site-images/visual-builder/1780529994959-d4403ab35329-2.noyel_sir.jpg.webp",
   },
   {
     name: "Rev. Fr. Leo Perera",
     years: "1994 - 1999",
-    image: "/assets/past-rectors/fr-leo.jpeg",
+    image:
+      "https://loyolacollege.lk/uploads/site-images/visual-builder/1780640955756-81e9c2a637dd-3.fr_leo.webp",
   },
   {
     name: "Rev. Fr. Thilakasiri Fernando",
     years: "1995 - 1999",
-    image: "/assets/past-rectors/fr-thilakasiri.jpeg",
+    image:
+      "https://loyolacollege.lk/uploads/site-images/visual-builder/1780641273682-e369bfe8b68e-4.fr_thilakasiri.webp",
   },
   {
     name: "Rev. Fr. Trevor G. Martin",
     years: "2000 - 2014",
-    image: "/assets/past-rectors/fr-trevor.jpeg",
+    image:
+      "https://loyolacollege.lk/uploads/site-images/visual-builder/1780641299221-918b6921337c-5.fr_trevo.webp",
   },
   {
     name: "Rev. Fr. Ranjith Andradi",
     years: "2014 - 2015",
-    image: "/assets/past-rectors/fr-ranjith.jpeg",
+    image:
+      "https://loyolacollege.lk/uploads/site-images/visual-builder/1780641540736-0bbcf8bc1858-6.fr_ranjith.webp",
   },
   {
     name: "Rev. Fr. Sudath Gunetilleke",
     years: "2015 - 2021",
-    image: "/assets/past-rectors/fr-sudath.jpeg",
+    image:
+      "https://loyolacollege.lk/uploads/site-images/visual-builder/1780641675326-d4565d67bd2d-7.fr_sudath.webp",
   },
 ];
 

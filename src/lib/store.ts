@@ -634,6 +634,13 @@ export const seed: DB = {
       visible: true,
       parentId: "about",
     },
+    {
+      id: "about/past-rectors-vice-rectors",
+      label: "Past Rectors & Vice Rectors",
+      order: 4,
+      visible: true,
+      parentId: "about",
+    },
     { id: "academics", label: "Academics", order: 3, visible: true },
     {
       id: "academics/loyolian-cambridge-english-academy",
@@ -708,6 +715,12 @@ export const seed: DB = {
       anthemVideoCoverImage: "",
       anthemVideoUrl: "",
       anthemVideoTitle: "College Anthem & Hymn",
+    },
+    "about/past-rectors-vice-rectors": {
+      kicker: "Faith, learning, discipline, and service.",
+      title: "Past Rectors & Vice Rectors",
+      body: "Remembering the leaders who shaped Loyola College Negombo.",
+      image: "",
     },
     admissions: {
       kicker: "Admissions",
@@ -1586,6 +1599,56 @@ function ensureCollegeAnthemPage(db: DB): DB {
   return changed ? { ...db, pages, navigation } : db;
 }
 
+function ensurePastRectorsPage(db: DB): DB {
+  const pageId = "about/past-rectors-vice-rectors";
+  const label = "Past Rectors & Vice Rectors";
+  const pages = { ...db.pages };
+  const navigation = [...db.navigation];
+  let changed = false;
+
+  if (!pages[pageId]) {
+    pages[pageId] = {
+      kicker: "Faith, learning, discipline, and service.",
+      title: label,
+      body: "Remembering the leaders who shaped Loyola College Negombo.",
+      image: "",
+    };
+    changed = true;
+  }
+
+  const navIndex = navigation.findIndex((item) => item.id === pageId);
+  if (navIndex === -1) {
+    navigation.push({
+      id: pageId,
+      label,
+      order: 4,
+      visible: true,
+      parentId: "about",
+    });
+    changed = true;
+  } else {
+    const item = navigation[navIndex];
+    const nextItem = {
+      ...item,
+      label: item.label || label,
+      order: item.order || 4,
+      visible: true,
+      parentId: item.parentId || "about",
+    };
+    if (
+      nextItem.label !== item.label ||
+      nextItem.order !== item.order ||
+      nextItem.visible !== item.visible ||
+      nextItem.parentId !== item.parentId
+    ) {
+      navigation[navIndex] = nextItem;
+      changed = true;
+    }
+  }
+
+  return changed ? { ...db, pages, navigation } : db;
+}
+
 function ensureCalendarPage(db: DB): DB {
   const pageId = "calendar";
   const pages = { ...db.pages };
@@ -1692,10 +1755,14 @@ function prepareDb(db: DB): DB {
         migrateLoginAccounts(
           stripDemoContent(
             ensureCalendarPage(
-              ensureCollegeAnthemPage(
-                ensureGallerySubpages(
-                  ensureTheCollegePages(
-                    ensureAcademicsSubpages(migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db))),
+              ensurePastRectorsPage(
+                ensureCollegeAnthemPage(
+                  ensureGallerySubpages(
+                    ensureTheCollegePages(
+                      ensureAcademicsSubpages(
+                        migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db)),
+                      ),
+                    ),
                   ),
                 ),
               ),
