@@ -94,12 +94,25 @@ function fallbackPosition(staff: Teacher) {
   });
 }
 
+function isNonAcademicStaff(staff: Teacher) {
+  return staff.type === "Non-Academic Staff";
+}
+
+function coerceUnknownNonAcademicPosition(position: ParsedPositionCode, staff: Teacher) {
+  if (position.is_known || !isNonAcademicStaff(staff)) return position;
+  return {
+    ...position,
+    main_category: "Non-Academic Staff",
+    section: "Other Non-Academic Staff",
+  };
+}
+
 function visiblePositions(staff: Teacher) {
   const positions = Array.isArray(staff.positions) ? staff.positions : [];
-  if (!positions.length) return [fallbackPosition(staff)];
+  if (!positions.length) return [coerceUnknownNonAcademicPosition(fallbackPosition(staff), staff)];
   return positions
     .filter((position) => position.visibleOnWebsite !== false && position.visible_on_website !== false)
-    .map((position) => parseStaffPosition(position));
+    .map((position) => coerceUnknownNonAcademicPosition(parseStaffPosition(position), staff));
 }
 
 function staffDirectoryProfiles(teachers: Teacher[]) {
@@ -217,7 +230,17 @@ const GROUP_SECTION_TITLES: Record<string, string> = {
   "class-teachers-upper": "Class Teachers - Upper School",
   "class-teachers-al": "Class Teachers - Advanced Level Section",
   "subject-teachers": "Subject Teachers",
-  "non-academic": "Non-Academic Staff",
+  "non-academic-administrative": "Administrative Department",
+  "non-academic-academic-office": "Academic Office",
+  "non-academic-financial": "Financial Department",
+  "non-academic-it": "IT Department",
+  "non-academic-front-office": "Front Office",
+  "non-academic-bookstore": "Bookstore",
+  "non-academic-office-support": "Office Support",
+  "non-academic-maintenance": "Maintenance Department",
+  "non-academic-health": "Health Services",
+  "non-academic-library": "Library",
+  "non-academic-other": "Other Non-Academic Staff",
   "supportive": "Supportive Staff",
   "academic-council": "General Academic Council",
 };
@@ -236,7 +259,7 @@ function isVisibleDirectoryAssignment(assignment: StaffAssignment) {
 
 function assignmentStaffType(assignment: StaffAssignment): StaffTypeFilter {
   if (
-    assignment.group.id === "non-academic" ||
+    assignment.group.id.startsWith("non-academic") ||
     assignment.position.main_category === "Non-Academic Staff"
   ) {
     return "Non-Academic Staff";
@@ -292,6 +315,11 @@ function GroupBlock({
               <p className="mt-2 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
                 {assignment.position.display_title}
               </p>
+              {assignment.profile.qualifications && (
+                <p className="mt-3 line-clamp-3 max-w-[230px] text-xs font-semibold leading-5 text-slate-500">
+                  {assignment.profile.qualifications}
+                </p>
+              )}
             </div>
             <button
               type="button"

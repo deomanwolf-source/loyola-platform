@@ -102,8 +102,71 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
     match: (position) => position.main_category === "Subject Teachers",
   },
   {
-    id: "non-academic",
-    title: "Non-Academic Staff",
+    id: "non-academic-administrative",
+    title: "Administrative Department",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" &&
+      position.section === "Administrative Department",
+  },
+  {
+    id: "non-academic-academic-office",
+    title: "Academic Office",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Academic Office",
+  },
+  {
+    id: "non-academic-financial",
+    title: "Financial Department",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" &&
+      position.section === "Financial Department",
+  },
+  {
+    id: "non-academic-it",
+    title: "IT Department",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "IT Department",
+  },
+  {
+    id: "non-academic-front-office",
+    title: "Front Office",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Front Office",
+  },
+  {
+    id: "non-academic-bookstore",
+    title: "Bookstore",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Bookstore",
+  },
+  {
+    id: "non-academic-office-support",
+    title: "Office Support",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Office Support",
+  },
+  {
+    id: "non-academic-maintenance",
+    title: "Maintenance Department",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" &&
+      position.section === "Maintenance Department",
+  },
+  {
+    id: "non-academic-health",
+    title: "Health Services",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Health Services",
+  },
+  {
+    id: "non-academic-library",
+    title: "Library",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Library",
+  },
+  {
+    id: "non-academic-other",
+    title: "Other Non-Academic Staff",
     match: (position) => position.main_category === "Non-Academic Staff",
   },
   {
@@ -156,6 +219,11 @@ export function parseStaffPosition(
   const inputSubsection = input.subsection || "";
   const inputClassOrStream = input.class_or_stream || input.classOrStream || "";
   const inputIsKnown = input.is_known ?? input.isKnown;
+  const inputTitle = input.display_title || input.displayTitle || "";
+  const inputTitleLooksLikeCode =
+    Boolean(inputTitle) && normalizePositionCode(inputTitle) === (code || parsed.position_code);
+  const displayTitle =
+    parsed.is_known || !inputTitle || inputTitleLooksLikeCode ? parsed.display_title : inputTitle;
   const shouldTrustParsed =
     parsed.is_known &&
     (!inputMainCategory ||
@@ -173,7 +241,7 @@ export function parseStaffPosition(
     medium: input.medium || parsed.medium,
     class_or_stream: shouldTrustParsed || !inputClassOrStream ? parsed.class_or_stream : inputClassOrStream,
     is_known: shouldTrustParsed ? parsed.is_known : inputIsKnown ?? parsed.is_known,
-    display_title: input.display_title || input.displayTitle || parsed.display_title,
+    display_title: displayTitle,
     sort_order: Number(input.sort_order || input.sortOrder || parsed.sort_order || staffPositionCodeOrder(code)),
   } as ParsedPositionCode;
 }

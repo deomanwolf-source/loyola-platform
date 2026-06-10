@@ -60,12 +60,16 @@ function registerStaffRoutes(app, context) {
     "Visiting Teachers",
     "Counsellor",
     "Administrative Department",
-    "Academic Department",
+    "Academic Office",
     "Financial Department",
     "IT Department",
-    "Front Office / Bookstore / Office Support",
+    "Front Office",
+    "Bookstore",
+    "Office Support",
     "Maintenance Department",
-    "Health & Library Services",
+    "Health Services",
+    "Library",
+    "Other Non-Academic Staff",
     "Supportive Staff",
     "General Academic Council - Advanced Level Section",
     "General Academic Council - Upper School",
@@ -535,17 +539,17 @@ function registerStaffRoutes(app, context) {
       "Non-Academic Staff",
     ],
     [
-      "Head - Academic Office",
+      "Head – Academic Office",
       "Non-Academic Staff",
-      "Academic Department",
-      "Academic Department",
+      "Academic Office",
+      "Academic Office",
       "Non-Academic Staff",
     ],
     [
       "Academic Officer",
       "Non-Academic Staff",
-      "Academic Department",
-      "Academic Department",
+      "Academic Office",
+      "Academic Office",
       "Non-Academic Staff",
     ],
     [
@@ -562,34 +566,34 @@ function registerStaffRoutes(app, context) {
       "Financial Department",
       "Non-Academic Staff",
     ],
-    ["Manager - IT", "Non-Academic Staff", "IT Department", "IT Department", "Non-Academic Staff"],
+    ["Manager – IT", "Non-Academic Staff", "IT Department", "IT Department", "Non-Academic Staff"],
     ["Assistant IT", "Non-Academic Staff", "IT Department", "IT Department", "Non-Academic Staff"],
     [
       "Receptionist",
       "Non-Academic Staff",
       "Front Office",
-      "Front Office / Bookstore / Office Support",
+      "Front Office",
       "Non-Academic Staff",
     ],
     [
       "Bookstore Clerk",
       "Non-Academic Staff",
       "Bookstore",
-      "Front Office / Bookstore / Office Support",
+      "Bookstore",
       "Non-Academic Staff",
     ],
     [
       "Office Assistant",
       "Non-Academic Staff",
-      "Office",
-      "Front Office / Bookstore / Office Support",
+      "Office Support",
+      "Office Support",
       "Non-Academic Staff",
     ],
     [
       "Bookstore Assistant",
       "Non-Academic Staff",
       "Bookstore",
-      "Front Office / Bookstore / Office Support",
+      "Bookstore",
       "Non-Academic Staff",
     ],
     [
@@ -603,14 +607,14 @@ function registerStaffRoutes(app, context) {
       "Nursing Officer",
       "Non-Academic Staff",
       "Health Services",
-      "Health & Library Services",
+      "Health Services",
       "Non-Academic Staff",
     ],
     [
       "Librarian",
       "Non-Academic Staff",
       "Library",
-      "Health & Library Services",
+      "Library",
       "Non-Academic Staff",
     ],
     [
@@ -825,15 +829,19 @@ function registerStaffRoutes(app, context) {
       ["subject teachers - advanced level", "Subject Teachers - Advanced Level"],
       ["special academic positions", "Special Need Resource Unit"],
       ["administrative department", "Administrative Department"],
-      ["academic department", "Academic Department"],
+      ["academic department", "Academic Office"],
+      ["academic office", "Academic Office"],
       ["financial department", "Financial Department"],
       ["it department", "IT Department"],
-      ["front office", "Front Office / Bookstore / Office Support"],
-      ["bookstore", "Front Office / Bookstore / Office Support"],
-      ["office support", "Front Office / Bookstore / Office Support"],
+      ["front office", "Front Office"],
+      ["bookstore", "Bookstore"],
+      ["office support", "Office Support"],
       ["maintenance department", "Maintenance Department"],
-      ["health & library services", "Health & Library Services"],
-      ["other non-academic positions", "Administrative Department"],
+      ["health & library services", "Health Services"],
+      ["health services", "Health Services"],
+      ["library", "Library"],
+      ["other non-academic positions", "Other Non-Academic Staff"],
+      ["other non-academic staff", "Other Non-Academic Staff"],
       ["all teachers directory", ""],
     ]);
     if (aliases.has(special)) return aliases.get(special);
@@ -858,13 +866,17 @@ function registerStaffRoutes(app, context) {
     if (/subject teacher|teacher/.test(role))
       return sectionedWebsitePlace("Subject Teachers", role);
     if (/supportive/.test(role)) return "Supportive Staff";
+    if (/academic office/.test(role)) return "Academic Office";
     if (/account|financial/.test(role)) return "Financial Department";
     if (/\bit\b|technology/.test(role)) return "IT Department";
-    if (/library|nursing|health/.test(role)) return "Health & Library Services";
+    if (/library/.test(role)) return "Library";
+    if (/nursing|health/.test(role)) return "Health Services";
     if (/maintenance/.test(role)) return "Maintenance Department";
-    if (/non-academic|office|secretary|bookstore|reception/.test(role)) {
-      return "Administrative Department";
-    }
+    if (/bookstore/.test(role)) return "Bookstore";
+    if (/reception|front office/.test(role)) return "Front Office";
+    if (/office assistant|office support/.test(role)) return "Office Support";
+    if (/secretary|administrative/.test(role)) return "Administrative Department";
+    if (/non-academic/.test(role)) return "Other Non-Academic Staff";
     return sectionedWebsitePlace("Subject Teachers", role);
   }
 
@@ -1017,8 +1029,26 @@ function registerStaffRoutes(app, context) {
     };
   }
 
-  function positionsFromPositionCodes(positionCodes) {
-    return parsePositionCodes(positionCodes).map(positionRecordFromParsed);
+  function coerceUnknownNonAcademicPosition(position, staffType = "") {
+    if (staffType !== "Non-Academic Staff" || position.isKnown !== false) return position;
+    const title = position.displayTitle || position.position || "Staff Member";
+    return {
+      ...position,
+      displayTitle: title,
+      mainCategory: "Non-Academic Staff",
+      section: "Other Non-Academic Staff",
+      department: "Other Non-Academic Staff",
+      position: title,
+      websitePlace: "Other Non-Academic Staff",
+      subject: "",
+      classes: "",
+    };
+  }
+
+  function positionsFromPositionCodes(positionCodes, staffType = "") {
+    return parsePositionCodes(positionCodes).map((parsed, index) =>
+      coerceUnknownNonAcademicPosition(positionRecordFromParsed(parsed, index), staffType),
+    );
   }
 
   function legacyPositionRecord(entry = {}, index = 0) {
@@ -1974,7 +2004,10 @@ function registerStaffRoutes(app, context) {
     const typedCode = normalizePositionCode(entry.position_code || entry.positionCode || "");
     if (typedCode) {
       const parsed = parsePositionCode(typedCode);
-      const record = positionRecordFromParsed(parsed, index);
+      const record = coerceUnknownNonAcademicPosition(
+        positionRecordFromParsed(parsed, index),
+        fallback.staffType || fallback.staff_type || "",
+      );
       return {
         ...record,
         positionMasterId: null,
@@ -2036,7 +2069,7 @@ function registerStaffRoutes(app, context) {
   function normalizePositionPayload(body, payload) {
     const typedCodes = positionCodesInput(body);
     if (typedCodes !== null) {
-      const positions = positionsFromPositionCodes(typedCodes);
+      const positions = positionsFromPositionCodes(typedCodes, payload.staffType);
       if (!positions.length) return [];
       positions.forEach((position, index) => {
         position.isPrimary = index === 0;

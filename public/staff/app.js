@@ -48,12 +48,15 @@
     "Middle School",
     "Upper School",
     "Advanced Level",
-    "Academic Department",
+    "Academic Office",
     "Financial Department",
     "IT Department",
-    "Office",
+    "Front Office",
+    "Bookstore",
+    "Office Support",
+    "Maintenance Department",
+    "Health Services",
     "Library",
-    "Maintenance",
     "Supportive Staff",
   ];
   const defaultPositionTitles = [
@@ -69,7 +72,7 @@
     "Counsellor",
     "Librarian",
     "Accountant",
-    "Manager - IT",
+    "Manager – IT",
     "Administrative Secretary",
     "Office Assistant",
     "Maintenance Supervisor",
@@ -114,12 +117,16 @@
     "Visiting Teachers",
     "Counsellor",
     "Administrative Department",
-    "Academic Department",
+    "Academic Office",
     "Financial Department",
     "IT Department",
-    "Front Office / Bookstore / Office Support",
+    "Front Office",
+    "Bookstore",
+    "Office Support",
     "Maintenance Department",
-    "Health & Library Services",
+    "Health Services",
+    "Library",
+    "Other Non-Academic Staff",
     "Supportive Staff",
     "General Academic Council - Advanced Level Section",
     "General Academic Council - Upper School",
@@ -659,13 +666,17 @@
     if (/Subject Teacher/i.test(position))
       return sectionedWebsitePlace("Subject Teachers", context);
     if (type === "Supportive Staff") return "Supportive Staff";
+    if (/Academic Office/i.test(position) || /Academic Office/i.test(department)) return "Academic Office";
     if (/Account|Financial/i.test(position)) return "Financial Department";
     if (/\bIT\b|Technology/i.test(position)) return "IT Department";
-    if (/Library|Librarian|Nursing|Health/i.test(position)) return "Health & Library Services";
+    if (/Library|Librarian/i.test(position)) return "Library";
+    if (/Nursing|Health/i.test(position)) return "Health Services";
     if (/Maintenance/i.test(position)) return "Maintenance Department";
-    if (type === "Non-Academic Staff" || /Secretary|Office|Bookstore|Reception/i.test(position)) {
-      return "Administrative Department";
-    }
+    if (/Bookstore/i.test(position)) return "Bookstore";
+    if (/Reception|Front Office/i.test(position)) return "Front Office";
+    if (/Office Assistant|Office Support/i.test(position)) return "Office Support";
+    if (/Secretary|Administrative/i.test(position)) return "Administrative Department";
+    if (type === "Non-Academic Staff") return "Other Non-Academic Staff";
     return sectionedWebsitePlace("Subject Teachers", context);
   }
 
