@@ -876,8 +876,14 @@ export function App() {
         el.classList.add("is-revealed");
         return;
       }
+      const rect = el.getBoundingClientRect();
+      const alreadyVisible = rect.top < window.innerHeight && rect.bottom > 0;
       if (!el.classList.contains("is-revealed")) {
         el.classList.add("reveal-on-scroll");
+        if (alreadyVisible) {
+          el.classList.add("is-revealed");
+          return;
+        }
         observer.observe(el);
       }
     });
@@ -2654,6 +2660,10 @@ const facilityIconByTitle: Record<string, LucideIcon> = {
 
 type FacilityDisplayItem = FacilityItem & { icon: LucideIcon };
 
+function isLegacyFacilityImage(image?: string) {
+  return Boolean(image?.includes("www.loyolacollege.lk/frontend/assets/img/facilities"));
+}
+
 function editableFacilityItems(page?: { facilityItems?: FacilityItem[] }): FacilityItem[] {
   const saved = page?.facilityItems;
   const savedItems = Array.isArray(saved) ? saved : [];
@@ -2721,7 +2731,7 @@ function FacilityMedia({
   const [failed, setFailed] = useState(false);
   const Icon = facility.icon;
 
-  if (facility.image && !failed) {
+  if (facility.image && !failed && !isLegacyFacilityImage(facility.image)) {
     return (
       <img
         src={facility.image}
