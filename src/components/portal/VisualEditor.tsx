@@ -370,7 +370,7 @@ const STARTER_HTML = `<section class="hero">
   <div class="container">
     <p class="eyebrow">Loyola College Negombo</p>
     <h1 style="max-width: 780px; margin-top: 18px;">Welcome to Loyola</h1>
-    <p style="max-width: 640px; margin-top: 20px; font-size: 1.15rem;">Build a polished school page by dragging sections, cards, text, images, and buttons into this canvas.</p>
+    <p style="max-width: 640px; margin-top: 20px; font-size: 1.15rem;">Build a Polished School Page by Dragging Sections, Cards, Text, Images, and Buttons into This Canvas</p>
     <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px;">
       <a class="btn gold" href="#">Explore</a>
       <a class="btn" href="#">Contact Office</a>
@@ -382,17 +382,17 @@ const STARTER_HTML = `<section class="hero">
     <article class="feature-card">
       <p class="eyebrow">Academics</p>
       <h3 style="margin-top: 12px;">Learning Pathways</h3>
-      <p style="margin-top: 10px;">Add concise content for your school section.</p>
+      <p style="margin-top: 10px;">Add Concise Content for Your School Section</p>
     </article>
     <article class="feature-card">
       <p class="eyebrow">Campus</p>
-      <h3 style="margin-top: 12px;">Facilities</h3>
-      <p style="margin-top: 10px;">Use drag and drop blocks to shape the layout.</p>
+      <h3 style="margin-top: 12px;">School Facilities and Student Services</h3>
+      <p style="margin-top: 10px;">Use Drag and Drop Blocks to Shape the Layout</p>
     </article>
     <article class="feature-card">
       <p class="eyebrow">Notices</p>
       <h3 style="margin-top: 12px;">Updates</h3>
-      <p style="margin-top: 10px;">Keep important page information easy to scan.</p>
+      <p style="margin-top: 10px;">Keep Important Page Information Easy to Scan</p>
     </article>
   </div>
 </section>`;
@@ -642,19 +642,19 @@ export function VisualEditor({
           label: "Hero",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M7 10h8M7 14h5"/></svg>`,
-          content: `<section class="hero"><div class="container"><p class="eyebrow">Loyola College</p><h1 style="max-width:760px;margin-top:18px;">A Tradition of Excellence</h1><p style="max-width:620px;margin-top:20px;font-size:1.1rem;">Replace this text with a strong page introduction.</p><a class="btn gold" href="#" style="margin-top:28px;">Learn More</a></div></section>`,
+          content: `<section class="hero"><div class="container"><p class="eyebrow">Loyola College</p><h1 style="max-width:760px;margin-top:18px;">A Tradition of Excellence</h1><p style="max-width:620px;margin-top:20px;font-size:1.1rem;">Replace This Text with a Strong Page Introduction</p><a class="btn gold" href="#" style="margin-top:28px;">Learn More</a></div></section>`,
         });
         blocks.add("loyola-feature-grid", {
           label: "Feature Grid",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h6v6H4zM14 5h6v6h-6zM4 15h6v4H4zM14 15h6v4h-6z"/></svg>`,
-          content: `<section><div class="container grid-3"><article class="feature-card"><p class="eyebrow">One</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article><article class="feature-card"><p class="eyebrow">Two</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article><article class="feature-card"><p class="eyebrow">Three</p><h3 style="margin-top:12px;">Feature title</h3><p style="margin-top:10px;">Short supporting text.</p></article></div></section>`,
+          content: `<section><div class="container grid-3"><article class="feature-card"><p class="eyebrow">One</p><h3 style="margin-top:12px;">Feature Title</h3><p style="margin-top:10px;">Short Supporting Text</p></article><article class="feature-card"><p class="eyebrow">Two</p><h3 style="margin-top:12px;">Feature Title</h3><p style="margin-top:10px;">Short Supporting Text</p></article><article class="feature-card"><p class="eyebrow">Three</p><h3 style="margin-top:12px;">Feature Title</h3><p style="margin-top:10px;">Short Supporting Text</p></article></div></section>`,
         });
         blocks.add("loyola-split", {
           label: "Image + Text",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h7v14H4zM14 7h6M14 11h6M14 15h4"/></svg>`,
-          content: `<section class="band"><div class="container grid-2" style="align-items:center;"><img src="/loyola-crest.jpg" alt="" style="width:100%;border-radius:8px;background:#fff;padding:30px;box-shadow:0 16px 38px -28px rgba(8,40,111,.45);"/><div><p class="eyebrow">Section</p><h2 style="margin-top:12px;">Build a clean content section</h2><p style="margin-top:18px;">Use this area for page copy, admissions details, school life, or programme descriptions.</p><a class="btn" href="#" style="margin-top:24px;">Call to Action</a></div></div></section>`,
+          content: `<section class="band"><div class="container grid-2" style="align-items:center;"><img src="/loyola-crest.jpg" alt="" style="width:100%;border-radius:8px;background:#fff;padding:30px;box-shadow:0 16px 38px -28px rgba(8,40,111,.45);"/><div><p class="eyebrow">Section</p><h2 style="margin-top:12px;">Build a Clean Content Section</h2><p style="margin-top:18px;">Use This Area for Page Copy, Admissions Details, School Life, or Programme Descriptions</p><a class="btn" href="#" style="margin-top:24px;">Call to Action</a></div></div></section>`,
         });
         blocks.add("loyola-quote", {
           label: "Quote",
@@ -670,7 +670,7 @@ export function VisualEditor({
   <div class="container anthem-media-layout">
     <div>
       <p class="eyebrow">Watch and Listen</p>
-      <h2 style="margin-top:12px;">Anthem and hymn media.</h2>
+      <h2 style="margin-top:12px;">Anthem and Hymn Media</h2>
       <p style="max-width:620px;margin-top:18px;"></p>
       <a class="btn" href="#" style="margin-top:26px;">Open video</a>
     </div>
@@ -703,8 +703,8 @@ export function VisualEditor({
     <div>
       <span class="gold-divider" style="margin-bottom:20px;"></span>
       <p class="eyebrow" style="color:#f7d96b; font-size:12px; font-weight:800; letter-spacing:0.24em; text-transform:uppercase;">Loyola College Negombo</p>
-      <h1 style="font-family:serif; font-size:clamp(2.5rem, 5vw, 4.5rem); line-height:1.1; font-weight:bold; margin-top:20px; color:#fff;">A Tradition of Excellence.<br/>A Future of Innovation.</h1>
-      <p style="margin-top:20px; font-size:1.1rem; color:rgba(255,255,255,0.85); max-width:600px; line-height:1.6;">Veritate ad Lumen et Vitam. Providing premium education, character formation, and holistic development for generations.</p>
+      <h1 style="font-family:serif; font-size:clamp(2.5rem, 5vw, 4.5rem); line-height:1.1; font-weight:bold; margin-top:20px; color:#fff;">A Tradition of Excellence<br/>A Future of Innovation</h1>
+      <p style="margin-top:20px; font-size:1.1rem; color:rgba(255,255,255,0.85); max-width:600px; line-height:1.6;">Veritate ad Lumen et Vitam, Providing Premium Education, Character Formation, and Holistic Development for Generations</p>
       <div style="margin-top:30px; display:flex; flex-wrap:wrap; gap:16px;">
         <a class="btn gold" href="/about" style="background:#d4a017; color:#0a1628; padding:12px 28px; border-radius:8px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Explore College &rarr;</a>
         <a class="btn" href="/news" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:12px 28px; border-radius:8px; font-weight:800; text-decoration:none;">View Notices</a>
@@ -743,7 +743,7 @@ export function VisualEditor({
           label: "Home About",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M4 5h9v14H4zM16 6h4M16 11h4M16 16h4"/></svg>`,
-          content: `<section class="home-about-section"><div class="container home-about-grid"><div><p class="eyebrow">About Our College</p><h2 style="margin-top:12px;">Loyola College Negombo.</h2><p style="margin-top:18px; line-height:1.6; color:#546179;">Founded with a rich legacy of spiritual, intellectual, and physical excellence, Loyola College has stood as a beacon of education, preparing students to serve with leadership, integrity, and truth.</p><a class="btn" href="/about" style="margin-top:24px; text-decoration:none;">More Details</a></div><div class="home-stat-grid"><article class="stat-tile"><strong>2,500+</strong><span>Active Students</span></article><article class="stat-tile"><strong>110+</strong><span>Academic Staff</span></article><article class="stat-tile"><strong>1993</strong><span>Established</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs &amp; Sports</span></article></div></div></section>`,
+          content: `<section class="home-about-section"><div class="container home-about-grid"><div><p class="eyebrow">About Our College</p><h2 style="margin-top:12px;">Loyola College Negombo</h2><p style="margin-top:18px; line-height:1.6; color:#546179;">Founded with a rich legacy of spiritual, intellectual, and physical excellence, Loyola College has stood as a beacon of education, preparing students to serve with leadership, integrity, and truth.</p><a class="btn" href="/about" style="margin-top:24px; text-decoration:none;">More Details</a></div><div class="home-stat-grid"><article class="stat-tile"><strong>2,500+</strong><span>Active Students</span></article><article class="stat-tile"><strong>110+</strong><span>Academic Staff</span></article><article class="stat-tile"><strong>1993</strong><span>Established</span></article><article class="stat-tile"><strong>25+</strong><span>Clubs &amp; Sports</span></article></div></div></section>`,
         });
         blocks.add("loyola-home-pillars", {
           label: "Home Pillars",
@@ -780,7 +780,7 @@ export function VisualEditor({
           label: "Rector Message",
           category: "Home Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M5 4h6v16H5zM14 6h6M14 10h6M14 14h4"/></svg>`,
-          content: `<section class="home-rector-section"><div class="container home-rector-grid"><figure class="home-rector-photo"><img src="/loyola-crest.jpg" alt="Rector portrait placeholder" /></figure><article class="home-rector-message"><p class="eyebrow">Rector's Message</p><h2 style="margin-top:12px;">Welcome to Our Digital Space.</h2><p style="margin-top:18px; line-height:1.6; color:#546179;">Dear teachers, students, parents, and alumni, I welcome you warmly to Loyola College Negombo. Our mission is to raise children of truth, who discover light and life through learning, compassion, and spiritual strength.</p><p style="margin-top:14px; line-height:1.6; color:#546179;">We aim to ensure that every student who leaves our gates is equipped with both academic excellence and a strong moral character to face the modern world's challenges.</p><p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector, Loyola College</span></p></article></div></section>`,
+          content: `<section class="home-rector-section"><div class="container home-rector-grid"><figure class="home-rector-photo"><img src="/loyola-crest.jpg" alt="Rector portrait placeholder" /></figure><article class="home-rector-message"><p class="eyebrow">Rector's Message</p><h2 style="margin-top:12px;">Welcome to Our Digital Space</h2><p style="margin-top:18px; line-height:1.6; color:#546179;">Dear teachers, students, parents, and alumni, I welcome you warmly to Loyola College Negombo. Our mission is to raise children of truth, who discover light and life through learning, compassion, and spiritual strength.</p><p style="margin-top:14px; line-height:1.6; color:#546179;">We aim to ensure that every student who leaves our gates is equipped with both academic excellence and a strong moral character to face the modern world's challenges.</p><p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector, Loyola College</span></p></article></div></section>`,
         });
         blocks.add("loyola-leadership-grid", {
           label: "Leadership Grid",
@@ -843,7 +843,7 @@ export function VisualEditor({
     <div style="display:flex; justify-content:between; align-items:end; flex-wrap:wrap; gap:20px; margin-bottom:40px;">
       <div>
         <p class="eyebrow" style="color:#b70f1b;">Academics</p>
-        <h2 style="margin-top:12px; font-family:serif; font-size:2.5rem; color:#0a1628; margin:0;">Academic pathways for every stage.</h2>
+        <h2 style="margin-top:12px; font-family:serif; font-size:2.5rem; color:#0a1628; margin:0;">Academic Pathways for Every Stage</h2>
       </div>
       <a href="/academics" style="color:#b70f1b; font-weight:bold; text-decoration:none; font-size:0.95rem;">Academics Overview &rarr;</a>
     </div>
@@ -915,7 +915,7 @@ export function VisualEditor({
   <div class="container grid-[2fr_1fr]" style="gap:40px; display:grid; grid-template-columns: 2fr 1.2fr;">
     <div style="background:#0a1628; color:#fff; padding:40px; border-radius:12px; box-shadow:0 12px 30px rgba(10,22,40,0.15); display:flex; flex-direction:column; justify-content:center;">
       <p class="eyebrow" style="color:#f7d96b; font-size:12px; font-weight:800; letter-spacing:0.2em;">Downloads &amp; Notices</p>
-      <h2 style="font-family:serif; font-size:2.5rem; font-weight:bold; margin-top:16px; color:#fff; line-height:1.2;">Important files in one place.</h2>
+      <h2 style="font-family:serif; font-size:2.5rem; font-weight:bold; margin-top:16px; color:#fff; line-height:1.2;">Important Files in One Place</h2>
       <p style="margin-top:16px; color:rgba(255,255,255,0.75); font-size:0.95rem; line-height:1.6; max-width:600px;">Access official circulars, student timetables, application forms, academic calendars, notices, and essential school resources directly without navigating complex menus.</p>
       <a href="/downloads" style="align-self:start; margin-top:24px; background:#d4a017; color:#0a1628; font-weight:800; padding:12px 28px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Open Downloads &rarr;</a>
     </div>
@@ -941,7 +941,7 @@ export function VisualEditor({
           label: "Call to Action",
           category: "Loyola Sections",
           media: `<svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/><path d="M4 5h16v14H4z"/></svg>`,
-          content: `<section><div class="container cta-banner"><div style="position:relative;z-index:1;padding:42px;"><p class="eyebrow">Next step</p><h2 style="max-width:720px;margin-top:12px;">Invite families to connect with Loyola.</h2><p style="max-width:620px;margin-top:16px;">Use this banner for admissions, contact, events, or important announcements.</p><a class="btn gold" href="#" style="margin-top:24px;">Get started</a></div></div></section>`,
+          content: `<section><div class="container cta-banner"><div style="position:relative;z-index:1;padding:42px;"><p class="eyebrow">Next Step</p><h2 style="max-width:720px;margin-top:12px;">Invite Families to Connect with Loyola</h2><p style="max-width:620px;margin-top:16px;">Use This Banner for Admissions, Contact, Events, or Important Announcements</p><a class="btn gold" href="#" style="margin-top:24px;">Get Started</a></div></div></section>`,
         });
 
         editor.setComponents(initialHtml || STARTER_HTML);

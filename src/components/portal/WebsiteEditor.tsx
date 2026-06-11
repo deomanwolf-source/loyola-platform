@@ -239,8 +239,8 @@ function homeVisualStarter() {
     <div>
       <span class="gold-divider" style="margin-bottom:20px;"></span>
       <p class="eyebrow" style="color:#f7d96b; font-size:12px; font-weight:800; letter-spacing:0.24em; text-transform:uppercase;">Loyola College Negombo</p>
-      <h1 style="font-family:serif; font-size:clamp(2.5rem, 5vw, 4.5rem); line-height:1.1; font-weight:bold; margin-top:20px; color:#fff;">A Tradition of Excellence.<br/>A Future of Innovation.</h1>
-      <p style="margin-top:20px; font-size:1.1rem; color:rgba(255,255,255,0.85); max-width:600px; line-height:1.6;">Veritate ad Lumen et Vitam. Providing premium education, character formation, and holistic development for generations.</p>
+      <h1 style="font-family:serif; font-size:clamp(2.5rem, 5vw, 4.5rem); line-height:1.1; font-weight:bold; margin-top:20px; color:#fff;">A Tradition of Excellence<br/>A Future of Innovation</h1>
+      <p style="margin-top:20px; font-size:1.1rem; color:rgba(255,255,255,0.85); max-width:600px; line-height:1.6;">Veritate ad Lumen et Vitam, Providing Premium Education, Character Formation, and Holistic Development for Generations</p>
       <div style="margin-top:30px; display:flex; flex-wrap:wrap; gap:16px;">
         <a class="btn gold" href="/about" style="background:#d4a017; color:#0a1628; padding:12px 28px; border-radius:8px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Explore College &rarr;</a>
         <a class="btn" href="/news" style="background:rgba(255,255,255,0.1); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:12px 28px; border-radius:8px; font-weight:800; text-decoration:none;">View Notices</a>
@@ -279,7 +279,7 @@ function homeVisualStarter() {
   <div class="container home-about-grid">
     <div>
       <p class="eyebrow">About Our College</p>
-      <h2 style="margin-top:12px;">Loyola College Negombo.</h2>
+      <h2 style="margin-top:12px;">Loyola College Negombo</h2>
       <p style="margin-top:18px; line-height:1.6; color:#546179;">Founded with a rich legacy of spiritual, intellectual, and physical excellence, Loyola College has stood as a beacon of education, preparing students to serve with leadership, integrity, and truth.</p>
       <a class="btn" href="/about" style="margin-top:24px; text-decoration:none;">More Details</a>
     </div>
@@ -326,7 +326,7 @@ function homeVisualStarter() {
     </figure>
     <article class="home-rector-message">
       <p class="eyebrow">Rector's Message</p>
-      <h2 style="margin-top:12px;">Welcome to Our Digital Space.</h2>
+      <h2 style="margin-top:12px;">Welcome to Our Digital Space</h2>
       <p style="margin-top:18px; line-height:1.6; color:#546179;">Dear teachers, students, parents, and alumni, I welcome you warmly to Loyola College Negombo. Our mission is to raise children of truth, who discover light and life through learning, compassion, and spiritual strength.</p>
       <p style="margin-top:14px; line-height:1.6; color:#546179;">We aim to ensure that every student who leaves our gates is equipped with both academic excellence and a strong moral character to face the modern world's challenges.</p>
       <p class="home-signature">Rev. Fr. D.M.J. Kennedy Perera<br /><span>Rector, Loyola College</span></p>
@@ -425,7 +425,7 @@ function homeVisualStarter() {
     <div style="display:flex; justify-content:between; align-items:end; flex-wrap:wrap; gap:20px; margin-bottom:40px;">
       <div>
         <p class="eyebrow" style="color:#b70f1b;">Academics</p>
-        <h2 style="margin-top:12px; font-family:serif; font-size:2.5rem; color:#0a1628; margin:0;">Academic pathways for every stage.</h2>
+        <h2 style="margin-top:12px; font-family:serif; font-size:2.5rem; color:#0a1628; margin:0;">Academic Pathways for Every Stage</h2>
       </div>
       <a href="/academics" style="color:#b70f1b; font-weight:bold; text-decoration:none; font-size:0.95rem;">Academics Overview &rarr;</a>
     </div>
@@ -489,7 +489,7 @@ function homeVisualStarter() {
   <div class="container grid-[2fr_1fr]" style="gap:40px; display:grid; grid-template-columns: 2fr 1.2fr;">
     <div style="background:#0a1628; color:#fff; padding:40px; border-radius:12px; box-shadow:0 12px 30px rgba(10,22,40,0.15); display:flex; flex-direction:column; justify-content:center;">
       <p class="eyebrow" style="color:#f7d96b; font-size:12px; font-weight:800; letter-spacing:0.2em;">Downloads &amp; Notices</p>
-      <h2 style="font-family:serif; font-size:2.5rem; font-weight:bold; margin-top:16px; color:#fff; line-height:1.2;">Important files in one place.</h2>
+      <h2 style="font-family:serif; font-size:2.5rem; font-weight:bold; margin-top:16px; color:#fff; line-height:1.2;">Important Files in One Place</h2>
       <p style="margin-top:16px; color:rgba(255,255,255,0.75); font-size:0.95rem; line-height:1.6; max-width:600px;">Access official circulars, student timetables, application forms, academic calendars, notices, and essential school resources directly without navigating complex menus.</p>
       <a href="/downloads" style="align-self:start; margin-top:24px; background:#d4a017; color:#0a1628; font-weight:800; padding:12px 28px; border-radius:8px; text-decoration:none; display:inline-flex; align-items:center; gap:8px;">Open Downloads &rarr;</a>
     </div>
@@ -613,7 +613,7 @@ function visualStarterForPage(db: DB, pageId: string) {
   <div class="container anthem-media-layout">
     <div>
       <p class="eyebrow">Watch and Listen</p>
-      <h2 style="margin-top:12px;">Anthem and hymn media.</h2>
+      <h2 style="margin-top:12px;">Anthem and Hymn Media</h2>
       <p style="max-width:620px;margin-top:18px;"></p>
       <a class="btn" href="${escapeHtml(anthemVideoUrl)}" style="margin-top:26px;">Open video</a>
     </div>
@@ -1243,11 +1243,11 @@ export function WebsiteEditor() {
   };
 
   const addPage = (parentId?: string) => {
-    const name = window.prompt(
-      parentId
-        ? "Enter subpage name (e.g. 'Primary Section'):"
-        : "Enter new page name (e.g. 'Facilities'):",
-    );
+      const name = window.prompt(
+        parentId
+          ? "Enter subpage name (e.g. 'Primary Section'):"
+          : "Enter new page name (e.g. 'School Facilities'):",
+      );
     if (!name) return;
 
     const slug = name
