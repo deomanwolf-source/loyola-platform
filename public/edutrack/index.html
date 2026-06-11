@@ -14356,6 +14356,10 @@
         return row.status || "Present";
       }
 
+      function eduTrackAttendanceIsPresent(status) {
+        return String(status || "Present").trim().toLowerCase() === "present";
+      }
+
       function eduTrackAttendanceStatusClass(status) {
         return String(status || "Present")
           .toLowerCase()
@@ -14571,8 +14575,11 @@
 
       window.exportEduTrackStaffAttendanceCSV = async function () {
         try {
-          if (!eduTrackStaffAttendance.length) {
-            showToast("No teacher attendance rows to export.", "err");
+          const exportRows = eduTrackStaffAttendance.filter(
+            (row) => !eduTrackAttendanceIsPresent(eduTrackAttendanceDisplayStatus(row)),
+          );
+          if (!exportRows.length) {
+            showToast("No absent, late, leave, or other attendance rows to export.", "err");
             return;
           }
           const headers = [
@@ -14590,7 +14597,7 @@
             "\ufeff" +
             [
               headers,
-              ...eduTrackStaffAttendance.map((row) => [
+              ...exportRows.map((row) => [
                 attendanceRowDisplayId(row),
                 row.staff_name || row.full_name || "",
                 eduTrackAttendanceDate(),
@@ -14621,15 +14628,16 @@
       };
 
       window.printEduTrackStaffAttendance = function () {
-        const reportRows = eduTrackStaffAttendance.map((row) => ({
+        const allReportRows = eduTrackStaffAttendance.map((row) => ({
           staffId: attendanceRowDisplayId(row),
           name: row.staff_name || row.full_name || "",
           section: row.section || "Unassigned Section",
           status: eduTrackAttendanceDisplayStatus(row),
           note: row.note || row.reason || "",
         }));
+        const reportRows = allReportRows.filter((row) => !eduTrackAttendanceIsPresent(row.status));
         const statusCounts = eduTrackAttendanceStatuses.reduce((counts, [status]) => {
-          counts[status] = reportRows.filter((row) => row.status === status).length;
+          counts[status] = allReportRows.filter((row) => row.status === status).length;
           return counts;
         }, {});
         const leaveTotal =
@@ -14640,7 +14648,7 @@
           (statusCounts["Leave Approved"] || 0) +
           (statusCounts.Informed || 0);
         const summaryCards = [
-          ["Total Staff", reportRows.length, "total"],
+          ["Total Staff", allReportRows.length, "total"],
           ["Present", statusCounts.Present || 0, "present"],
           ["Absent", statusCounts.Absent || 0, "absent"],
           ["Late", statusCounts["Late to Come"] || 0, "late"],
@@ -14741,7 +14749,7 @@
                   <div><b>Generated At</b>${escapeHtml(new Date().toLocaleString())}</div>
                 </div>
                 <div class="summary">${summaryCards}</div>
-                ${sectionBlocks || '<div class="empty">No attendance records found.</div>'}
+                ${sectionBlocks || '<div class="empty">No absent, late, leave, or other attendance records found.</div>'}
                 <div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div>
               </main>
             </body>

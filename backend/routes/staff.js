@@ -2514,6 +2514,10 @@ function registerStaffRoutes(app, context) {
     return "Present";
   }
 
+  function isPresentAttendanceStatus(status) {
+    return String(status || "Present").trim().toLowerCase() === "present";
+  }
+
   function actorName(req) {
     return clean(req.user?.name || req.user?.email || req.user?.id || "System", 190);
   }
@@ -2795,6 +2799,7 @@ function registerStaffRoutes(app, context) {
   async function dailyAttendanceReport(req, res) {
     try {
       const rows = await staffAttendanceRows(req.query || {});
+      const reportRows = rows.filter((row) => !isPresentAttendanceStatus(row.status));
       res.json({
         title: "Daily Staff Attendance Report",
         date: normalizeDate(req.query.date) || new Date().toISOString().slice(0, 10),
@@ -2802,7 +2807,7 @@ function registerStaffRoutes(app, context) {
         generatedBy: actorName(req),
         generatedAt: new Date().toISOString(),
         summary: attendanceSummary(rows),
-        records: rows,
+        records: reportRows,
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
@@ -2856,7 +2861,13 @@ function registerStaffRoutes(app, context) {
 
   async function exportAttendanceCsv(req, res) {
     try {
-      const rows = await staffAttendanceRows(req.query || {});
+      const onlyNonPresent = ["1", "true", "yes"].includes(
+        clean(req.query.only_non_present || req.query.onlyNonPresent || "", 12).toLowerCase(),
+      );
+      const allRows = await staffAttendanceRows(req.query || {});
+      const rows = onlyNonPresent
+        ? allRows.filter((row) => !isPresentAttendanceStatus(row.status))
+        : allRows;
       const headers = ["Staff ID", "Name", "Date", "Section", "Staff Type", "Position", "Status", "Note", "Last Updated"];
       const csvEscape = (value) => {
         const text = value == null ? "" : String(value);

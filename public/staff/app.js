@@ -413,6 +413,10 @@
     return row.status || "Present";
   }
 
+  function isPresentAttendanceStatus(status) {
+    return String(status || "Present").trim().toLowerCase() === "present";
+  }
+
   function loginAccountHtml(person = {}) {
     const hasLogin = Boolean(person.user_id || person.account_status || person.account_email);
     if (!hasLogin) {
@@ -2587,20 +2591,22 @@
     }
   }
 
-  function attendanceReportRows() {
-    return state.attendance.map((row) => ({
+  function attendanceReportRows({ includePresent = false } = {}) {
+    const rows = state.attendance.map((row) => ({
       staffId: row.staff_id || row.staff_profile_id || "",
       name: row.staff_name || row.full_name || "",
       section: row.section || "",
       status: attendanceDisplayStatus(row),
       note: row.note || row.reason || "",
     }));
+    return includePresent ? rows : rows.filter((row) => !isPresentAttendanceStatus(row.status));
   }
 
   function printAttendanceReport() {
-    const rows = attendanceReportRows();
+    const allRows = attendanceReportRows({ includePresent: true });
+    const rows = allRows.filter((row) => !isPresentAttendanceStatus(row.status));
     const statusCounts = attendanceStatuses.reduce((counts, [status]) => {
-      counts[status] = rows.filter((row) => row.status === status).length;
+      counts[status] = allRows.filter((row) => row.status === status).length;
       return counts;
     }, {});
     const leaveTotal =
@@ -2611,7 +2617,7 @@
       (statusCounts["Leave Approved"] || 0) +
       (statusCounts.Informed || 0);
     const summaryCards = [
-      ["Total Staff", rows.length, "total"],
+      ["Total Staff", allRows.length, "total"],
       ["Present", statusCounts.Present || 0, "present"],
       ["Absent", statusCounts.Absent || 0, "absent"],
       ["Late", statusCounts["Late to Come"] || 0, "late"],
@@ -2712,7 +2718,7 @@
               <div><b>Generated At</b>${esc(new Date().toLocaleString())}</div>
             </div>
             <div class="summary">${summaryCards}</div>
-            ${sectionBlocks || '<div class="empty">No attendance records found.</div>'}
+            ${sectionBlocks || '<div class="empty">No absent, late, leave, or other attendance records found.</div>'}
             <div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div>
           </main>
         </body>
@@ -2729,6 +2735,7 @@
       section: state.filters.attendanceSection || "All Sections",
       staff_type: state.filters.attendanceStaffType || "All",
       search: state.filters.attendanceSearch || "",
+      only_non_present: "1",
     });
     try {
       const response = await fetch(`/api/staff/attendance/export/csv?${params.toString()}`, {
