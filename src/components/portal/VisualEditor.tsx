@@ -654,7 +654,7 @@ const STARTER_HTML = `<section class="hero">
   <div class="container">
     <p class="eyebrow">Loyola College Negombo</p>
     <h1 style="max-width: 780px; margin-top: 18px;">Welcome to Loyola</h1>
-    <p style="max-width: 640px; margin-top: 20px; font-size: 1.15rem;">Build a polished school page by dragging sections, cards, text, images, and buttons into this canvas.</p>
+    <p style="max-width: 640px; margin-top: 20px; font-size: 1.15rem;">Build a Polished School Page by Dragging Sections, Cards, Text, Images, and Buttons into This Canvas</p>
     <div style="display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px;">
       <a class="btn gold" href="#">Explore</a>
       <a class="btn" href="#">Contact Office</a>
@@ -666,17 +666,17 @@ const STARTER_HTML = `<section class="hero">
     <article class="feature-card">
       <p class="eyebrow">Academics</p>
       <h3 style="margin-top: 12px;">Learning Pathways</h3>
-      <p style="margin-top: 10px;">Add concise content for your school section.</p>
+      <p style="margin-top: 10px;">Add Concise Content for Your School Section</p>
     </article>
     <article class="feature-card">
       <p class="eyebrow">Campus</p>
-      <h3 style="margin-top: 12px;">Facilities</h3>
-      <p style="margin-top: 10px;">Use drag and drop blocks to shape the layout.</p>
+      <h3 style="margin-top: 12px;">School Facilities and Student Services</h3>
+      <p style="margin-top: 10px;">Use Drag and Drop Blocks to Shape the Layout</p>
     </article>
     <article class="feature-card">
       <p class="eyebrow">Notices</p>
       <h3 style="margin-top: 12px;">Updates</h3>
-      <p style="margin-top: 10px;">Keep important page information easy to scan.</p>
+      <p style="margin-top: 10px;">Keep Important Page Information Easy to Scan</p>
     </article>
   </div>
 </section>`;
@@ -979,7 +979,7 @@ export function VisualEditor({
   <div class="container anthem-media-layout">
     <div>
       <p class="eyebrow">Watch and Listen</p>
-      <h2 style="margin-top:12px;">Anthem and hymn media.</h2>
+      <h2 style="margin-top:12px;">Anthem and Hymn Media</h2>
       <p style="max-width:620px;margin-top:18px;"></p>
       <a class="btn" href="#" style="margin-top:26px;">Open video</a>
     </div>
@@ -1134,7 +1134,7 @@ export function VisualEditor({
           content: blockContent(
             "loyola-footer-editor",
             ["footer", "site-footer", "bottom"],
-            `<footer class="footer-editor" style="padding:64px 40px;"><div class="container grid-3"><div><p class="eyebrow">Loyola College Negombo</p><h2 style="margin-top:12px;">Veritate ad Lumen et Vitam</h2><p style="margin-top:16px;">Faith, learning, discipline, and service.</p></div><div><h3>Quick Links</h3><div class="footer-link-list"><a href="/about">About</a><a href="/news">News & Notices</a><a href="/calendar">Calendar</a></div></div><div><h3>Contact</h3><p style="margin-top:14px;">0312 277 258</p><p style="margin-top:8px;">loyolacollege.negombo@hotmail.com</p><p style="margin-top:18px;">Copyright line goes here.</p></div></div></footer>`,
+            `<footer class="footer-editor" style="padding:64px 40px;"><div class="container grid-3"><div><p class="eyebrow">Loyola College Negombo</p><h2 style="margin-top:12px;">Veritate ad Lumen et Vitam</h2><p style="margin-top:16px;">Faith, Learning, Discipline, and Service</p></div><div><h3>Quick Links</h3><div class="footer-link-list"><a href="/about">About</a><a href="/news">News & Notices</a><a href="/calendar">Calendar</a></div></div><div><h3>Contact</h3><p style="margin-top:14px;">0312 277 258</p><p style="margin-top:8px;">loyolacollege.negombo@hotmail.com</p><p style="margin-top:18px;">Copyright line goes here.</p></div></div></footer>`,
           ),
         });
 

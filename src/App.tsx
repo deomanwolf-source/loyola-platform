@@ -35,6 +35,7 @@ import { BrandedLoader } from "@/components/BrandedLoader";
 import { HeroBackgroundLayer, PageHeader, PublicLayout } from "@/components/site/PublicLayout";
 import { CollegeStaffPage } from "@/components/site/CollegeStaffPage";
 import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrationPage";
+import { formatDisplayHeading, normalizeHeadingHtml } from "@/lib/utils";
 import {
   DEFAULT_ANTHEM_VIDEO_URL,
   DEFAULT_HERO_IMAGE,
@@ -1248,7 +1249,7 @@ function isGenericPastRectorsVisualHtml(html?: string) {
 function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string }) {
   const db = useDb();
   const defaultPage = {
-    kicker: "Faith, learning, discipline, and service.",
+    kicker: "Faith, Learning, Discipline, and Service",
     title: "Past Rectors & Vice Rectors",
     body: "Remembering the leaders who shaped Loyola College Negombo.",
     image: "",
@@ -1334,11 +1335,11 @@ function SubpagesSection({ parentId }: { parentId: string }) {
       <div className="mx-auto max-w-7xl px-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">Sub pages</p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">Subpages</p>
             <h2 className="mt-3 font-serif text-4xl font-bold capitalize text-navy">
               {parentId === "home"
-                ? "Explore more"
-                : `${parentId.split("/").pop()?.replaceAll("-", " ")} pages`}
+                ? "Explore More"
+                : formatDisplayHeading(`${parentId.split("/").pop()?.replaceAll("-", " ")} pages`)}
             </h2>
           </div>
         </div>
@@ -1360,14 +1361,16 @@ function SubpagesSection({ parentId }: { parentId: string }) {
                 <img src={image} alt="" className="aspect-[16/9] w-full object-cover" />
                 <div className="p-6">
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                    {item.label}
+                    {formatDisplayHeading(item.label)}
                   </p>
-                  <h3 className="mt-2 font-serif text-2xl font-bold text-navy">{title}</h3>
+                  <h3 className="mt-2 font-serif text-2xl font-bold text-navy">
+                    {formatDisplayHeading(title)}
+                  </h3>
                   <p className="mt-3 line-clamp-3 text-sm leading-relaxed text-muted-foreground">
-                    {page.body || "Open this page for more information."}
+                    {page.body || "Open This Page for More Information"}
                   </p>
                   <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
-                    Open page <ArrowRight className="h-4 w-4" />
+                    Open Page <ArrowRight className="h-4 w-4" />
                   </span>
                 </div>
               </a>
@@ -1712,7 +1715,7 @@ function HomeVisionMissionIdentity() {
       <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 lg:grid-cols-[minmax(0,1fr)_560px]">
         <div className="max-w-3xl">
           <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
-            Loyola identity
+            Loyola Identity
           </p>
           <h2 className="mt-4 text-balance font-serif text-4xl font-bold leading-tight md:text-6xl">
             Welcome to Loyola College, Negombo
@@ -1764,7 +1767,7 @@ function HomePage() {
   const content = db.websiteContent;
   const page = db.pages.home || {};
   const heroTitle =
-    content.heroTitle?.trim() || "A Tradition of Excellence. A Future of Innovation.";
+    content.heroTitle?.trim() || "A Tradition of Excellence, A Future of Innovation";
   const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
   const heroImage = page.image || content.heroImage || db.media.campusImage || DEFAULT_HERO_IMAGE;
   const logoImage = content.logoImage || "/loyola-crest.jpg";
@@ -1839,7 +1842,7 @@ function AboutPage() {
   const about = db.aboutSections;
   const historyKicker = about.storyKicker || "College History";
   const historyTitle = about.storyTitle || "College History";
-  const quote = about.quote || "Faith, learning, discipline, and service.";
+  const quote = about.quote || "Faith, Learning, Discipline, and Service";
   const quoteAuthor = about.quoteAuthor || "Loyola College Negombo";
   return (
     <PublicLayout>
@@ -2017,15 +2020,15 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
         <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 py-20 lg:grid-cols-[1fr_360px] lg:py-28">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
-              Faith, learning, discipline, and service
+              Faith, Learning, Discipline, and Service
             </p>
             <span className="gold-divider mt-5" />
             <h1 className="mt-6 max-w-5xl font-serif text-5xl font-bold leading-tight md:text-7xl">
-              {page?.title || "College Anthem & Hymn"}
+              {formatDisplayHeading(page?.title || "College Anthem & Hymn")}
             </h1>
             <p className="mt-6 max-w-2xl text-lg leading-relaxed text-white/78">
-              A dignified home for Loyola College Negombo's ceremonial songs, school values, and
-              shared identity.
+              A Dignified Home for Loyola College Negombo's Ceremonial Songs, School Values, and
+              Shared Identity
             </p>
           </div>
           <aside className="rounded-lg border border-white/14 bg-white/10 p-6 text-center shadow-elegant backdrop-blur">
@@ -2046,8 +2049,8 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
         <div className="mx-auto grid max-w-7xl gap-4 px-6 py-8 md:grid-cols-3">
           {[
             ["Motto", db.websiteContent.tagline],
-            ["Language", "Sinhala anthem and English hymn"],
-            ["Purpose", "Prayer, gratitude, loyalty, and formation"],
+            ["Language", "Sinhala Anthem and English Hymn"],
+            ["Purpose", "Prayer, Gratitude, Loyalty, and Formation"],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-border bg-background p-5">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">{label}</p>
@@ -2115,7 +2118,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
               Watch and Listen
             </p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Anthem and hymn media.</h2>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Anthem and Hymn Media</h2>
 
             {anthemVideoUrl && (
               <button
@@ -2165,9 +2168,11 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
             )}
             <div className="border-t border-white/10 p-5 text-white">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-light">
-                Featured media
+                Featured Media
               </p>
-              <h3 className="mt-2 font-serif text-2xl font-bold">{anthemVideoTitle}</h3>
+              <h3 className="mt-2 font-serif text-2xl font-bold">
+                {formatDisplayHeading(anthemVideoTitle)}
+              </h3>
             </div>
           </div>
         </div>
@@ -2184,9 +2189,11 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
             <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
-                  Featured media
+                  Featured Media
                 </p>
-                <h3 className="mt-1 font-serif text-2xl font-bold text-navy">{anthemVideoTitle}</h3>
+                <h3 className="mt-1 font-serif text-2xl font-bold text-navy">
+                  {formatDisplayHeading(anthemVideoTitle)}
+                </h3>
               </div>
               <button
                 type="button"
@@ -2221,7 +2228,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
                   <div>
                     <Film className="mx-auto h-12 w-12 text-gold" />
                     <p className="mt-4 font-serif text-2xl font-bold">
-                      This media link cannot be embedded.
+                      This Media Link Cannot Be Embedded
                     </p>
                     <a
                       href={anthemVideoUrl}
@@ -2229,7 +2236,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
                       rel="noreferrer"
                       className="mt-5 inline-flex rounded-lg bg-gold px-5 py-3 text-sm font-bold text-navy"
                     >
-                      Open media
+                      Open Media
                     </a>
                   </div>
                 </div>
@@ -2785,7 +2792,7 @@ function FacilitiesServicesPage() {
       <PageHeader
         pageId={FACILITIES_PAGE_ID}
         kicker={page?.kicker || "The College"}
-        title={page?.title || "Facilities & Services"}
+        title={page?.title || "School Facilities and Student Services"}
         subtitle={
           pageBody ||
           "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life."
@@ -2859,14 +2866,14 @@ function FacilitiesServicesPage() {
                 Explore Facilities
               </p>
               <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-                Campus facilities and student services
+                School Facilities and Student Services
               </h2>
             </div>
             <a
               href="/contact"
               className="inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
             >
-              Contact office <ArrowRight className="h-4 w-4" />
+              Contact Office <ArrowRight className="h-4 w-4" />
             </a>
           </div>
 
@@ -3039,7 +3046,7 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
               href="/contact"
               className="mt-7 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-3 text-sm font-bold text-navy"
             >
-              Contact office <ArrowRight className="h-4 w-4" />
+              Contact Office <ArrowRight className="h-4 w-4" />
             </a>
           </aside>
         </div>
@@ -4254,7 +4261,7 @@ function StudentPortalLandingPage() {
             >
               <ShieldCheck className="h-7 w-7 text-gold" />
               <h2 className="mt-4 font-serif text-2xl text-navy">{link}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Open secure portal access.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Open Secure Portal Access</p>
             </a>
           ))}
         </div>

@@ -5,6 +5,7 @@ import {
   DEFAULT_HERO_IMAGE,
   useDb,
 } from "@/lib/store";
+import { formatDisplayHeading } from "@/lib/utils";
 import {
   ArrowRight,
   ChevronDown,
@@ -152,7 +153,7 @@ export const SiteHeader = memo(function SiteHeader() {
                       : "text-slate-700 hover:bg-secondary hover:text-navy"
                   }`}
                 >
-                  {item.label}
+                  {formatDisplayHeading(item.label)}
                   {children.length > 0 && <ChevronDown className="h-3.5 w-3.5 shrink-0" />}
                 </a>
                 {children.length > 0 && (
@@ -163,7 +164,7 @@ export const SiteHeader = memo(function SiteHeader() {
                         href={childHref}
                         className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-600 transition-smooth hover:bg-secondary hover:text-navy"
                       >
-                        {label}
+                        {formatDisplayHeading(label)}
                       </a>
                     ))}
                   </div>
@@ -202,7 +203,7 @@ export const SiteHeader = memo(function SiteHeader() {
                   onClick={() => setOpen(false)}
                   className="block rounded-lg px-4 py-3 text-sm font-semibold text-navy hover:bg-secondary"
                 >
-                  {item.label}
+                  {formatDisplayHeading(item.label)}
                 </a>
                 {[
                   ...childNav
@@ -221,7 +222,7 @@ export const SiteHeader = memo(function SiteHeader() {
                         onClick={() => setOpen(false)}
                         className="block px-4 py-2 text-sm text-muted-foreground"
                       >
-                        {label}
+                        {formatDisplayHeading(label)}
                       </a>
                     ))}
                   </div>
@@ -357,7 +358,7 @@ export const SiteFooter = memo(function SiteFooter() {
             {nav.slice(0, 6).map((item) => (
               <li key={item.id}>
                 <a href={hrefFor(item.id)} className="transition-smooth hover:text-gold">
-                  {item.label}
+                  {formatDisplayHeading(item.label)}
                 </a>
               </li>
             ))}
@@ -380,7 +381,7 @@ export const SiteFooter = memo(function SiteFooter() {
                 href="/contact"
                 className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition-smooth hover:bg-white/10"
               >
-                Contact office <ArrowRight className="h-4 w-4" />
+                Contact Office <ArrowRight className="h-4 w-4" />
               </a>
             )}
           </div>
@@ -496,10 +497,12 @@ export function PageHeader({
         mediaOpacity={page?.backgroundMediaOpacity}
       />
       <div className="relative mx-auto max-w-7xl px-6 py-20 md:py-28 animate-fade-in-up">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-light">{kicker}</p>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-light">
+          {formatDisplayHeading(kicker)}
+        </p>
         <span className="gold-divider mt-4" />
         <h1 className="max-w-4xl break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-6xl">
-          {title}
+          {formatDisplayHeading(title)}
         </h1>
         {subtitle && (
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/75 md:text-lg">

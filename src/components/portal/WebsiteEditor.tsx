@@ -938,7 +938,7 @@ function homeVisualStarter(db: DB) {
 <section class="band">
   <div class="container">
     <p class="eyebrow">Academics</p>
-    <h2 style="margin-top:12px;">Academic pathways for every stage.</h2>
+    <h2 style="margin-top:12px;">Academic Pathways for Every Stage</h2>
     ${featureCardsHtml([
       { title: "Primary Section", body: "Foundational learning, values, and classroom confidence." },
       { title: "Middle School", body: "Structured study habits and co-curricular discovery." },
@@ -1046,7 +1046,7 @@ function facilitiesVisualStarter(db: DB) {
 
   return `${pageHeroHtml({
     kicker: page.kicker || "The College",
-    title: page.title || "Facilities & Services",
+    title: page.title || "School Facilities and Student Services",
     body,
     image,
   })}
@@ -1080,7 +1080,7 @@ function facilitiesVisualStarter(db: DB) {
 <section>
   <div class="container">
     <p class="eyebrow">Explore Facilities</p>
-    <h2 style="margin-top:12px;">Campus facilities and student services</h2>
+    <h2 style="margin-top:12px;">School Facilities and Student Services</h2>
     <div class="grid-3" style="margin-top:30px;">
       ${facilities
         .map(
@@ -1142,7 +1142,7 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
   const profiles = editablePastRectorProfiles(page);
 
   return `${pageHeroHtml({
-    kicker: page.kicker || "Faith, learning, discipline, and service.",
+    kicker: page.kicker || "Faith, Learning, Discipline, and Service",
     title: page.title || "Past Rectors & Vice Rectors",
     body,
     image,
@@ -1214,7 +1214,7 @@ function supplementalVisualSections(db: DB, pageId: string) {
     return `<section class="band"><div class="container"><p class="eyebrow">Downloads</p><h2 style="margin-top:12px;">Forms, circulars, and files</h2>${featureCardsHtml((db.downloads.length ? db.downloads : [{ title: "Download item", description: "Add files from the portal.", category: "School file" }]).slice(0, 6).map((item) => ({ kicker: item.category, title: item.title, body: item.description })))}</div></section>`;
   }
   if (pageId === "contact") {
-    return `<section class="band"><div class="container"><p class="eyebrow">Contact</p><h2 style="margin-top:12px;">Visit, write, or call us.</h2>${featureCardsHtml([
+    return `<section class="band"><div class="container"><p class="eyebrow">Contact</p><h2 style="margin-top:12px;">Visit, Write, or Call Us</h2>${featureCardsHtml([
       { title: "Address", body: db.websiteContent.address },
       { title: "Phone", body: db.websiteContent.phone },
       { title: "Email", body: db.websiteContent.email },
@@ -1336,7 +1336,7 @@ function visualStarterForPage(db: DB, pageId: string) {
   <div class="container anthem-media-layout">
     <div>
       <p class="eyebrow">Watch and Listen</p>
-      <h2 style="margin-top:12px;">Anthem and hymn media.</h2>
+      <h2 style="margin-top:12px;">Anthem and Hymn Media</h2>
       <p style="max-width:620px;margin-top:18px;"></p>
       <a class="btn" href="${escapeHtml(anthemVideoUrl)}" style="margin-top:26px;">Open video</a>
     </div>
@@ -2357,11 +2357,11 @@ export function WebsiteEditor() {
   };
 
   const addPage = (parentId?: string) => {
-    const name = window.prompt(
-      parentId
-        ? "Enter subpage name (e.g. 'Primary Section'):"
-        : "Enter new page name (e.g. 'Facilities'):",
-    );
+      const name = window.prompt(
+        parentId
+          ? "Enter subpage name (e.g. 'Primary Section'):"
+          : "Enter new page name (e.g. 'School Facilities'):",
+      );
     if (!name) return;
 
     const slug = name

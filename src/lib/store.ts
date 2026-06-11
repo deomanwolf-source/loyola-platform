@@ -668,7 +668,7 @@ export const seed: DB = {
     { id: "the-college", label: "The College", order: 4, visible: true },
     {
       id: "the-college/facilities-services",
-      label: "Facilities & Services",
+      label: "School Facilities and Student Services",
       order: 1,
       visible: true,
       parentId: "the-college",
@@ -711,7 +711,7 @@ export const seed: DB = {
     },
     about: {
       kicker: "About",
-      title: "Faith, learning, discipline, and service.",
+      title: "Faith, Learning, Discipline, and Service",
       body: "",
     },
     "about/college-staff": {
@@ -733,7 +733,7 @@ export const seed: DB = {
       anthemVideoTitle: "College Anthem & Hymn",
     },
     "about/past-rectors-vice-rectors": {
-      kicker: "Faith, learning, discipline, and service.",
+      kicker: "Faith, Learning, Discipline, and Service",
       title: "Past Rectors & Vice Rectors",
       body: "Remembering the leaders who shaped Loyola College Negombo.",
       image: "",
@@ -760,7 +760,7 @@ export const seed: DB = {
     },
     "the-college/facilities-services": {
       kicker: "The College",
-      title: "Facilities & Services",
+      title: "School Facilities and Student Services",
       body: "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life.",
     },
     ...Object.fromEntries(
@@ -813,7 +813,7 @@ export const seed: DB = {
       title: "Student Portal",
       body: "",
     },
-    contact: { kicker: "Contact", title: "Visit, write, or call us.", body: "" },
+    contact: { kicker: "Contact", title: "Visit, Write, or Call Us", body: "" },
     calendar: {
       kicker: "Calendar",
       title: "Calendar",
@@ -907,48 +907,48 @@ export const seed: DB = {
   },
   academicsSections: {
     departments: [],
-    subjectsTitle: "All subjects",
+    subjectsTitle: "All Subjects",
     subjectColumnLabel: "Subject",
     gradeColumnLabel: "Grade",
     departmentColumnLabel: "Department",
     subjectCountLabel: "subjects",
   },
   eventsSections: {
-    galleryKicker: "Campus gallery",
+    galleryKicker: "Campus Gallery",
     galleryTitle: "Moments from Loyola",
   },
   newsSections: {
     featuredLabel: "Featured",
-    readArticleLabel: "Read article",
+    readArticleLabel: "Read Article",
   },
   loginContent: {
-    kicker: "Portal access",
-    title: "Secure sign-in for Loyola College portals.",
-    body: "Students, parents, teachers, and Master Admin sign in with assigned credentials.",
-    backLabel: "Back to website",
-    welcomeTitle: "Welcome back",
+    kicker: "Portal Access",
+    title: "Secure Sign-In for Loyola College Portals",
+    body: "Students, Parents, Teachers, and Master Admin Sign In with Assigned Credentials",
+    backLabel: "Back to Website",
+    welcomeTitle: "Welcome Back",
     welcomeText: "Enter your assigned username or email and password.",
     roleSelectLabel: "Select role",
     emailLabel: "Email",
-    emailHint: "Use the account assigned by the school administrator.",
+    emailHint: "Use the Account Assigned by the School Administrator",
     emailPlaceholder: "you@school.test",
-    submitLabel: "Sign in to portal",
-    demoText: "Access is limited to active Loyola College portal accounts.",
+    submitLabel: "Sign In to Portal",
+    demoText: "Access Is Limited to Active Loyola College Portal Accounts",
     roles: [
-      { id: "student", label: "Student", desc: "Schedule, assignments, results" },
-      { id: "parent", label: "Parent", desc: "Attendance, fees, messages" },
-      { id: "teacher", label: "Teacher", desc: "Classes, grading, planning" },
-      { id: "website_admin", label: "Website Admin", desc: "Website, media, news" },
-      { id: "eduzync_admin", label: "EduTrack Admin", desc: "EduTrack and school data management" },
+      { id: "student", label: "Student", desc: "Schedule, Assignments, Results" },
+      { id: "parent", label: "Parent", desc: "Attendance, Fees, Messages" },
+      { id: "teacher", label: "Teacher", desc: "Classes, Grading, Planning" },
+      { id: "website_admin", label: "Website Admin", desc: "Website, Media, News" },
+      { id: "eduzync_admin", label: "EduTrack Admin", desc: "EduTrack and School Data Management" },
       {
         id: "master_edutrack_admin",
         label: "Master EduTrack Admin",
-        desc: "EduTrack unlocks, reports, and audit control",
+        desc: "EduTrack Unlocks, Reports, and Audit Control",
       },
-      { id: "staff_admin", label: "Staff Admin", desc: "Staff profiles and records" },
-      { id: "viewadmin", label: "View Admin", desc: "Read-only system overview" },
-      { id: "superadmin", label: "Super Admin", desc: "Full school system access" },
-      { id: "masteradmin", label: "Master Admin", desc: "Full system access" },
+      { id: "staff_admin", label: "Staff Admin", desc: "Staff Profiles and Records" },
+      { id: "viewadmin", label: "View Admin", desc: "Read-Only System Overview" },
+      { id: "superadmin", label: "Super Admin", desc: "Full School System Access" },
+      { id: "masteradmin", label: "Master Admin", desc: "Full System Access" },
     ],
   },
   automation: {
@@ -963,15 +963,15 @@ export const seed: DB = {
   },
   admissionsSteps: [],
   forms: {
-    admissionsTitle: "Apply for the 2026 academic year",
-    admissionsSubmitLabel: "Submit application",
-    admissionsSuccessTitle: "Application received",
+    admissionsTitle: "Apply for the 2026 Academic Year",
+    admissionsSubmitLabel: "Submit Application",
+    admissionsSuccessTitle: "Application Received",
     admissionsSuccessText: "Our admissions office will contact you within three working days.",
-    contactTitle: "Send us a message",
-    contactSubmitLabel: "Send message",
-    contactSuccessTitle: "Message sent",
+    contactTitle: "Send Us a Message",
+    contactSubmitLabel: "Send Message",
+    contactSuccessTitle: "Message Sent",
     contactSuccessText: "We'll respond within two working days.",
-    contactMapLabel: "Campus map",
+    contactMapLabel: "Campus Map",
   },
   media: {
     campusImage: "",
@@ -1466,7 +1466,7 @@ function ensureTheCollegePages(db: DB): DB {
   if (!pages["the-college/facilities-services"]) {
     pages["the-college/facilities-services"] = {
       kicker: "The College",
-      title: "Facilities & Services",
+      title: "School Facilities and Student Services",
       body: "Campus spaces that support learning, worship, leadership, performance, wellbeing, and daily student life.",
     };
     changed = true;
@@ -1475,7 +1475,7 @@ function ensureTheCollegePages(db: DB): DB {
   if (!navigation.some((item) => item.id === "the-college/facilities-services")) {
     navigation.push({
       id: "the-college/facilities-services",
-      label: "Facilities & Services",
+      label: "School Facilities and Student Services",
       order: 1,
       visible: true,
       parentId: "the-college",
@@ -1624,7 +1624,7 @@ function ensurePastRectorsPage(db: DB): DB {
 
   if (!pages[pageId]) {
     pages[pageId] = {
-      kicker: "Faith, learning, discipline, and service.",
+      kicker: "Faith, Learning, Discipline, and Service",
       title: label,
       body: "Remembering the leaders who shaped Loyola College Negombo.",
       image: "",
