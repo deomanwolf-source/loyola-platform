@@ -318,8 +318,6 @@ const COLLEGE_DEPARTMENT_PAGE_IDS = [
   "the-college/departments/academic",
   "the-college/departments/finance",
   "the-college/departments/it-department",
-  "the-college/departments/gym",
-  "the-college/departments/swimming-pool",
   "the-college/departments/sports-department",
 ];
 const LIVE_RENDERED_EDITOR_PAGE_IDS = new Set([

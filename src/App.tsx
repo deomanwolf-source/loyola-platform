@@ -56,6 +56,7 @@ import {
   type HomeLeadershipCard,
   type PastRectorProfile,
   type Role,
+  type Teacher,
 } from "@/lib/store";
 import {
   API_URL,
@@ -288,7 +289,55 @@ function removeHomeVisualCalendarHighlights(html: string) {
   return doc.querySelector("[data-home-visual-root]")?.innerHTML || html;
 }
 
-const collegeDepartments = [
+type DepartmentPosition = {
+  title: string;
+  body: string;
+};
+
+type DepartmentMember = {
+  name: string;
+  role: string;
+  note?: string;
+  email?: string;
+  image?: string;
+};
+
+type DepartmentGalleryItem = {
+  title: string;
+  body: string;
+  image?: string;
+};
+
+type DepartmentDocument = {
+  title: string;
+  body: string;
+};
+
+type CollegeDepartment = {
+  id: string;
+  title: string;
+  cardBody: string;
+  kicker: string;
+  icon: LucideIcon;
+  summary: string;
+  responsibilities: string[];
+  systemWork: string[];
+  serviceAreas: string[];
+  permissionLevel: string;
+  positions?: DepartmentPosition[];
+  members?: DepartmentMember[];
+  gallery?: DepartmentGalleryItem[];
+  documents?: DepartmentDocument[];
+  contact?: {
+    location: string;
+    hours: string;
+    email: string;
+  };
+  staffKeywords?: string[];
+  skipDepartmentPage?: boolean;
+};
+
+const collegeDepartments: CollegeDepartment[] = [
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/administration`,
     title: "Administration",
@@ -336,6 +385,75 @@ const collegeDepartments = [
     ],
     permissionLevel:
       "Administration may review, approve, reject, and publish official institutional content. Major system changes should require approval from the Rector, Principal, Master Administrator, or System Creator.",
+    positions: [
+      {
+        title: "Rector / Principal",
+        body: "Provides final institutional leadership, approvals, direction, and public representation.",
+      },
+      {
+        title: "Administrative Secretary",
+        body: "Coordinates official communication, appointments, files, letters, and office workflow.",
+      },
+      {
+        title: "Head - Academic Office",
+        body: "Links administration with class sections, academic planning, and reporting.",
+      },
+      {
+        title: "Reception and Front Office",
+        body: "Supports visitors, parents, calls, inquiries, and daily office routing.",
+      },
+    ],
+    members: [
+      {
+        name: "Rector / Principal",
+        role: "Department Head",
+        note: "Overall leadership and final approval",
+      },
+      {
+        name: "Administrative Secretary",
+        role: "Office Coordination",
+        note: "Letters, records, and official schedules",
+      },
+      {
+        name: "Reception Office",
+        role: "Front Office",
+        note: "Visitor and parent assistance",
+      },
+    ],
+    gallery: [
+      {
+        title: "College Office",
+        body: "Administration workspace for official communication, records, and parent service.",
+      },
+      {
+        title: "Meeting and Approval Work",
+        body: "Daily coordination between leadership, sections, staff, students, and families.",
+      },
+      {
+        title: "Official Records",
+        body: "Administrative files, policy records, correspondence, and institutional reports.",
+      },
+    ],
+    documents: [
+      { title: "Office Circulars", body: "Official letters, circulars, and administrative notices." },
+      { title: "Meeting Records", body: "Meeting schedules, minutes, action lists, and approvals." },
+      { title: "Policy Files", body: "Institutional policies, guidelines, and procedure documents." },
+    ],
+    contact: {
+      location: "College Office",
+      hours: "School office hours",
+      email: "loyolacollege.negombo@hotmail.com",
+    },
+    staffKeywords: [
+      "administration",
+      "administrative",
+      "secretary",
+      "reception",
+      "rector",
+      "principal",
+      "office",
+      "governance",
+    ],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/academic`,
@@ -387,6 +505,78 @@ const collegeDepartments = [
     ],
     permissionLevel:
       "The Academic Department may create and edit academic content. Final publication of major academic information should require authorized approval.",
+    positions: [
+      {
+        title: "Head of Academics",
+        body: "Leads curriculum planning, subject coordination, and academic standards.",
+      },
+      {
+        title: "Sectional Heads",
+        body: "Coordinate Primary, Middle, Upper School, and Advanced Level academic work.",
+      },
+      {
+        title: "Subject Heads",
+        body: "Guide subject planning, resources, assessment quality, and syllabus progress.",
+      },
+      {
+        title: "Class Teachers",
+        body: "Manage class-level academic records, communication, and student progress.",
+      },
+    ],
+    members: [
+      {
+        name: "Head of Academics",
+        role: "Academic Leadership",
+        note: "Curriculum, standards, and reporting",
+      },
+      {
+        name: "Sectional Heads",
+        role: "Section Coordination",
+        note: "Primary, Middle, Upper School, and Advanced Level",
+      },
+      {
+        name: "Subject Teachers",
+        role: "Teaching Team",
+        note: "Subjects, lessons, assessments, and progress",
+      },
+    ],
+    gallery: [
+      {
+        title: "Classroom Learning",
+        body: "Teaching, assessment, lesson planning, and student academic progress.",
+      },
+      {
+        title: "Academic Coordination",
+        body: "Subject meetings, section planning, teacher collaboration, and reporting.",
+      },
+      {
+        title: "Exam Preparation",
+        body: "Term plans, academic notices, exam schedules, and student support work.",
+      },
+    ],
+    documents: [
+      { title: "Timetables", body: "Class timetables, examination timetables, and section schedules." },
+      { title: "Syllabus Plans", body: "Term plans, unit plans, topics, and syllabus tracking files." },
+      { title: "Academic Notices", body: "Approved academic notices, circulars, and parent updates." },
+    ],
+    contact: {
+      location: "Academic Office",
+      hours: "School academic hours",
+      email: "loyolacollege.negombo@hotmail.com",
+    },
+    staffKeywords: [
+      "academic",
+      "teacher",
+      "subject",
+      "class",
+      "section",
+      "head",
+      "coordinator",
+      "primary",
+      "middle",
+      "upper",
+      "advanced",
+    ],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/finance`,
@@ -438,6 +628,75 @@ const collegeDepartments = [
     ],
     permissionLevel:
       "Finance staff may manage financial records according to assigned roles. Major payments, budget changes, refunds, and sensitive financial reports should require senior approval.",
+    positions: [
+      {
+        title: "Accountant",
+        body: "Leads accounts, reports, audit preparation, budgets, and financial controls.",
+      },
+      {
+        title: "Accounts Assistant",
+        body: "Supports receipts, payments, fee records, invoices, and day-to-day finance work.",
+      },
+      {
+        title: "Fees Officer",
+        body: "Handles student fee records, payment follow-up, receipts, and parent inquiries.",
+      },
+      {
+        title: "Procurement Support",
+        body: "Tracks purchase requests, supplier records, quotations, and approved payments.",
+      },
+    ],
+    members: [
+      {
+        name: "Accountant",
+        role: "Finance Lead",
+        note: "Accounts, reports, and financial controls",
+      },
+      {
+        name: "Accounts Assistant",
+        role: "Finance Operations",
+        note: "Receipts, payments, and daily finance records",
+      },
+      {
+        name: "Fees Officer",
+        role: "Fee Records",
+        note: "Student fee support and parent inquiries",
+      },
+    ],
+    gallery: [
+      {
+        title: "Finance Office",
+        body: "Daily payment records, receipts, fee support, and parent finance service.",
+      },
+      {
+        title: "Financial Records",
+        body: "Budgets, ledgers, approvals, audit files, and institutional financial reports.",
+      },
+      {
+        title: "Payment Support",
+        body: "Fee handling, purchase requests, supplier payments, and receipt management.",
+      },
+    ],
+    documents: [
+      { title: "Fee Notices", body: "Approved fee notices, payment instructions, and due-date updates." },
+      { title: "Receipts and Ledgers", body: "Receipt records, ledger extracts, and payment summaries." },
+      { title: "Budget Reports", body: "Department budgets, purchase approvals, and audit-support files." },
+    ],
+    contact: {
+      location: "Finance Office",
+      hours: "School finance office hours",
+      email: "loyolacollege.negombo@hotmail.com",
+    },
+    staffKeywords: [
+      "finance",
+      "accountant",
+      "accounts",
+      "fees",
+      "payment",
+      "bursar",
+      "cashier",
+      "financial",
+    ],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/it-department`,
@@ -490,6 +749,77 @@ const collegeDepartments = [
     ],
     permissionLevel:
       "The IT Department may perform normal technical maintenance. Major database, source-code, permission-structure, hosting, or system-architecture changes must be controlled by the System Creator or Master Administrator.",
+    positions: [
+      {
+        title: "Manager - IT",
+        body: "Leads technical operations, systems, support planning, and infrastructure control.",
+      },
+      {
+        title: "Assistant IT",
+        body: "Supports devices, troubleshooting, user accounts, and classroom technology.",
+      },
+      {
+        title: "Website and Portal Support",
+        body: "Maintains content support, portal access, publishing help, and user workflows.",
+      },
+      {
+        title: "Network and Device Support",
+        body: "Handles Wi-Fi, computers, projectors, printers, backups, and technical incidents.",
+      },
+    ],
+    members: [
+      {
+        name: "Manager - IT",
+        role: "Technical Lead",
+        note: "Systems, hosting, security, and support planning",
+      },
+      {
+        name: "Assistant IT",
+        role: "Technical Support",
+        note: "Devices, accounts, and classroom technology",
+      },
+      {
+        name: "Portal Support",
+        role: "Website and Systems",
+        note: "Publishing workflows and user access support",
+      },
+    ],
+    gallery: [
+      {
+        title: "IT Support Desk",
+        body: "Technical assistance for staff, students, devices, accounts, and daily system issues.",
+      },
+      {
+        title: "Digital Infrastructure",
+        body: "Website, portals, backups, networks, computers, and secure access management.",
+      },
+      {
+        title: "Classroom Technology",
+        body: "Digital teaching devices, projectors, software, and technical classroom support.",
+      },
+    ],
+    documents: [
+      { title: "Support Requests", body: "Technical-support requests, maintenance notes, and issue records." },
+      { title: "Account Records", body: "Approved account access, role assignments, and recovery logs." },
+      { title: "Asset Lists", body: "Device inventories, warranty records, software, and repair records." },
+    ],
+    contact: {
+      location: "IT Office",
+      hours: "School technical-support hours",
+      email: "loyolacollege.negombo@hotmail.com",
+    },
+    staffKeywords: [
+      "it",
+      "ict",
+      "technology",
+      "technical",
+      "network",
+      "computer",
+      "system",
+      "portal",
+      "website",
+      "software",
+    ],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/gym`,
@@ -540,6 +870,7 @@ const collegeDepartments = [
     ],
     permissionLevel:
       "The Gym Unit may manage schedules, attendance, equipment, and internal notices. Major purchases, public announcements, and structural facility changes require approval.",
+    skipDepartmentPage: true,
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/swimming-pool`,
@@ -591,6 +922,7 @@ const collegeDepartments = [
     ],
     permissionLevel:
       "The Swimming Pool Unit may manage schedules, participants, safety records, and facility operations. Major purchases, public announcements, and facility changes require approval.",
+    skipDepartmentPage: true,
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/sports-department`,
@@ -643,10 +975,91 @@ const collegeDepartments = [
     ],
     permissionLevel:
       "The Sports Department may manage internal sports records and schedules. Official team lists, public results, financial requests, and major announcements should require approval.",
+    positions: [
+      {
+        title: "Sports Coordinator",
+        body: "Leads annual sports planning, fixtures, teams, coaches, and department reporting.",
+      },
+      {
+        title: "Teachers-in-Charge",
+        body: "Manage assigned sports, teams, student records, practices, and event preparation.",
+      },
+      {
+        title: "Coaches",
+        body: "Train athletes, prepare teams, guide performance, and support discipline.",
+      },
+      {
+        title: "Team Captains",
+        body: "Support student leadership, attendance, team discipline, and match-day coordination.",
+      },
+    ],
+    members: [
+      {
+        name: "Sports Coordinator",
+        role: "Department Lead",
+        note: "Annual programme, teams, fixtures, and reports",
+      },
+      {
+        name: "Teachers-in-Charge",
+        role: "Team Management",
+        note: "Sports teams, practices, and competition records",
+      },
+      {
+        name: "Coaches and Captains",
+        role: "Training and Leadership",
+        note: "Athlete development, discipline, and performance",
+      },
+    ],
+    gallery: [
+      {
+        title: "Team Training",
+        body: "Practice sessions, athlete conditioning, team discipline, and student leadership.",
+      },
+      {
+        title: "Sports Events",
+        body: "Inter-house events, college fixtures, competitions, and achievement moments.",
+      },
+      {
+        title: "Sports Records",
+        body: "Team lists, results, awards, equipment, fixtures, and event reports.",
+      },
+    ],
+    documents: [
+      { title: "Fixtures and Practices", body: "Training schedules, match fixtures, venues, and transport notes." },
+      { title: "Team Lists", body: "Approved team lists, age groups, captains, and player records." },
+      { title: "Results and Awards", body: "Competition results, achievements, certificates, and sports reports." },
+    ],
+    contact: {
+      location: "Sports Office",
+      hours: "School sports hours and practice times",
+      email: "loyolacollege.negombo@hotmail.com",
+    },
+    staffKeywords: [
+      "sports",
+      "coach",
+      "physical",
+      "health",
+      "athletics",
+      "games",
+      "teacher-in-charge",
+      "pe",
+    ],
   },
 ];
 
-const COLLEGE_DEPARTMENT_PAGE_IDS = new Set(collegeDepartments.map((department) => department.id));
+const visibleCollegeDepartments = collegeDepartments.filter(
+  (department) => !department.skipDepartmentPage,
+);
+
+const SKIPPED_COLLEGE_DEPARTMENT_PAGE_IDS = new Set(
+  collegeDepartments
+    .filter((department) => department.skipDepartmentPage)
+    .map((department) => department.id),
+);
+
+const COLLEGE_DEPARTMENT_PAGE_IDS = new Set(
+  visibleCollegeDepartments.map((department) => department.id),
+);
 
 const LOYOLA_CALENDAR_ID = "loyolacollegeng.official@gmail.com";
 const LOYOLA_CALENDAR_TIME_ZONE = "Asia/Colombo";
@@ -893,7 +1306,9 @@ export function App() {
   }, [path, db]);
 
   const pageIsLive = (id: string) =>
-    Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+    !SKIPPED_COLLEGE_DEPARTMENT_PAGE_IDS.has(id) &&
+    Boolean(db.pages[id]) &&
+    (db.navigation.find((item) => item.id === id)?.visible ?? true);
   const visualPageId = canonicalVisualPageId(path, db);
   const requestedPageId = path.replace(/^\/+/, "");
   const staffPageIsLive = pageIsLive("about/college-staff") || pageIsLive("college-staff");
@@ -1133,7 +1548,11 @@ export function App() {
 }
 
 function pageIsLiveInDb(db: ReturnType<typeof getDb>, id: string) {
-  return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+  return (
+    !SKIPPED_COLLEGE_DEPARTMENT_PAGE_IDS.has(id) &&
+    Boolean(db.pages[id]) &&
+    (db.navigation.find((item) => item.id === id)?.visible ?? true)
+  );
 }
 
 function visibleSubpages(db: ReturnType<typeof getDb>, parentId: string) {
@@ -1441,7 +1860,7 @@ function HomeRequiredSections() {
       icon: GraduationCap,
     },
   ];
-  const facilities = collegeDepartments.map((department) => ({
+  const facilities = visibleCollegeDepartments.map((department) => ({
     title: department.title,
     body: department.cardBody,
     icon: department.icon,
@@ -2967,13 +3386,89 @@ function FacilitiesServicesPage() {
   );
 }
 
+function staffMatchesDepartment(staff: Teacher, department: CollegeDepartment) {
+  const keywords = department.staffKeywords || [department.title];
+  const positions = staff.positions || [];
+  const haystack = [
+    staff.name,
+    staff.type,
+    staff.category,
+    staff.section,
+    staff.position,
+    staff.websitePlace,
+    staff.subject,
+    staff.classes,
+    staff.qualifications,
+    staff.responsibilities,
+    ...positions.flatMap((position) => [
+      position.display_title,
+      position.displayTitle,
+      position.main_category,
+      position.mainCategory,
+      position.section,
+      position.subsection,
+      position.position,
+      position.websitePlace,
+      position.website_place,
+      position.department,
+      position.subject,
+      position.classes,
+    ]),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return keywords.some((keyword) => haystack.includes(keyword.toLowerCase()));
+}
+
+function staffRoleLabel(staff: Teacher) {
+  return staff.position || staff.subject || staff.category || staff.type || "Department Member";
+}
+
+function initialsForName(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("");
+}
+
+function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepartment) {
+  return teachers
+    .filter((staff) => (staff.status || "Active") === "Active" && staffMatchesDepartment(staff, department))
+    .slice(0, 8)
+    .map((staff) => ({
+      name: staff.name,
+      role: staffRoleLabel(staff),
+      note: staff.responsibilities || staff.qualifications || staff.classes || staff.subject,
+      email: staff.email,
+      image: staff.image,
+    }));
+}
+
 function CollegeDepartmentPage({ pageId }: { pageId: string }) {
   const db = useDb();
   const department =
-    collegeDepartments.find((item) => item.id === pageId) || collegeDepartments[0];
+    visibleCollegeDepartments.find((item) => item.id === pageId) ||
+    visibleCollegeDepartments[0] ||
+    collegeDepartments[0];
   const page = db.pages[pageId];
   const Icon = department.icon;
-  const relatedDepartments = collegeDepartments.filter((item) => item.id !== department.id);
+  const relatedDepartments = visibleCollegeDepartments.filter((item) => item.id !== department.id);
+  const positions = department.positions || [];
+  const liveMembers = departmentMembersFromStaff(db.teachers, department);
+  const members = liveMembers.length ? liveMembers : department.members || [];
+  const gallery = department.gallery || [];
+  const documents = department.documents || [];
+  const contact = department.contact || {
+    location: "College Office",
+    hours: "School office hours",
+    email: db.websiteContent.email,
+  };
+  const galleryFallback =
+    page?.image || db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE;
   const title = page?.title || department.title;
   const body =
     page?.body && page.body.trim() !== "New page content goes here."
@@ -3054,6 +3549,126 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
 
       <section className="bg-white py-16 md:py-20">
         <div className="mx-auto max-w-7xl px-6">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_420px]">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Positions
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                Department Positions and Duties
+              </h2>
+              <div className="mt-8 grid gap-4 md:grid-cols-2">
+                {positions.map((position) => (
+                  <article
+                    key={position.title}
+                    className="rounded-lg border border-border bg-background p-5"
+                  >
+                    <Briefcase className="h-5 w-5 text-gold" />
+                    <h3 className="mt-4 font-serif text-2xl font-bold text-navy">
+                      {position.title}
+                    </h3>
+                    <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                      {position.body}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            </div>
+
+            <aside className="rounded-lg border border-border bg-white p-6 shadow-soft">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Department Members
+              </p>
+              <div className="mt-6 grid gap-4">
+                {members.map((member) => (
+                  <article
+                    key={`${member.name}-${member.role}`}
+                    className="flex gap-4 rounded-lg border border-border bg-background p-4"
+                  >
+                    {member.image ? (
+                      <img
+                        src={member.image}
+                        alt={member.name}
+                        className="h-14 w-14 shrink-0 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-lg bg-navy font-serif text-lg font-bold text-white">
+                        {initialsForName(member.name)}
+                      </span>
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="break-words font-bold text-navy">{member.name}</h3>
+                      <p className="mt-1 text-xs font-bold uppercase tracking-[0.12em] text-crimson">
+                        {member.role}
+                      </p>
+                      {member.note && (
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          {member.note}
+                        </p>
+                      )}
+                      {member.email && (
+                        <a
+                          href={`mailto:${member.email}`}
+                          className="mt-2 inline-flex text-xs font-bold text-crimson"
+                        >
+                          {member.email}
+                        </a>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-page-soft py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Department Gallery
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                Photos and Department Work
+              </h2>
+            </div>
+            <a
+              href="/gallery"
+              className="inline-flex items-center gap-2 text-sm font-bold text-crimson"
+            >
+              Open Gallery <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+          <div className="mt-8 grid gap-5 md:grid-cols-3">
+            {gallery.map((item) => (
+              <article
+                key={item.title}
+                className="overflow-hidden rounded-lg border border-border bg-white shadow-soft"
+              >
+                <div className="relative bg-navy">
+                  <img
+                    src={item.image || galleryFallback}
+                    alt={item.title}
+                    className="aspect-[4/3] w-full object-cover opacity-90"
+                  />
+                  <span className="absolute left-4 top-4 grid h-10 w-10 place-items-center rounded-lg bg-white/92 text-navy shadow-soft">
+                    <Camera className="h-5 w-5" />
+                  </span>
+                </div>
+                <div className="p-5">
+                  <h3 className="font-serif text-2xl font-bold text-navy">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">{item.body}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="mx-auto max-w-7xl px-6">
           <div className="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
@@ -3076,6 +3691,61 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-16 md:py-20">
+        <div className="mx-auto grid max-w-7xl gap-8 px-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              Files and Notices
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Department Documents
+            </h2>
+            <div className="mt-8 grid gap-4 md:grid-cols-3">
+              {documents.map((document) => (
+                <article
+                  key={document.title}
+                  className="rounded-lg border border-border bg-background p-5"
+                >
+                  <FileText className="h-6 w-6 text-gold" />
+                  <h3 className="mt-4 font-serif text-2xl font-bold text-navy">
+                    {document.title}
+                  </h3>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                    {document.body}
+                  </p>
+                </article>
+              ))}
+            </div>
+          </div>
+
+          <aside className="rounded-lg border border-border bg-navy p-7 text-white shadow-elegant">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-light">
+              Contact and Location
+            </p>
+            <div className="mt-6 space-y-4 text-sm leading-7 text-white/82">
+              <p className="flex gap-3">
+                <MapPin className="mt-1 h-5 w-5 shrink-0 text-gold" />
+                <span>{contact.location}</span>
+              </p>
+              <p className="flex gap-3">
+                <Calendar className="mt-1 h-5 w-5 shrink-0 text-gold" />
+                <span>{contact.hours}</span>
+              </p>
+              <p className="flex gap-3">
+                <Mail className="mt-1 h-5 w-5 shrink-0 text-gold" />
+                <span>{contact.email}</span>
+              </p>
+            </div>
+            <a
+              href="/downloads"
+              className="mt-7 inline-flex items-center gap-2 rounded-lg bg-gold px-5 py-3 text-sm font-bold text-navy"
+            >
+              Department Files <ArrowRight className="h-4 w-4" />
+            </a>
+          </aside>
         </div>
       </section>
 

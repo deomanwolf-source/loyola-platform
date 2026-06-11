@@ -12,6 +12,10 @@ export const DEFAULT_FOOTER_COPYRIGHT_LINE =
 export const DEFAULT_DEVELOPER_CREDIT =
   "Developed by Hasintha Arunalu Niroshan | 12 - Technology Stream | 2027 Batch | Website Development";
 const BUNDLED_STATIC_ASSETS = new Set(["/flag1.png", "/loyola-crest.jpg"]);
+const SKIPPED_THE_COLLEGE_DEPARTMENT_PAGE_IDS = new Set([
+  "the-college/departments/gym",
+  "the-college/departments/swimming-pool",
+]);
 const THE_COLLEGE_DEPARTMENT_PAGES = [
   {
     id: "the-college/departments/administration",
@@ -38,21 +42,9 @@ const THE_COLLEGE_DEPARTMENT_PAGES = [
     body: "The IT Department manages the college's digital infrastructure, systems, websites, networks, user accounts, cybersecurity, devices, software, backups, and technical support.",
   },
   {
-    id: "the-college/departments/gym",
-    label: "Gym",
-    order: 6,
-    body: "The Gym Unit manages fitness programmes, athlete conditioning, exercise facilities, equipment, trainers, bookings, safety, and maintenance.",
-  },
-  {
-    id: "the-college/departments/swimming-pool",
-    label: "Swimming Pool",
-    order: 7,
-    body: "The Swimming Pool Unit manages aquatic training, swimming programmes, pool safety, lifeguards, coaches, facility bookings, equipment, water-quality monitoring, and maintenance.",
-  },
-  {
     id: "the-college/departments/sports-department",
     label: "Sports Department",
-    order: 8,
+    order: 6,
     body: "The Sports Department manages college sports, team development, coaching, competitions, fixtures, sports facilities, athletes, equipment, and achievement records.",
   },
 ] as const;
@@ -1501,6 +1493,14 @@ function ensureTheCollegePages(db: DB): DB {
         visible: true,
         parentId: "the-college",
       });
+      changed = true;
+    }
+  });
+
+  SKIPPED_THE_COLLEGE_DEPARTMENT_PAGE_IDS.forEach((id) => {
+    const index = navigation.findIndex((item) => item.id === id);
+    if (index >= 0 && navigation[index].visible !== false) {
+      navigation[index] = { ...navigation[index], visible: false };
       changed = true;
     }
   });
