@@ -47,21 +47,19 @@ const FIRST_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
     ],
   },
   {
-    id: "priest-sectional-head-upper",
-    title: "Priest in Charge & Sectional Head of Upper School",
+    id: "priest-in-charge-middle-upper",
+    title: "Priest in Charge - Middle and Upper School",
     order: 4,
-    codes: ["priest-in-charge-middle-upper", "sectional-head-upper"],
+    codes: ["priest-in-charge-middle-upper"],
     aliases: [
       "priest in charge",
       "priest in charge middle school and upper school",
       "priest in charge and sectional head of upper school",
-      "sectional head of upper school",
-      "sectional head upper school",
     ],
   },
 ];
 
-const SECOND_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
+const VICE_PRINCIPAL_POSITIONS: AdministrationPositionGroup[] = [
   {
     id: "vice-principal-advanced-level",
     title: "Vice Principal - Advanced Level",
@@ -90,10 +88,60 @@ const SECOND_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
     codes: ["vice-principal-upper"],
     aliases: ["vice principal upper school"],
   },
+];
+
+const SECTIONAL_HEAD_POSITIONS: AdministrationPositionGroup[] = [
+  {
+    id: "sectional-head-primary",
+    title: "Sectional Head - Primary School",
+    order: 1,
+    codes: ["sectional-head-primary"],
+    aliases: [
+      "sectional head primary school",
+      "sectional head primary section",
+      "sectional head of primary school",
+    ],
+  },
+  {
+    id: "sectional-head-middle",
+    title: "Sectional Head - Middle School",
+    order: 2,
+    codes: ["sectional-head-middle"],
+    aliases: [
+      "sectional head middle school",
+      "sectional head middle section",
+      "sectional head of middle school",
+    ],
+  },
+  {
+    id: "sectional-head-upper",
+    title: "Sectional Head - Upper School",
+    order: 3,
+    codes: ["sectional-head-upper"],
+    aliases: [
+      "sectional head upper school",
+      "sectional head upper section",
+      "sectional head of upper school",
+    ],
+  },
+  {
+    id: "sectional-head-advanced-level",
+    title: "Sectional Head - Advanced Level",
+    order: 4,
+    codes: ["sectional-head-advanced-level"],
+    aliases: [
+      "sectional head advanced level",
+      "sectional head advanced level section",
+      "sectional head of advanced level",
+    ],
+  },
+];
+
+const ASSISTANT_SECTIONAL_HEAD_POSITIONS: AdministrationPositionGroup[] = [
   {
     id: "assistant-sectional-head-primary",
     title: "Assistant Sectional Head - Primary School",
-    order: 5,
+    order: 1,
     codes: ["assistant-sectional-head-primary"],
     aliases: [
       "assistant sectional head primary school",
@@ -103,24 +151,34 @@ const SECOND_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
   {
     id: "assistant-sectional-head-middle",
     title: "Assistant Sectional Head - Middle School",
-    order: 6,
+    order: 2,
     codes: ["assistant-sectional-head-middle"],
     aliases: ["assistant sectional head middle school"],
   },
   {
+    id: "assistant-sectional-head-upper",
+    title: "Assistant Sectional Head - Upper School",
+    order: 3,
+    codes: ["assistant-sectional-head-upper"],
+    aliases: ["assistant sectional head upper school"],
+  },
+  {
     id: "assistant-sectional-head-advanced-level",
     title: "Assistant Sectional Head - Advanced Level",
-    order: 7,
+    order: 4,
     codes: ["assistant-sectional-head-advanced-level"],
     aliases: [
       "assistant sectional head advanced level",
       "assistant sectional head advanced level section",
     ],
   },
+];
+
+const SUBJECT_HEAD_POSITIONS: AdministrationPositionGroup[] = [
   {
     id: "subjects-head-primary",
     title: "Subjects Head - Primary School",
-    order: 8,
+    order: 1,
     codes: ["subject-head-primary"],
     aliases: [
       "subject head primary school",
@@ -131,21 +189,21 @@ const SECOND_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
   {
     id: "subjects-head-middle",
     title: "Subjects Head - Middle School",
-    order: 9,
+    order: 2,
     codes: ["subject-head-middle"],
     aliases: ["subject head middle school", "subjects head middle school"],
   },
   {
     id: "subjects-head-upper",
     title: "Subjects Head - Upper School",
-    order: 10,
+    order: 3,
     codes: ["subject-head-upper"],
     aliases: ["subject head upper school", "subjects head upper school"],
   },
   {
     id: "subjects-head-advanced-level",
     title: "Subjects Head - Advanced Level",
-    order: 11,
+    order: 4,
     codes: ["subject-head-advanced-level"],
     aliases: [
       "subject head advanced level",
@@ -256,7 +314,13 @@ export function CollegeAdministrationPage({
 
   const allStaff = (db.teachers || []).filter((s) => s.status === "Active");
   const topAdmin = administrationMembers(allStaff, FIRST_ADMIN_POSITIONS);
-  const academicLeadership = administrationMembers(allStaff, SECOND_ADMIN_POSITIONS);
+  const vicePrincipals = administrationMembers(allStaff, VICE_PRINCIPAL_POSITIONS);
+  const sectionalHeads = administrationMembers(allStaff, SECTIONAL_HEAD_POSITIONS);
+  const assistantSectionalHeads = administrationMembers(
+    allStaff,
+    ASSISTANT_SECTIONAL_HEAD_POSITIONS,
+  );
+  const subjectHeads = administrationMembers(allStaff, SUBJECT_HEAD_POSITIONS);
 
   return (
     <PublicLayout>
@@ -284,12 +348,42 @@ export function CollegeAdministrationPage({
             />
           )}
 
-          {academicLeadership.length > 0 && (
+          {vicePrincipals.length > 0 && (
             <AdminSection
-              title="Academic Leadership"
+              title="Vice Principals"
               kicker="Academic Leadership"
               icon={<GraduationCap className="h-6 w-6 text-gold" />}
-              staff={academicLeadership}
+              staff={vicePrincipals}
+              className="mt-32"
+            />
+          )}
+
+          {sectionalHeads.length > 0 && (
+            <AdminSection
+              title="Sectional Heads"
+              kicker="Section Leadership"
+              icon={<GraduationCap className="h-6 w-6 text-gold" />}
+              staff={sectionalHeads}
+              className="mt-32"
+            />
+          )}
+
+          {assistantSectionalHeads.length > 0 && (
+            <AdminSection
+              title="Assistant Sectional Heads"
+              kicker="Section Leadership"
+              icon={<GraduationCap className="h-6 w-6 text-gold" />}
+              staff={assistantSectionalHeads}
+              className="mt-32"
+            />
+          )}
+
+          {subjectHeads.length > 0 && (
+            <AdminSection
+              title="Subject Heads"
+              kicker="Academic Leadership"
+              icon={<GraduationCap className="h-6 w-6 text-gold" />}
+              staff={subjectHeads}
               className="mt-32"
             />
           )}

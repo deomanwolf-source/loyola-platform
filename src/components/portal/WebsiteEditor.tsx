@@ -1308,7 +1308,7 @@ function visualStarterForPage(db: DB, pageId: string) {
     </div>
     <div style="margin-top:60px; text-align:center; padding:30px; border-radius:16px; background:#f8fafc; border:1px dashed #cbd5e1;">
       <p style="font-weight:bold; color:#0a1628;">Dynamic Administration List</p>
-      <p style="margin-top:8px; font-size:0.875rem; color:#64748b;">This page is automatically linked to the Staff Management system. Any staff member categorized under "Top Administration", "Vice Principals", or "Sectional Heads" will automatically appear on the live website with a professional layout.</p>
+      <p style="margin-top:8px; font-size:0.875rem; color:#64748b;">This page is automatically linked to the Staff Management system. Any staff member categorized under "Top Administration", "Vice Principals", "Sectional Heads", "Assistant Sectional Heads", or "Subject Heads" will automatically appear on the live website with a professional layout.</p>
     </div>
   </div>
 </section>`;
