@@ -2240,6 +2240,7 @@ function registerStaffRoutes(app, context) {
       sortOrder: normalizeSortOrder(body.sort_order ?? body.sortOrder, 0),
       profileImage,
       photoUrl: profileImage,
+      removePhoto: booleanField(body, "remove_photo", "removePhoto"),
       accountEnabled: booleanField(body, "accountEnabled", "account_enabled"),
       accountEnabledProvided: hasField(body, "accountEnabled", "account_enabled"),
       accountPassword: String(body.accountPassword || body.password || ""),
@@ -3344,10 +3345,11 @@ function registerStaffRoutes(app, context) {
     const visiblePositions = sourcePositions.filter(
       (position) => position.visibleOnWebsite !== false,
     );
-    const publicPhoto =
-      profile.photoUrl ||
-      profile.profileImage ||
-      (await existingPublicTeacherPhoto(runner, staffId, profile.teacherId));
+    const publicPhoto = profile.removePhoto
+      ? ""
+      : profile.photoUrl ||
+        profile.profileImage ||
+        (await existingPublicTeacherPhoto(runner, staffId, profile.teacherId));
     const positionsJson = JSON.stringify(
       sourcePositions.map((position) => ({
         position_master_id: position.positionMasterId || null,
@@ -3544,15 +3546,18 @@ function registerStaffRoutes(app, context) {
       const userId = linkedUser?.id || null;
       const accountEmail = linkedUser?.email || null;
 
-      if (!payload.profileImage && !payload.photoUrl) {
+      if (payload.removePhoto) {
+        payload.profileImage = "";
+        payload.photoUrl = "";
+      } else if (!payload.profileImage && !payload.photoUrl) {
         const existingPhoto =
           existingProfiles[0]?.photo_url || existingProfiles[0]?.profile_image || "";
         const latestPhoto =
           existingPhoto ||
-          (await latestStaffProfilePhoto(connection, id)) ||
           (requestedId !== id ? await latestStaffProfilePhoto(connection, requestedId) : "") ||
-          (await existingPublicTeacherPhoto(connection, id, teacherId)) ||
-          (requestedId !== id
+          (!wasExisting ? await latestStaffProfilePhoto(connection, id) : "") ||
+          (!wasExisting ? await existingPublicTeacherPhoto(connection, id, teacherId) : "") ||
+          (!wasExisting && requestedId !== id
             ? await existingPublicTeacherPhoto(connection, requestedId, teacherId)
             : "");
         if (latestPhoto) {
@@ -3630,6 +3635,7 @@ function registerStaffRoutes(app, context) {
           userId,
           accountEmail,
           photoUrl: payload.photoUrl || payload.profileImage,
+          removePhoto: payload.removePhoto,
         },
         savedPositions,
       );
@@ -3650,6 +3656,7 @@ function registerStaffRoutes(app, context) {
           accountPassword: payload.accountPassword,
           teacherId,
           photoUrl: payload.photoUrl || payload.profileImage,
+          removePhoto: payload.removePhoto,
         },
         savedPositions,
         { userId, accountEmail },
@@ -3666,6 +3673,7 @@ function registerStaffRoutes(app, context) {
           fullName: payload.fullName,
           teacherId,
           userId,
+          photoRemoved: payload.removePhoto,
           eduTrackSync: eduTrackSync
             ? {
                 ok: Boolean(eduTrackSync.ok),

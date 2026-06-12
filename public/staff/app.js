@@ -1398,6 +1398,7 @@
               }
             </div>
             <input type="hidden" id="profile-image" name="profile_image" value="${esc(profileImage)}" />
+            <input type="hidden" id="remove-photo" name="remove_photo" value="false" />
             <label class="file-field">
               <span>Upload Photo</span>
               <input id="photo-file" type="file" accept="image/jpeg,image/png" />
@@ -2327,6 +2328,7 @@
       const result = await uploadStaffProfilePhoto(file);
       const url = result.fileUrl || result.url || "";
       document.getElementById("profile-image").value = url;
+      document.getElementById("remove-photo").value = "false";
       document.getElementById("photo-box").innerHTML = `<img src="${esc(url)}" alt="" />`;
       setNotice(
         result.savedToProfile
@@ -2344,8 +2346,12 @@
   function clearProfilePhoto() {
     if (isReadOnly()) return readOnlyNotice();
     document.getElementById("profile-image").value = "";
+    document.getElementById("remove-photo").value = "true";
+    const photoFile = document.getElementById("photo-file");
+    if (photoFile) photoFile.value = "";
     document.getElementById("photo-box").innerHTML =
       `<div><strong>No Photo</strong><span>Upload JPG or PNG</span></div>`;
+    setNotice("Photo will be removed when you update the profile.", "success");
   }
 
   function addAdditionalPosition() {
@@ -2439,6 +2445,7 @@
     payload.accountEnabled = data.get("accountEnabled") === "on";
     payload.profile_image = document.getElementById("profile-image").value;
     payload.photo_url = payload.profile_image;
+    payload.remove_photo = document.getElementById("remove-photo").value === "true";
     payload.position_codes = normalizePositionCodes(payload.position_codes).join("\n");
     payload.sort_order = staffSortOrderIsManual(form) ? Number(payload.sort_order || 0) : 0;
     const hasPositionCodes = Boolean(payload.position_codes);
