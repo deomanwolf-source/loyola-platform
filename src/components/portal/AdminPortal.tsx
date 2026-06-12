@@ -4781,6 +4781,8 @@ function StaffPanel({ db }: { db: DB }) {
     "English Coordinator - Middle School": "Middle School Subject Coordinators",
     "History / Geography / Civics Coordinator - Middle School":
       "Middle School Subject Coordinators",
+    "Buddhism Coordinator - Middle School": "Middle School Subject Coordinators",
+    "ICT Coordinator - Middle School": "Middle School Subject Coordinators",
     "Roman Catholicism Coordinator - Middle School": "Middle School Subject Coordinators",
     "Health Science & Physical Education Coordinator - Middle School":
       "Middle School Subject Coordinators",
@@ -4790,6 +4792,11 @@ function StaffPanel({ db }: { db: DB }) {
     "Mathematics Coordinator - Upper School": "Upper School Subject Coordinators",
     "Science Coordinator - Upper School": "Upper School Subject Coordinators",
     "English Coordinator - Upper School": "Upper School Subject Coordinators",
+    "History / Geography / Civics Coordinator - Upper School":
+      "Upper School Subject Coordinators",
+    "Buddhism Coordinator - Upper School": "Upper School Subject Coordinators",
+    "Buddhism / Commerce Coordinator - Upper School": "Upper School Subject Coordinators",
+    "ICT Coordinator - Upper School": "Upper School Subject Coordinators",
     "Roman Catholicism Coordinator - Upper School": "Upper School Subject Coordinators",
     "Health Science & Physical Education Coordinator - Upper School":
       "Upper School Subject Coordinators",
@@ -6165,7 +6172,9 @@ function StaffPanel({ db }: { db: DB }) {
                       <option>Mathematics</option>
                       <option>Science</option>
                       <option>English</option>
+                      <option>Buddhism</option>
                       <option>Roman Catholicism</option>
+                      <option>ICT</option>
                       <option>Commerce</option>
                       <option>Arts</option>
                       <option>Technology</option>

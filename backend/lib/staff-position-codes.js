@@ -62,6 +62,8 @@ const FIXED_POSITION_CODE_ORDER = [
   "subject-coordinator-middle-science",
   "subject-coordinator-middle-english",
   "subject-coordinator-middle-history-geography-civics",
+  "subject-coordinator-middle-buddhism",
+  "subject-coordinator-middle-ict",
   "subject-coordinator-middle-roman-catholicism",
   "subject-coordinator-middle-health-science-physical-education",
   "subject-coordinator-middle-practical-technical-skills",
@@ -70,6 +72,9 @@ const FIXED_POSITION_CODE_ORDER = [
   "subject-coordinator-upper-science",
   "subject-coordinator-upper-english",
   "subject-coordinator-upper-history-geography-civics",
+  "subject-coordinator-upper-buddhism",
+  "subject-coordinator-upper-buddhism-commerce",
+  "subject-coordinator-upper-ict",
   "subject-coordinator-upper-roman-catholicism",
   "subject-coordinator-upper-health-science-physical-education",
   "subject-coordinator-upper-practical-technical-skills",
@@ -430,7 +435,8 @@ const SUBJECT_COORDINATORS = {
       "science",
       "english",
       "history-geography-civics",
-      "history-geography-civics",
+      "buddhism",
+      "ict",
       "roman-catholicism",
       "health-science-physical-education",
       "practical-technical-skills",
@@ -443,6 +449,10 @@ const SUBJECT_COORDINATORS = {
       "mathematics",
       "science",
       "english",
+      "history-geography-civics",
+      "buddhism",
+      "buddhism-commerce",
+      "ict",
       "roman-catholicism",
       "health-science-physical-education",
       "practical-technical-skills",
@@ -458,10 +468,19 @@ const SUBJECT_COORDINATORS = {
   },
 };
 
+const SUBJECT_COORDINATOR_LABELS = {
+  "history-geography-civics": "History / Geography / Civics",
+  "health-science-physical-education": "Health Science & Physical Education",
+  "practical-technical-skills": "Practical & Technical Skills",
+  "science-maths": "Science / Maths",
+  "buddhism-commerce": "Buddhism / Commerce",
+  ict: "ICT",
+};
+
 Object.entries(SUBJECT_COORDINATORS).forEach(([level, config]) => {
   config.subjects.forEach((subject, index) => {
     const code = `subject-coordinator-${level}-${subject}`;
-    const subjectLabel = subject === "science-maths" ? "Science / Maths" : titleCaseCode(subject);
+    const subjectLabel = SUBJECT_COORDINATOR_LABELS[subject] || titleCaseCode(subject);
     add(code, {
       main_category: "Subject Coordinators",
       section: config.section,
@@ -668,6 +687,20 @@ function inferPositionCode(input = {}) {
     ["vice-principal-middle-school", "vice-principal-middle"],
     ["vice-principal-upper-school", "vice-principal-upper"],
     ["vice-principal-advanced-level", "vice-principal-advanced-level"],
+    ["history-geography-civics-subject-coordinator-middle-school", "subject-coordinator-middle-history-geography-civics"],
+    ["history-geography-civics-coordinator-middle-school", "subject-coordinator-middle-history-geography-civics"],
+    ["buddhism-subject-coordinator-middle-school", "subject-coordinator-middle-buddhism"],
+    ["buddhism-coordinator-middle-school", "subject-coordinator-middle-buddhism"],
+    ["ict-subject-coordinator-middle-school", "subject-coordinator-middle-ict"],
+    ["ict-coordinator-middle-school", "subject-coordinator-middle-ict"],
+    ["history-geography-civics-subject-coordinator-upper-school", "subject-coordinator-upper-history-geography-civics"],
+    ["history-geography-civics-coordinator-upper-school", "subject-coordinator-upper-history-geography-civics"],
+    ["buddhism-subject-coordinator-upper-school", "subject-coordinator-upper-buddhism"],
+    ["buddhism-coordinator-upper-school", "subject-coordinator-upper-buddhism"],
+    ["buddhism-commerce-subject-coordinator-upper-school", "subject-coordinator-upper-buddhism-commerce"],
+    ["buddhism-commerce-coordinator-upper-school", "subject-coordinator-upper-buddhism-commerce"],
+    ["ict-subject-coordinator-upper-school", "subject-coordinator-upper-ict"],
+    ["ict-coordinator-upper-school", "subject-coordinator-upper-ict"],
     ["assistant-it", "assistant-it"],
     ["assistant-i-t", "assistant-it"],
     ["manager-it", "manager-it"],
