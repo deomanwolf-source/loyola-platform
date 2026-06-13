@@ -5,6 +5,11 @@ This project uses two Hostinger MySQL databases:
 - Main website database: `u414000991_loyoladatabase`
 - EduTrack database: `u414000991_edutrack`
 
+The EduTrack database remains the authoritative store for all EduTrack records. Opening
+`/portal/edutrack` on the main website performs a short-lived signed SSO handoff to the EduTrack
+application, so both entry URLs use the existing EduTrack database without copying, resetting, or
+deleting data.
+
 ## 1. Import Main Website Database
 
 In Hostinger phpMyAdmin:
@@ -80,6 +85,9 @@ PUBLIC_API_URL=https://edutrack.loyolacollege.lk
 ```
 
 The `JWT_SECRET` must match in both apps if users log in from the main website and then open EduTrack.
+`EDUTRACK_PUBLIC_URL` on the website app must point to the EduTrack application. Existing EduTrack
+users are matched by ID or email during SSO and are never overwritten. A new EduTrack login record is
+added only when an authorized website user has no existing EduTrack account.
 
 ## 5. Test Backend Connections
 

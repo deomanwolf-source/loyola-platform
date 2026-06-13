@@ -13,6 +13,12 @@ const {
   sanitizeSiteDbSecurity,
   scanVisualContent,
 } = require("./lib/sanitize-visual-content");
+const {
+  EDUTRACK_SSO_ROLES,
+  createEduTrackSsoToken,
+  resolveEduTrackPublicUrl,
+  verifyEduTrackSsoToken,
+} = require("./lib/edutrack-sso");
 
 dotenv.config();
 
@@ -8453,6 +8459,87 @@ app.post("/api/logout", (req, res) => {
   res.json({ success: true });
 });
 
+async function findOrCreateEduTrackSsoUser(payload) {
+  await ensureAccessTables();
+
+  let requestedId = compactText(payload.id, 50);
+  const email = normalizeEmail(payload.email);
+  const name = compactText(payload.name || email.split("@")[0], 150);
+
+  if (!requestedId || !email || !name || !EDUTRACK_SSO_ROLES.has(payload.role)) {
+    throw new Error("Invalid EduTrack SSO user");
+  }
+
+  const findUserByEmail = async () => {
+    const [[user]] = await db.query(
+      "SELECT id, name, email, role, status, password_hash FROM users WHERE email = ? LIMIT 1",
+      [email],
+    );
+    return user || null;
+  };
+  const findUserById = async () => {
+    const [[user]] = await db.query(
+      "SELECT id, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
+      [requestedId],
+    );
+    return user || null;
+  };
+
+  let user = await findUserByEmail();
+  if (user) return user;
+
+  const idOwner = await findUserById();
+  if (idOwner) {
+    requestedId = `SSO-${crypto.createHash("sha256").update(email).digest("hex").slice(0, 40)}`;
+    user = await findUserById();
+    if (user) return user;
+  }
+
+  const passwordHash = await bcrypt.hash(crypto.randomBytes(48).toString("hex"), 12);
+  try {
+    await db.query(
+      `
+        INSERT INTO users (id, name, email, role, status, password_hash)
+        VALUES (?, ?, ?, ?, 'Active', ?)
+      `,
+      [requestedId, name, email, payload.role, passwordHash],
+    );
+  } catch (error) {
+    if (error?.code !== "ER_DUP_ENTRY") throw error;
+  }
+
+  user = (await findUserByEmail()) || (await findUserById());
+  if (!user) throw new Error("Could not create the EduTrack SSO account");
+  return user;
+}
+
+app.get("/api/edutrack/sso/complete", async (req, res) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Referrer-Policy", "no-referrer");
+
+  if (process.env.APP_NAME !== "edutrack") {
+    return res.status(404).json({ error: "EduTrack SSO is not available on this application" });
+  }
+
+  try {
+    const payload = verifyEduTrackSsoToken(String(req.query.token || ""), process.env.JWT_SECRET);
+    const user = await findOrCreateEduTrackSsoUser(payload);
+
+    if (String(user.status || "").toLowerCase() !== "active") {
+      return res.status(403).type("text").send("This EduTrack account is not active.");
+    }
+    if (!EDUTRACK_SSO_ROLES.has(user.role)) {
+      return res.status(403).type("text").send("EduTrack access is not enabled for this account.");
+    }
+
+    setAuthCookie(res, createToken(user));
+    setCsrfCookie(res);
+    return res.redirect(302, payload.returnPath);
+  } catch {
+    return res.status(401).type("text").send("EduTrack sign-in link is invalid or expired.");
+  }
+});
+
 app.get("/api/me", auth, async (req, res) => {
   try {
     await ensureAccessTables();
@@ -8699,6 +8786,7 @@ const frontendIndex = path.join(frontendRoot, "index.html");
 const frontendAssets = path.join(frontendRoot, "assets");
 
 if (fs.existsSync(frontendIndex)) {
+  const eduTrackPublicUrl = resolveEduTrackPublicUrl();
   const sendFrontendApp = (req, res) => {
     res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
     res.setHeader("Pragma", "no-cache");
@@ -8711,6 +8799,42 @@ if (fs.existsSync(frontendIndex)) {
   if (process.env.APP_NAME === "edutrack") {
     app.get("/", (req, res) => {
       res.redirect(302, "/portal/edutrack");
+    });
+  } else if (eduTrackPublicUrl) {
+    app.get(["/portal/edutrack", "/portal/edutrack/"], async (req, res, next) => {
+      const sessionUser = verifiedUserFromRequest(req);
+      if (!sessionUser) {
+        return res.redirect(302, "/login?next=%2Fportal%2Fedutrack");
+      }
+      if (!EDUTRACK_SSO_ROLES.has(sessionUser.role)) return next();
+
+      try {
+        await ensureAccessTables();
+        const [[user]] = await db.query(
+          `
+            SELECT id, name, email, role, status
+            FROM users
+            WHERE id = ?
+            LIMIT 1
+          `,
+          [sessionUser.id],
+        );
+        if (!user || String(user.status || "").toLowerCase() !== "active") {
+          clearAuthCookie(res);
+          clearCsrfCookie(res);
+          return res.redirect(302, "/login?next=%2Fportal%2Fedutrack");
+        }
+        if (!EDUTRACK_SSO_ROLES.has(user.role)) return next();
+
+        const token = createEduTrackSsoToken(user, process.env.JWT_SECRET, req.originalUrl);
+        const target = new URL("/api/edutrack/sso/complete", `${eduTrackPublicUrl}/`);
+        target.searchParams.set("token", token);
+        res.setHeader("Cache-Control", "no-store");
+        res.setHeader("Referrer-Policy", "no-referrer");
+        return res.redirect(302, target.toString());
+      } catch (error) {
+        return next(error);
+      }
     });
   }
 

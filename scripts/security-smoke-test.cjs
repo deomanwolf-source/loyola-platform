@@ -5,6 +5,12 @@ const {
   sanitizeVisualHtml,
   scanVisualContent,
 } = require("../backend/lib/sanitize-visual-content");
+const {
+  createEduTrackSsoToken,
+  resolveEduTrackPublicUrl,
+  sanitizeEduTrackReturnPath,
+  verifyEduTrackSsoToken,
+} = require("../backend/lib/edutrack-sso");
 
 function assertClean(value, token) {
   assert.equal(
@@ -73,8 +79,46 @@ assert.match(safeHtml, /controls/);
 assert.match(safeHtml, /poster="\/uploads\/poster\.jpg"/);
 assert.match(safeHtml, /<source/);
 
-const safeCss = sanitizeVisualCss('.card { border-radius: 8px; background: url("/assets/bg.jpg"); }');
+const safeCss = sanitizeVisualCss(
+  '.card { border-radius: 8px; background: url("/assets/bg.jpg"); }',
+);
 assert.match(safeCss, /border-radius:\s*8px/);
 assert.match(safeCss, /url\("\/assets\/bg\.jpg"\)/);
+
+const ssoSecret = "test-edutrack-sso-secret-with-adequate-length";
+const ssoToken = createEduTrackSsoToken(
+  {
+    id: "USER-1",
+    email: "Teacher@Example.com",
+    name: "Test Teacher",
+    role: "teacher",
+  },
+  ssoSecret,
+  "/portal/edutrack?tab=progress",
+);
+const ssoPayload = verifyEduTrackSsoToken(ssoToken, ssoSecret);
+assert.equal(ssoPayload.email, "teacher@example.com");
+assert.equal(ssoPayload.returnPath, "/portal/edutrack?tab=progress");
+assert.equal(sanitizeEduTrackReturnPath("https://evil.example/steal"), "/portal/edutrack");
+assert.equal(
+  resolveEduTrackPublicUrl({ APP_NAME: "website", NODE_ENV: "production" }),
+  "https://edutrack.loyolacollege.lk",
+);
+assert.equal(
+  resolveEduTrackPublicUrl({
+    APP_NAME: "website",
+    NODE_ENV: "production",
+    EDUTRACK_PUBLIC_URL: "https://edutrack.example.lk/",
+  }),
+  "https://edutrack.example.lk",
+);
+assert.equal(
+  resolveEduTrackPublicUrl({
+    APP_NAME: "edutrack",
+    NODE_ENV: "production",
+    EDUTRACK_PUBLIC_URL: "https://edutrack.example.lk/",
+  }),
+  "",
+);
 
 console.log("Security smoke tests passed.");
