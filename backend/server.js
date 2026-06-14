@@ -676,7 +676,7 @@ const rolePermissionsSeed = [
   [ROLES.eduzync, "edutrack", 1, 1, 1, 0],
   [ROLES.eduzync, "report_cards", 1, 1, 1, 0],
   [ROLES.teacher, "edutrack", 1, 1, 1, 0],
-  [ROLES.teacher, "elms", 1, 1, 1, 0],
+  [ROLES.teacher, "elms", 0, 0, 0, 0],
   [ROLES.teacher, "report_cards", 1, 1, 1, 0],
   [ROLES.teacher, "students", 1, 0, 0, 0],
   [ROLES.teacher, "subjects", 1, 0, 0, 0],

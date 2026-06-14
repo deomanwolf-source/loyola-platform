@@ -102,7 +102,7 @@ const EDUTRACK_ROLES: Role[] = [
   "viewadmin",
   "teacher",
 ];
-const ELMS_ROLES: Role[] = ["masteradmin", "superadmin", "teacher", "student"];
+const ELMS_ROLES: Role[] = ["masteradmin", "superadmin", "student"];
 const REPORT_CARD_ROLES: Role[] = [
   "masteradmin",
   "superadmin",
@@ -5684,7 +5684,7 @@ function CentralPortal() {
       icon: GraduationCap,
       roles: ELMS_ROLES,
       meta: "Learning workspace",
-      lockedMeta: "Students and teachers",
+      lockedMeta: "Students and top admins",
     },
     {
       title: "Report Cards",
@@ -5703,6 +5703,12 @@ function CentralPortal() {
       lockedMeta: "Only Master Admin",
     },
   ];
+  const visibleModules =
+    auth.user.role === "teacher"
+      ? modules.filter(
+          (module) => module.href === "/portal/edutrack" || module.href === REPORT_CARDS_SYSTEM_URL,
+        )
+      : modules;
 
   const logout = async () => {
     audit(`${auth.user?.role} signed out`, auth.user?.email || "");
@@ -5756,7 +5762,7 @@ function CentralPortal() {
         </div>
 
         <div className="stagger-children mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {modules.map((module) => {
+          {visibleModules.map((module) => {
             const Icon = module.icon;
             const allowed = module.roles.includes(auth.user!.role);
             return allowed ? (
