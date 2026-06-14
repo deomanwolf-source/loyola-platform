@@ -4553,9 +4553,7 @@
       }
 
       body {
-        background:
-          linear-gradient(180deg, rgba(8, 18, 32, 0.98), rgba(4, 18, 24, 0.98)),
-          #07101d;
+        background: linear-gradient(180deg, rgba(8, 18, 32, 0.98), rgba(4, 18, 24, 0.98)), #07101d;
       }
 
       body::before {
@@ -5139,24 +5137,50 @@
           <div class="page-header page-header-row">
             <div>
               <h2>Year Plan Progress</h2>
-              <p id="year-plan-subtitle">Generate units, add topics and subtopics, then tick completed work.</p>
+              <p id="year-plan-subtitle">
+                Generate units, add topics and subtopics, then tick completed work.
+              </p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap">
-              <button class="btn secondary sm" onclick="showPage('assigned-subjects'); loadYearPlanAssignments()">
-                <i data-lucide="list-checks" style="width: 14px; height: 14px"></i> My Assigned Subjects
+              <button
+                class="btn secondary sm"
+                onclick="
+                  showPage('assigned-subjects');
+                  loadYearPlanAssignments();
+                "
+              >
+                <i data-lucide="list-checks" style="width: 14px; height: 14px"></i> My Assigned
+                Subjects
               </button>
-              <button class="btn secondary sm" onclick="showPage('year-plan-reports'); loadYearPlanReports()">
+              <button
+                class="btn secondary sm"
+                onclick="
+                  showPage('year-plan-reports');
+                  loadYearPlanReports();
+                "
+              >
                 <i data-lucide="bar-chart-3" style="width: 14px; height: 14px"></i> Report
               </button>
             </div>
           </div>
           <div class="card" style="margin-bottom: 18px">
             <div class="section-title">Generate Term Units</div>
-            <p class="relief-copy">Enter the number of units for each term. Existing unit details are kept.</p>
+            <p class="relief-copy">
+              Enter the number of units for each term. Existing unit details are kept.
+            </p>
             <div class="form-grid-2">
-              <div class="field"><label>1st Term Units</label><input id="yp-term-1-count" type="number" min="0" max="50" placeholder="5" /></div>
-              <div class="field"><label>2nd Term Units</label><input id="yp-term-2-count" type="number" min="0" max="50" placeholder="4" /></div>
-              <div class="field"><label>3rd Term Units</label><input id="yp-term-3-count" type="number" min="0" max="50" placeholder="3" /></div>
+              <div class="field">
+                <label>1st Term Units</label
+                ><input id="yp-term-1-count" type="number" min="0" max="50" placeholder="5" />
+              </div>
+              <div class="field">
+                <label>2nd Term Units</label
+                ><input id="yp-term-2-count" type="number" min="0" max="50" placeholder="4" />
+              </div>
+              <div class="field">
+                <label>3rd Term Units</label
+                ><input id="yp-term-3-count" type="number" min="0" max="50" placeholder="3" />
+              </div>
             </div>
             <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap">
               <button class="btn sm" onclick="generateYearPlanUnits()">
@@ -5176,26 +5200,42 @@
               <h2>Teacher Assignments</h2>
               <p>Assign teachers to subject, grade, section, and academic year.</p>
             </div>
-          <div style="display: flex; gap: 8px; flex-wrap: wrap">
-            <button class="btn secondary sm" onclick="showPage('subjects')">
-              <i data-lucide="library" style="width: 14px; height: 14px"></i> Subject Assignments
-            </button>
-            <button class="btn secondary sm" onclick="loadTeacherAssignments()">
-              <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
-            </button>
-          </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="showPage('subjects')">
+                <i data-lucide="library" style="width: 14px; height: 14px"></i> Subject Assignments
+              </button>
+              <button class="btn secondary sm" onclick="loadTeacherAssignments()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
+              </button>
+            </div>
           </div>
           <div class="card" style="margin-bottom: 18px">
             <div class="section-title">New Assignment</div>
             <div class="form-grid-2">
-              <div class="field"><label>Teacher User ID</label><input id="ta-teacher-user-id" placeholder="Portal user ID, optional" /></div>
-              <div class="field"><label>Teacher ID</label><input id="ta-teacher-id" placeholder="LCS-0054 / T001" /></div>
-              <div class="field"><label>Teacher Name</label><input id="ta-teacher-name" placeholder="Mrs. A. Mary Disna Fonseka" /></div>
-              <div class="field"><label>Subject</label><input id="ta-subject" placeholder="Mathematics" /></div>
+              <div class="field">
+                <label>Teacher User ID</label
+                ><input id="ta-teacher-user-id" placeholder="Portal user ID, optional" />
+              </div>
+              <div class="field">
+                <label>Teacher ID</label><input id="ta-teacher-id" placeholder="LCS-0054 / T001" />
+              </div>
+              <div class="field">
+                <label>Teacher Name</label
+                ><input id="ta-teacher-name" placeholder="Mrs. A. Mary Disna Fonseka" />
+              </div>
+              <div class="field">
+                <label>Subject</label><input id="ta-subject" placeholder="Mathematics" />
+              </div>
               <div class="field"><label>Grade</label><input id="ta-grade" placeholder="10" /></div>
-              <div class="field"><label>Section</label><input id="ta-section" placeholder="A" /></div>
-              <div class="field"><label>Class Name</label><input id="ta-class-name" placeholder="Grade 10 A" /></div>
-              <div class="field"><label>Academic Year</label><input id="ta-academic-year" placeholder="2026" /></div>
+              <div class="field">
+                <label>Section</label><input id="ta-section" placeholder="A" />
+              </div>
+              <div class="field">
+                <label>Class Name</label><input id="ta-class-name" placeholder="Grade 10 A" />
+              </div>
+              <div class="field">
+                <label>Academic Year</label><input id="ta-academic-year" placeholder="2026" />
+              </div>
             </div>
             <div id="teacher-assignment-error" class="error-msg"></div>
             <div style="display: flex; justify-content: flex-end">
@@ -5233,7 +5273,10 @@
           <div class="page-header page-header-row">
             <div>
               <h2>Progress Reports</h2>
-              <p>Teacher-wise, subject-wise, grade/section-wise, term-wise, and pending topic reports.</p>
+              <p>
+                Teacher-wise, subject-wise, grade/section-wise, term-wise, and pending topic
+                reports.
+              </p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap">
               <button class="btn secondary sm" onclick="printYearPlanReport()">
@@ -5314,7 +5357,11 @@
           <div class="card" style="margin-bottom: 18px">
             <div class="quick-finder-grid">
               <input id="esa-date" class="quick-input" type="date" />
-              <select id="esa-section" class="quick-select" onchange="loadEduTrackStaffAttendance()">
+              <select
+                id="esa-section"
+                class="quick-select"
+                onchange="loadEduTrackStaffAttendance()"
+              >
                 <option>All Sections</option>
                 <option>Primary School</option>
                 <option>Middle School</option>
@@ -5324,19 +5371,28 @@
                 <option>Non-Academic Staff</option>
                 <option>Supportive Staff</option>
               </select>
-              <select id="esa-staff-type" class="quick-select" onchange="loadEduTrackStaffAttendance()">
+              <select
+                id="esa-staff-type"
+                class="quick-select"
+                onchange="loadEduTrackStaffAttendance()"
+              >
                 <option>All</option>
                 <option>Academic Staff</option>
                 <option>Non-Academic Staff</option>
                 <option>Supportive Staff</option>
               </select>
-              <input id="esa-search" class="quick-input" placeholder="Search name, staff ID, NIC, position" oninput="loadEduTrackStaffAttendanceDebounced()" />
+              <input
+                id="esa-search"
+                class="quick-input"
+                placeholder="Search name, staff ID, NIC, position"
+                oninput="loadEduTrackStaffAttendanceDebounced()"
+              />
             </div>
           </div>
           <div id="esa-summary" class="stats-grid" style="margin-bottom: 18px"></div>
           <div class="card" style="margin-bottom: 18px">
             <div class="section-title" style="margin-bottom: 12px">Status Legend</div>
-            <div id="esa-legend" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+            <div id="esa-legend" style="display: flex; gap: 8px; flex-wrap: wrap"></div>
           </div>
           <div class="card">
             <div class="section-title" style="margin-bottom: 12px">Daily Attendance Register</div>
@@ -5354,7 +5410,9 @@
                   </tr>
                 </thead>
                 <tbody id="esa-tbody">
-                  <tr><td colspan="7">Load staff to begin marking attendance.</td></tr>
+                  <tr>
+                    <td colspan="7">Load staff to begin marking attendance.</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -5383,15 +5441,34 @@
           <div class="card" style="margin-bottom: 18px">
             <div class="section-title" id="daily-progress-form-title">Add Daily Record</div>
             <div class="form-grid-2" id="daily-admin-fields" style="display: none">
-              <div class="field"><label>Teacher ID</label><input id="daily-teacher-id" placeholder="Auto-saved for teachers" /></div>
-              <div class="field"><label>Teacher Name</label><input id="daily-teacher-name" placeholder="Auto-saved for teachers" /></div>
+              <div class="field">
+                <label>Teacher ID</label
+                ><input id="daily-teacher-id" placeholder="Auto-saved for teachers" />
+              </div>
+              <div class="field">
+                <label>Teacher Name</label
+                ><input id="daily-teacher-name" placeholder="Auto-saved for teachers" />
+              </div>
             </div>
             <div class="form-grid-2">
               <div class="field"><label>Date</label><input id="daily-date" type="date" /></div>
-              <div class="field"><label>Class / Section</label><select id="daily-section-select" style="display: none"></select><input id="daily-section" placeholder="A / GRADE-10-A" /></div>
-              <div class="field"><label>Subject</label><select id="daily-subject-select" style="display: none"></select><input id="daily-subject" placeholder="Mathematics" /></div>
-              <div class="field"><label>Period / Time Slot</label><input id="daily-period" placeholder="Period 3 / 10:30" /></div>
-              <div class="field"><label>Unit No.</label><input id="daily-unit" placeholder="Unit 01" /></div>
+              <div class="field">
+                <label>Class / Section</label
+                ><select id="daily-section-select" style="display: none"></select
+                ><input id="daily-section" placeholder="A / GRADE-10-A" />
+              </div>
+              <div class="field">
+                <label>Subject</label
+                ><select id="daily-subject-select" style="display: none"></select
+                ><input id="daily-subject" placeholder="Mathematics" />
+              </div>
+              <div class="field">
+                <label>Period / Time Slot</label
+                ><input id="daily-period" placeholder="Period 3 / 10:30" />
+              </div>
+              <div class="field">
+                <label>Unit No.</label><input id="daily-unit" placeholder="Unit 01" />
+              </div>
               <div class="field">
                 <label>Status</label>
                 <select id="daily-completion-status">
@@ -5403,7 +5480,10 @@
             </div>
             <div class="field">
               <label>Topic Done Today</label>
-              <textarea id="daily-completed-work" placeholder="Example: Algebra - Linear equations / Exercise 2.1"></textarea>
+              <textarea
+                id="daily-completed-work"
+                placeholder="Example: Algebra - Linear equations / Exercise 2.1"
+              ></textarea>
             </div>
             <div class="field" id="daily-note-wrap" style="display: none">
               <label>Note</label>
@@ -5416,21 +5496,62 @@
               <button class="btn secondary sm" onclick="submitDailyProgress(true)">
                 Save & Add Another
               </button>
-              <button class="btn sm" onclick="submitDailyProgress(true)" style="font-size: 14px; padding: 0 18px">
+              <button
+                class="btn sm"
+                onclick="submitDailyProgress(true)"
+                style="font-size: 14px; padding: 0 18px"
+              >
                 <i data-lucide="save" style="width: 14px; height: 14px"></i> Save Daily Record
               </button>
             </div>
           </div>
           <div class="card">
-            <div class="section-title" style="margin-bottom: 12px" id="daily-records-title">My Recent Records</div>
+            <div class="section-title" style="margin-bottom: 12px" id="daily-records-title">
+              My Recent Records
+            </div>
             <div class="quick-finder-grid" style="margin-bottom: 12px">
-              <input id="daily-filter-search" class="quick-input" placeholder="Search records" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-from" class="quick-input" type="date" onchange="loadDailyProgress()" />
-              <input id="daily-filter-to" class="quick-input" type="date" onchange="loadDailyProgress()" />
-              <input id="daily-filter-teacher-id" class="quick-input" placeholder="Teacher ID" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-teacher-name" class="quick-input" placeholder="Teacher name" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-subject" class="quick-input" placeholder="Subject" oninput="loadDailyProgressDebounced()" />
-              <input id="daily-filter-section" class="quick-input" placeholder="Class / Section" oninput="loadDailyProgressDebounced()" />
+              <input
+                id="daily-filter-search"
+                class="quick-input"
+                placeholder="Search records"
+                oninput="loadDailyProgressDebounced()"
+              />
+              <input
+                id="daily-filter-from"
+                class="quick-input"
+                type="date"
+                onchange="loadDailyProgress()"
+              />
+              <input
+                id="daily-filter-to"
+                class="quick-input"
+                type="date"
+                onchange="loadDailyProgress()"
+              />
+              <input
+                id="daily-filter-teacher-id"
+                class="quick-input"
+                placeholder="Teacher ID"
+                oninput="loadDailyProgressDebounced()"
+              />
+              <input
+                id="daily-filter-teacher-name"
+                class="quick-input"
+                placeholder="Teacher name"
+                oninput="loadDailyProgressDebounced()"
+              />
+              <input
+                id="daily-filter-subject"
+                class="quick-input"
+                placeholder="Subject"
+                oninput="loadDailyProgressDebounced()"
+              />
+              <input
+                id="daily-filter-section"
+                class="quick-input"
+                placeholder="Class / Section"
+                oninput="loadDailyProgressDebounced()"
+              />
               <select id="daily-filter-status" class="quick-select" onchange="loadDailyProgress()">
                 <option value="">All statuses</option>
                 <option>Completed</option>
@@ -5535,7 +5656,10 @@
           <div class="page-header">
             <div>
               <h2>Relief Assignments</h2>
-              <p>Upload relief PDFs, record the relieving teacher, and control the official one-time download lock.</p>
+              <p>
+                Upload relief PDFs, record the relieving teacher, and control the official one-time
+                download lock.
+              </p>
             </div>
             <button class="btn secondary sm" onclick="loadReliefAssignments()">
               <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
@@ -5575,7 +5699,10 @@
               </div>
               <div class="field">
                 <label>Notes</label>
-                <textarea id="relief-note" placeholder="Instructions for the relieving teacher or students"></textarea>
+                <textarea
+                  id="relief-note"
+                  placeholder="Instructions for the relieving teacher or students"
+                ></textarea>
               </div>
               <div class="field">
                 <label>PDF File</label>
@@ -5590,7 +5717,8 @@
             <div class="card relief-admin-card">
               <div class="section-title">Official Download Control</div>
               <p class="relief-copy">
-                Admin download uses the lock system: one official download, then locked unless a master admin unlocks it.
+                Admin download uses the lock system: one official download, then locked unless a
+                master admin unlocks it.
               </p>
               <div id="relief-summary" class="relief-summary"></div>
             </div>
@@ -5957,7 +6085,9 @@
           <div class="page-header page-header-row">
             <div>
               <h2>Subject Assignments</h2>
-              <p>Assign subjects to teachers and classes. Teachers enter daily progress separately.</p>
+              <p>
+                Assign subjects to teachers and classes. Teachers enter daily progress separately.
+              </p>
             </div>
             <button class="btn sm" onclick="openAddSubjectModal()">+ Add Subject</button>
           </div>
@@ -6051,7 +6181,11 @@
         <button class="mnav-item active" data-page="dashboard" onclick="showPage('dashboard')">
           <i data-lucide="layout-grid"></i><span>Dashboard</span>
         </button>
-        <button class="mnav-item" data-page="assigned-subjects" onclick="showPage('assigned-subjects')">
+        <button
+          class="mnav-item"
+          data-page="assigned-subjects"
+          onclick="showPage('assigned-subjects')"
+        >
           <i data-lucide="book-open-check"></i><span>Subjects</span>
         </button>
         <button class="mnav-item" data-page="year-plan" onclick="showPage('year-plan')">
@@ -8492,7 +8626,9 @@
       function yearPlanDate(value) {
         if (!value) return "-";
         const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? String(value).slice(0, 10) : date.toLocaleDateString();
+        return Number.isNaN(date.getTime())
+          ? String(value).slice(0, 10)
+          : date.toLocaleDateString();
       }
       function yearPlanUnitLabel(topic, fallbackNumber) {
         const explicit = topic?.unitNumber || topic?.unit || topic?.unitNo || topic?.unit_no;
@@ -8528,7 +8664,7 @@
           if (subtopics.length) {
             subtopics.forEach((subtopic, subIndex) => {
               rows +=
-                "<tr><td><span class=\"year-plan-unit\">" +
+                '<tr><td><span class="year-plan-unit">' +
                 unit +
                 '</span></td><td><div class="year-plan-topic">' +
                 topicName +
@@ -8542,7 +8678,7 @@
             });
           } else {
             rows +=
-              "<tr><td><span class=\"year-plan-unit\">" +
+              '<tr><td><span class="year-plan-unit">' +
               unit +
               '</span></td><td><div class="year-plan-topic">' +
               escapeHtml(formatMainTopicLabel(mainNumber, topic.name)) +
@@ -8559,7 +8695,11 @@
           '</div><div class="year-plan-meta">' +
           escapeHtml(subjectScopeLabel(subject)) +
           '</div></div><span class="term-badge">' +
-          escapeHtml((subject.topics || []).length + " unit" + ((subject.topics || []).length === 1 ? "" : "s")) +
+          escapeHtml(
+            (subject.topics || []).length +
+              " unit" +
+              ((subject.topics || []).length === 1 ? "" : "s"),
+          ) +
           '</span></div><div class="year-plan-form"><input id="yp-unit-' +
           domId +
           '" class="year-plan-input" placeholder="Unit no." /><input id="yp-topic-' +
@@ -9305,9 +9445,7 @@
         const keys = new Set();
         (allTeachers || [])
           .filter((teacher) => !/inactive|disabled/i.test(String(teacher.status || "")))
-          .forEach((teacher) =>
-            teacherAccountLookupKeys(teacher).forEach((key) => keys.add(key)),
-          );
+          .forEach((teacher) => teacherAccountLookupKeys(teacher).forEach((key) => keys.add(key)));
         return keys;
       }
       function attendanceRowLookupKeys(row) {
@@ -9345,7 +9483,9 @@
               sensitivity: "base",
             });
             if (idCompare) return idCompare;
-            return (a.staff_name || a.full_name || "").localeCompare(b.staff_name || b.full_name || "");
+            return (a.staff_name || a.full_name || "").localeCompare(
+              b.staff_name || b.full_name || "",
+            );
           });
       }
       function normalizeSubject(subject) {
@@ -10030,20 +10170,24 @@
           showToast("You cannot delete your own admin account.", "err");
           return;
         }
-        await deleteDoc(doc(db, "users", id));
-        for (const s of allSubjects.filter((s) => s.teacherId === id)) {
-          await updateDoc(doc(db, "subjects", s.id), { teacherId: "" });
-          s.teacherId = "";
+        try {
+          await deleteDoc(doc(db, "users", id));
+          for (const s of allSubjects.filter((s) => s.teacherId === id)) {
+            await updateDoc(doc(db, "subjects", s.id), { teacherId: "" });
+            s.teacherId = "";
+          }
+          allUsers = allUsers.filter((user) => user.id !== id);
+          allTeachers = allTeachers.filter((t) => t.id !== id);
+          renderUserAccounts();
+          renderTeachers();
+          renderSubjects();
+          renderDashboard();
+          renderProgress();
+          populateTeacherSelect();
+          showToast("Teacher removed.", "");
+        } catch (error) {
+          showToast(error.message || "Teacher could not be removed.", "err");
         }
-        allUsers = allUsers.filter((user) => user.id !== id);
-        allTeachers = allTeachers.filter((t) => t.id !== id);
-        renderUserAccounts();
-        renderTeachers();
-        renderSubjects();
-        renderDashboard();
-        renderProgress();
-        populateTeacherSelect();
-        showToast("Teacher removed.", "");
       };
       window.openTeacherProfile = function (id) {
         const teacher = allTeachers.find((t) => t.id === id);
@@ -11016,20 +11160,24 @@
           return;
         }
         if (!confirm("Delete " + name + " account?")) return;
-        await deleteDoc(doc(db, "users", id));
-        for (const subject of allSubjects.filter((item) => item.teacherId === id)) {
-          await updateDoc(doc(db, "subjects", subject.id), { teacherId: "" });
-          subject.teacherId = "";
+        try {
+          await deleteDoc(doc(db, "users", id));
+          for (const subject of allSubjects.filter((item) => item.teacherId === id)) {
+            await updateDoc(doc(db, "subjects", subject.id), { teacherId: "" });
+            subject.teacherId = "";
+          }
+          allUsers = allUsers.filter((user) => user.id !== id);
+          allTeachers = allTeachers.filter((teacher) => teacher.id !== id);
+          renderUserAccounts();
+          renderTeachers();
+          renderSubjects();
+          renderDashboard();
+          renderProgress();
+          populateTeacherSelect();
+          showToast("Account deleted.", "success");
+        } catch (error) {
+          showToast(error.message || "Account could not be deleted.", "err");
         }
-        allUsers = allUsers.filter((user) => user.id !== id);
-        allTeachers = allTeachers.filter((teacher) => teacher.id !== id);
-        renderUserAccounts();
-        renderTeachers();
-        renderSubjects();
-        renderDashboard();
-        renderProgress();
-        populateTeacherSelect();
-        showToast("Account deleted.", "success");
       };
 
       function topicProgressStats(topic) {
@@ -11838,7 +11986,8 @@
         if (name === "teacher-assignments" && cud && cud.role === "admin") loadTeacherAssignments();
         if (name === "year-plans" && cud && cud.role === "admin") loadYearPlans();
         if (name === "year-plan-reports") loadYearPlanReports();
-        if (name === "staff-attendance" && cud && cud.role === "admin") loadEduTrackStaffAttendance();
+        if (name === "staff-attendance" && cud && cud.role === "admin")
+          loadEduTrackStaffAttendance();
         if (name === "relief") loadReliefAssignments();
         if (name === "daily-progress") loadDailyProgress();
         closeSidebar();
@@ -11864,7 +12013,9 @@
               document.querySelector(".page.active")?.id || "page-dashboard"
             ).replace("page-", "");
             const pageKey =
-              activePage === "dashboard" || activePage === "assigned-subjects" || activePage === "year-plan"
+              activePage === "dashboard" ||
+              activePage === "assigned-subjects" ||
+              activePage === "year-plan"
                 ? activePage
                 : "dashboard";
             mobileNav
@@ -13376,7 +13527,9 @@
         if (!cud) return [];
         const teacherMode = cud.role === "teacher";
         const source = teacherMode
-          ? allSubjects.filter((subject) => String(subject.teacherId || "") === String(cud.id || ""))
+          ? allSubjects.filter(
+              (subject) => String(subject.teacherId || "") === String(cud.id || ""),
+            )
           : allSubjects;
         return uniqueDailyOptions(source.map((subject) => subject.name || subject.subject));
       }
@@ -13385,7 +13538,9 @@
         if (!cud) return [];
         const teacherMode = cud.role === "teacher";
         const source = teacherMode
-          ? allSubjects.filter((subject) => String(subject.teacherId || "") === String(cud.id || ""))
+          ? allSubjects.filter(
+              (subject) => String(subject.teacherId || "") === String(cud.id || ""),
+            )
           : allSubjects;
         const subjectClasses = source.flatMap((subject) =>
           Array.isArray(subject.classIds)
@@ -13418,7 +13573,12 @@
             '<option value="">' +
             placeholder +
             "</option>" +
-            choices.map((item) => '<option value="' + escapeHtml(item) + '">' + escapeHtml(item) + "</option>").join("");
+            choices
+              .map(
+                (item) =>
+                  '<option value="' + escapeHtml(item) + '">' + escapeHtml(item) + "</option>",
+              )
+              .join("");
           if (current && choices.includes(current)) select.value = current;
           input.value = select.value || current || "";
           select.style.display = "";
@@ -13443,8 +13603,18 @@
           const el = dailyField(id);
           if (el) el.style.display = isAdmin ? "" : "none";
         });
-        setupDailySelect("daily-section-select", "daily-section", assignedDailyClasses(), "Select class / section");
-        setupDailySelect("daily-subject-select", "daily-subject", assignedDailySubjects(), "Select subject");
+        setupDailySelect(
+          "daily-section-select",
+          "daily-section",
+          assignedDailyClasses(),
+          "Select class / section",
+        );
+        setupDailySelect(
+          "daily-subject-select",
+          "daily-subject",
+          assignedDailySubjects(),
+          "Select subject",
+        );
       }
 
       function setupDailyProgressFormDefaults() {
@@ -13538,7 +13708,15 @@
             : text === "Partially Completed"
               ? "var(--warn)"
               : "#f87171";
-        return '<span class="badge" style="border-color:' + color + ';color:' + color + '">' + escapeHtml(text) + "</span>";
+        return (
+          '<span class="badge" style="border-color:' +
+          color +
+          ";color:" +
+          color +
+          '">' +
+          escapeHtml(text) +
+          "</span>"
+        );
       }
 
       function renderDailyProgressTable() {
@@ -13569,7 +13747,7 @@
               escapeHtml(String(record.record_date || "").slice(0, 10)) +
               "</td><td><strong>" +
               escapeHtml(record.teacher_name || "-") +
-              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
+              '</strong><br><span style="color:var(--muted);font-size:12px">' +
               escapeHtml(record.teacher_id || "-") +
               "</span></td><td>" +
               escapeHtml(record.section || "-") +
@@ -13620,11 +13798,7 @@
 
       window.resetDailyProgressForm = function () {
         editingDailyProgressId = null;
-        [
-          "daily-unit",
-          "daily-completed-work",
-          "daily-notes",
-        ].forEach((id) => {
+        ["daily-unit", "daily-completed-work", "daily-notes"].forEach((id) => {
           const el = dailyField(id);
           if (el) el.value = "";
         });
@@ -13761,7 +13935,7 @@
             escapeHtml(cud?.name || "-") +
             "<br>Generated at " +
             escapeHtml(new Date().toLocaleString()) +
-            '</p><table><thead><tr><th>Date</th><th>Teacher</th><th>Class</th><th>Subject</th><th>Unit No.</th><th>Topic Done Today</th><th>Status</th></tr></thead><tbody>' +
+            "</p><table><thead><tr><th>Date</th><th>Teacher</th><th>Class</th><th>Subject</th><th>Unit No.</th><th>Topic Done Today</th><th>Status</th></tr></thead><tbody>" +
             (rows || '<tr><td colspan="7">No records</td></tr>') +
             '</tbody></table><div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div></body></html>',
         );
@@ -13816,9 +13990,12 @@
               escapeHtml(item.academic_year || "-") +
               " | Teacher: " +
               escapeHtml(item.teacher_name || "-") +
-              "</div></div><div style=\"text-align:right\">" +
-              yearPlanBadge(hasPlan ? item.year_plan_status || "Draft" : "Not Created", hasPlan ? "good" : "warn") +
-              '<div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;margin-top:6px;color:var(--accent-bright)">' +
+              '</div></div><div style="text-align:right">' +
+              yearPlanBadge(
+                hasPlan ? item.year_plan_status || "Draft" : "Not Created",
+                hasPlan ? "good" : "warn",
+              ) +
+              "<div style=\"font-size:28px;font-weight:800;font-family:'DM Mono',monospace;margin-top:6px;color:var(--accent-bright)\">" +
               progress +
               '%</div></div></div><div class="pbar-wrap" style="height:9px;margin:14px 0"><div class="pbar" style="width:' +
               progress +
@@ -13840,7 +14017,11 @@
           yearPlanAssignments = await apiFetch("/api/edutrack/my-assignments");
           renderAssignedSubjects();
         } catch (error) {
-          if (box) box.innerHTML = '<div class="empty">Could not load assignments: ' + escapeHtml(error.message) + "</div>";
+          if (box)
+            box.innerHTML =
+              '<div class="empty">Could not load assignments: ' +
+              escapeHtml(error.message) +
+              "</div>";
           showToast(error.message, "err");
         }
       };
@@ -13875,14 +14056,17 @@
           return;
         }
         try {
-          const data = await apiFetch("/api/edutrack/year-plans/" + currentYearPlan.id + "/generate-units", {
-            method: "POST",
-            body: JSON.stringify({
-              term1_units: document.getElementById("yp-term-1-count")?.value || 0,
-              term2_units: document.getElementById("yp-term-2-count")?.value || 0,
-              term3_units: document.getElementById("yp-term-3-count")?.value || 0,
-            }),
-          });
+          const data = await apiFetch(
+            "/api/edutrack/year-plans/" + currentYearPlan.id + "/generate-units",
+            {
+              method: "POST",
+              body: JSON.stringify({
+                term1_units: document.getElementById("yp-term-1-count")?.value || 0,
+                term2_units: document.getElementById("yp-term-2-count")?.value || 0,
+                term3_units: document.getElementById("yp-term-3-count")?.value || 0,
+              }),
+            },
+          );
           currentYearPlan = data.plan;
           renderYearPlanEditor();
           showToast("Units generated.", "success");
@@ -13925,7 +14109,8 @@
           "/" +
           (summary.total_subtopics || 0) +
           '</div></div><div class="stat-card"><div class="stat-label">Progress</div><div class="stat-val">' +
-          (summary.completion_percentage || Math.round(Number(currentYearPlan.progress_percentage || 0))) +
+          (summary.completion_percentage ||
+            Math.round(Number(currentYearPlan.progress_percentage || 0))) +
           "%</div></div></div>";
         const termsHtml = (currentYearPlan.terms || [])
           .map(
@@ -13941,7 +14126,8 @@
               "</div></div>",
           )
           .join("");
-        box.innerHTML = summaryHtml + (termsHtml || '<div class="empty">Generate units to start.</div>');
+        box.innerHTML =
+          summaryHtml + (termsHtml || '<div class="empty">Generate units to start.</div>');
         setTimeout(() => lucide.createIcons(), 0);
       }
 
@@ -13991,14 +14177,16 @@
         return (
           '<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid rgba(148,163,184,.25);border-radius:10px;background:var(--card)"><input type="checkbox" ' +
           (checked ? "checked" : "") +
-          " onchange=\"toggleYearPlanSubtopic(" +
+          ' onchange="toggleYearPlanSubtopic(' +
           Number(subtopic.id) +
           ', this.checked)\"><span style="flex:1"><strong style="' +
           (checked ? "text-decoration:line-through;color:var(--muted)" : "") +
           '">' +
           escapeHtml(subtopic.subtopic_title || "") +
           '</strong><small style="display:block;color:var(--muted)">' +
-          (checked ? "Completed " + escapeHtml(String(subtopic.completed_at || "").slice(0, 10)) : "Pending") +
+          (checked
+            ? "Completed " + escapeHtml(String(subtopic.completed_at || "").slice(0, 10))
+            : "Pending") +
           "</small></span></label>"
         );
       }
@@ -14031,10 +14219,13 @@
             body: JSON.stringify({ main_topic: topic }),
           });
           if (subtopics.trim()) {
-            const data = await apiFetch("/api/edutrack/year-plan-topics/" + created.id + "/subtopics", {
-              method: "POST",
-              body: JSON.stringify({ subtopics }),
-            });
+            const data = await apiFetch(
+              "/api/edutrack/year-plan-topics/" + created.id + "/subtopics",
+              {
+                method: "POST",
+                body: JSON.stringify({ subtopics }),
+              },
+            );
             currentYearPlan = data.plan;
           } else {
             currentYearPlan = created.plan;
@@ -14048,13 +14239,19 @@
 
       window.toggleYearPlanSubtopic = async function (subtopicId, checked) {
         try {
-          const data = await apiFetch("/api/edutrack/year-plan-subtopics/" + subtopicId + "/toggle-complete", {
-            method: "POST",
-            body: JSON.stringify({ is_completed: checked }),
-          });
+          const data = await apiFetch(
+            "/api/edutrack/year-plan-subtopics/" + subtopicId + "/toggle-complete",
+            {
+              method: "POST",
+              body: JSON.stringify({ is_completed: checked }),
+            },
+          );
           currentYearPlan = data.plan;
           renderYearPlanEditor();
-          showToast(checked ? "Subtopic completed." : "Subtopic reopened.", checked ? "success" : "");
+          showToast(
+            checked ? "Subtopic completed." : "Subtopic reopened.",
+            checked ? "success" : "",
+          );
         } catch (error) {
           showToast(error.message, "err");
           renderYearPlanEditor();
@@ -14068,7 +14265,11 @@
           teacherAssignments = await apiFetch("/api/edutrack/teacher-assignments");
           renderTeacherAssignments();
         } catch (error) {
-          if (box) box.innerHTML = '<div class="empty">Could not load assignments: ' + escapeHtml(error.message) + "</div>";
+          if (box)
+            box.innerHTML =
+              '<div class="empty">Could not load assignments: ' +
+              escapeHtml(error.message) +
+              "</div>";
         }
       };
 
@@ -14094,9 +14295,9 @@
               escapeHtml(item.academic_year || "-") +
               " | Plan: " +
               escapeHtml(item.year_plan_status || "Not Created") +
-              "</div></div><div class=\"relief-card-actions\"><button class=\"btn sm\" onclick=\"createOrOpenYearPlan(" +
+              '</div></div><div class="relief-card-actions"><button class="btn sm" onclick="createOrOpenYearPlan(' +
               Number(item.id) +
-              ")\">Create / View Plan</button></div></div>",
+              ')">Create / View Plan</button></div></div>',
           )
           .join("");
       }
@@ -14112,7 +14313,8 @@
           grade: document.getElementById("ta-grade")?.value.trim() || "",
           section: document.getElementById("ta-section")?.value.trim() || "",
           class_name: document.getElementById("ta-class-name")?.value.trim() || "",
-          academic_year: document.getElementById("ta-academic-year")?.value.trim() || new Date().getFullYear(),
+          academic_year:
+            document.getElementById("ta-academic-year")?.value.trim() || new Date().getFullYear(),
         };
         if (!payload.teacher_name || !payload.subject_name || !payload.grade) {
           if (errorBox) errorBox.textContent = "Teacher name, subject and grade are required.";
@@ -14123,12 +14325,18 @@
             method: "POST",
             body: JSON.stringify(payload),
           });
-          ["ta-teacher-user-id", "ta-teacher-id", "ta-teacher-name", "ta-subject", "ta-grade", "ta-section", "ta-class-name"].forEach(
-            (id) => {
-              const el = document.getElementById(id);
-              if (el) el.value = "";
-            },
-          );
+          [
+            "ta-teacher-user-id",
+            "ta-teacher-id",
+            "ta-teacher-name",
+            "ta-subject",
+            "ta-grade",
+            "ta-section",
+            "ta-class-name",
+          ].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+          });
           showToast("Teacher assignment saved.", "success");
           await loadTeacherAssignments();
         } catch (error) {
@@ -14144,7 +14352,11 @@
           yearPlans = await apiFetch("/api/edutrack/year-plans");
           renderYearPlans();
         } catch (error) {
-          if (box) box.innerHTML = '<div class="empty">Could not load year plans: ' + escapeHtml(error.message) + "</div>";
+          if (box)
+            box.innerHTML =
+              '<div class="empty">Could not load year plans: ' +
+              escapeHtml(error.message) +
+              "</div>";
         }
       };
 
@@ -14202,10 +14414,16 @@
         const tbody = document.getElementById("year-plan-report-tbody");
         if (tbody) tbody.innerHTML = '<tr><td colspan="10">Loading report...</td></tr>';
         try {
-          yearPlanReport = await apiFetch("/api/edutrack/year-plan-reports" + yearPlanReportQuery());
+          yearPlanReport = await apiFetch(
+            "/api/edutrack/year-plan-reports" + yearPlanReportQuery(),
+          );
           renderYearPlanReport();
         } catch (error) {
-          if (tbody) tbody.innerHTML = '<tr><td colspan="10">Could not load report: ' + escapeHtml(error.message) + "</td></tr>";
+          if (tbody)
+            tbody.innerHTML =
+              '<tr><td colspan="10">Could not load report: ' +
+              escapeHtml(error.message) +
+              "</td></tr>";
         }
       };
 
@@ -14238,7 +14456,7 @@
             (row) =>
               "<tr><td><strong>" +
               escapeHtml(row.teacher_name || "-") +
-              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
+              '</strong><br><span style="color:var(--muted);font-size:12px">' +
               escapeHtml(row.teacher_id || "-") +
               "</span></td><td>" +
               escapeHtml(yearPlanClassLabel(row) || "-") +
@@ -14248,14 +14466,16 @@
               escapeHtml(row.term_name || "-") +
               "</td><td>" +
               escapeHtml(row.unit_number || "-") +
-              "<br><span style=\"color:var(--muted);font-size:12px\">" +
+              '<br><span style="color:var(--muted);font-size:12px">' +
               escapeHtml(row.unit_title || "") +
               "</span></td><td>" +
               escapeHtml(row.main_topic || "-") +
               "</td><td>" +
               escapeHtml(row.subtopic_title || "-") +
               "</td><td>" +
-              (Number(row.is_completed || 0) === 1 ? yearPlanBadge("Completed", "good") : yearPlanBadge("Pending", "warn")) +
+              (Number(row.is_completed || 0) === 1
+                ? yearPlanBadge("Completed", "good")
+                : yearPlanBadge("Pending", "warn")) +
               "</td><td>" +
               escapeHtml(row.completed_at ? String(row.completed_at).slice(0, 10) : "-") +
               "</td><td>" +
@@ -14327,7 +14547,7 @@
             (summary.totalSubtopics || 0) +
             " | Completion: " +
             (summary.completionPercentage || 0) +
-            '%</div><table><thead><tr><th>Term</th><th>Unit No.</th><th>Unit Title</th><th>Main Topic</th><th>Subtopic</th><th>Status</th><th>Completed Date</th><th>Note</th></tr></thead><tbody>' +
+            "%</div><table><thead><tr><th>Term</th><th>Unit No.</th><th>Unit Title</th><th>Main Topic</th><th>Subtopic</th><th>Status</th><th>Completed Date</th><th>Note</th></tr></thead><tbody>" +
             (rows || '<tr><td colspan="8">No records</td></tr>') +
             '</tbody></table><div class="sig"><div>Prepared by:</div><div>Checked by:</div><div>Approved by:</div></div></body></html>',
         );
@@ -14357,7 +14577,11 @@
       }
 
       function eduTrackAttendanceIsPresent(status) {
-        return String(status || "Present").trim().toLowerCase() === "present";
+        return (
+          String(status || "Present")
+            .trim()
+            .toLowerCase() === "present"
+        );
       }
 
       function eduTrackAttendanceStatusClass(status) {
@@ -14405,7 +14629,8 @@
         const box = document.getElementById("esa-summary");
         if (!box) return;
         const count = (status) =>
-          eduTrackStaffAttendance.filter((row) => eduTrackAttendanceDisplayStatus(row) === status).length;
+          eduTrackStaffAttendance.filter((row) => eduTrackAttendanceDisplayStatus(row) === status)
+            .length;
         const leaveTotal =
           count("Duty Leave") +
           count("Maternity Leave") +
@@ -14475,7 +14700,7 @@
               escapeHtml(displayStaffId) +
               "</strong></td><td><strong>" +
               escapeHtml(row.staff_name || row.full_name || "-") +
-              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
+              '</strong><br><span style="color:var(--muted);font-size:12px">' +
               escapeHtml(row.staff_type || "-") +
               "</span></td><td>" +
               escapeHtml(row.section || "-") +
@@ -14483,13 +14708,13 @@
               escapeHtml(row.position || "-") +
               '</td><td><div style="display:flex;gap:5px;flex-wrap:wrap;min-width:390px">' +
               buttons +
-              "</div><div style=\"margin-top:6px\">" +
+              '</div><div style="margin-top:6px">' +
               eduTrackAttendanceStatusBadge(activeStatus) +
               '</div></td><td><input class="quick-input" style="min-width:180px" value="' +
               escapeHtml(row.note || row.reason || "") +
               '" oninput="setEduTrackStaffAttendanceNote(\'' +
               String(staffId).replace(/'/g, "\\'") +
-              "', this.value)\" placeholder=\"Optional\"></td><td>" +
+              '\', this.value)" placeholder="Optional"></td><td>' +
               escapeHtml(row.last_updated ? new Date(row.last_updated).toLocaleString() : "-") +
               "</td></tr>"
             );
@@ -14534,14 +14759,15 @@
 
       window.setEduTrackStaffAttendanceNote = function (staffId, note) {
         eduTrackStaffAttendance = eduTrackStaffAttendance.map((row) =>
-          String(row.staff_profile_id || row.staff_id) === String(staffId)
-            ? { ...row, note }
-            : row,
+          String(row.staff_profile_id || row.staff_id) === String(staffId) ? { ...row, note } : row,
         );
       };
 
       window.markEduTrackAllPresent = function () {
-        eduTrackStaffAttendance = eduTrackStaffAttendance.map((row) => ({ ...row, status: "Present" }));
+        eduTrackStaffAttendance = eduTrackStaffAttendance.map((row) => ({
+          ...row,
+          status: "Present",
+        }));
         renderEduTrackStaffAttendance();
         showToast("All loaded staff marked Present. Click Save Attendance to store it.", "success");
       };
@@ -14833,7 +15059,9 @@
         if (!box) return;
         const total = reliefAssignments.length;
         const locked = reliefAssignments.filter((item) => item.isLocked).length;
-        const downloaded = reliefAssignments.filter((item) => Number(item.download_count || 0) > 0).length;
+        const downloaded = reliefAssignments.filter(
+          (item) => Number(item.download_count || 0) > 0,
+        ).length;
         box.innerHTML =
           '<div class="relief-summary-tile"><small>Total Assignments</small><strong>' +
           total +
@@ -14921,7 +15149,11 @@
               ' <span class="relief-lock ' +
               (locked ? "locked" : "") +
               '">' +
-              (item.status === "delete_requested" ? "DELETE REQUESTED" : locked ? "LOCKED" : "PENDING DOWNLOAD") +
+              (item.status === "delete_requested"
+                ? "DELETE REQUESTED"
+                : locked
+                  ? "LOCKED"
+                  : "PENDING DOWNLOAD") +
               '</span></div><div class="relief-card-row-meta">Date: ' +
               escapeHtml(reliefDate(item.assignment_date)) +
               " | Grade: " +
@@ -14931,7 +15163,9 @@
               " | Subject: " +
               escapeHtml(item.subject_name || "-") +
               "<br>Uploaded by " +
-              escapeHtml(item.uploaded_teacher_name || item.uploaded_by_name || item.teacher_name || "-") +
+              escapeHtml(
+                item.uploaded_teacher_name || item.uploaded_by_name || item.teacher_name || "-",
+              ) +
               (item.uploaded_teacher_id ? " (" + escapeHtml(item.uploaded_teacher_id) + ")" : "") +
               " | PDF: " +
               escapeHtml(item.original_file_name || "-") +
@@ -14944,7 +15178,9 @@
                   escapeHtml(item.relief_teacher_name) +
                   (item.relief_teacher_id ? " (" + escapeHtml(item.relief_teacher_id) + ")" : "")
                 : "") +
-              (item.downloaded_at ? " | Downloaded: " + escapeHtml(reliefDate(item.downloaded_at)) : "") +
+              (item.downloaded_at
+                ? " | Downloaded: " + escapeHtml(reliefDate(item.downloaded_at))
+                : "") +
               (item.last_unlock_reason
                 ? "<br>Last unlock reason: " + escapeHtml(item.last_unlock_reason)
                 : "") +
@@ -14961,7 +15197,9 @@
       }
 
       window.setReliefSearch = function (value) {
-        reliefSearchQuery = String(value || "").trim().toLowerCase();
+        reliefSearchQuery = String(value || "")
+          .trim()
+          .toLowerCase();
         renderReliefAssignments();
       };
 
@@ -14995,8 +15233,15 @@
           period_label: document.getElementById("relief-period")?.value.trim(),
           note: document.getElementById("relief-note")?.value.trim(),
         };
-        if (!fields.title || !fields.assignment_date || !fields.grade || !fields.section || !fields.subject_name) {
-          if (errorBox) errorBox.textContent = "Title, date, grade, section and subject are required.";
+        if (
+          !fields.title ||
+          !fields.assignment_date ||
+          !fields.grade ||
+          !fields.section ||
+          !fields.subject_name
+        ) {
+          if (errorBox)
+            errorBox.textContent = "Title, date, grade, section and subject are required.";
           return;
         }
         if (!file) {
@@ -15010,12 +15255,17 @@
             method: "POST",
             body: payload,
           });
-          ["relief-title", "relief-grade", "relief-section", "relief-subject", "relief-period", "relief-note"].forEach(
-            (id) => {
-              const el = document.getElementById(id);
-              if (el) el.value = "";
-            },
-          );
+          [
+            "relief-title",
+            "relief-grade",
+            "relief-section",
+            "relief-subject",
+            "relief-period",
+            "relief-note",
+          ].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+          });
           if (fileInput) fileInput.value = "";
           showToast("Relief assignment uploaded", "success");
           await loadReliefAssignments();
@@ -15039,7 +15289,8 @@
         }
         const suggestions = reliefTeacherOptions().slice(0, 8).join("\n");
         const reliefTeacherId = prompt(
-          "Enter relief teacher ID or staff ID" + (suggestions ? "\n\nKnown teachers:\n" + suggestions : ""),
+          "Enter relief teacher ID or staff ID" +
+            (suggestions ? "\n\nKnown teachers:\n" + suggestions : ""),
         );
         if (!reliefTeacherId) return;
         let reliefTeacher = null;

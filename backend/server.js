@@ -2758,10 +2758,9 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}) {
   );
   let storageTeacherId = linkedTeacherRows[0]?.id || teacherId;
   if (!linkedTeacherRows.length) {
-    const [idOwners] = await runner.query(
-      "SELECT id FROM teachers WHERE id = ? LIMIT 1",
-      [teacherId],
-    );
+    const [idOwners] = await runner.query("SELECT id FROM teachers WHERE id = ? LIMIT 1", [
+      teacherId,
+    ]);
     if (idOwners.length) {
       storageTeacherId = `SYNC-${crypto
         .createHash("sha256")
@@ -6570,13 +6569,11 @@ app.post("/api/edutrack/year-plans", teacherOrAdmin, async (req, res) => {
       actor,
     );
     await conn.commit();
-    res
-      .status(201)
-      .json({
-        success: true,
-        id: result.insertId,
-        plan: await readYearPlanDetail(result.insertId),
-      });
+    res.status(201).json({
+      success: true,
+      id: result.insertId,
+      plan: await readYearPlanDetail(result.insertId),
+    });
   } catch (error) {
     await conn.rollback();
     res.status(error.status || 500).json({ error: error.message });
@@ -8403,7 +8400,299 @@ async function listEduTrackDocs(collectionName) {
   return rows.map((row) => ({ id: row.doc_id, data: parseJsonField(row.data, {}) }));
 }
 
+const EDUTRACK_LEGACY_TEACHER_CLEANUP_KEY = "edutrack_legacy_teacher_cleanup_v1";
+let eduTrackLegacyTeacherCleanupPromise = null;
+
+function eduTrackTeacherIdentityValues(row = {}) {
+  return [row.id, row.staff_id, row.external_staff_id, row.account_user_id, row.user_id]
+    .map((value) => String(value || "").trim())
+    .filter(Boolean);
+}
+
+async function unassignEduTrackTeacherReferences(connection, identityValues, idColumn) {
+  const values = [...new Set(identityValues)].filter(Boolean);
+  if (!values.length) return { subjects: 0, classes: 0, documentSubjects: 0 };
+
+  const placeholders = values.map(() => "?").join(", ");
+  const [subjectsResult] = await connection.query(
+    `UPDATE subjects SET teacher_id = '' WHERE teacher_id IN (${placeholders})`,
+    values,
+  );
+  const [classesResult] = await connection.query(
+    `UPDATE classes SET class_teacher_id = '' WHERE class_teacher_id IN (${placeholders})`,
+    values,
+  );
+
+  const [subjectDocuments] = await connection.query(
+    `SELECT ${idColumn} AS doc_id, data
+     FROM edutrack_documents
+     WHERE collection_name = 'subjects'`,
+  );
+  const identitySet = new Set(values);
+  let documentSubjects = 0;
+  for (const document of subjectDocuments) {
+    const data = parseJsonField(document.data, {});
+    const assignedTeacherId = String(data.teacherId || data.teacher_id || "").trim();
+    if (!identitySet.has(assignedTeacherId)) continue;
+
+    data.teacherId = "";
+    if (Object.prototype.hasOwnProperty.call(data, "teacher_id")) data.teacher_id = "";
+    await connection.query(
+      `UPDATE edutrack_documents
+       SET data = ?
+       WHERE collection_name = 'subjects' AND ${idColumn} = ?`,
+      [JSON.stringify(data), document.doc_id],
+    );
+    documentSubjects += 1;
+  }
+
+  return {
+    subjects: Number(subjectsResult.affectedRows || 0),
+    classes: Number(classesResult.affectedRows || 0),
+    documentSubjects,
+  };
+}
+
+async function cleanupLegacyEduTrackTeachers() {
+  if (process.env.APP_NAME !== "edutrack") return { skipped: true, reason: "not-edutrack" };
+
+  await ensureContentTables();
+  await ensureMaintenanceSettingsTable();
+  const idColumn = await getEduTrackDocumentIdColumn();
+  const teacherColumns = new Set((await tableColumns("teachers")).map((column) => column.Field));
+  const hasLegacyUserId = teacherColumns.has("user_id");
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    const [markers] = await connection.query(
+      "SELECT setting_value FROM system_settings WHERE setting_key = ? LIMIT 1 FOR UPDATE",
+      [EDUTRACK_LEGACY_TEACHER_CLEANUP_KEY],
+    );
+    if (markers.length) {
+      await connection.commit();
+      return { skipped: true, reason: "already-completed" };
+    }
+
+    const [teacherRows] = await connection.query(
+      `
+        SELECT id, staff_id, external_staff_id, account_user_id
+          ${hasLegacyUserId ? ", user_id" : ""}
+        FROM teachers
+      `,
+    );
+    const [teacherUsers] = await connection.query(
+      "SELECT id, external_staff_id, role FROM users WHERE role = 'teacher'",
+    );
+    const teacherUserById = new Map(teacherUsers.map((user) => [String(user.id || ""), user]));
+
+    const protectedTeacherRows = teacherRows.filter((teacher) => {
+      const accountUserId = String(teacher.account_user_id || "").trim();
+      const staffId = firstEduTrackValue(teacher.staff_id, teacher.external_staff_id, teacher.id);
+      const account = teacherUserById.get(accountUserId);
+      return Boolean(
+        accountUserId &&
+        staffId &&
+        account &&
+        String(account.external_staff_id || "").trim() === staffId &&
+        (!hasLegacyUserId || !String(teacher.user_id || "").trim()),
+      );
+    });
+    const protectedTeacherRowIds = new Set(
+      protectedTeacherRows.map((teacher) => String(teacher.id)),
+    );
+    const protectedUserIds = new Set(
+      protectedTeacherRows.map((teacher) => String(teacher.account_user_id)),
+    );
+    const protectedIdentityValues = new Set(
+      protectedTeacherRows.flatMap((teacher) => eduTrackTeacherIdentityValues(teacher)),
+    );
+    const staleTeacherRows = teacherRows.filter(
+      (teacher) => !protectedTeacherRowIds.has(String(teacher.id)),
+    );
+    const staleTeacherUsers = teacherUsers.filter((user) => !protectedUserIds.has(String(user.id)));
+    const staleUserIds = staleTeacherUsers.map((user) => String(user.id));
+    const staleReferenceValues = [
+      ...staleTeacherRows.flatMap((teacher) => eduTrackTeacherIdentityValues(teacher)),
+      ...staleTeacherUsers.flatMap((user) => [
+        String(user.id || "").trim(),
+        String(user.external_staff_id || "").trim(),
+      ]),
+    ].filter((value) => value && !protectedIdentityValues.has(value));
+
+    const unassigned = await unassignEduTrackTeacherReferences(
+      connection,
+      staleReferenceValues,
+      idColumn,
+    );
+
+    if (staleTeacherRows.length) {
+      const ids = staleTeacherRows.map((teacher) => String(teacher.id));
+      await connection.query(
+        `DELETE FROM teachers WHERE id IN (${ids.map(() => "?").join(", ")})`,
+        ids,
+      );
+    }
+
+    if (staleUserIds.length) {
+      const placeholders = staleUserIds.map(() => "?").join(", ");
+      await connection.query(
+        `DELETE FROM edutrack_documents
+         WHERE collection_name = 'users' AND ${idColumn} IN (${placeholders})`,
+        staleUserIds,
+      );
+      await connection.query(
+        `DELETE FROM password_reset_tokens WHERE user_id IN (${placeholders})`,
+        staleUserIds,
+      );
+      await connection.query(
+        `DELETE FROM users WHERE role = 'teacher' AND id IN (${placeholders})`,
+        staleUserIds,
+      );
+    }
+
+    const summary = {
+      removedTeacherRows: staleTeacherRows.length,
+      removedTeacherUsers: staleUserIds.length,
+      unassigned,
+      completedAt: new Date().toISOString(),
+    };
+    await connection.query(
+      `
+        INSERT INTO system_settings (setting_key, setting_value)
+        VALUES (?, ?)
+        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)
+      `,
+      [EDUTRACK_LEGACY_TEACHER_CLEANUP_KEY, JSON.stringify(summary)],
+    );
+    await connection.commit();
+    return { skipped: false, ...summary };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+function ensureLegacyEduTrackTeacherCleanup() {
+  if (process.env.APP_NAME !== "edutrack") {
+    return Promise.resolve({ skipped: true, reason: "not-edutrack" });
+  }
+  if (!eduTrackLegacyTeacherCleanupPromise) {
+    eduTrackLegacyTeacherCleanupPromise = cleanupLegacyEduTrackTeachers().catch((error) => {
+      eduTrackLegacyTeacherCleanupPromise = null;
+      throw error;
+    });
+  }
+  return eduTrackLegacyTeacherCleanupPromise;
+}
+
+async function deleteEduTrackTeacherAccount(userId, actorUserId) {
+  if (process.env.APP_NAME !== "edutrack") {
+    const error = new Error("Teacher deletion is only available in the EduTrack application");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  await ensureContentTables();
+  const idColumn = await getEduTrackDocumentIdColumn();
+  const teacherColumns = new Set((await tableColumns("teachers")).map((column) => column.Field));
+  const hasLegacyUserId = teacherColumns.has("user_id");
+  const connection = await db.getConnection();
+
+  try {
+    await connection.beginTransaction();
+    const [[user]] = await connection.query(
+      `
+        SELECT id, external_staff_id, role
+        FROM users
+        WHERE id = ?
+        LIMIT 1
+        FOR UPDATE
+      `,
+      [userId],
+    );
+
+    if (!user) {
+      await connection.query(
+        `DELETE FROM edutrack_documents
+         WHERE collection_name = 'users' AND ${idColumn} = ?`,
+        [userId],
+      );
+      await connection.commit();
+      return { deleted: false };
+    }
+    if (user.role !== ROLES.teacher) {
+      const error = new Error("Only teacher accounts can be deleted from this screen");
+      error.statusCode = 403;
+      throw error;
+    }
+    if (String(actorUserId || "") === String(user.id)) {
+      const error = new Error("You cannot delete your own account");
+      error.statusCode = 400;
+      throw error;
+    }
+
+    const [teacherRows] = await connection.query(
+      `
+        SELECT id, staff_id, external_staff_id, account_user_id
+          ${hasLegacyUserId ? ", user_id" : ""}
+        FROM teachers
+      `,
+    );
+    const externalStaffId = String(user.external_staff_id || "").trim();
+    const linkedRows = teacherRows.filter((teacher) => {
+      const accountUserId = String(teacher.account_user_id || "").trim();
+      const legacyUserId = hasLegacyUserId ? String(teacher.user_id || "").trim() : "";
+      if (accountUserId === userId || legacyUserId === userId) return true;
+      if (!externalStaffId || accountUserId || legacyUserId) return false;
+      return eduTrackTeacherIdentityValues(teacher).includes(externalStaffId);
+    });
+    const identityValues = [
+      userId,
+      externalStaffId,
+      ...linkedRows.flatMap((teacher) => eduTrackTeacherIdentityValues(teacher)),
+    ];
+    const unassigned = await unassignEduTrackTeacherReferences(
+      connection,
+      identityValues,
+      idColumn,
+    );
+
+    if (linkedRows.length) {
+      const ids = linkedRows.map((teacher) => String(teacher.id));
+      await connection.query(
+        `DELETE FROM teachers WHERE id IN (${ids.map(() => "?").join(", ")})`,
+        ids,
+      );
+    }
+    await connection.query(
+      `DELETE FROM edutrack_documents
+       WHERE collection_name = 'users' AND ${idColumn} = ?`,
+      [userId],
+    );
+    await connection.query("DELETE FROM password_reset_tokens WHERE user_id = ?", [userId]);
+    const [deleteResult] = await connection.query(
+      "DELETE FROM users WHERE id = ? AND role = 'teacher'",
+      [userId],
+    );
+    await connection.commit();
+    return {
+      deleted: Number(deleteResult.affectedRows || 0) > 0,
+      removedTeacherRows: linkedRows.length,
+      unassigned,
+    };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function platformUsersForEduTrack() {
+  await ensureLegacyEduTrackTeacherCleanup();
   const [users] = await db.query(
     `
       SELECT DISTINCT
@@ -8561,6 +8850,10 @@ app.delete("/api/edutrack/compat/:collection/:id", eduzyncAdminOnly, async (req,
   try {
     await ensureContentTables();
     const collectionName = safePathSegment(req.params.collection).replace(/\//g, "-");
+    if (collectionName === "users") {
+      const result = await deleteEduTrackTeacherAccount(String(req.params.id), req.user?.id);
+      return res.json({ success: true, ...result });
+    }
     const idColumn = await getEduTrackDocumentIdColumn();
     await db.query(`DELETE FROM edutrack_documents WHERE collection_name = ? AND ${idColumn} = ?`, [
       collectionName,
@@ -8568,7 +8861,7 @@ app.delete("/api/edutrack/compat/:collection/:id", eduzyncAdminOnly, async (req,
     ]);
     res.json({ success: true });
   } catch (error) {
-    res.status(500).json({ error: error.message });
+    res.status(error.statusCode || 500).json({ error: error.message });
   }
 });
 
@@ -9501,6 +9794,20 @@ app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
   res.status(500).json({ error: error.message || "Server error" });
 });
+
+if (process.env.APP_NAME === "edutrack") {
+  ensureLegacyEduTrackTeacherCleanup()
+    .then((result) => {
+      if (!result.skipped) {
+        console.log(
+          `EduTrack legacy teacher cleanup removed ${result.removedTeacherUsers} users and ${result.removedTeacherRows} teacher rows.`,
+        );
+      }
+    })
+    .catch((error) => {
+      console.error("EduTrack legacy teacher cleanup failed:", error.message);
+    });
+}
 
 app.listen(process.env.PORT || 5000, () => {
   console.log(`Backend running on http://localhost:${process.env.PORT || 5000}`);
