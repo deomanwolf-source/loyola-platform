@@ -455,6 +455,18 @@
         background: linear-gradient(135deg, #ef4444, #dc2626);
         box-shadow: 0 6px 18px rgba(239, 68, 68, 0.3);
       }
+      .btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.5;
+        transform: none;
+        box-shadow: none;
+      }
+      .teacher-select-checkbox {
+        width: 17px;
+        height: 17px;
+        accent-color: var(--accent);
+        cursor: pointer;
+      }
 
       /* ── SIDEBAR ── */
       .sidebar {
@@ -5772,6 +5784,15 @@
               <p>Manage teacher accounts</p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button
+                class="btn danger sm"
+                id="delete-selected-teachers-btn"
+                onclick="deleteSelectedTeachers()"
+                disabled
+              >
+                <i data-lucide="trash-2" style="width: 14px; height: 14px"></i>
+                Delete selected (0)
+              </button>
               <button class="btn secondary sm" onclick="exportTeachersExcel()">
                 <i data-lucide="download" style="width: 14px; height: 14px"></i> Export Excel
               </button>
@@ -5817,6 +5838,16 @@
             <table>
               <thead>
                 <tr>
+                  <th style="width: 42px">
+                    <input
+                      class="teacher-select-checkbox"
+                      id="teachers-select-all"
+                      type="checkbox"
+                      aria-label="Select all shown teachers"
+                      title="Select all shown teachers"
+                      onchange="toggleSelectAllTeachers(this.checked)"
+                    />
+                  </th>
                   <th>Name</th>
                   <th>Email</th>
                   <th>Teacher ID</th>
@@ -7037,6 +7068,8 @@
         mySyllabusClassFilter = "";
       let subjectsSearchQuery = "";
       let teachersSearchQuery = "";
+      const selectedTeacherIds = new Set();
+      let teacherBulkDeleteInProgress = false;
       let builderTopics = [];
       window.builderTopics = builderTopics;
       function setBuilderTopics(next) {
@@ -10178,6 +10211,7 @@
           }
           allUsers = allUsers.filter((user) => user.id !== id);
           allTeachers = allTeachers.filter((t) => t.id !== id);
+          selectedTeacherIds.delete(String(id));
           renderUserAccounts();
           renderTeachers();
           renderSubjects();
@@ -10896,6 +10930,10 @@
         const tb = document.getElementById("teachers-tbody");
         const resultMeta = document.getElementById("teachers-result-meta");
         const sortedTeachers = [...allTeachers].sort(compareTeachersByLcs);
+        const currentTeacherIds = new Set(sortedTeachers.map((teacher) => String(teacher.id)));
+        selectedTeacherIds.forEach((id) => {
+          if (!currentTeacherIds.has(id)) selectedTeacherIds.delete(id);
+        });
         const teachers = teachersSearchQuery
           ? sortedTeachers.filter((teacher) =>
               teacherSearchText(teacher).includes(teachersSearchQuery),
@@ -10911,9 +10949,10 @@
         }
         if (!teachers.length) {
           tb.innerHTML =
-            '<tr><td colspan="8" style="text-align:center;padding:30px;color:var(--muted);">' +
+            '<tr><td colspan="9" style="text-align:center;padding:30px;color:var(--muted);">' +
             (teachersSearchQuery ? "No teachers matched this search." : "No teachers yet") +
             "</td></tr>";
+          updateTeacherBulkSelectionControls(teachers);
           if (window.lucide && typeof window.lucide.createIcons === "function")
             setTimeout(() => window.lucide.createIcons(), 0);
           return;
@@ -10924,8 +10963,18 @@
             const levelText = teacherLevelLabel(t);
             const levelColor = teacherAccentColor(t);
             const sc = allSubjects.filter((s) => s.teacherId === t.id).length;
+            const selectionCell =
+              '<td><input class="teacher-select-checkbox" type="checkbox" aria-label="Select ' +
+              escapeHtml(t.name || "teacher") +
+              '" ' +
+              (selectedTeacherIds.has(String(t.id)) ? "checked " : "") +
+              "onchange=\"toggleTeacherSelection('" +
+              escapeInlineJsString(t.id) +
+              "', this.checked)\" /></td>";
             return (
-              '<tr><td><div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openTeacherProfile(\'' +
+              "<tr>" +
+              selectionCell +
+              '<td><div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="openTeacherProfile(\'' +
               escapeInlineJsString(t.id) +
               '\')" title="View profile"><div class="avatar" style="background:' +
               levelColor +
@@ -10961,8 +11010,135 @@
             );
           })
           .join("");
+        updateTeacherBulkSelectionControls(teachers);
         if (window.lucide && typeof window.lucide.createIcons === "function")
           setTimeout(() => window.lucide.createIcons(), 0);
+      };
+
+      function visibleTeacherRows() {
+        const sortedTeachers = [...allTeachers].sort(compareTeachersByLcs);
+        return teachersSearchQuery
+          ? sortedTeachers.filter((teacher) =>
+              teacherSearchText(teacher).includes(teachersSearchQuery),
+            )
+          : sortedTeachers;
+      }
+
+      function updateTeacherBulkSelectionControls(visibleTeachers = visibleTeacherRows()) {
+        const visibleIds = visibleTeachers.map((teacher) => String(teacher.id));
+        const selectedVisibleCount = visibleIds.filter((id) => selectedTeacherIds.has(id)).length;
+        const selectAll = document.getElementById("teachers-select-all");
+        if (selectAll) {
+          selectAll.checked = visibleIds.length > 0 && selectedVisibleCount === visibleIds.length;
+          selectAll.indeterminate =
+            selectedVisibleCount > 0 && selectedVisibleCount < visibleIds.length;
+          selectAll.disabled = teacherBulkDeleteInProgress || visibleIds.length === 0;
+        }
+
+        const deleteButton = document.getElementById("delete-selected-teachers-btn");
+        if (deleteButton) {
+          deleteButton.disabled = teacherBulkDeleteInProgress || selectedTeacherIds.size === 0;
+          if (!teacherBulkDeleteInProgress) {
+            deleteButton.innerHTML =
+              '<i data-lucide="trash-2" style="width:14px;height:14px"></i> Delete selected (' +
+              selectedTeacherIds.size +
+              ")";
+          }
+        }
+      }
+
+      window.toggleTeacherSelection = function (teacherId, checked) {
+        const id = String(teacherId || "");
+        if (checked) selectedTeacherIds.add(id);
+        else selectedTeacherIds.delete(id);
+        updateTeacherBulkSelectionControls();
+        if (window.lucide && typeof window.lucide.createIcons === "function")
+          window.lucide.createIcons();
+      };
+
+      window.toggleSelectAllTeachers = function (checked) {
+        visibleTeacherRows().forEach((teacher) => {
+          const id = String(teacher.id);
+          if (checked) selectedTeacherIds.add(id);
+          else selectedTeacherIds.delete(id);
+        });
+        renderTeachers();
+      };
+
+      window.deleteSelectedTeachers = async function () {
+        if (teacherBulkDeleteInProgress) return;
+        const selectedTeachers = allTeachers.filter((teacher) =>
+          selectedTeacherIds.has(String(teacher.id)),
+        );
+        if (!selectedTeachers.length) {
+          showToast("Select at least one teacher.", "err");
+          return;
+        }
+
+        const count = selectedTeachers.length;
+        const confirmed = confirm(
+          "Delete " +
+            count +
+            " selected teacher" +
+            (count === 1 ? "" : "s") +
+            " from EduTrack?\n\nTheir EduTrack subject and class assignments will be unassigned. Staff Management profiles and other systems will not be deleted.",
+        );
+        if (!confirmed) return;
+
+        teacherBulkDeleteInProgress = true;
+        updateTeacherBulkSelectionControls();
+        const deleteButton = document.getElementById("delete-selected-teachers-btn");
+        let deletedCount = 0;
+        const failures = [];
+
+        for (let index = 0; index < selectedTeachers.length; index += 1) {
+          const teacher = selectedTeachers[index];
+          if (deleteButton) {
+            deleteButton.innerHTML =
+              '<span class="spinner"></span> Deleting ' + (index + 1) + " / " + count;
+          }
+          try {
+            await deleteDoc(doc(db, "users", teacher.id));
+            const deletedTeacherKeys = new Set(teacherAccountLookupKeys(teacher));
+            allUsers = allUsers.filter((user) => String(user.id) !== String(teacher.id));
+            allTeachers = allTeachers.filter((item) => String(item.id) !== String(teacher.id));
+            allSubjects.forEach((subject) => {
+              const subjectTeacherKeys = lookupKeyVariants(subject.teacherId);
+              if (subjectTeacherKeys.some((key) => deletedTeacherKeys.has(key))) {
+                subject.teacherId = "";
+              }
+            });
+            selectedTeacherIds.delete(String(teacher.id));
+            deletedCount += 1;
+          } catch (error) {
+            failures.push({ teacher, error });
+          }
+        }
+
+        teacherBulkDeleteInProgress = false;
+        renderUserAccounts();
+        renderTeachers();
+        renderSubjects();
+        renderDashboard();
+        renderProgress();
+        populateTeacherSelect();
+
+        if (failures.length) {
+          showToast(
+            deletedCount +
+              " teacher" +
+              (deletedCount === 1 ? "" : "s") +
+              " deleted; " +
+              failures.length +
+              " could not be deleted.",
+            "err",
+          );
+          return;
+        }
+        showToast(
+          deletedCount + " teacher" + (deletedCount === 1 ? "" : "s") + " deleted.",
+          "success",
+        );
       };
 
       window.exportTeachersExcel = function () {
