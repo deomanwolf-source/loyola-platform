@@ -5668,7 +5668,7 @@
           <div class="page-header">
             <div>
               <h2>Relief Assignments</h2>
-              <p>
+              <p id="relief-page-copy">
                 Upload relief PDFs, record the relieving teacher, and control the official one-time
                 download lock.
               </p>
@@ -5677,7 +5677,7 @@
               <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
             </button>
           </div>
-          <div class="relief-grid">
+          <div class="relief-grid" id="relief-grid">
             <div class="card relief-upload-card">
               <div class="section-title">Upload Relief Assignment</div>
               <p class="relief-copy">
@@ -5726,7 +5726,7 @@
                 <i data-lucide="upload" style="width: 14px; height: 14px"></i> Upload Relief PDF
               </button>
             </div>
-            <div class="card relief-admin-card">
+            <div class="card relief-admin-card" id="relief-admin-card">
               <div class="section-title">Official Download Control</div>
               <p class="relief-copy">
                 Admin download uses the lock system: one official download, then locked unless a
@@ -5736,7 +5736,9 @@
             </div>
           </div>
           <div class="card" style="margin-top: 18px">
-            <div class="section-title" style="margin-bottom: 12px">Relief Assignments</div>
+            <div class="section-title" id="relief-history-title" style="margin-bottom: 12px">
+              Relief Assignments
+            </div>
             <input
               id="relief-search"
               class="quick-input"
@@ -7371,6 +7373,7 @@
         document.getElementById("dash-subtitle").textContent = isAdmin
           ? "School-wide coverage overview"
           : "Hello, " + cud.name + "! Here's your progress.";
+        configureReliefPageForRole();
         loadData();
       }
 
@@ -15180,6 +15183,31 @@
         );
       }
 
+      function configureReliefPageForRole() {
+        const teacherMode = !!(cud && cud.role === "teacher");
+        const pageCopy = document.getElementById("relief-page-copy");
+        const grid = document.getElementById("relief-grid");
+        const adminCard = document.getElementById("relief-admin-card");
+        const historyTitle = document.getElementById("relief-history-title");
+        const search = document.getElementById("relief-search");
+
+        if (pageCopy) {
+          pageCopy.textContent = teacherMode
+            ? "Upload relief PDF assignments and review only your own upload history."
+            : "Upload relief PDFs, record the relieving teacher, and control the official one-time download lock.";
+        }
+        if (grid) grid.style.gridTemplateColumns = teacherMode ? "minmax(0, 1fr)" : "";
+        if (adminCard) adminCard.style.display = teacherMode ? "none" : "";
+        if (historyTitle) {
+          historyTitle.textContent = teacherMode ? "My Upload History" : "Relief Assignments";
+        }
+        if (search) {
+          search.placeholder = teacherMode
+            ? "Search my uploads by title, subject, grade, section, or date"
+            : "Search by teacher, teacher ID, subject, grade, section, or date";
+        }
+      }
+
       async function reliefFetch(path, options = {}) {
         const res = await fetch(`${API_BASE}${path}`, {
           ...options,
@@ -15233,6 +15261,10 @@
       function renderReliefSummary() {
         const box = document.getElementById("relief-summary");
         if (!box) return;
+        if (!isReliefAdmin()) {
+          box.innerHTML = "";
+          return;
+        }
         const total = reliefAssignments.length;
         const locked = reliefAssignments.filter((item) => item.isLocked).length;
         const downloaded = reliefAssignments.filter(
@@ -15256,12 +15288,16 @@
           ? reliefAssignments.filter((item) =>
               [
                 item.title,
-                item.teacher_id,
-                item.teacher_name,
-                item.uploaded_teacher_id,
-                item.uploaded_teacher_name,
-                item.relief_teacher_id,
-                item.relief_teacher_name,
+                ...(isReliefAdmin()
+                  ? [
+                      item.teacher_id,
+                      item.teacher_name,
+                      item.uploaded_teacher_id,
+                      item.uploaded_teacher_name,
+                      item.relief_teacher_id,
+                      item.relief_teacher_name,
+                    ]
+                  : []),
                 item.subject_name,
                 item.grade,
                 item.section,
@@ -15273,11 +15309,38 @@
             )
           : reliefAssignments;
         if (!visibleAssignments.length) {
-          list.innerHTML = '<div class="empty">No relief assignments uploaded yet.</div>';
+          list.innerHTML =
+            '<div class="empty">' +
+            (isReliefAdmin()
+              ? "No relief assignments uploaded yet."
+              : "You have not uploaded any relief assignments yet.") +
+            "</div>";
           return;
         }
         list.innerHTML = visibleAssignments
           .map((item) => {
+            if (!isReliefAdmin()) {
+              return (
+                '<div class="relief-card-row"><div><div class="relief-card-row-title">' +
+                escapeHtml(item.title || "Relief Assignment") +
+                ' <span class="relief-lock">UPLOADED</span></div><div class="relief-card-row-meta">Date: ' +
+                escapeHtml(reliefDate(item.assignment_date)) +
+                " | Grade: " +
+                escapeHtml(item.grade || "-") +
+                " | Section: " +
+                escapeHtml(item.section || "-") +
+                " | Subject: " +
+                escapeHtml(item.subject_name || "-") +
+                (item.period_label ? " | Period: " + escapeHtml(item.period_label) : "") +
+                "<br>PDF: " +
+                escapeHtml(item.original_file_name || "-") +
+                (item.uploaded_at
+                  ? " | Uploaded: " + escapeHtml(reliefDate(item.uploaded_at))
+                  : "") +
+                (item.note ? "<br>Note: " + escapeHtml(item.note) : "") +
+                "</div></div></div>"
+              );
+            }
             const locked = item.isDownloadLocked || item.isLocked;
             const downloadCount = Number(item.download_count || 0);
             const allowedDownloads = 1 + Number(item.allowed_extra_downloads || 0);

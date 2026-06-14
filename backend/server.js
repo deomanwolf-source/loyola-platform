@@ -7632,10 +7632,10 @@ app.get("/api/edutrack/relief-assignments", teacherOrAdmin, async (req, res) => 
           `
             SELECT *
             FROM edutrack_relief_assignments
-            WHERE status <> 'deleted' AND (uploaded_by_user_id = ? OR teacher_id = ? OR uploaded_teacher_id = ?)
+            WHERE status <> 'deleted' AND uploaded_by_user_id = ?
             ORDER BY created_at DESC
           `,
-          [actor.id, actor.teacherId, actor.teacherId],
+          [actor.id],
         );
     res.json(rows.map(normalizeReliefAssignment));
   } catch (error) {
@@ -7739,11 +7739,7 @@ app.get("/api/edutrack/relief-assignments/:id", teacherOrAdmin, async (req, res)
     );
     const assignment = rows[0];
     if (!assignment) return res.status(404).json({ error: "Assignment not found" });
-    const canRead =
-      isEduTrackAdminUser(req) ||
-      assignment.uploaded_by_user_id === actor.id ||
-      assignment.teacher_id === actor.teacherId ||
-      assignment.uploaded_teacher_id === actor.teacherId;
+    const canRead = isEduTrackAdminUser(req) || assignment.uploaded_by_user_id === actor.id;
     if (!canRead) return res.status(403).json({ error: "Access denied" });
     res.json(normalizeReliefAssignment(assignment));
   } catch (error) {
