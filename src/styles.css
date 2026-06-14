@@ -1912,12 +1912,6 @@
 img {
   transition: opacity 300ms ease;
 }
-img[loading="lazy"] {
-  opacity: 0;
-}
-img[loading="lazy"].loaded {
-  opacity: 1;
-}
 
 /* Progress bar animation */
 @keyframes progressFill {
