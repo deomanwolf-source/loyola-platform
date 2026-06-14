@@ -5,11 +5,24 @@ CREATE TABLE IF NOT EXISTS users (
   id VARCHAR(64) PRIMARY KEY,
   name VARCHAR(190) NOT NULL,
   email VARCHAR(190) NOT NULL UNIQUE,
+  recovery_email VARCHAR(190) NULL,
   role VARCHAR(60) NOT NULL DEFAULT 'student',
   status VARCHAR(30) NOT NULL DEFAULT 'Active',
   password_hash VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id VARCHAR(64) NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_password_reset_token_hash (token_hash),
+  KEY idx_password_reset_user_id (user_id),
+  KEY idx_password_reset_expires_at (expires_at)
 );
 
 CREATE TABLE IF NOT EXISTS role_permissions (

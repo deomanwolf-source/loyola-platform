@@ -8755,7 +8755,7 @@ app.post(
     const accountEmail = normalizeEmail(req.body?.email);
 
     try {
-      await ensureAccessTables();
+      await ensureContentTables();
       await db.query(
         "DELETE FROM password_reset_tokens WHERE used_at IS NOT NULL OR expires_at <= UTC_TIMESTAMP()",
       );
@@ -8763,9 +8763,23 @@ app.post(
       if (isValidEmail(accountEmail)) {
         const [[user]] = await db.query(
           `
-            SELECT id, name, email, recovery_email, role, status
-            FROM users
-            WHERE email = ?
+            SELECT
+              u.id,
+              u.name,
+              u.email,
+              COALESCE(
+                NULLIF(u.recovery_email, ''),
+                NULLIF(t.email, '')
+              ) AS recovery_email,
+              u.role,
+              u.status
+            FROM users u
+            LEFT JOIN teachers t
+              ON t.account_user_id = u.id OR t.account_email = u.email
+            WHERE u.email = ?
+            ORDER BY
+              CASE WHEN u.recovery_email IS NOT NULL AND u.recovery_email <> '' THEN 0 ELSE 1 END,
+              CASE WHEN t.email IS NOT NULL AND t.email <> '' THEN 0 ELSE 1 END
             LIMIT 1
           `,
           [accountEmail],
