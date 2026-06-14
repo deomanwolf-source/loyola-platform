@@ -1246,14 +1246,17 @@ function normalizeImageFields(db: DB): DB {
         })),
       visible: item.visible ?? true,
     })),
-    teachers: db.teachers.map((teacher) => ({
+    teachers: (db.teachers || []).map((teacher) => ({
       ...teacher,
       image: normalizeImageUrl(teacher.image),
     })),
-    homeLeadershipCards: db.homeLeadershipCards.map((card) => ({
-      ...card,
-      image: normalizeImageUrl(card.image),
-    })),
+    homeSections: {
+      ...db.homeSections,
+      leadershipCards: (db.homeSections?.leadershipCards || []).map((card) => ({
+        ...card,
+        image: normalizeImageUrl(card.image),
+      })),
+    },
   };
 }
 
