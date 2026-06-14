@@ -8461,6 +8461,7 @@ async function unassignEduTrackTeacherReferences(connection, identityValues, idC
 
 async function cleanupLegacyEduTrackTeachers() {
   if (process.env.APP_NAME !== "edutrack") return { skipped: true, reason: "not-edutrack" };
+  return { skipped: true, reason: "destructive-cleanup-disabled" };
 
   await ensureContentTables();
   await ensureMaintenanceSettingsTable();
