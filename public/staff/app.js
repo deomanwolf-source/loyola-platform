@@ -57,6 +57,7 @@
     "Maintenance Department",
     "Health Services",
     "Library",
+    "Counselling",
     "Supportive Staff",
   ];
   const defaultPositionTitles = [
@@ -116,6 +117,7 @@
     "Special Need Resource Unit",
     "Visiting Teachers",
     "Counsellor",
+    "Counselling Department",
     "Administrative Department",
     "Academic Office",
     "Financial Department",
@@ -2482,7 +2484,10 @@
     if (isReadOnly()) return readOnlyNotice();
     if (!id || !confirm("Delete this staff profile and disable linked account?")) return;
     try {
-      await api(`/api/staff/${encodeURIComponent(id)}`, { method: "DELETE" });
+      await api(`/api/staff/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        body: JSON.stringify({ confirm: true }),
+      });
       await loadCore();
       await setView("profiles");
       setNotice("Staff profile deleted.", "success");

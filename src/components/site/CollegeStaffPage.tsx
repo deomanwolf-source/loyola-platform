@@ -119,7 +119,11 @@ function staffDirectoryProfiles(teachers: Teacher[]) {
   const profiles = new Map<string, StaffProfile>();
 
   teachers
-    .filter((staff) => staff.status === "Active" && Boolean(staff.name?.trim()))
+    .filter(
+      (staff) =>
+        String(staff.status || "Active").toLowerCase() === "active" &&
+        Boolean(staff.name?.trim()),
+    )
     .forEach((staff) => {
       const key = profileKey(staff);
       const existing = profiles.get(key);
@@ -215,10 +219,12 @@ function StaffPhoto({ profile, size = "large" }: { profile: StaffProfile; size?:
 
 const GROUP_SECTION_TITLES: Record<string, string> = {
   "academic-1st": "College Administration",
-  "academic-2nd": "Vice Principals",
-  "academic-coordinators": "Academic Coordinators",
+  "vice-principals": "Vice Principals",
+  "academic-coordinators": "Academic Co-ordinators",
+  "assistant-sectional-heads": "Assistant Sectional Heads",
+  "subject-heads": "Subject Heads",
   "grade-heads": "Grade Heads",
-  "stream-heads": "Advanced Level Stream Heads",
+  "stream-heads": "A/L Stream Heads",
   "subject-coordinators-primary": "Subject Co-ordinators - Primary School",
   "subject-coordinators-middle": "Subject Co-ordinators - Middle School",
   "subject-coordinators-upper": "Subject Co-ordinators - Upper School",
@@ -229,7 +235,14 @@ const GROUP_SECTION_TITLES: Record<string, string> = {
   "class-teachers-middle": "Class Teachers - Middle School",
   "class-teachers-upper": "Class Teachers - Upper School",
   "class-teachers-al": "Class Teachers - Advanced Level Section",
-  "subject-teachers": "Subject Teachers",
+  "subject-teachers-primary": "Subject Teachers - Primary School",
+  "subject-teachers-middle": "Subject Teachers - Middle School",
+  "subject-teachers-upper": "Subject Teachers - Upper School",
+  "subject-teachers-al": "Subject Teachers - Advanced Level",
+  "special-needs": "Special Need Resource Unit",
+  "visiting-teachers": "Visiting Teachers",
+  "counselling-members": "Counselling Members",
+  "subject-teachers-other": "Other Subject Teachers",
   "non-academic-administrative": "Administrative Department",
   "non-academic-academic-office": "Academic Office",
   "non-academic-financial": "Financial Department",
@@ -305,7 +318,7 @@ function GroupBlock({
         {assignments.map((assignment) => (
           <article
             key={assignment.key}
-            className="flex min-h-[280px] flex-col items-center justify-between rounded-lg border border-slate-200 bg-white px-6 py-6 text-center shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
+            className="flex min-h-[340px] flex-col items-center justify-between rounded-lg border border-slate-200 bg-white px-6 py-6 text-center shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
           >
             <div className="flex flex-col items-center">
               <StaffPhoto profile={assignment.profile} size="small" />
@@ -315,10 +328,35 @@ function GroupBlock({
               <p className="mt-2 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
                 {assignment.position.display_title}
               </p>
+              {positionMeta(assignment.position) && (
+                <p className="mt-2 max-w-[230px] text-xs font-semibold leading-5 text-slate-500">
+                  {positionMeta(assignment.position)}
+                </p>
+              )}
               {assignment.profile.qualifications && (
                 <p className="mt-3 line-clamp-3 max-w-[230px] text-xs font-semibold leading-5 text-slate-500">
                   {assignment.profile.qualifications}
                 </p>
+              )}
+              {(assignment.profile.email || assignment.profile.phone) && (
+                <div className="mt-3 flex flex-wrap justify-center gap-3 text-xs font-semibold text-slate-600">
+                  {assignment.profile.email && (
+                    <a
+                      href={`mailto:${assignment.profile.email}`}
+                      className="inline-flex items-center gap-1 hover:text-crimson"
+                    >
+                      <Mail className="h-3.5 w-3.5" /> Email
+                    </a>
+                  )}
+                  {assignment.profile.phone && (
+                    <a
+                      href={`tel:${assignment.profile.phone}`}
+                      className="inline-flex items-center gap-1 hover:text-crimson"
+                    >
+                      <Phone className="h-3.5 w-3.5" /> Phone
+                    </a>
+                  )}
+                </div>
               )}
             </div>
             <button
@@ -396,21 +434,37 @@ function StaffProfileModal({
             </dd>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <dt className="text-[0.7rem] font-black uppercase tracking-[0.16em] text-slate-500">
-              Qualifications
-            </dt>
-            <dd className="mt-2 leading-6 text-slate-800">
-              {profile.qualifications || "Not added"}
-            </dd>
-          </div>
+          {profile.qualifications && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <dt className="text-[0.7rem] font-black uppercase tracking-[0.16em] text-slate-500">
+                Qualifications
+              </dt>
+              <dd className="mt-2 leading-6 text-slate-800">{profile.qualifications}</dd>
+            </div>
+          )}
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <dt className="text-[0.7rem] font-black uppercase tracking-[0.16em] text-slate-500">
-              Responsibilities
-            </dt>
-            <dd className="mt-2 leading-6 text-slate-800">{profile.bio || "Not added"}</dd>
-          </div>
+          {profile.bio && (
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <dt className="text-[0.7rem] font-black uppercase tracking-[0.16em] text-slate-500">
+                Responsibilities
+              </dt>
+              <dd className="mt-2 leading-6 text-slate-800">{profile.bio}</dd>
+            </div>
+          )}
+          {(profile.email || profile.phone) && (
+            <div className="flex flex-wrap justify-center gap-4 text-sm font-semibold text-slate-700">
+              {profile.email && (
+                <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-2">
+                  <Mail className="h-4 w-4" /> {profile.email}
+                </a>
+              )}
+              {profile.phone && (
+                <a href={`tel:${profile.phone}`} className="inline-flex items-center gap-2">
+                  <Phone className="h-4 w-4" /> {profile.phone}
+                </a>
+              )}
+            </div>
+          )}
         </dl>
       </article>
     </div>

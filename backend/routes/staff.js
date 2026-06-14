@@ -3697,10 +3697,29 @@ function registerStaffRoutes(app, context) {
       }
 
       const [existingProfiles] = await connection.query(
-        "SELECT id, teacher_id, profile_image, photo_url FROM staff_profiles WHERE id = ? LIMIT 1",
+        `SELECT id, teacher_id, full_name, slug, email, phone, nic, staff_type,
+                department, position, qualification, bio, joined_date, status,
+                sort_order, profile_image, photo_url
+         FROM staff_profiles WHERE id = ? LIMIT 1`,
         [id],
       );
       const wasExisting = existingProfiles.length > 0;
+      const existingProfile = existingProfiles[0] || null;
+      if (existingProfile && payload.preserveEmptyFields) {
+        const provided = payload.providedImportFields || {};
+        if (!provided.slug) payload.slug = existingProfile.slug || payload.slug;
+        if (!provided.email) payload.email = existingProfile.email || "";
+        if (!provided.phone) payload.phone = existingProfile.phone || "";
+        if (!provided.nic) payload.nic = existingProfile.nic || "";
+        if (!provided.staffType) payload.staffType = existingProfile.staff_type || payload.staffType;
+        if (!provided.qualification) {
+          payload.qualification = existingProfile.qualification || "";
+        }
+        if (!provided.bio) payload.bio = existingProfile.bio || "";
+        if (!provided.joinedDate) payload.joinedDate = existingProfile.joined_date || null;
+        if (!provided.status) payload.status = existingProfile.status || payload.status;
+        if (!provided.sortOrder) payload.sortOrder = Number(existingProfile.sort_order || 0);
+      }
       let teacherId = existingProfiles[0]?.teacher_id || payload.teacherId || id;
       const existingTeacherId = await readTeacherId(connection, teacherId);
       payload.id = id;
@@ -3956,11 +3975,11 @@ function registerStaffRoutes(app, context) {
       nic: csvField(row, "nic", "NIC"),
       photo_url: csvField(row, "photo_url", "photo", "profile_image", "image"),
       staff_type: csvField(row, "staff_type", "staff type", "type"),
-      status: csvField(row, "status") || "Active",
+      status: csvField(row, "status"),
       qualification: csvField(row, "qualification", "qualifications"),
       bio: csvField(row, "bio", "responsibilities"),
       position_codes: positionCodes,
-      sort_order: csvField(row, "sort_order", "sort order") || 0,
+      sort_order: csvField(row, "sort_order", "sort order"),
       joined_date: csvField(row, "joined_date", "joined date"),
     };
   }
@@ -4034,6 +4053,19 @@ function registerStaffRoutes(app, context) {
       const payload = profilePayload({ ...body, slug: slugValue, position_codes: normalizedCodes });
       payload.replacePositions = mode === "replace";
       payload.positionCodesProvided = true;
+      payload.preserveEmptyFields = true;
+      payload.providedImportFields = {
+        slug: Boolean(csvField(row, "slug")),
+        email: Boolean(body.email),
+        phone: Boolean(body.phone),
+        nic: Boolean(body.nic),
+        staffType: Boolean(body.staff_type),
+        qualification: Boolean(body.qualification),
+        bio: Boolean(body.bio),
+        joinedDate: Boolean(body.joined_date),
+        status: Boolean(body.status),
+        sortOrder: body.sort_order !== "",
+      };
       const match = await findStaffIdentityMatch(db, payload, payload.id);
       const action = match ? "update" : "create";
       if (match) plan.existingProfilesToUpdate += 1;
@@ -4064,7 +4096,7 @@ function registerStaffRoutes(app, context) {
     ].join("\n");
   }
 
-  async function pruneSiteDatabaseTeachersNotIn(runner, staffIds) {
+  async function hideSiteDatabaseTeachersNotIn(runner, staffIds) {
     const allowedIds = new Set(staffIds.map((id) => clean(id, 50)).filter(Boolean));
     const [rows] = await runner.query(
       "SELECT content FROM site_database WHERE id = ? LIMIT 1 FOR UPDATE",
@@ -4080,14 +4112,18 @@ function registerStaffRoutes(app, context) {
     }
     if (!siteDb || !Array.isArray(siteDb.teachers)) return 0;
 
-    const nextTeachers = siteDb.teachers.filter((teacher) => {
+    let hidden = 0;
+    const nextTeachers = siteDb.teachers.map((teacher) => {
       const rawId = clean(teacher?.id, 50);
       const staffId = clean(teacher?.staffId || teacher?.staff_id, 50);
       const canonicalId = staffId || rawId.split("__")[0];
-      return allowedIds.has(canonicalId);
+      if (allowedIds.has(canonicalId) || String(teacher?.status || "").toLowerCase() === "hidden") {
+        return teacher;
+      }
+      hidden += 1;
+      return { ...teacher, status: "Hidden" };
     });
-    const removed = siteDb.teachers.length - nextTeachers.length;
-    if (removed <= 0) return 0;
+    if (hidden <= 0) return 0;
 
     const contentVersion = Date.now();
     const publishedAt = new Date(contentVersion).toISOString();
@@ -4109,7 +4145,7 @@ function registerStaffRoutes(app, context) {
         "main",
       ],
     );
-    return removed;
+    return hidden;
   }
 
   async function pruneStaffDataNotInCsv(req, staffIds) {
@@ -4146,77 +4182,44 @@ function registerStaffRoutes(app, context) {
 
       const staleProfileIds = staleProfiles.map((row) => row.id).filter(Boolean);
       const staleTeacherIds = staleTeachers.map((row) => row.id).filter(Boolean);
-      const staleTeacherStaffIds = staleTeachers.map((row) => row.staff_id).filter(Boolean);
-      const siteRemoved = await pruneSiteDatabaseTeachersNotIn(connection, ids);
+      const siteHidden = await hideSiteDatabaseTeachersNotIn(connection, ids);
 
       if (staleProfileIds.length) {
         const staleProfilePlaceholders = staleProfileIds.map(() => "?").join(",");
         await connection.query(
-          `DELETE FROM staff_positions WHERE staff_id IN (${staleProfilePlaceholders})`,
-          staleProfileIds,
-        );
-        await connection.query(
-          `DELETE FROM staff_attendance WHERE staff_id IN (${staleProfilePlaceholders})`,
-          staleProfileIds,
-        );
-        await connection.query(
-          `DELETE FROM staff_leave_requests WHERE staff_id IN (${staleProfilePlaceholders})`,
-          staleProfileIds,
-        );
-        await connection.query(
-          `DELETE FROM staff_documents WHERE staff_id IN (${staleProfilePlaceholders})`,
-          staleProfileIds,
-        );
-        await connection.query(
-          `DELETE FROM staff_profile_photos WHERE staff_id IN (${staleProfilePlaceholders})`,
-          staleProfileIds,
-        );
-        await connection.query(
-          `DELETE FROM staff_profiles WHERE id IN (${staleProfilePlaceholders})`,
+          `UPDATE staff_profiles SET status = 'Inactive' WHERE id IN (${staleProfilePlaceholders})`,
           staleProfileIds,
         );
       }
 
-      if (staleTeachers.length) {
-        const teacherConditions = [];
-        const teacherValues = [];
-        if (staleTeacherIds.length) {
-          teacherConditions.push(`id IN (${staleTeacherIds.map(() => "?").join(",")})`);
-          teacherValues.push(...staleTeacherIds);
-        }
-        if (staleTeacherStaffIds.length) {
-          teacherConditions.push(`staff_id IN (${staleTeacherStaffIds.map(() => "?").join(",")})`);
-          teacherValues.push(...staleTeacherStaffIds);
-        }
-        if (teacherConditions.length) {
-          await connection.query(
-            `DELETE FROM teachers WHERE ${teacherConditions.join(" OR ")}`,
-            teacherValues,
-          );
-        }
-      }
-
-      const staleUserIds = staleProfiles.map((row) => row.user_id).filter(Boolean);
-      if (staleUserIds.length) {
+      if (staleTeacherIds.length) {
         await connection.query(
-          `UPDATE users SET status = 'Disabled' WHERE id IN (${staleUserIds.map(() => "?").join(",")})`,
-          staleUserIds,
+          `UPDATE teachers SET status = 'Hidden' WHERE id IN (${staleTeacherIds
+            .map(() => "?")
+            .join(",")})`,
+          staleTeacherIds,
         );
       }
 
       await connection.commit();
-      await logStaffAction(req, "staff.csv_pruned", "staff", "csv", {
+      await logStaffAction(req, "staff.csv_sync_deactivated", "staff", "csv", {
         keptStaff: ids.length,
-        removedProfiles: staleProfileIds.length,
-        removedTeachers: staleTeachers.length,
-        removedSiteTeachers: siteRemoved,
+        hiddenProfiles: staleProfileIds.length,
+        hiddenTeachers: staleTeachers.length,
+        hiddenSiteTeachers: siteHidden,
       });
 
       return {
         keptStaff: ids.length,
-        removedProfiles: staleProfileIds.length,
-        removedTeachers: staleTeachers.length,
-        removedSiteTeachers: siteRemoved,
+        removedProfiles: 0,
+        removedTeachers: 0,
+        removedSiteTeachers: 0,
+        hiddenProfiles: 0,
+        hiddenTeachers: 0,
+        hiddenSiteTeachers: 0,
+        hiddenProfiles: staleProfileIds.length,
+        hiddenTeachers: staleTeachers.length,
+        hiddenSiteTeachers: siteHidden,
       };
     } catch (error) {
       await connection.rollback();
@@ -4491,6 +4494,9 @@ function registerStaffRoutes(app, context) {
         results.removedProfiles = pruned.removedProfiles;
         results.removedTeachers = pruned.removedTeachers;
         results.removedSiteTeachers = pruned.removedSiteTeachers;
+        results.hiddenProfiles = pruned.hiddenProfiles;
+        results.hiddenTeachers = pruned.hiddenTeachers;
+        results.hiddenSiteTeachers = pruned.hiddenSiteTeachers;
         results.keptStaff = pruned.keptStaff;
       }
 
@@ -4677,6 +4683,9 @@ function registerStaffRoutes(app, context) {
 
   app.delete("/api/staff/:id", staffManagerOnly, async (req, res) => {
     const staffId = clean(req.params.id, 50);
+    if (req.body?.confirm !== true) {
+      return res.status(400).json({ error: "Explicit delete confirmation is required" });
+    }
     const connection = await db.getConnection();
     try {
       await ensureStaffTables();

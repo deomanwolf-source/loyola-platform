@@ -22,6 +22,7 @@ dotenv.config();
 
 const app = express();
 const legacyUploadRoot = path.join(__dirname, "uploads");
+const projectUploadRoot = path.join(__dirname, "..", "uploads");
 
 function resolveUploadRoot() {
   const configured =
@@ -109,6 +110,7 @@ function copyMissingUploads(sourceRoot, targetRoot) {
 
 fs.mkdirSync(uploadRoot, { recursive: true });
 copyMissingUploads(legacyUploadRoot, uploadRoot);
+copyMissingUploads(projectUploadRoot, uploadRoot);
 fs.mkdirSync(reliefUploadDir, { recursive: true });
 app.disable("x-powered-by");
 app.set("trust proxy", true);
@@ -124,7 +126,7 @@ function contentSecurityPolicyForRequest(req) {
     "base-uri 'self'",
     "object-src 'none'",
     "frame-ancestors 'self'",
-    "img-src 'self' data: blob: https://img.youtube.com https://i.ytimg.com",
+    "img-src 'self' data: blob: https:",
     "font-src 'self' data: https://fonts.gstatic.com",
     "media-src 'self' blob: https:",
     "connect-src 'self' http://localhost:5000 http://127.0.0.1:5000",
@@ -167,7 +169,7 @@ app.use(
 
 app.use(express.json({ limit: "4mb" }));
 app.use(csrfProtection);
-const uploadStaticRoots = [uploadRoot, legacyUploadRoot].filter(
+const uploadStaticRoots = [uploadRoot, legacyUploadRoot, projectUploadRoot].filter(
   (root, index, roots) =>
     fs.existsSync(root) &&
     roots.findIndex((candidate) => path.resolve(candidate) === path.resolve(root)) === index,
@@ -1241,6 +1243,8 @@ const VIEW_ADMIN_WRITE_PROTECTED_PREFIXES = [
   "/api/classes",
   "/api/enrollments",
   "/api/media",
+  "/api/job-vacancies",
+  "/api/admin/job-vacancies",
   "/api/maintenance",
 ];
 
@@ -1803,6 +1807,28 @@ async function ensureContentTables() {
       venue VARCHAR(255),
       status VARCHAR(30) DEFAULT 'upcoming',
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS job_vacancies (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      title VARCHAR(255) NOT NULL,
+      description TEXT NOT NULL,
+      requirements TEXT NULL,
+      deadline DATE NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'Open',
+      attachment_url TEXT NULL,
+      attachment_type VARCHAR(100) NULL,
+      application_email VARCHAR(190) NULL,
+      is_visible TINYINT(1) NOT NULL DEFAULT 1,
+      created_by VARCHAR(50) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      deleted_at TIMESTAMP NULL,
+      KEY idx_job_vacancies_status (status),
+      KEY idx_job_vacancies_visible (is_visible),
+      KEY idx_job_vacancies_deadline (deadline)
     )
   `);
 
@@ -4987,6 +5013,151 @@ app.get("/api/events", async (req, res) => {
       "SELECT id, source_id, title, description, poster_url, event_date, venue, status, created_at FROM events ORDER BY event_date DESC, created_at DESC",
     );
     res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+function jobVacancyPayload(body = {}) {
+  const allowedStatuses = new Set(["Open", "Closed", "Expired"]);
+  const status = compactText(body.status || "Open", 30);
+  const deadline = compactText(body.deadline, 10);
+  return {
+    title: compactText(body.title, 255),
+    description: compactText(body.description, 10000),
+    requirements: compactText(body.requirements, 10000),
+    deadline: /^\d{4}-\d{2}-\d{2}$/.test(deadline) ? deadline : null,
+    status: allowedStatuses.has(status) ? status : "Open",
+    attachmentUrl: compactText(body.attachment_url || body.attachmentUrl, 2000),
+    attachmentType: compactText(body.attachment_type || body.attachmentType, 100),
+    applicationEmail: normalizeEmail(body.application_email || body.applicationEmail || ""),
+    isVisible:
+      body.is_visible === undefined && body.isVisible === undefined
+        ? true
+        : Boolean(body.is_visible ?? body.isVisible),
+  };
+}
+
+function serializeJobVacancy(row) {
+  const deadline =
+    row.deadline instanceof Date
+      ? row.deadline.toISOString().slice(0, 10)
+      : String(row.deadline || "").slice(0, 10);
+  const isPastDeadline =
+    deadline && new Date(`${deadline}T23:59:59`).getTime() < new Date().setHours(0, 0, 0, 0);
+  return {
+    ...row,
+    deadline: deadline || null,
+    status: row.status === "Open" && isPastDeadline ? "Expired" : row.status,
+    is_visible: Boolean(row.is_visible),
+  };
+}
+
+app.get("/api/job-vacancies", async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      `SELECT id, title, description, requirements, deadline, status, attachment_url,
+              attachment_type, application_email, is_visible, created_at, updated_at
+       FROM job_vacancies
+       WHERE is_visible = 1 AND deleted_at IS NULL
+       ORDER BY CASE status WHEN 'Open' THEN 0 WHEN 'Closed' THEN 1 ELSE 2 END,
+                deadline IS NULL, deadline ASC, created_at DESC`,
+    );
+    res.json(rows.map(serializeJobVacancy));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/admin/job-vacancies", websiteAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      `SELECT id, title, description, requirements, deadline, status, attachment_url,
+              attachment_type, application_email, is_visible, created_at, updated_at, deleted_at
+       FROM job_vacancies
+       WHERE deleted_at IS NULL
+       ORDER BY created_at DESC`,
+    );
+    res.json(rows.map(serializeJobVacancy));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/admin/job-vacancies", websiteAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const payload = jobVacancyPayload(req.body);
+    if (!payload.title || !payload.description) {
+      return res.status(400).json({ error: "Title and description are required" });
+    }
+    const [result] = await db.query(
+      `INSERT INTO job_vacancies
+        (title, description, requirements, deadline, status, attachment_url,
+         attachment_type, application_email, is_visible, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        payload.title,
+        payload.description,
+        payload.requirements || null,
+        payload.deadline,
+        payload.status,
+        payload.attachmentUrl || null,
+        payload.attachmentType || null,
+        payload.applicationEmail || null,
+        payload.isVisible ? 1 : 0,
+        req.user.id,
+      ],
+    );
+    res.status(201).json({ success: true, id: result.insertId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put("/api/admin/job-vacancies/:id", websiteAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const payload = jobVacancyPayload(req.body);
+    if (!payload.title || !payload.description) {
+      return res.status(400).json({ error: "Title and description are required" });
+    }
+    const [result] = await db.query(
+      `UPDATE job_vacancies
+       SET title = ?, description = ?, requirements = ?, deadline = ?, status = ?,
+           attachment_url = ?, attachment_type = ?, application_email = ?, is_visible = ?
+       WHERE id = ? AND deleted_at IS NULL`,
+      [
+        payload.title,
+        payload.description,
+        payload.requirements || null,
+        payload.deadline,
+        payload.status,
+        payload.attachmentUrl || null,
+        payload.attachmentType || null,
+        payload.applicationEmail || null,
+        payload.isVisible ? 1 : 0,
+        Number(req.params.id),
+      ],
+    );
+    if (!result.affectedRows) return res.status(404).json({ error: "Vacancy not found" });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/admin/job-vacancies/:id", websiteAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [result] = await db.query(
+      "UPDATE job_vacancies SET is_visible = 0, deleted_at = NOW() WHERE id = ? AND deleted_at IS NULL",
+      [Number(req.params.id)],
+    );
+    if (!result.affectedRows) return res.status(404).json({ error: "Vacancy not found" });
+    res.json({ success: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

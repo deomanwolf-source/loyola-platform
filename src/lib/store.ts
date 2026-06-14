@@ -54,6 +54,12 @@ const THE_COLLEGE_DEPARTMENT_PAGES = [
     order: 6,
     body: "The Sports Department manages college sports, team development, coaching, competitions, fixtures, sports facilities, athletes, equipment, and achievement records.",
   },
+  {
+    id: "the-college/departments/counselling",
+    label: "Counselling",
+    order: 7,
+    body: "The Counselling Department supports student wellbeing through confidential guidance, pastoral care, referrals, family communication, and coordinated student support.",
+  },
 ] as const;
 
 export type Role =
@@ -219,6 +225,7 @@ export interface Teacher {
   position?: string;
   websitePlace?: string;
   positionCodes?: string[];
+  departments?: string[];
   sortOrder?: number;
   positions?: Array<{
     position_code?: string;
@@ -703,6 +710,7 @@ export const seed: DB = {
     { id: "student-portal", label: "Student Portal", order: 10, visible: false },
     { id: "contact", label: "Contact", order: 11, visible: true },
     { id: "calendar", label: "Calendar", order: 12, visible: true },
+    { id: "job-vacancies", label: "Job Vacancy", order: 13, visible: true },
   ],
   pages: {
     home: {
@@ -782,6 +790,11 @@ export const seed: DB = {
       kicker: "News & Notices",
       title: "News & Notices",
       body: "",
+    },
+    "job-vacancies": {
+      kicker: "Careers",
+      title: "Job Vacancies",
+      body: "Current employment opportunities at Loyola College Negombo.",
     },
     "sports-clubs": {
       kicker: "Sports & Clubs",
@@ -1131,6 +1144,14 @@ function normalizeImageUrl(value?: string) {
   if (!trimmed) return trimmed;
   if (/^photo-[a-z0-9_-]+/i.test(trimmed)) return `https://images.unsplash.com/${trimmed}`;
   if (/^images\.unsplash\.com\//i.test(trimmed)) return `https://${trimmed}`;
+  try {
+    const parsed = new URL(trimmed, API_URL);
+    if (parsed.pathname.startsWith("/uploads/")) {
+      return `${API_URL}${parsed.pathname}${parsed.search}${parsed.hash}`;
+    }
+  } catch {
+    // Preserve invalid legacy values so an administrator can repair them.
+  }
   return trimmed;
 }
 
@@ -1181,6 +1202,10 @@ function normalizeImageFields(db: DB): DB {
           image: normalizeImageUrl(page.image),
           backgroundMediaUrl: normalizeImageUrl(page.backgroundMediaUrl),
           anthemVideoCoverImage: normalizeImageUrl(page.anthemVideoCoverImage),
+          pastRectorProfiles: page.pastRectorProfiles?.map((profile) => ({
+            ...profile,
+            image: normalizeImageUrl(profile.image),
+          })),
         },
       ]),
     ),
@@ -1220,6 +1245,14 @@ function normalizeImageFields(db: DB): DB {
           thumbnail: normalizeImageUrl(video.thumbnail),
         })),
       visible: item.visible ?? true,
+    })),
+    teachers: db.teachers.map((teacher) => ({
+      ...teacher,
+      image: normalizeImageUrl(teacher.image),
+    })),
+    homeLeadershipCards: db.homeLeadershipCards.map((card) => ({
+      ...card,
+      image: normalizeImageUrl(card.image),
     })),
   };
 }
@@ -1708,6 +1741,38 @@ function ensureCalendarPage(db: DB): DB {
   return changed ? { ...db, pages, navigation } : db;
 }
 
+function ensureJobVacanciesPage(db: DB): DB {
+  const pageId = "job-vacancies";
+  const pages = { ...db.pages };
+  const navigation = [...db.navigation];
+  let changed = false;
+
+  if (!pages[pageId]) {
+    pages[pageId] = {
+      kicker: "Careers",
+      title: "Job Vacancies",
+      body: "Current employment opportunities at Loyola College Negombo.",
+    };
+    changed = true;
+  }
+
+  const navIndex = navigation.findIndex((item) => item.id === pageId);
+  if (navIndex === -1) {
+    const maxTopLevelOrder = navigation
+      .filter((item) => !item.parentId)
+      .reduce((max, item) => Math.max(max, item.order || 0), 0);
+    navigation.push({
+      id: pageId,
+      label: "Job Vacancy",
+      order: Math.max(13, maxTopLevelOrder + 1),
+      visible: true,
+    });
+    changed = true;
+  }
+
+  return changed ? { ...db, pages, navigation } : db;
+}
+
 function migrateLoginAccounts(db: DB): DB {
   const users = db.users
     .filter(
@@ -1778,13 +1843,15 @@ function prepareDb(db: DB): DB {
       normalizeImageFields(
         migrateLoginAccounts(
           stripDemoContent(
-            ensureCalendarPage(
-              ensurePastRectorsPage(
-                ensureCollegeAnthemPage(
-                  ensureGallerySubpages(
-                    ensureTheCollegePages(
-                      ensureAcademicsSubpages(
-                        migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db)),
+            ensureJobVacanciesPage(
+              ensureCalendarPage(
+                ensurePastRectorsPage(
+                  ensureCollegeAnthemPage(
+                    ensureGallerySubpages(
+                      ensureTheCollegePages(
+                        ensureAcademicsSubpages(
+                          migratePublicWebsiteCopy(applyLoyolaThemeDefaults(db)),
+                        ),
                       ),
                     ),
                   ),

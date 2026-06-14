@@ -34,30 +34,42 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
     ],
   },
   {
-    id: "academic-2nd",
-    title: "Academic Staff",
-    sideTitle: "2nd",
+    id: "vice-principals",
+    title: "Vice Principals",
     codes: [
       "vice-principal-advanced-level",
       "vice-principal-primary",
       "vice-principal-middle",
       "vice-principal-upper",
+    ],
+  },
+  {
+    id: "academic-coordinators",
+    title: "Academic Co-ordinators",
+    match: (position) => position.section === "Academic Coordinators",
+  },
+  {
+    id: "assistant-sectional-heads",
+    title: "Assistant Sectional Heads",
+    codes: [
       "assistant-sectional-head-primary",
       "assistant-sectional-head-middle",
+      "assistant-sectional-head-upper",
       "assistant-sectional-head-advanced-level",
+    ],
+  },
+  {
+    id: "subject-heads",
+    title: "Subject Heads",
+    codes: [
       "subject-head-primary",
       "subject-head-middle",
       "subject-head-upper",
       "subject-head-advanced-level",
     ],
   },
-  {
-    id: "academic-coordinators",
-    title: "Academic Coordinators",
-    match: (position) => position.section === "Academic Coordinators",
-  },
   { id: "grade-heads", title: "Grade Heads", match: (position) => position.section === "Grade Heads" },
-  { id: "stream-heads", title: "Stream Heads - Advanced Level", match: (position) => position.section === "Stream Heads" },
+  { id: "stream-heads", title: "A/L Stream Heads", match: (position) => position.section === "Stream Heads" },
   {
     id: "subject-coordinators-primary",
     title: "Subject Co-ordinators - Primary School",
@@ -97,8 +109,47 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
     match: (position) => position.main_category === "Class Teachers" && position.section === "Advanced Level",
   },
   {
-    id: "subject-teachers",
-    title: "Subject Teachers",
+    id: "subject-teachers-primary",
+    title: "Subject Teachers - Primary School",
+    match: (position) =>
+      position.main_category === "Subject Teachers" && position.section === "Primary School",
+  },
+  {
+    id: "subject-teachers-middle",
+    title: "Subject Teachers - Middle School",
+    match: (position) =>
+      position.main_category === "Subject Teachers" && position.section === "Middle School",
+  },
+  {
+    id: "subject-teachers-upper",
+    title: "Subject Teachers - Upper School",
+    match: (position) =>
+      position.main_category === "Subject Teachers" && position.section === "Upper School",
+  },
+  {
+    id: "subject-teachers-al",
+    title: "Subject Teachers - Advanced Level",
+    match: (position) =>
+      position.main_category === "Subject Teachers" && position.section === "Advanced Level",
+  },
+  {
+    id: "special-needs",
+    title: "Special Need Resource Unit",
+    codes: ["special-need-resource-unit"],
+  },
+  {
+    id: "visiting-teachers",
+    title: "Visiting Teachers",
+    codes: ["visiting-teacher"],
+  },
+  {
+    id: "counselling-members",
+    title: "Counselling Members",
+    codes: ["counsellor"],
+  },
+  {
+    id: "subject-teachers-other",
+    title: "Other Subject Teachers",
     match: (position) => position.main_category === "Subject Teachers",
   },
   {

@@ -59,6 +59,7 @@ export const FIXED_POSITION_CODE_ORDER = [
   "academic-coordinator-al-technology",
   "assistant-sectional-head-primary",
   "assistant-sectional-head-middle",
+  "assistant-sectional-head-upper",
   "assistant-sectional-head-advanced-level",
   "subject-head-primary",
   "subject-head-middle",

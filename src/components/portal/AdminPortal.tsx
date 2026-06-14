@@ -101,6 +101,7 @@ type PanelId =
   | "approvals"
   | "pages"
   | "content"
+  | "vacancies"
   | "media"
   | "storage"
   | "design"
@@ -124,6 +125,7 @@ const navGroups: {
       { id: "approvals", label: "Publish Approvals", icon: ClipboardList },
       { id: "pages", label: "Pages", icon: FileText },
       { id: "content", label: "News / Events", icon: Newspaper },
+      { id: "vacancies", label: "Job Vacancies", icon: Briefcase },
       { id: "media", label: "Media Library", icon: ImageIcon },
       { id: "storage", label: "Storage", icon: Database },
       { id: "design", label: "Design System", icon: Palette },
@@ -331,6 +333,7 @@ const corePageIds = new Set([
   "downloads",
   "student-portal",
   "contact",
+  "job-vacancies",
 ]);
 
 function pageHref(id: string) {
@@ -943,6 +946,310 @@ function PagesPanel({ db }: { db: DB }) {
             {renderPageCard(id, 0)}
           </div>
         ))}
+      </div>
+    </PanelShell>
+  );
+}
+
+type AdminJobVacancy = {
+  id: number;
+  title: string;
+  description: string;
+  requirements?: string;
+  deadline?: string | null;
+  status: "Open" | "Closed" | "Expired";
+  attachment_url?: string;
+  attachment_type?: string;
+  application_email?: string;
+  is_visible: boolean;
+};
+
+const emptyVacancyForm = {
+  title: "",
+  description: "",
+  requirements: "",
+  deadline: "",
+  status: "Open" as AdminJobVacancy["status"],
+  attachment_url: "",
+  attachment_type: "",
+  application_email: "",
+  is_visible: true,
+};
+
+function VacanciesPanel() {
+  const [vacancies, setVacancies] = useState<AdminJobVacancy[]>([]);
+  const [form, setForm] = useState(emptyVacancyForm);
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const loadVacancies = useCallback(async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/api/admin/job-vacancies`, {
+        credentials: "include",
+        headers: authHeaders(),
+      });
+      const payload = await response.json().catch(() => []);
+      if (!response.ok) throw new Error(payload?.error || "Could not load vacancies.");
+      setVacancies(Array.isArray(payload) ? payload : []);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Could not load vacancies.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadVacancies();
+  }, [loadVacancies]);
+
+  const resetForm = () => {
+    setEditingId(null);
+    setForm(emptyVacancyForm);
+  };
+
+  const editVacancy = (vacancy: AdminJobVacancy) => {
+    setEditingId(vacancy.id);
+    setForm({
+      title: vacancy.title || "",
+      description: vacancy.description || "",
+      requirements: vacancy.requirements || "",
+      deadline: vacancy.deadline || "",
+      status: vacancy.status || "Open",
+      attachment_url: vacancy.attachment_url || "",
+      attachment_type: vacancy.attachment_type || "",
+      application_email: vacancy.application_email || "",
+      is_visible: Boolean(vacancy.is_visible),
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const uploadAttachment = async (file?: File) => {
+    if (!file) return;
+    const supported = file.type === "application/pdf" || file.type.startsWith("image/");
+    if (!supported) return window.alert("Upload a PDF, JPG, PNG, or WebP file.");
+    setUploading(true);
+    try {
+      const uploaded = await uploadFileToBackendInfo("job-vacancies", file);
+      setForm((current) => ({
+        ...current,
+        attachment_url: uploaded.url,
+        attachment_type: uploaded.file?.type || file.type,
+      }));
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Attachment upload failed.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const saveVacancy = async () => {
+    if (!form.title.trim() || !form.description.trim()) {
+      return window.alert("Title and description are required.");
+    }
+    setSaving(true);
+    try {
+      const response = await fetch(
+        `${API_URL}/api/admin/job-vacancies${editingId ? `/${editingId}` : ""}`,
+        {
+          method: editingId ? "PUT" : "POST",
+          credentials: "include",
+          headers: authHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify(form),
+        },
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || "Could not save vacancy.");
+      audit(`Job vacancy ${editingId ? "updated" : "created"}: ${form.title}`, "Admin");
+      resetForm();
+      await loadVacancies();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : "Could not save vacancy.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteVacancy = async (vacancy: AdminJobVacancy) => {
+    if (!window.confirm(`Delete "${vacancy.title}"? The record will be hidden, not erased.`)) return;
+    const response = await fetch(`${API_URL}/api/admin/job-vacancies/${vacancy.id}`, {
+      method: "DELETE",
+      credentials: "include",
+      headers: authHeaders(),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) return window.alert(payload.error || "Could not delete vacancy.");
+    audit(`Job vacancy hidden and deleted: ${vacancy.title}`, "Admin");
+    if (editingId === vacancy.id) resetForm();
+    await loadVacancies();
+  };
+
+  return (
+    <PanelShell title="Job Vacancies" kicker="Careers">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-serif text-xl font-bold text-navy">
+              {editingId ? "Edit Vacancy" : "New Vacancy"}
+            </h3>
+            {editingId && (
+              <button
+                type="button"
+                onClick={resetForm}
+                className="rounded-lg border border-border p-2 text-navy"
+                title="Cancel editing"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <div className="mt-5 space-y-4">
+            <TextInput
+              placeholder="Job title"
+              value={form.title}
+              onChange={(event) => setForm({ ...form, title: event.target.value })}
+            />
+            <TextArea
+              rows={5}
+              placeholder="Description"
+              value={form.description}
+              onChange={(event) => setForm({ ...form, description: event.target.value })}
+            />
+            <TextArea
+              rows={5}
+              placeholder="Requirements (optional)"
+              value={form.requirements}
+              onChange={(event) => setForm({ ...form, requirements: event.target.value })}
+            />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <input
+                type="date"
+                value={form.deadline}
+                onChange={(event) => setForm({ ...form, deadline: event.target.value })}
+                className="h-12 rounded-xl border border-border px-3 text-sm font-semibold text-navy"
+              />
+              <select
+                value={form.status}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    status: event.target.value as AdminJobVacancy["status"],
+                  })
+                }
+                className="h-12 rounded-xl border border-border px-3 text-sm font-semibold text-navy"
+              >
+                <option>Open</option>
+                <option>Closed</option>
+                <option>Expired</option>
+              </select>
+            </div>
+            <TextInput
+              type="email"
+              placeholder="Application email (uses website email when empty)"
+              value={form.application_email}
+              onChange={(event) => setForm({ ...form, application_email: event.target.value })}
+            />
+            <div className="rounded-xl border border-dashed border-border p-4">
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-secondary px-4 py-2 text-sm font-bold text-navy">
+                <Upload className="h-4 w-4" />
+                {uploading ? "Uploading..." : "Upload PDF or image"}
+                <input
+                  type="file"
+                  accept="application/pdf,image/*"
+                  disabled={uploading}
+                  className="hidden"
+                  onChange={(event) => {
+                    void uploadAttachment(event.target.files?.[0]);
+                    event.target.value = "";
+                  }}
+                />
+              </label>
+              {form.attachment_url && (
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                  <a
+                    href={form.attachment_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="truncate font-bold text-crimson"
+                  >
+                    View attachment
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm({ ...form, attachment_url: "", attachment_type: "" })
+                    }
+                    className="font-bold text-red-700"
+                  >
+                    Remove
+                  </button>
+                </div>
+              )}
+            </div>
+            <label className="flex items-center gap-2 text-sm font-bold text-navy">
+              <input
+                type="checkbox"
+                checked={form.is_visible}
+                onChange={(event) => setForm({ ...form, is_visible: event.target.checked })}
+                className="h-4 w-4"
+              />
+              Visible on public website
+            </label>
+            <button
+              type="button"
+              disabled={saving || uploading}
+              onClick={() => void saveVacancy()}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-navy px-5 py-3 text-sm font-bold text-white disabled:opacity-60"
+            >
+              <Save className="h-4 w-4" />
+              {saving ? "Saving..." : editingId ? "Update Vacancy" : "Publish Vacancy"}
+            </button>
+          </div>
+        </section>
+
+        <section className="rounded-xl border border-border bg-white p-5 shadow-soft">
+          <h3 className="font-serif text-xl font-bold text-navy">Published Records</h3>
+          <div className="mt-5 grid gap-3">
+            {loading && <p className="text-sm text-muted-foreground">Loading vacancies...</p>}
+            {!loading && vacancies.length === 0 && (
+              <p className="text-sm text-muted-foreground">No vacancy records yet.</p>
+            )}
+            {vacancies.map((vacancy) => (
+              <article key={vacancy.id} className="rounded-lg border border-border p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h4 className="break-words font-bold text-navy">{vacancy.title}</h4>
+                    <p className="mt-1 text-xs font-semibold text-muted-foreground">
+                      {vacancy.status}
+                      {vacancy.deadline ? ` | Deadline ${vacancy.deadline}` : ""}
+                      {!vacancy.is_visible ? " | Hidden" : ""}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => editVacancy(vacancy)}
+                      className="rounded-lg border border-border p-2 text-navy"
+                      title="Edit vacancy"
+                    >
+                      <FileText className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void deleteVacancy(vacancy)}
+                      className="rounded-lg border border-red-200 p-2 text-red-700"
+                      title="Delete vacancy"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
       </div>
     </PanelShell>
   );
@@ -4494,6 +4801,7 @@ export function AdminPortal() {
             ))}
           {activePanel === "pages" && <PagesPanel db={db} />}
           {activePanel === "content" && <ContentPanel db={db} />}
+          {activePanel === "vacancies" && <VacanciesPanel />}
           {activePanel === "media" && <MediaPanel db={db} />}
           {activePanel === "storage" && <StoragePanel />}
           {activePanel === "design" && <DesignPanel db={db} />}
@@ -4996,28 +5304,6 @@ function StaffPanel({ db }: { db: DB }) {
       setDb((current) => {
         let newTeachers = [...current.teachers];
 
-        // If an exclusive visible position is Active, hide existing staff with that same position.
-        const isUniqueRole =
-          formPosition === "The Archbishop of Colombo" ||
-          formPosition === "General Manager of Catholic Private Schools" ||
-          formPosition === "Rector / Principal" ||
-          formPosition.includes("Rector") ||
-          formPosition.includes("Principal") ||
-          formPosition.includes("Head") ||
-          formPosition.includes("Coordinator") ||
-          formPosition === "Accountant" ||
-          formPosition === "Librarian" ||
-          formPosition === "Counsellor";
-
-        if (formStatus === "Active" && isUniqueRole) {
-          newTeachers = newTeachers.map((t) => {
-            if (t.id !== staffId && t.position === formPosition && t.status === "Active") {
-              return { ...t, status: "Hidden" };
-            }
-            return t;
-          });
-        }
-
         const accountPatch = formAccountEnabled
           ? {
               accountEmail: account?.email || formAccountEmail.trim().toLowerCase(),
@@ -5317,6 +5603,12 @@ function StaffPanel({ db }: { db: DB }) {
           ?.map((cell) => cell.replace(/,$/, "").replace(/^"|"$/g, "").replace(/""/g, '"').trim())
           .filter((_, index, cells) => index < cells.length - 1 || line.endsWith(",")) || [];
 
+      const allocatedTeachers = [...db.teachers];
+      const normalizeStaffName = (value: string) =>
+        value
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, " ")
+          .trim();
       const imported = rowLines
         .map((line) => {
           const cells = parseRow(line);
@@ -5324,20 +5616,40 @@ function StaffPanel({ db }: { db: DB }) {
             headers.map((header, index) => [header, cells[index] || ""]),
           );
           if (!row.name) return null;
-          return {
-            id: row.id || generateStaffId(db.teachers),
+          const existing =
+            (row.id && allocatedTeachers.find((teacher) => teacher.id === row.id)) ||
+            allocatedTeachers.find(
+              (teacher) => normalizeStaffName(teacher.name) === normalizeStaffName(row.name),
+            );
+          const id = existing?.id || row.id || generateStaffId(allocatedTeachers);
+          const next: Teacher = {
+            ...(existing || {
+              id,
+              name: row.name,
+              position: "Normal Teacher",
+              type: "Academic Staff",
+              category: "All Teachers Directory",
+              section: "",
+              subject: "",
+              classes: "",
+              status: "Active",
+              qualifications: "",
+              responsibilities: "",
+            }),
+            id,
             name: row.name,
-            position: row.position || "",
-            type: row.type || "Academic Staff",
-            category: row.category || getAutoCategory(row.position || "Normal Teacher"),
-            section: row.section || "",
-            subject: row.subject || "",
-            classes: row.classes || "",
-            status: row.status || "Active",
-            image: row.image || "",
-            qualifications: "",
-            responsibilities: "",
-          } as Teacher;
+          };
+          if (row.position) next.position = row.position;
+          if (row.type) next.type = row.type;
+          if (row.category) next.category = row.category;
+          else if (row.position) next.category = getAutoCategory(row.position);
+          if (row.section) next.section = row.section;
+          if (row.subject) next.subject = row.subject;
+          if (row.classes) next.classes = row.classes;
+          if (row.status) next.status = row.status;
+          if (row.image) next.image = row.image;
+          if (!existing) allocatedTeachers.push(next);
+          return next;
         })
         .filter(Boolean) as Teacher[];
 

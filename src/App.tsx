@@ -319,6 +319,18 @@ type DepartmentDocument = {
   body: string;
 };
 
+type JobVacancy = {
+  id: number;
+  title: string;
+  description: string;
+  requirements?: string;
+  deadline?: string | null;
+  status: "Open" | "Closed" | "Expired";
+  attachment_url?: string;
+  attachment_type?: string;
+  application_email?: string;
+};
+
 type CollegeDepartment = {
   id: string;
   title: string;
@@ -339,7 +351,7 @@ type CollegeDepartment = {
     hours: string;
     email: string;
   };
-  staffKeywords?: string[];
+  staffDepartments?: string[];
   skipDepartmentPage?: boolean;
 };
 
@@ -459,15 +471,11 @@ const collegeDepartments: CollegeDepartment[] = [
       hours: "School office hours",
       email: "loyolacollege.negombo@hotmail.com",
     },
-    staffKeywords: [
+    staffDepartments: [
       "administration",
-      "administrative",
-      "secretary",
-      "reception",
-      "rector",
-      "principal",
-      "office",
-      "governance",
+      "college administration",
+      "administrative department",
+      "front office",
     ],
   },
   {
@@ -588,18 +596,15 @@ const collegeDepartments: CollegeDepartment[] = [
       hours: "School academic hours",
       email: "loyolacollege.negombo@hotmail.com",
     },
-    staffKeywords: [
+    staffDepartments: [
       "academic",
-      "teacher",
-      "subject",
-      "class",
-      "section",
-      "head",
-      "coordinator",
-      "primary",
-      "middle",
-      "upper",
-      "advanced",
+      "academic department",
+      "academic office",
+      "primary school",
+      "middle school",
+      "upper school",
+      "advanced level",
+      "a/l section",
     ],
   },
   {
@@ -720,15 +725,11 @@ const collegeDepartments: CollegeDepartment[] = [
       hours: "School finance office hours",
       email: "loyolacollege.negombo@hotmail.com",
     },
-    staffKeywords: [
+    staffDepartments: [
       "finance",
-      "accountant",
+      "finance department",
+      "financial department",
       "accounts",
-      "fees",
-      "payment",
-      "bursar",
-      "cashier",
-      "financial",
     ],
   },
   {
@@ -850,18 +851,7 @@ const collegeDepartments: CollegeDepartment[] = [
       hours: "School technical-support hours",
       email: "loyolacollege.negombo@hotmail.com",
     },
-    staffKeywords: [
-      "it",
-      "ict",
-      "technology",
-      "technical",
-      "network",
-      "computer",
-      "system",
-      "portal",
-      "website",
-      "software",
-    ],
+    staffDepartments: ["it department", "information technology", "ict department"],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/gym`,
@@ -1085,16 +1075,58 @@ const collegeDepartments: CollegeDepartment[] = [
       hours: "School sports hours and practice times",
       email: "loyolacollege.negombo@hotmail.com",
     },
-    staffKeywords: [
-      "sports",
-      "coach",
-      "physical",
-      "health",
-      "athletics",
-      "games",
-      "teacher-in-charge",
-      "pe",
+    staffDepartments: ["sports", "sports department", "physical education department"],
+  },
+  {
+    id: `${COLLEGE_DEPARTMENT_BASE_ID}/counselling`,
+    title: "Counselling",
+    cardBody: "Student wellbeing and pastoral care",
+    kicker: "The College",
+    icon: Users,
+    summary:
+      "The Counselling Department supports student wellbeing through confidential guidance, pastoral care, referrals, family communication, and coordinated student support.",
+    responsibilities: [
+      "Provide confidential student counselling and guidance.",
+      "Coordinate referrals and specialist support where required.",
+      "Support students with social, emotional, and academic concerns.",
+      "Maintain secure and confidential support records.",
+      "Work with parents, section heads, and teachers when appropriate.",
+      "Coordinate wellbeing and awareness programmes.",
     ],
+    systemWork: [
+      "Maintain authorized counselling referrals and appointments.",
+      "Publish approved wellbeing information.",
+      "Coordinate student support with authorized staff.",
+      "Protect confidential records and access permissions.",
+    ],
+    serviceAreas: [
+      "Student Wellbeing",
+      "Guidance",
+      "Pastoral Care",
+      "Referrals",
+      "Family Support",
+      "Awareness Programmes",
+    ],
+    permissionLevel:
+      "Counselling records are confidential and may only be accessed by specifically authorized staff. Public content must not expose private student information.",
+    positions: [
+      {
+        title: "Counsellor",
+        body: "Provides confidential guidance, referrals, wellbeing support, and coordinated pastoral care.",
+      },
+      {
+        title: "Counselling Team Member",
+        body: "Supports approved wellbeing programmes and student-support coordination.",
+      },
+    ],
+    gallery: [],
+    documents: [],
+    contact: {
+      location: "Counselling Unit",
+      hours: "School office hours and scheduled appointments",
+      email: "loyolacollege.negombo@hotmail.com",
+    },
+    staffDepartments: ["counselling", "counselling department", "counsellor"],
   },
 ];
 
@@ -1128,6 +1160,7 @@ const LIVE_RENDERED_PAGE_IDS = new Set([
   "student-portal",
   "contact",
   "calendar",
+  "job-vacancies",
   LCEA_PAGE_ID,
   "academics/cambridge",
   FACILITIES_PAGE_ID,
@@ -1362,6 +1395,7 @@ export function App() {
   const staffPageIsLive = pageIsLive("about/college-staff") || pageIsLive("college-staff");
   const preferCodedRenderer =
     (path === "/calendar" && pageIsLive("calendar")) ||
+    (path === "/job-vacancies" && pageIsLive("job-vacancies")) ||
     ([`/${LCEA_PAGE_ID}`, "/academics/cambridge"].includes(path) && pageIsLive(LCEA_PAGE_ID)) ||
     ([`/${FACILITIES_PAGE_ID}`, "/facilities", "/facilities-services"].includes(path) &&
       pageIsLive(FACILITIES_PAGE_ID)) ||
@@ -1464,6 +1498,9 @@ export function App() {
   }
 
   if (path === "/calendar" && pageIsLive("calendar")) return <CalendarPage />;
+  if (path === "/job-vacancies" && pageIsLive("job-vacancies")) {
+    return <JobVacanciesPage />;
+  }
   if ([`/${LCEA_PAGE_ID}`, "/academics/cambridge"].includes(path) && pageIsLive(LCEA_PAGE_ID)) {
     return <LoyolianCambridgeEnglishAcademyPage />;
   }
@@ -1490,7 +1527,11 @@ export function App() {
   ) {
     return (
       <PastRectorsPage
-        pageId={path.startsWith("/about/") ? path.replace(/^\/+/, "") : "about/college-history"}
+        pageId={
+          path === "/about/college-history" || path === "/college-history"
+            ? "about/college-history"
+            : "about/past-rectors-vice-rectors"
+        }
       />
     );
   }
@@ -1720,7 +1761,13 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
   };
   const page = db.pages[pageId] || defaultPage;
   const visualHtml = page.visualHtml?.trim();
-  if (shouldRenderVisualBuilder(pageId, page) && !isGenericPastRectorsVisualHtml(visualHtml)) {
+  const hasManagedProfiles =
+    Array.isArray(page.pastRectorProfiles) && page.pastRectorProfiles.length > 0;
+  if (
+    !hasManagedProfiles &&
+    shouldRenderVisualBuilder(pageId, page) &&
+    !isGenericPastRectorsVisualHtml(visualHtml)
+  ) {
     return <VisualBuilderPage pageId={pageId} />;
   }
 
@@ -3427,39 +3474,42 @@ function FacilitiesServicesPage() {
 }
 
 function staffMatchesDepartment(staff: Teacher, department: CollegeDepartment) {
-  const keywords = department.staffKeywords || [department.title];
+  const normalize = (value?: string) =>
+    String(value || "")
+      .toLowerCase()
+      .replace(/[^a-z0-9/]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  const aliases = (department.staffDepartments || [department.title])
+    .map(normalize)
+    .filter(Boolean);
   const positions = staff.positions || [];
-  const haystack = [
-    staff.name,
-    staff.type,
+  const assignments = [
+    ...(staff.departments || []),
     staff.category,
     staff.section,
-    staff.position,
     staff.websitePlace,
-    staff.subject,
-    staff.classes,
-    staff.qualifications,
-    staff.responsibilities,
     ...positions.flatMap((position) => [
-      position.display_title,
-      position.displayTitle,
       position.main_category,
       position.mainCategory,
       position.section,
       position.subsection,
-      position.position,
       position.websitePlace,
       position.website_place,
       position.department,
-      position.subject,
-      position.classes,
     ]),
   ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
+    .map(normalize)
+    .filter(Boolean);
 
-  return keywords.some((keyword) => haystack.includes(keyword.toLowerCase()));
+  return assignments.some((assignment) =>
+    aliases.some(
+      (alias) =>
+        assignment === alias ||
+        assignment.startsWith(`${alias} `) ||
+        assignment.endsWith(` ${alias}`),
+    ),
+  );
 }
 
 function staffRoleLabel(staff: Teacher) {
@@ -3479,7 +3529,8 @@ function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepa
   return teachers
     .filter(
       (staff) =>
-        (staff.status || "Active") === "Active" && staffMatchesDepartment(staff, department),
+        (staff.status || "Active").toLowerCase() === "active" &&
+        staffMatchesDepartment(staff, department),
     )
     .slice(0, 8)
     .map((staff) => ({
@@ -3502,7 +3553,7 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
   const relatedDepartments = visibleCollegeDepartments.filter((item) => item.id !== department.id);
   const positions = department.positions || [];
   const liveMembers = departmentMembersFromStaff(db.teachers, department);
-  const members = liveMembers.length ? liveMembers : department.members || [];
+  const members = liveMembers;
   const gallery = department.gallery || [];
   const documents = department.documents || [];
   const contact = department.contact || {
@@ -3621,6 +3672,11 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
                 Department Members
               </p>
               <div className="mt-6 grid gap-4">
+                {members.length === 0 && (
+                  <p className="rounded-lg border border-border bg-background p-4 text-sm leading-6 text-muted-foreground">
+                    No active staff profiles are currently assigned to this department.
+                  </p>
+                )}
                 {members.map((member) => (
                   <article
                     key={`${member.name}-${member.role}`}
@@ -4105,6 +4161,145 @@ function EventsPage() {
         </div>
       </section>
       <SubpagesSection parentId="events" />
+    </PublicLayout>
+  );
+}
+
+function JobVacanciesPage() {
+  const db = useDb();
+  const page = db.pages["job-vacancies"];
+  const [vacancies, setVacancies] = useState<JobVacancy[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/api/job-vacancies`, { credentials: "include" })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => []);
+        if (!response.ok) throw new Error(payload?.error || "Could not load job vacancies.");
+        if (!cancelled) setVacancies(Array.isArray(payload) ? payload : []);
+      })
+      .catch(() => {
+        if (!cancelled) setVacancies([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="job-vacancies"
+        kicker={page?.kicker || "Careers"}
+        title={page?.title || "Job Vacancies"}
+        subtitle={page?.body || "Current employment opportunities at Loyola College Negombo."}
+        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
+      />
+      <section className="bg-page-soft py-16 md:py-20">
+        <div className="mx-auto max-w-6xl px-6">
+          {loading ? (
+            <BrandedLoader
+              fullScreen={false}
+              title="Loading vacancies"
+              subtitle="Checking current opportunities"
+            />
+          ) : vacancies.length === 0 ? (
+            <div className="rounded-lg border border-border bg-white p-8 text-center shadow-soft">
+              <Briefcase className="mx-auto h-8 w-8 text-gold" />
+              <h2 className="mt-4 font-serif text-3xl font-bold text-navy">
+                No vacancies are currently published
+              </h2>
+              <p className="mt-3 text-sm text-muted-foreground">
+                Please check this page again for future opportunities.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-6">
+              {vacancies.map((vacancy) => {
+                const isOpen = vacancy.status === "Open";
+                const email = vacancy.application_email || db.websiteContent.email;
+                const subject = isOpen
+                  ? `Application - ${vacancy.title}`
+                  : `Job Vacancy Inquiry - ${vacancy.title}`;
+                const emailHref = `mailto:${email}?subject=${encodeURIComponent(subject)}`;
+                return (
+                  <article
+                    key={vacancy.id}
+                    className="rounded-lg border border-border bg-white p-6 shadow-soft md:p-8"
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
+                          Employment Opportunity
+                        </p>
+                        <h2 className="mt-3 break-words font-serif text-3xl font-bold text-navy">
+                          {vacancy.title}
+                        </h2>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${
+                          isOpen
+                            ? "bg-emerald-100 text-emerald-800"
+                            : "bg-slate-200 text-slate-700"
+                        }`}
+                      >
+                        {vacancy.status}
+                      </span>
+                    </div>
+
+                    <p className="mt-5 whitespace-pre-line text-sm leading-7 text-slate-700">
+                      {vacancy.description}
+                    </p>
+                    {vacancy.requirements && (
+                      <div className="mt-6 border-t border-border pt-5">
+                        <h3 className="font-bold text-navy">Requirements</h3>
+                        <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">
+                          {vacancy.requirements}
+                        </p>
+                      </div>
+                    )}
+                    <div className="mt-6 flex flex-wrap items-center gap-3">
+                      {vacancy.deadline && (
+                        <span className="inline-flex items-center gap-2 text-sm font-semibold text-navy">
+                          <Calendar className="h-4 w-4 text-gold" />
+                          Deadline:{" "}
+                          {new Date(`${vacancy.deadline}T00:00:00`).toLocaleDateString("en-LK", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
+                        </span>
+                      )}
+                      {vacancy.attachment_url && (
+                        <a
+                          href={vacancy.attachment_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-2 text-sm font-bold text-crimson"
+                        >
+                          <FileText className="h-4 w-4" />
+                          View attachment
+                        </a>
+                      )}
+                    </div>
+                    <a
+                      href={emailHref}
+                      className="mt-6 inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
+                    >
+                      <Mail className="h-4 w-4" />
+                      {isOpen ? "Apply Now" : "Email Us"}
+                    </a>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </section>
     </PublicLayout>
   );
 }
