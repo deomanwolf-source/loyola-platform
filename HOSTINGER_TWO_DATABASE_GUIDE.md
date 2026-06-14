@@ -59,6 +59,12 @@ DB_NAME=u414000991_loyoladatabase
 JWT_SECRET=use_the_same_long_secret_as_edutrack
 ALLOWED_ORIGINS=https://loyolacollege.lk,https://www.loyolacollege.lk,https://edutrack.loyolacollege.lk
 PUBLIC_API_URL=https://loyolacollege.lk
+PASSWORD_RESET_BASE_URL=https://loyolacollege.lk
+SMTP_HOST=smtp-relay.brevo.com
+SMTP_PORT=587
+SMTP_USER=your_brevo_smtp_login
+SMTP_PASSWORD=your_new_brevo_smtp_key
+SMTP_FROM=Loyola College Portal <no-reply@loyolacollege.lk>
 EDUTRACK_PUBLIC_URL=https://edutrack.loyolacollege.lk/
 EDUTRACK_INTERNAL_BASE_URL=https://edutrack.loyolacollege.lk
 EDUTRACK_SYNC_SECRET=use_the_same_sync_secret_as_edutrack
@@ -83,6 +89,10 @@ EDUTRACK_SYNC_SECRET=use_the_same_sync_secret_as_website
 ALLOWED_ORIGINS=https://loyolacollege.lk,https://www.loyolacollege.lk,https://edutrack.loyolacollege.lk
 PUBLIC_API_URL=https://edutrack.loyolacollege.lk
 ```
+
+Configure the SMTP values on the website app. The sender in `SMTP_FROM` must be verified in Brevo.
+Because the SMTP key was visible in a screenshot, revoke it in Brevo and create a new key before
+deployment. Never commit the real key to Git.
 
 The `JWT_SECRET` must match in both apps if users log in from the main website and then open EduTrack.
 `EDUTRACK_PUBLIC_URL` on the website app must point to the EduTrack application. Existing EduTrack

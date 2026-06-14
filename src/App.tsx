@@ -63,6 +63,8 @@ import {
   TwoFactorRequiredError,
   authHeaders,
   getMaintenanceStatus,
+  requestPasswordReset,
+  resetPassword,
   type MaintenanceStatus,
 } from "@/lib/api";
 import {
@@ -167,7 +169,10 @@ const REQUIRED_HOME_LEADERSHIP_CARDS: HomeLeadershipCard[] = [
 
 function normalizeKennedyTitle(value: string) {
   return value
-    .replace(/\bRev\.\s*Fr\.\s*D\.?\s*M\.?\s*J\.?\s*Kennedy Perera\b/gi, "Rev. Dr. D.M.J. Kennedy Perera")
+    .replace(
+      /\bRev\.\s*Fr\.\s*D\.?\s*M\.?\s*J\.?\s*Kennedy Perera\b/gi,
+      "Rev. Dr. D.M.J. Kennedy Perera",
+    )
     .replace(/\bRev\.\s*Fr\.\s*Kennedy Perera\b/gi, "Rev. Dr. Kennedy Perera");
 }
 
@@ -257,7 +262,10 @@ function removeHomeVisualCalendarHighlights(html: string) {
   if (!/Year highlights|Annual Prize Giving Ceremony/i.test(html)) return html;
   if (typeof DOMParser === "undefined") return html;
 
-  const doc = new DOMParser().parseFromString(`<div data-home-visual-root>${html}</div>`, "text/html");
+  const doc = new DOMParser().parseFromString(
+    `<div data-home-visual-root>${html}</div>`,
+    "text/html",
+  );
   const walker = doc.createTreeWalker(doc.body, NodeFilter.SHOW_TEXT);
   let highlightNode = walker.nextNode();
   let highlightColumn: Element | null = null;
@@ -435,9 +443,18 @@ const collegeDepartments: CollegeDepartment[] = [
       },
     ],
     documents: [
-      { title: "Office Circulars", body: "Official letters, circulars, and administrative notices." },
-      { title: "Meeting Records", body: "Meeting schedules, minutes, action lists, and approvals." },
-      { title: "Policy Files", body: "Institutional policies, guidelines, and procedure documents." },
+      {
+        title: "Office Circulars",
+        body: "Official letters, circulars, and administrative notices.",
+      },
+      {
+        title: "Meeting Records",
+        body: "Meeting schedules, minutes, action lists, and approvals.",
+      },
+      {
+        title: "Policy Files",
+        body: "Institutional policies, guidelines, and procedure documents.",
+      },
     ],
     contact: {
       location: "College Office",
@@ -555,9 +572,18 @@ const collegeDepartments: CollegeDepartment[] = [
       },
     ],
     documents: [
-      { title: "Timetables", body: "Class timetables, examination timetables, and section schedules." },
-      { title: "Syllabus Plans", body: "Term plans, unit plans, topics, and syllabus tracking files." },
-      { title: "Academic Notices", body: "Approved academic notices, circulars, and parent updates." },
+      {
+        title: "Timetables",
+        body: "Class timetables, examination timetables, and section schedules.",
+      },
+      {
+        title: "Syllabus Plans",
+        body: "Term plans, unit plans, topics, and syllabus tracking files.",
+      },
+      {
+        title: "Academic Notices",
+        body: "Approved academic notices, circulars, and parent updates.",
+      },
     ],
     contact: {
       location: "Academic Office",
@@ -678,9 +704,18 @@ const collegeDepartments: CollegeDepartment[] = [
       },
     ],
     documents: [
-      { title: "Fee Notices", body: "Approved fee notices, payment instructions, and due-date updates." },
-      { title: "Receipts and Ledgers", body: "Receipt records, ledger extracts, and payment summaries." },
-      { title: "Budget Reports", body: "Department budgets, purchase approvals, and audit-support files." },
+      {
+        title: "Fee Notices",
+        body: "Approved fee notices, payment instructions, and due-date updates.",
+      },
+      {
+        title: "Receipts and Ledgers",
+        body: "Receipt records, ledger extracts, and payment summaries.",
+      },
+      {
+        title: "Budget Reports",
+        body: "Department budgets, purchase approvals, and audit-support files.",
+      },
     ],
     contact: {
       location: "Finance Office",
@@ -799,9 +834,18 @@ const collegeDepartments: CollegeDepartment[] = [
       },
     ],
     documents: [
-      { title: "Support Requests", body: "Technical-support requests, maintenance notes, and issue records." },
-      { title: "Account Records", body: "Approved account access, role assignments, and recovery logs." },
-      { title: "Asset Lists", body: "Device inventories, warranty records, software, and repair records." },
+      {
+        title: "Support Requests",
+        body: "Technical-support requests, maintenance notes, and issue records.",
+      },
+      {
+        title: "Account Records",
+        body: "Approved account access, role assignments, and recovery logs.",
+      },
+      {
+        title: "Asset Lists",
+        body: "Device inventories, warranty records, software, and repair records.",
+      },
     ],
     contact: {
       location: "IT Office",
@@ -1025,9 +1069,18 @@ const collegeDepartments: CollegeDepartment[] = [
       },
     ],
     documents: [
-      { title: "Fixtures and Practices", body: "Training schedules, match fixtures, venues, and transport notes." },
-      { title: "Team Lists", body: "Approved team lists, age groups, captains, and player records." },
-      { title: "Results and Awards", body: "Competition results, achievements, certificates, and sports reports." },
+      {
+        title: "Fixtures and Practices",
+        body: "Training schedules, match fixtures, venues, and transport notes.",
+      },
+      {
+        title: "Team Lists",
+        body: "Approved team lists, age groups, captains, and player records.",
+      },
+      {
+        title: "Results and Awards",
+        body: "Competition results, achievements, certificates, and sports reports.",
+      },
     ],
     contact: {
       location: "Sports Office",
@@ -1127,10 +1180,7 @@ function shouldRenderVisualBuilder(
   if (!page?.visualHtml?.trim()) return false;
   if (!page.visualBaseCss?.trim() || !page.visualCss?.trim()) return false;
   if (!isLiveRenderedPage(pageId)) return true;
-  return (
-    page.visualMode === "visual" &&
-    hasCompleteLiveVisualCapture(page.visualHtml)
-  );
+  return page.visualMode === "visual" && hasCompleteLiveVisualCapture(page.visualHtml);
 }
 
 function googleCalendarEmbedUrl(mode: "MONTH" | "AGENDA") {
@@ -1319,7 +1369,12 @@ export function App() {
       pageIsLive(FACILITIES_PAGE_ID)) ||
     (COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedPageId) && pageIsLive(requestedPageId));
   const isSystemPath =
-    path === "/login" || path === "/portal" || path === "/admin" || path.startsWith("/portal/");
+    path === "/login" ||
+    path === "/forgot-password" ||
+    path === "/reset-password" ||
+    path === "/portal" ||
+    path === "/admin" ||
+    path.startsWith("/portal/");
   const canViewDuringMaintenance =
     maintenanceStatus?.canViewSite ||
     Boolean(auth.user && MAINTENANCE_BYPASS_ROLES.includes(auth.user.role));
@@ -1426,10 +1481,7 @@ export function App() {
     return <FacilitiesServicesPage />;
   }
 
-  if (
-    COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedPageId) &&
-    pageIsLive(requestedPageId)
-  ) {
+  if (COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedPageId) && pageIsLive(requestedPageId)) {
     return <CollegeDepartmentPage pageId={requestedPageId} />;
   }
 
@@ -1518,7 +1570,7 @@ export function App() {
   if (path === "/student-portal" && pageIsLive("student-portal"))
     return <StudentPortalLandingPage />;
   if (path === "/contact" && pageIsLive("contact")) return <ContactPage />;
-  if (path === "/login") return <LoginPage />;
+  if (["/login", "/forgot-password", "/reset-password"].includes(path)) return <LoginPage />;
   if (path === "/portal") return <CentralPortal />;
   if (path === "/admin") {
     return (
@@ -3114,9 +3166,7 @@ function editableFacilityItems(page?: { facilityItems?: FacilityItem[] }): Facil
     category: facility.category || "Facility",
     image: facility.image || "",
     body: facility.body || "Add facility details.",
-    highlights: Array.isArray(facility.highlights)
-      ? facility.highlights.filter(Boolean)
-      : [],
+    highlights: Array.isArray(facility.highlights) ? facility.highlights.filter(Boolean) : [],
   }));
 }
 
@@ -3198,10 +3248,7 @@ function FacilitiesServicesPage() {
   const pageBody =
     page?.body && page.body.trim() !== "New page content goes here." ? page.body : "";
   const heroImage =
-    page?.image ||
-    db.media.campusImage ||
-    db.websiteContent.heroImage ||
-    DEFAULT_HERO_IMAGE;
+    page?.image || db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE;
   const formationSpaces = facilities.filter((facility) =>
     /faith|formation|leadership|discipline/i.test(`${facility.category} ${facility.title}`),
   ).length;
@@ -3437,7 +3484,10 @@ function initialsForName(name: string) {
 
 function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepartment) {
   return teachers
-    .filter((staff) => (staff.status || "Active") === "Active" && staffMatchesDepartment(staff, department))
+    .filter(
+      (staff) =>
+        (staff.status || "Active") === "Active" && staffMatchesDepartment(staff, department),
+    )
     .slice(0, 8)
     .map((staff) => ({
       name: staff.name,
@@ -3567,9 +3617,7 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
                     <h3 className="mt-4 font-serif text-2xl font-bold text-navy">
                       {position.title}
                     </h3>
-                    <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                      {position.body}
-                    </p>
+                    <p className="mt-3 text-sm leading-7 text-muted-foreground">{position.body}</p>
                   </article>
                 ))}
               </div>
@@ -3700,9 +3748,7 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
               Files and Notices
             </p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-              Department Documents
-            </h2>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Department Documents</h2>
             <div className="mt-8 grid gap-4 md:grid-cols-3">
               {documents.map((document) => (
                 <article
@@ -3710,12 +3756,8 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
                   className="rounded-lg border border-border bg-background p-5"
                 >
                   <FileText className="h-6 w-6 text-gold" />
-                  <h3 className="mt-4 font-serif text-2xl font-bold text-navy">
-                    {document.title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-muted-foreground">
-                    {document.body}
-                  </p>
+                  <h3 className="mt-4 font-serif text-2xl font-bold text-navy">{document.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-muted-foreground">{document.body}</p>
                 </article>
               ))}
             </div>
@@ -3756,9 +3798,7 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
               <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
                 The College
               </p>
-              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-                Other departments
-              </h2>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Other departments</h2>
             </div>
             <a
               href={`/${FACILITIES_PAGE_ID}`}
@@ -5235,9 +5275,18 @@ function RectorsMessagePage({ pageId = "rectors-message" }: { pageId?: string })
 
 function LoginPage() {
   const db = useDb();
+  const currentPath = typeof window === "undefined" ? "/login" : window.location.pathname;
+  const isForgotPassword = currentPath === "/forgot-password";
+  const isResetPassword = currentPath === "/reset-password";
+  const resetToken =
+    typeof window === "undefined"
+      ? ""
+      : new URLSearchParams(window.location.search).get("token") || "";
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [passwordResetComplete, setPasswordResetComplete] = useState(false);
   const [twoFactorChallenge, setTwoFactorChallenge] = useState<{
     token: string;
     email: string;
@@ -5253,15 +5302,35 @@ function LoginPage() {
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
+    setNotice("");
     setSubmitting(true);
     try {
+      const formData = new FormData(event.currentTarget);
+      if (isForgotPassword) {
+        const result = await requestPasswordReset(String(formData.get("email") || ""));
+        setNotice(result.message);
+        setSubmitting(false);
+        return;
+      }
+
+      if (isResetPassword) {
+        const password = String(formData.get("password") || "");
+        const confirmPassword = String(formData.get("confirmPassword") || "");
+        if (!resetToken) throw new Error("This password reset link is invalid or expired.");
+        if (password !== confirmPassword) throw new Error("Passwords do not match.");
+        const result = await resetPassword(resetToken, password);
+        setNotice(result.message);
+        setPasswordResetComplete(true);
+        setSubmitting(false);
+        return;
+      }
+
       if (twoFactorChallenge) {
         await authenticateTwoFactor(twoFactorChallenge.token, twoFactorCode);
         redirectAfterLogin();
         return;
       }
 
-      const formData = new FormData(event.currentTarget);
       await authenticateUser(
         String(formData.get("email") || ""),
         String(formData.get("password") || ""),
@@ -5279,6 +5348,21 @@ function LoginPage() {
       setSubmitting(false);
     }
   };
+
+  const pageTitle = isForgotPassword
+    ? "Forgot password"
+    : isResetPassword
+      ? "Choose a new password"
+      : twoFactorChallenge
+        ? "Verify sign in"
+        : "Welcome back";
+  const pageSubtitle = isForgotPassword
+    ? "Enter your Loyola teacher email. The reset link will be sent to your private recovery email."
+    : isResetPassword
+      ? "Use at least 8 characters for your new portal password."
+      : twoFactorChallenge
+        ? `Enter the authentication code for ${twoFactorChallenge.email}.`
+        : "Enter your assigned email and password to continue.";
 
   const roleChips = [
     { label: "Student", color: "bg-sky-100 text-sky-800" },
@@ -5442,16 +5526,68 @@ function LoginPage() {
               Portal sign in
             </p>
             <h2 className="mt-2 font-serif text-4xl font-bold text-navy leading-tight">
-              {twoFactorChallenge ? "Verify sign in" : "Welcome back"}
+              {pageTitle}
             </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-              {twoFactorChallenge
-                ? `Enter the authentication code for ${twoFactorChallenge.email}.`
-                : "Enter your assigned email and password to continue."}
-            </p>
+            <p className="mt-2 text-sm text-muted-foreground">{pageSubtitle}</p>
           </div>
 
-          {twoFactorChallenge ? (
+          {isResetPassword ? (
+            passwordResetComplete ? (
+              <div className="mt-7">
+                <a
+                  href="/login"
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white"
+                >
+                  Return to sign in
+                </a>
+              </div>
+            ) : (
+              <div className="mt-7 space-y-5">
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                    New password
+                  </span>
+                  <div className="relative mt-2">
+                    <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      autoComplete="new-password"
+                      className="input-line pl-7 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((value) => !value)}
+                      className="absolute top-1/2 right-0 -translate-y-1/2 text-slate-400 transition hover:text-navy"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </div>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                    Confirm new password
+                  </span>
+                  <div className="relative mt-2">
+                    <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      name="confirmPassword"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      autoComplete="new-password"
+                      className="input-line pl-7"
+                    />
+                  </div>
+                </label>
+              </div>
+            )
+          ) : twoFactorChallenge ? (
             <div className="mt-7 space-y-5">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <p className="text-sm font-bold text-emerald-900">Two-factor authentication</p>
@@ -5496,54 +5632,69 @@ function LoginPage() {
             </div>
           ) : (
             <>
-          <div className="mt-7">
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                Email address
-              </span>
-              <div className="relative mt-2">
-                <Mail className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="login-email"
-                  name="email"
-                  type="email"
-                  required
-                  autoComplete="username"
-                  placeholder="you@school.test"
-                  className="input-line pl-7"
-                />
+              <div className="mt-7">
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                    Email address
+                  </span>
+                  <div className="relative mt-2">
+                    <Mail className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="login-email"
+                      name="email"
+                      type="email"
+                      required
+                      autoComplete="username"
+                      placeholder="you@school.test"
+                      className="input-line pl-7"
+                    />
+                  </div>
+                </label>
               </div>
-            </label>
-          </div>
 
-          <div className="mt-5">
-            <label className="block">
-              <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                Password
-              </span>
-              <div className="relative mt-2">
-                <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="login-password"
-                  name="password"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="input-line pl-7 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="absolute top-1/2 right-0 -translate-y-1/2 text-slate-400 transition hover:text-navy"
-                  tabIndex={-1}
-                >
-                  <Eye className="h-4 w-4" />
-                </button>
-              </div>
-            </label>
-          </div>
+              {!isForgotPassword && (
+                <div className="mt-5">
+                  <label className="block">
+                    <span className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                      <span>Password</span>
+                      <a
+                        href="/forgot-password"
+                        className="normal-case tracking-normal text-[#b70f1b] hover:underline"
+                      >
+                        Forgot password?
+                      </a>
+                    </span>
+                    <div className="relative mt-2">
+                      <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                      <input
+                        id="login-password"
+                        name="password"
+                        type={showPassword ? "text" : "password"}
+                        required
+                        autoComplete="current-password"
+                        placeholder="••••••••"
+                        className="input-line pl-7 pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((v) => !v)}
+                        className="absolute top-1/2 right-0 -translate-y-1/2 text-slate-400 transition hover:text-navy"
+                        tabIndex={-1}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </label>
+                </div>
+              )}
             </>
+          )}
+
+          {notice && (
+            <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
+              <p className="text-sm font-medium text-emerald-800">{notice}</p>
+            </div>
           )}
 
           {error && (
@@ -5553,27 +5704,50 @@ function LoginPage() {
             </div>
           )}
 
-          <button
-            id="login-submit"
-            disabled={
-              submitting ||
-              Boolean(twoFactorChallenge && twoFactorCode.replace(/\s+/g, "").length < 6)
-            }
-            type="submit"
-            className="login-submit mt-7 w-full rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white shadow-[0_12px_32px_-16px_rgba(10,22,40,0.6)] transition-all hover:-translate-y-0.5 hover:bg-[#122040] disabled:translate-y-0 disabled:cursor-wait disabled:opacity-60"
-          >
-            {submitting ? (
-              <span className="inline-flex items-center gap-2">
-                <span
-                  className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
-                  style={{ animation: "spin 0.7s linear infinite" }}
-                />
-                {twoFactorChallenge ? "Verifying..." : "Signing in..."}
-              </span>
-            ) : (
-              twoFactorChallenge ? "Verify and continue ->" : "Sign in to portal ->"
-            )}
-          </button>
+          {!passwordResetComplete && (
+            <button
+              id="login-submit"
+              disabled={
+                submitting ||
+                Boolean(twoFactorChallenge && twoFactorCode.replace(/\s+/g, "").length < 6)
+              }
+              type="submit"
+              className="login-submit mt-7 w-full rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white shadow-[0_12px_32px_-16px_rgba(10,22,40,0.6)] transition-all hover:-translate-y-0.5 hover:bg-[#122040] disabled:translate-y-0 disabled:cursor-wait disabled:opacity-60"
+            >
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <span
+                    className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
+                    style={{ animation: "spin 0.7s linear infinite" }}
+                  />
+                  {isForgotPassword
+                    ? "Sending..."
+                    : isResetPassword
+                      ? "Resetting..."
+                      : twoFactorChallenge
+                        ? "Verifying..."
+                        : "Signing in..."}
+                </span>
+              ) : isForgotPassword ? (
+                "Send reset link"
+              ) : isResetPassword ? (
+                "Reset password"
+              ) : twoFactorChallenge ? (
+                "Verify and continue ->"
+              ) : (
+                "Sign in to portal ->"
+              )}
+            </button>
+          )}
+
+          {(isForgotPassword || isResetPassword) && !passwordResetComplete && (
+            <a
+              href="/login"
+              className="mt-4 block text-center text-xs font-bold text-slate-500 hover:text-navy"
+            >
+              Back to sign in
+            </a>
+          )}
 
           <div className="mt-8 border-t border-border pt-6">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">
@@ -5888,7 +6062,9 @@ function EduTrackIntegratedPage() {
     const currentUser = auth.user;
     if (!auth.loading && currentUser?.role === "teacher") {
       setProgressForm((current) =>
-        current.teacher_id === currentUser.id ? current : { ...current, teacher_id: currentUser.id },
+        current.teacher_id === currentUser.id
+          ? current
+          : { ...current, teacher_id: currentUser.id },
       );
     }
   }, [auth.loading, auth.user?.id, auth.user?.role]);
@@ -5969,8 +6145,9 @@ function EduTrackIntegratedPage() {
     ? syllabus.filter((item) => String(item.subject_id || "") === String(progressForm.subject_id))
     : syllabus;
   const teacherDisplayName =
-    teachers.find((teacher) => String(teacher.id) === String(progressForm.teacher_id || currentUser.id))
-      ?.name || currentUser.name;
+    teachers.find(
+      (teacher) => String(teacher.id) === String(progressForm.teacher_id || currentUser.id),
+    )?.name || currentUser.name;
   const workspaceMode = isViewAdmin
     ? "View-only workspace"
     : isAdmin
@@ -6136,10 +6313,7 @@ function EduTrackIntegratedPage() {
               )}
 
               {activeTab === "terms" && (
-                <DataList
-                  title="Academic terms"
-                  empty="No academic terms yet."
-                >
+                <DataList title="Academic terms" empty="No academic terms yet.">
                   {terms.map((term) => (
                     <InfoRow
                       key={term.id}
@@ -6152,10 +6326,7 @@ function EduTrackIntegratedPage() {
               )}
 
               {activeTab === "syllabus" && (
-                <DataList
-                  title="Syllabus items"
-                  empty="No syllabus items yet."
-                >
+                <DataList title="Syllabus items" empty="No syllabus items yet.">
                   {syllabus.map((item) => (
                     <InfoRow
                       key={item.id}
@@ -6168,10 +6339,7 @@ function EduTrackIntegratedPage() {
               )}
 
               {activeTab === "progress" && (
-                <DataList
-                  title="Progress log"
-                  empty="No progress records yet."
-                >
+                <DataList title="Progress log" empty="No progress records yet.">
                   {progress.map((item) => (
                     <InfoRow
                       key={item.id}
@@ -6184,10 +6352,7 @@ function EduTrackIntegratedPage() {
               )}
 
               {activeTab === "warnings" && (
-                <DataList
-                  title="Warning log"
-                  empty="No warnings right now."
-                >
+                <DataList title="Warning log" empty="No warnings right now.">
                   {warnings.map((item) => (
                     <InfoRow
                       key={`${item.term_id}-${item.subject_id}`}
@@ -6271,10 +6436,7 @@ function EduTrackIntegratedPage() {
 
               {isAdmin && activeTab === "syllabus" && (
                 <div className="mt-5 space-y-5">
-                  <form
-                    onSubmit={submitSubject}
-                    className="grid gap-3"
-                  >
+                  <form onSubmit={submitSubject} className="grid gap-3">
                     <p className="font-bold text-navy">Add subject</p>
                     <input
                       className={inputClass}
@@ -6316,10 +6478,7 @@ function EduTrackIntegratedPage() {
                     <button className={secondaryButtonClass}>Add subject</button>
                   </form>
                   <div className="h-px bg-[#d8e1f5]" />
-                  <form
-                    onSubmit={submitSyllabus}
-                    className="grid gap-3"
-                  >
+                  <form onSubmit={submitSyllabus} className="grid gap-3">
                     <p className="font-bold text-navy">Add syllabus item</p>
                     <select
                       className={inputClass}
@@ -6733,9 +6892,7 @@ function ModulePage({ moduleId }: { moduleId: string }) {
       title: "Report Cards",
       icon: FileText,
       roles: REPORT_CARD_ROLES,
-      actions: [
-        { label: "Open Report Card System", href: REPORT_CARDS_SYSTEM_URL },
-      ],
+      actions: [{ label: "Open Report Card System", href: REPORT_CARDS_SYSTEM_URL }],
     },
   };
   const module = modules[moduleId] || modules.eduzync;

@@ -1,6 +1,13 @@
 // Local drafts are kept in localStorage; published content is written to MySQL through the backend API.
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { API_URL, authHeaders, completeTwoFactorLogin, loginUser, logoutUser } from "./api";
+import {
+  API_URL,
+  authHeaders,
+  completeTwoFactorLogin,
+  getCurrentUser,
+  loginUser,
+  logoutUser,
+} from "./api";
 
 export const DEFAULT_ANTHEM_VIDEO_URL = "https://youtu.be/0X2iA064w9k";
 export const DEFAULT_HERO_IMAGE = "/flag1.png";
@@ -243,6 +250,7 @@ export interface Teacher {
   accountEmail?: string;
   accountUserId?: string;
   accountStatus?: string;
+  recoveryEmail?: string;
 }
 export interface StaffAttendance {
   id: string;
@@ -2139,7 +2147,10 @@ export function useDb(): DB {
 
 function currentAuditActor(user: string) {
   const sessionUser = authCache?.user;
-  if (sessionUser && (["Admin", "Website editor", "System"].includes(user) || user === sessionUser.email)) {
+  if (
+    sessionUser &&
+    (["Admin", "Website editor", "System"].includes(user) || user === sessionUser.email)
+  ) {
     return {
       user: sessionUser.email,
       actorEmail: sessionUser.email,
@@ -2271,8 +2282,9 @@ function writeSessionUser(user: User | null) {
 }
 
 const initialSessionUser = readSessionUser();
-let authCache: AuthState = { user: initialSessionUser, loading: false };
+let authCache: AuthState = { user: initialSessionUser, loading: !initialSessionUser };
 const authListeners = new Set<() => void>();
+let authBootstrapPromise: Promise<User | null> | null = null;
 
 function emitAuth() {
   authListeners.forEach((listener) => listener());
@@ -2286,6 +2298,25 @@ export function setResolvedAuthUser(user: User | null, loading = false) {
 
 export function getAuth(): AuthState {
   return authCache;
+}
+
+export function bootstrapAuth(): Promise<User | null> {
+  if (authBootstrapPromise) return authBootstrapPromise;
+
+  authBootstrapPromise = getCurrentUser()
+    .then((user) => {
+      const normalizedUser = user
+        ? ({ ...user, role: normalizeRole(user.role) } as User)
+        : null;
+      setResolvedAuthUser(normalizedUser);
+      return normalizedUser;
+    })
+    .catch(() => {
+      setResolvedAuthUser(initialSessionUser);
+      return initialSessionUser;
+    });
+
+  return authBootstrapPromise;
 }
 
 export async function setAuth(user: User | null) {
@@ -2330,4 +2361,8 @@ export function useAuth(): AuthState {
     };
   }, []);
   return state;
+}
+
+if (typeof window !== "undefined") {
+  void bootstrapAuth();
 }

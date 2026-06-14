@@ -171,7 +171,9 @@ function navGroupsForRole(role?: Role) {
     .filter((group) => group.items.length > 0);
 }
 
-const allPanelIds = new Set<PanelId>(navGroups.flatMap((group) => group.items.map((item) => item.id)));
+const allPanelIds = new Set<PanelId>(
+  navGroups.flatMap((group) => group.items.map((item) => item.id)),
+);
 
 function getInitialAdminPanel(): PanelId {
   if (typeof window === "undefined") return "dashboard";
@@ -448,7 +450,12 @@ function DashboardPanel({
               value={db.news.length}
               hint="Published content"
             />
-            <StatCard icon={Users} label="Staff profiles" value={staffCount} hint="Live staff rows" />
+            <StatCard
+              icon={Users}
+              label="Staff profiles"
+              value={staffCount}
+              hint="Live staff rows"
+            />
             <StatCard icon={ImageIcon} label="Media" value={mediaCount} hint="Images / downloads" />
           </div>
         </PanelShell>
@@ -537,19 +544,19 @@ function DashboardPanel({
             ]
               .filter(([, id]) => availablePanels.includes(id as PanelId))
               .map(([label, id, Icon]) => (
-              <button
-                key={String(label)}
-                type="button"
-                onClick={() => setActive(id as PanelId)}
-                className="rounded-2xl border border-border bg-secondary/45 p-5 text-left transition-smooth hover:-translate-y-1 hover:border-gold hover:bg-white hover:shadow-soft"
-              >
-                <Icon className="h-7 w-7 text-gold" />
-                <p className="mt-3 font-bold text-navy">{String(label)}</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                  Open this working management panel.
-                </p>
-              </button>
-            ))}
+                <button
+                  key={String(label)}
+                  type="button"
+                  onClick={() => setActive(id as PanelId)}
+                  className="rounded-2xl border border-border bg-secondary/45 p-5 text-left transition-smooth hover:-translate-y-1 hover:border-gold hover:bg-white hover:shadow-soft"
+                >
+                  <Icon className="h-7 w-7 text-gold" />
+                  <p className="mt-3 font-bold text-navy">{String(label)}</p>
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    Open this working management panel.
+                  </p>
+                </button>
+              ))}
           </div>
         </PanelShell>
 
@@ -2592,7 +2599,9 @@ function normalizeManagedUser(row: Partial<ManagedUser> & Record<string, unknown
   return {
     id: String(row.id || ""),
     external_staff_id:
-      typeof row.external_staff_id === "string" ? row.external_staff_id : row.external_staff_id || null,
+      typeof row.external_staff_id === "string"
+        ? row.external_staff_id
+        : row.external_staff_id || null,
     name: String(row.name || ""),
     email: String(row.email || ""),
     role,
@@ -2791,9 +2800,14 @@ function UsersPanel({ db }: { db: DB }) {
   });
   const activeUsers = users.filter((user) => user.status === "Active").length;
   const adminUsers = users.filter((user) =>
-    ["masteradmin", "superadmin", "website_admin", "eduzync_admin", "staff_admin", "viewadmin"].includes(
-      user.role,
-    ),
+    [
+      "masteradmin",
+      "superadmin",
+      "website_admin",
+      "eduzync_admin",
+      "staff_admin",
+      "viewadmin",
+    ].includes(user.role),
   ).length;
 
   if (!canManageUsers) {
@@ -3070,9 +3084,14 @@ function LocalUsersPanel({ db }: { db: DB }) {
         <div className="space-y-3">
           {db.users
             .filter((u) =>
-              ["website_admin", "eduzync_admin", "staff_admin", "viewadmin", "superadmin", "masteradmin"].includes(
-                u.role,
-              ),
+              [
+                "website_admin",
+                "eduzync_admin",
+                "staff_admin",
+                "viewadmin",
+                "superadmin",
+                "masteradmin",
+              ].includes(u.role),
             )
             .map((user) => (
               <div
@@ -3770,11 +3789,7 @@ function TwoFactorSettingsCard() {
             <button
               type="button"
               onClick={() => void disableTwoFactor()}
-              disabled={
-                working ||
-                !disablePassword ||
-                disableCode.replace(/\s+/g, "").length < 6
-              }
+              disabled={working || !disablePassword || disableCode.replace(/\s+/g, "").length < 6}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-crimson disabled:opacity-60"
             >
               Disable
@@ -3802,39 +3817,39 @@ function SecurityPanel({ db }: { db: DB }) {
     <div className="space-y-6">
       <TwoFactorSettingsCard />
       <PanelShell title="Security center" kicker="Protection">
-      <div className="grid gap-4 md:grid-cols-3">
-        {[
-          [
-            "Role-based admin access",
-            "Website admins can manage website tools. Master Admin controls owner-only management panels.",
-          ],
-          [
-            "Upload validation",
-            "Images are JPG/PNG up to 5 MB. Videos are MP4/MOV/WebM up to 500 MB.",
-          ],
-          [
-            "Protected controls",
-            "Users & Roles, Activity Logs, and Settings are locked to Master Admin only. Backup stays limited to Super Admin and Master Admin.",
-          ],
-        ].map(([title, body]) => (
-          <div key={title} className="rounded-2xl border border-border bg-secondary/40 p-5">
-            <ShieldCheck className="h-7 w-7 text-gold" />
-            <p className="mt-4 font-bold text-navy">{title}</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
-          </div>
-        ))}
-      </div>
-      <div className="mt-6 space-y-3">
-        {db.auditLogs.slice(0, 0).map((log) => (
-          <div key={log.id} className="rounded-2xl bg-white px-4 py-3 text-sm shadow-soft">
-            <b>{log.action}</b>
-            <span className="text-muted-foreground">
-              {" "}
-              · {log.user} · {new Date(log.createdAt).toLocaleString()}
-            </span>
-          </div>
-        ))}
-      </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          {[
+            [
+              "Role-based admin access",
+              "Website admins can manage website tools. Master Admin controls owner-only management panels.",
+            ],
+            [
+              "Upload validation",
+              "Images are JPG/PNG up to 5 MB. Videos are MP4/MOV/WebM up to 500 MB.",
+            ],
+            [
+              "Protected controls",
+              "Users & Roles, Activity Logs, and Settings are locked to Master Admin only. Backup stays limited to Super Admin and Master Admin.",
+            ],
+          ].map(([title, body]) => (
+            <div key={title} className="rounded-2xl border border-border bg-secondary/40 p-5">
+              <ShieldCheck className="h-7 w-7 text-gold" />
+              <p className="mt-4 font-bold text-navy">{title}</p>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">{body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 space-y-3">
+          {db.auditLogs.slice(0, 0).map((log) => (
+            <div key={log.id} className="rounded-2xl bg-white px-4 py-3 text-sm shadow-soft">
+              <b>{log.action}</b>
+              <span className="text-muted-foreground">
+                {" "}
+                · {log.user} · {new Date(log.createdAt).toLocaleString()}
+              </span>
+            </div>
+          ))}
+        </div>
       </PanelShell>
     </div>
   );
@@ -4051,9 +4066,7 @@ function ActivityPanel({ db }: { db: DB }) {
           </div>
         </div>
         <div className="rounded-2xl border border-border bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-crimson">
-            Top actors
-          </p>
+          <p className="text-xs font-black uppercase tracking-[0.18em] text-crimson">Top actors</p>
           <div className="mt-4 space-y-2">
             {actorCounts.map((item) => (
               <div
@@ -4076,97 +4089,97 @@ function ActivityPanel({ db }: { db: DB }) {
           const target = auditTarget(log.action);
           return (
             <div key={log.id} className="rounded-2xl border border-border bg-secondary/30 p-4">
-            <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full bg-gold/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-navy">
-                    {log.area || "General"}
-                  </span>
-                  <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground">
-                    {formatRole(log.actorRole)}
-                  </span>
-                  <span
-                    className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${
-                      severity === "Protected"
-                        ? "bg-crimson/10 text-crimson"
-                        : severity === "Change"
-                          ? "bg-gold/25 text-navy"
-                          : severity === "Auth"
-                            ? "bg-blue-100 text-blue-900"
-                            : "bg-emerald-100 text-emerald-900"
-                    }`}
-                  >
-                    {severity}
-                  </span>
-                </div>
-                <p className="mt-3 text-sm font-black text-navy">{formatActor(log)}</p>
-                <p className="mt-1 text-sm font-semibold text-slate-700">
-                  {formatActor(log)} {log.action.charAt(0).toLowerCase()}
-                  {log.action.slice(1)}.
-                </p>
-                <div className="mt-4 grid gap-3 text-xs md:grid-cols-2 xl:grid-cols-4">
-                  <div className="rounded-xl bg-white px-3 py-2">
-                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
-                      Event ID
-                    </p>
-                    <p className="mt-1 break-all font-semibold text-navy">{log.id}</p>
+              <div className="flex flex-col justify-between gap-3 md:flex-row md:items-start">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-gold/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-navy">
+                      {log.area || "General"}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] text-muted-foreground">
+                      {formatRole(log.actorRole)}
+                    </span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${
+                        severity === "Protected"
+                          ? "bg-crimson/10 text-crimson"
+                          : severity === "Change"
+                            ? "bg-gold/25 text-navy"
+                            : severity === "Auth"
+                              ? "bg-blue-100 text-blue-900"
+                              : "bg-emerald-100 text-emerald-900"
+                      }`}
+                    >
+                      {severity}
+                    </span>
                   </div>
-                  <div className="rounded-xl bg-white px-3 py-2">
-                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
-                      Actor email
-                    </p>
-                    <p className="mt-1 break-all font-semibold text-navy">
-                      {log.actorEmail || log.user || "System"}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white px-3 py-2">
-                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
-                      Path
-                    </p>
-                    <p className="mt-1 break-all font-semibold text-navy">
-                      {log.requestPath || "Not captured"}
-                    </p>
-                  </div>
-                  <div className="rounded-xl bg-white px-3 py-2">
-                    <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
-                      Target
-                    </p>
-                    <p className="mt-1 break-all font-semibold text-navy">
-                      {target || "No target"}
-                    </p>
-                  </div>
-                </div>
-                <details className="mt-3 rounded-xl border border-border bg-white px-3 py-2 text-xs">
-                  <summary className="cursor-pointer font-black uppercase tracking-[0.14em] text-navy">
-                    Advanced event details
-                  </summary>
-                  <div className="mt-3 grid gap-2 md:grid-cols-2">
-                    <p>
-                      <b>Raw action:</b> {log.action}
-                    </p>
-                    <p>
-                      <b>Source:</b> {log.source || "legacy"}
-                    </p>
-                    <p>
-                      <b>Timezone:</b> {log.timeZone || "Not captured"}
-                    </p>
-                    <p>
-                      <b>ISO time:</b> {log.createdAt}
-                    </p>
-                  </div>
-                  <p className="mt-2 break-all">
-                    <b>User agent:</b> {shortUserAgent(log.userAgent)}
+                  <p className="mt-3 text-sm font-black text-navy">{formatActor(log)}</p>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">
+                    {formatActor(log)} {log.action.charAt(0).toLowerCase()}
+                    {log.action.slice(1)}.
                   </p>
-                  <pre className="mt-3 max-h-56 overflow-auto rounded-lg bg-[#081324] p-3 text-[11px] leading-5 text-white">
-                    {JSON.stringify(log, null, 2)}
-                  </pre>
-                </details>
+                  <div className="mt-4 grid gap-3 text-xs md:grid-cols-2 xl:grid-cols-4">
+                    <div className="rounded-xl bg-white px-3 py-2">
+                      <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                        Event ID
+                      </p>
+                      <p className="mt-1 break-all font-semibold text-navy">{log.id}</p>
+                    </div>
+                    <div className="rounded-xl bg-white px-3 py-2">
+                      <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                        Actor email
+                      </p>
+                      <p className="mt-1 break-all font-semibold text-navy">
+                        {log.actorEmail || log.user || "System"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white px-3 py-2">
+                      <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                        Path
+                      </p>
+                      <p className="mt-1 break-all font-semibold text-navy">
+                        {log.requestPath || "Not captured"}
+                      </p>
+                    </div>
+                    <div className="rounded-xl bg-white px-3 py-2">
+                      <p className="font-black uppercase tracking-[0.14em] text-muted-foreground">
+                        Target
+                      </p>
+                      <p className="mt-1 break-all font-semibold text-navy">
+                        {target || "No target"}
+                      </p>
+                    </div>
+                  </div>
+                  <details className="mt-3 rounded-xl border border-border bg-white px-3 py-2 text-xs">
+                    <summary className="cursor-pointer font-black uppercase tracking-[0.14em] text-navy">
+                      Advanced event details
+                    </summary>
+                    <div className="mt-3 grid gap-2 md:grid-cols-2">
+                      <p>
+                        <b>Raw action:</b> {log.action}
+                      </p>
+                      <p>
+                        <b>Source:</b> {log.source || "legacy"}
+                      </p>
+                      <p>
+                        <b>Timezone:</b> {log.timeZone || "Not captured"}
+                      </p>
+                      <p>
+                        <b>ISO time:</b> {log.createdAt}
+                      </p>
+                    </div>
+                    <p className="mt-2 break-all">
+                      <b>User agent:</b> {shortUserAgent(log.userAgent)}
+                    </p>
+                    <pre className="mt-3 max-h-56 overflow-auto rounded-lg bg-[#081324] p-3 text-[11px] leading-5 text-white">
+                      {JSON.stringify(log, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+                  {new Date(log.createdAt).toLocaleString()}
+                </span>
               </div>
-              <span className="shrink-0 text-xs font-semibold text-muted-foreground">
-                {new Date(log.createdAt).toLocaleString()}
-              </span>
             </div>
-          </div>
           );
         })}
         {filteredLogs.length === 0 && (
@@ -4206,7 +4219,11 @@ export function AdminPortal() {
   useEffect(() => {
     if (!auth.user || !adminRoles.includes(auth.user.role)) return;
     if (window.location.pathname !== "/admin") {
-      window.history.replaceState(null, "", `/admin${window.location.search}${window.location.hash}`);
+      window.history.replaceState(
+        null,
+        "",
+        `/admin${window.location.search}${window.location.hash}`,
+      );
     }
   }, [auth.user]);
 
@@ -4403,8 +4420,8 @@ export function AdminPortal() {
                   {formatRole(auth.user.role)} access
                 </p>
                 <h1 className="font-serif text-3xl font-bold text-navy">
-                  {visibleNavGroups.flatMap((g) => g.items).find((i) => i.id === activePanel)?.label ||
-                    "Dashboard"}
+                  {visibleNavGroups.flatMap((g) => g.items).find((i) => i.id === activePanel)
+                    ?.label || "Dashboard"}
                 </h1>
               </div>
             </div>
@@ -4680,6 +4697,7 @@ function StaffPanel({ db }: { db: DB }) {
   const [formImage, setFormImage] = useState("");
   const [formAccountEnabled, setFormAccountEnabled] = useState(true);
   const [formAccountEmail, setFormAccountEmail] = useState("");
+  const [formRecoveryEmail, setFormRecoveryEmail] = useState("");
   const [formAccountPassword, setFormAccountPassword] = useState("");
   const [savingStaff, setSavingStaff] = useState(false);
   const [cropFile, setCropFile] = useState<File | null>(null);
@@ -4792,8 +4810,7 @@ function StaffPanel({ db }: { db: DB }) {
     "Mathematics Coordinator - Upper School": "Upper School Subject Coordinators",
     "Science Coordinator - Upper School": "Upper School Subject Coordinators",
     "English Coordinator - Upper School": "Upper School Subject Coordinators",
-    "History / Geography / Civics Coordinator - Upper School":
-      "Upper School Subject Coordinators",
+    "History / Geography / Civics Coordinator - Upper School": "Upper School Subject Coordinators",
     "Buddhism Coordinator - Upper School": "Upper School Subject Coordinators",
     "Buddhism / Commerce Coordinator - Upper School": "Upper School Subject Coordinators",
     "ICT Coordinator - Upper School": "Upper School Subject Coordinators",
@@ -4930,9 +4947,13 @@ function StaffPanel({ db }: { db: DB }) {
   const saveTeacherAccount = async (teacherId: string, fullName: string) => {
     if (!formAccountEnabled) return null;
     const email = formAccountEmail.trim().toLowerCase();
+    const recoveryEmail = formRecoveryEmail.trim().toLowerCase();
     const password = formAccountPassword;
 
     if (!email) throw new Error("Teacher portal email is required.");
+    if (!recoveryEmail) throw new Error("Personal recovery email is required.");
+    if (email === recoveryEmail)
+      throw new Error("Recovery email must be different from the teacher portal email.");
     if (!editingId && !password)
       throw new Error("Temporary password is required for a new account.");
 
@@ -4944,6 +4965,7 @@ function StaffPanel({ db }: { db: DB }) {
         teacherId,
         name: fullName,
         email,
+        recoveryEmail,
         password,
         status: "Active",
       }),
@@ -4951,7 +4973,12 @@ function StaffPanel({ db }: { db: DB }) {
 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "Could not create teacher account.");
-    return payload.user as { id: string; email: string; status: string };
+    return payload.user as {
+      id: string;
+      email: string;
+      recoveryEmail: string;
+      status: string;
+    };
   };
 
   const saveStaff = async () => {
@@ -5001,11 +5028,13 @@ function StaffPanel({ db }: { db: DB }) {
               accountEmail: account?.email || formAccountEmail.trim().toLowerCase(),
               accountUserId: account?.id || staffId,
               accountStatus: account?.status || "Active",
+              recoveryEmail: account?.recoveryEmail || formRecoveryEmail.trim().toLowerCase(),
             }
           : {
               accountEmail: "",
               accountUserId: "",
               accountStatus: "Disabled",
+              recoveryEmail: "",
             };
 
         if (editingId) {
@@ -5075,6 +5104,7 @@ function StaffPanel({ db }: { db: DB }) {
     setFormImage("");
     setFormAccountEnabled(true);
     setFormAccountEmail("");
+    setFormRecoveryEmail("");
     setFormAccountPassword("");
   };
 
@@ -5099,6 +5129,7 @@ function StaffPanel({ db }: { db: DB }) {
     setFormImage(t.image || "");
     setFormAccountEnabled(Boolean(t.accountEmail || t.accountUserId));
     setFormAccountEmail(t.accountEmail || "");
+    setFormRecoveryEmail(t.recoveryEmail || "");
     setFormAccountPassword("");
     setActiveTab("add");
   };
@@ -5288,19 +5319,15 @@ function StaffPanel({ db }: { db: DB }) {
       const parseRow = (line: string) =>
         line
           .match(/("([^"]|"")*"|[^,]*)(,|$)/g)
-          ?.map((cell) =>
-            cell
-              .replace(/,$/, "")
-              .replace(/^"|"$/g, "")
-              .replace(/""/g, '"')
-              .trim(),
-          )
+          ?.map((cell) => cell.replace(/,$/, "").replace(/^"|"$/g, "").replace(/""/g, '"').trim())
           .filter((_, index, cells) => index < cells.length - 1 || line.endsWith(",")) || [];
 
       const imported = rowLines
         .map((line) => {
           const cells = parseRow(line);
-          const row = Object.fromEntries(headers.map((header, index) => [header, cells[index] || ""]));
+          const row = Object.fromEntries(
+            headers.map((header, index) => [header, cells[index] || ""]),
+          );
           if (!row.name) return null;
           return {
             id: row.id || generateStaffId(db.teachers),
@@ -5322,10 +5349,15 @@ function StaffPanel({ db }: { db: DB }) {
       if (imported.length === 0) return window.alert("No staff rows found in the CSV file.");
       setDb((current) => {
         const byId = new Map(current.teachers.map((teacher) => [teacher.id, teacher]));
-        imported.forEach((teacher) => byId.set(teacher.id, { ...byId.get(teacher.id), ...teacher }));
+        imported.forEach((teacher) =>
+          byId.set(teacher.id, { ...byId.get(teacher.id), ...teacher }),
+        );
         return { ...current, teachers: Array.from(byId.values()) };
       });
-      audit(`Imported ${imported.length} staff CSV row${imported.length === 1 ? "" : "s"}`, "Admin");
+      audit(
+        `Imported ${imported.length} staff CSV row${imported.length === 1 ? "" : "s"}`,
+        "Admin",
+      );
       window.alert(`Imported ${imported.length} staff row${imported.length === 1 ? "" : "s"}.`);
     };
     reader.readAsText(file);
@@ -5593,7 +5625,9 @@ function StaffPanel({ db }: { db: DB }) {
               <div className="mt-4 grid gap-3">
                 <select
                   value={attendanceForm.staffId}
-                  onChange={(e) => setAttendanceForm({ ...attendanceForm, staffId: e.target.value })}
+                  onChange={(e) =>
+                    setAttendanceForm({ ...attendanceForm, staffId: e.target.value })
+                  }
                   className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
                 >
                   <option value="">Select staff member</option>
@@ -5713,14 +5747,19 @@ function StaffPanel({ db }: { db: DB }) {
             </div>
             <div className="grid gap-3">
               {(db.staffLeaveRequests || []).map((request) => (
-                <div key={request.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                <div
+                  key={request.id}
+                  className="rounded-2xl border border-border bg-white p-5 shadow-soft"
+                >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-navy">{staffName(request.staffId)}</p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {request.type} | {request.fromDate} to {request.toDate}
                       </p>
-                      {request.note && <p className="mt-2 text-sm text-muted-foreground">{request.note}</p>}
+                      {request.note && (
+                        <p className="mt-2 text-sm text-muted-foreground">{request.note}</p>
+                      )}
                     </div>
                     <span className="rounded-full bg-secondary px-3 py-1 text-xs font-black text-navy">
                       {request.status}
@@ -5772,7 +5811,8 @@ function StaffPanel({ db }: { db: DB }) {
                   onChange={(e) => setDocumentForm({ ...documentForm, category: e.target.value })}
                 />
                 <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl bg-navy px-4 py-3 text-sm font-bold text-white">
-                  <Upload className="h-4 w-4" /> {uploadingDocument ? "Uploading..." : "Upload File"}
+                  <Upload className="h-4 w-4" />{" "}
+                  {uploadingDocument ? "Uploading..." : "Upload File"}
                   <input
                     type="file"
                     className="hidden"
@@ -5827,7 +5867,10 @@ function StaffPanel({ db }: { db: DB }) {
                 <select
                   value={noticeForm.status}
                   onChange={(e) =>
-                    setNoticeForm({ ...noticeForm, status: e.target.value as "Draft" | "Published" })
+                    setNoticeForm({
+                      ...noticeForm,
+                      status: e.target.value as "Draft" | "Published",
+                    })
                   }
                   className="h-12 rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy"
                 >
@@ -5845,7 +5888,10 @@ function StaffPanel({ db }: { db: DB }) {
             </div>
             <div className="grid gap-3">
               {(db.staffNotices || []).map((notice) => (
-                <div key={notice.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                <div
+                  key={notice.id}
+                  className="rounded-2xl border border-border bg-white p-5 shadow-soft"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="font-bold text-navy">{notice.title}</p>
@@ -5919,7 +5965,10 @@ function StaffPanel({ db }: { db: DB }) {
                 .slice()
                 .sort((a, b) => a.displayOrder - b.displayOrder)
                 .map((role) => (
-                  <div key={role.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                  <div
+                    key={role.id}
+                    className="rounded-2xl border border-border bg-white p-5 shadow-soft"
+                  >
                     <p className="font-bold text-navy">{staffName(role.staffId)}</p>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {role.role} | {role.websitePlace}
@@ -5939,7 +5988,10 @@ function StaffPanel({ db }: { db: DB }) {
               .filter((log) => /staff|teacher|attendance|leave|document|role/i.test(log.action))
               .slice(0, 100)
               .map((log) => (
-                <div key={log.id} className="rounded-2xl border border-border bg-white p-5 shadow-soft">
+                <div
+                  key={log.id}
+                  className="rounded-2xl border border-border bg-white p-5 shadow-soft"
+                >
                   <p className="font-bold text-navy">{log.action}</p>
                   <p className="mt-1 text-sm text-muted-foreground">
                     {log.actorName || log.actorEmail || log.user} |{" "}
@@ -6000,7 +6052,7 @@ function StaffPanel({ db }: { db: DB }) {
                 <h3 className="mb-4 font-serif text-xl font-bold text-navy border-b border-border pb-3">
                   Basic Details
                 </h3>
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-3">
                   <div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       Name Title
@@ -6097,6 +6149,21 @@ function StaffPanel({ db }: { db: DB }) {
                       disabled={!formAccountEnabled}
                       onChange={(e) => setFormAccountEmail(e.target.value)}
                     />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Personal Recovery Email
+                    </label>
+                    <TextInput
+                      type="email"
+                      placeholder="teacher.personal@example.com"
+                      value={formRecoveryEmail}
+                      disabled={!formAccountEnabled}
+                      onChange={(e) => setFormRecoveryEmail(e.target.value)}
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Private. Password reset links are sent here.
+                    </p>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">

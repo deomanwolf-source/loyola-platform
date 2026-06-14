@@ -81,7 +81,10 @@ export async function loginUser(email: string, password: string) {
 
   if (data.requiresTwoFactor) {
     localStorage.removeItem("loyola_token");
-    throw new TwoFactorRequiredError(String(data.twoFactorToken || ""), String(data.user?.email || email));
+    throw new TwoFactorRequiredError(
+      String(data.twoFactorToken || ""),
+      String(data.user?.email || email),
+    );
   }
 
   persistLoggedInUser(data.user);
@@ -113,6 +116,69 @@ export async function completeTwoFactorLogin(twoFactorToken: string, code: strin
 
   persistLoggedInUser(data.user);
   return data;
+}
+
+export async function getCurrentUser() {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/me`, {
+      method: "GET",
+      credentials: "include",
+      headers: authHeaders(),
+    });
+  } catch {
+    throw new Error("Portal server is offline. Start the backend and try again.");
+  }
+
+  if (response.status === 401 || response.status === 404) return null;
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Could not validate the portal session.");
+  }
+
+  persistLoggedInUser(payload);
+  return payload;
+}
+
+export async function requestPasswordReset(email: string) {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/password-reset/request`, {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ email }),
+    });
+  } catch {
+    throw new Error("Portal server is offline. Start the backend and try again.");
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Could not request a password reset.");
+  }
+  return payload as { success: boolean; message: string };
+}
+
+export async function resetPassword(token: string, password: string) {
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/password-reset/confirm`, {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ token, password }),
+    });
+  } catch {
+    throw new Error("Portal server is offline. Start the backend and try again.");
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload.error || "Could not reset the password.");
+  }
+  return payload as { success: boolean; message: string };
 }
 
 export async function logoutUser() {

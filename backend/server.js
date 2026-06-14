@@ -4,15 +4,13 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const multer = require("multer");
 const { registerStaffRoutes } = require("./routes/staff");
-const {
-  sanitizeSiteDbSecurity,
-  scanVisualContent,
-} = require("./lib/sanitize-visual-content");
+const { sanitizeSiteDbSecurity, scanVisualContent } = require("./lib/sanitize-visual-content");
 const {
   EDUTRACK_SSO_ROLES,
   createEduTrackSsoToken,
@@ -617,6 +615,9 @@ const REPORT_CARD_VIEW_ROLES = [
 const AUTH_COOKIE_NAME = "loyola_session_token";
 const CSRF_COOKIE_NAME = "loyola_csrf_token";
 const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
+const PASSWORD_RESET_RESPONSE =
+  "If an active teacher account with a recovery email exists, a reset link will be sent.";
 const TWO_FACTOR_ISSUER = "Loyola College Portal";
 const TWO_FACTOR_CHALLENGE_PURPOSE = "two_factor_login";
 const MAINTENANCE_BYPASS_ROLES = [
@@ -717,6 +718,7 @@ async function ensureAccessTables() {
       external_staff_id VARCHAR(80) NULL,
       name VARCHAR(150) NOT NULL,
       email VARCHAR(190) NOT NULL UNIQUE,
+      recovery_email VARCHAR(190) NULL,
       role ${ROLE_ENUM_SQL},
       status VARCHAR(30) NOT NULL DEFAULT 'Active',
       password_hash VARCHAR(255) NOT NULL,
@@ -744,6 +746,10 @@ async function ensureAccessTables() {
   await db.query(`ALTER TABLE users MODIFY role ${ROLE_ENUM_SQL}`);
   await ensureTableColumns("users", [
     { name: "external_staff_id", definition: "external_staff_id VARCHAR(80) NULL AFTER id" },
+    {
+      name: "recovery_email",
+      definition: "recovery_email VARCHAR(190) NULL AFTER email",
+    },
     {
       name: "two_factor_enabled",
       definition: "two_factor_enabled BOOLEAN DEFAULT 0 AFTER password_hash",
@@ -775,6 +781,19 @@ async function ensureAccessTables() {
       sql: "CREATE INDEX idx_users_external_staff_id ON users (external_staff_id)",
     },
   ]);
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      token_hash CHAR(64) NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_password_reset_token_hash (token_hash),
+      KEY idx_password_reset_user_id (user_id),
+      KEY idx_password_reset_expires_at (expires_at)
+    )
+  `);
   await seedRolePermissions();
   accessSchemaReady = true;
 }
@@ -1003,6 +1022,8 @@ function isCsrfExemptPath(requestPath) {
   return (
     requestPath === "/api/login" ||
     requestPath === "/api/login/2fa" ||
+    requestPath === "/api/password-reset/request" ||
+    requestPath === "/api/password-reset/confirm" ||
     requestPath === "/api/logout" ||
     requestPath === "/api/csrf" ||
     requestPath === "/api/health" ||
@@ -1088,7 +1109,9 @@ async function readMaintenanceSettingsForGate() {
 
 async function writeMaintenanceSettings({ enabled, message }) {
   await ensureMaintenanceSettingsTable();
-  const cleanMessage = String(message || DEFAULT_MAINTENANCE_MESSAGE).trim().slice(0, 500);
+  const cleanMessage = String(message || DEFAULT_MAINTENANCE_MESSAGE)
+    .trim()
+    .slice(0, 500);
   await db.query(
     `
       INSERT INTO system_settings (setting_key, setting_value)
@@ -1229,7 +1252,8 @@ function publicDb(dbPayload) {
   );
   if (Array.isArray(output.teachers)) {
     output.teachers = output.teachers.map((teacher) => {
-      const { accountEmail, accountUserId, accountStatus, ...publicTeacher } = teacher || {};
+      const { accountEmail, accountUserId, accountStatus, recoveryEmail, ...publicTeacher } =
+        teacher || {};
       return publicTeacher;
     });
   }
@@ -1261,6 +1285,7 @@ function serializeTeacherRow(row) {
     sortOrder: Number(row.sort_order || 0),
     accountEmail: row.account_email || "",
     accountUserId: row.account_user_id || "",
+    recoveryEmail: row.recovery_email || "",
   };
 }
 
@@ -1347,7 +1372,8 @@ async function readStaffProfileSiteRows(runner = db) {
       sp.sort_order,
       sp.profile_image,
       sp.photo_url,
-      u.email AS account_email
+      u.email AS account_email,
+      u.recovery_email
     FROM staff_profiles sp
     LEFT JOIN users u ON u.id = sp.user_id
     WHERE sp.full_name IS NOT NULL
@@ -1436,6 +1462,7 @@ async function readStaffProfileSiteRows(runner = db) {
         sort_order: Number(profile.sort_order || 0) + Number(position.sortOrder || 0),
         account_email: profile.account_email || "",
         account_user_id: profile.user_id || "",
+        recovery_email: profile.recovery_email || "",
       }),
     );
   });
@@ -1444,45 +1471,47 @@ async function readStaffProfileSiteRows(runner = db) {
 async function readTeacherSiteRows(runner = db) {
   const [rows] = await runner.query(`
     SELECT
-      id,
-      staff_id,
-      slug,
-      name,
-      email,
-      phone,
-      subject,
-      classes,
-      status,
-      image,
-      type,
-      category,
-      website_place,
-      qualifications,
-      responsibilities,
-      bio,
-      section,
-      position,
-      positions_json,
-      position_codes,
-      sort_order,
-      account_email,
-      account_user_id,
-      created_at
-    FROM teachers
-    WHERE name IS NOT NULL
-      AND name <> ''
+      t.id,
+      t.staff_id,
+      t.slug,
+      t.name,
+      t.email,
+      t.phone,
+      t.subject,
+      t.classes,
+      t.status,
+      t.image,
+      t.type,
+      t.category,
+      t.website_place,
+      t.qualifications,
+      t.responsibilities,
+      t.bio,
+      t.section,
+      t.position,
+      t.positions_json,
+      t.position_codes,
+      t.sort_order,
+      t.account_email,
+      t.account_user_id,
+      t.created_at,
+      u.recovery_email
+    FROM teachers t
+    LEFT JOIN users u ON u.id = t.account_user_id
+    WHERE t.name IS NOT NULL
+      AND t.name <> ''
     ORDER BY
       CASE
-        WHEN status = 'Active' THEN 0
+        WHEN t.status = 'Active' THEN 0
         ELSE 1
       END,
       CASE
-        WHEN id = COALESCE(NULLIF(staff_id, ''), id) THEN 1
+        WHEN t.id = COALESCE(NULLIF(t.staff_id, ''), t.id) THEN 1
         ELSE 0
       END,
-      category,
-      sort_order,
-      name
+      t.category,
+      t.sort_order,
+      t.name
   `);
   const teacherRows = rows.map(serializeTeacherRow);
   const profileRows = await readStaffProfileSiteRows(runner);
@@ -2078,7 +2107,11 @@ async function ensureContentTables() {
   );
   await addColumnIfMissing("edutrack_relief_assignments", "allowed_extra_prints", "INT DEFAULT 0");
   await addColumnIfMissing("edutrack_relief_assignments", "download_count", "INT DEFAULT 0");
-  await addColumnIfMissing("edutrack_relief_assignments", "allowed_extra_downloads", "INT DEFAULT 0");
+  await addColumnIfMissing(
+    "edutrack_relief_assignments",
+    "allowed_extra_downloads",
+    "INT DEFAULT 0",
+  );
   await addColumnIfMissing("edutrack_relief_assignments", "locked_at", "TIMESTAMP NULL");
   await addColumnIfMissing("edutrack_relief_assignments", "locked_by_user_id", "VARCHAR(64)");
   await addColumnIfMissing("edutrack_relief_assignments", "downloaded_by_user_id", "VARCHAR(64)");
@@ -2091,7 +2124,11 @@ async function ensureContentTables() {
   await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "details_json", "LONGTEXT");
   await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "ip_address", "VARCHAR(80)");
   await addColumnIfMissing("edutrack_relief_assignment_audit_logs", "user_agent", "TEXT");
-  await addColumnIfMissing("edutrack_year_plans", "progress_percentage", "DECIMAL(5,2) NOT NULL DEFAULT 0");
+  await addColumnIfMissing(
+    "edutrack_year_plans",
+    "progress_percentage",
+    "DECIMAL(5,2) NOT NULL DEFAULT 0",
+  );
   await ensureTableIndexes("edutrack_teacher_subject_assignments", [
     {
       name: "idx_ypp_assign_teacher_user",
@@ -2334,6 +2371,101 @@ function normalizeEmail(value) {
     .toLowerCase();
 }
 
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(value));
+}
+
+function passwordResetTokenHash(token) {
+  return crypto
+    .createHash("sha256")
+    .update(String(token || ""))
+    .digest("hex");
+}
+
+function passwordResetUrl(token) {
+  const configuredBase = String(
+    process.env.PASSWORD_RESET_BASE_URL ||
+      process.env.PUBLIC_API_URL ||
+      (process.env.NODE_ENV === "production" ? "" : "http://localhost:8080"),
+  ).trim();
+  if (!configuredBase) throw new Error("PASSWORD_RESET_BASE_URL or PUBLIC_API_URL is required");
+
+  const url = new URL(
+    "/reset-password",
+    configuredBase.endsWith("/") ? configuredBase : `${configuredBase}/`,
+  );
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+function escapeEmailHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+let passwordResetTransport = null;
+function getPasswordResetTransport() {
+  if (passwordResetTransport) return passwordResetTransport;
+
+  const host = String(process.env.SMTP_HOST || "smtp-relay.brevo.com").trim();
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = String(process.env.SMTP_USER || "").trim();
+  const password = String(process.env.SMTP_PASSWORD || "").trim();
+  const from = String(process.env.SMTP_FROM || "").trim();
+  if (!host || !Number.isFinite(port) || !user || !password || !from) {
+    throw new Error("SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, and SMTP_FROM are required");
+  }
+
+  passwordResetTransport = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    requireTLS: port !== 465,
+    auth: { user, pass: password },
+    tls: { minVersion: "TLSv1.2" },
+  });
+  return passwordResetTransport;
+}
+
+async function sendTeacherPasswordResetEmail(user, recoveryEmail, token) {
+  const resetUrl = passwordResetUrl(token);
+  const teacherName = escapeEmailHtml(user.name || "Teacher");
+  const accountEmail = escapeEmailHtml(user.email);
+  const resetUrlHtml = escapeEmailHtml(resetUrl);
+
+  await getPasswordResetTransport().sendMail({
+    from: process.env.SMTP_FROM,
+    to: recoveryEmail,
+    subject: "Reset your Loyola College portal password",
+    text: [
+      `Hello ${user.name || "Teacher"},`,
+      "",
+      `A password reset was requested for ${user.email}.`,
+      `Open this link within 30 minutes: ${resetUrl}`,
+      "",
+      "If you did not request this reset, you can ignore this email.",
+    ].join("\n"),
+    html: `
+      <div style="font-family:Arial,sans-serif;line-height:1.6;color:#0a1628;max-width:620px;margin:auto">
+        <h2 style="margin-bottom:8px">Reset your portal password</h2>
+        <p>Hello ${teacherName},</p>
+        <p>A password reset was requested for <strong>${accountEmail}</strong>.</p>
+        <p style="margin:28px 0">
+          <a href="${resetUrlHtml}" style="background:#0a1628;color:#fff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:700">
+            Reset password
+          </a>
+        </p>
+        <p>This link expires in 30 minutes and can only be used once.</p>
+        <p>If you did not request this reset, you can ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
 function normalizeAccountStatus(value) {
   return String(value || "Active").toLowerCase() === "active" ? "Active" : "Disabled";
 }
@@ -2363,11 +2495,7 @@ const EXPLICIT_DELETE_COLLECTIONS = ["news", "events"];
 function explicitDeletedIds(siteDb, key) {
   if (!isPlainObject(siteDb?.deletedContentIds)) return new Set();
   const ids = Array.isArray(siteDb.deletedContentIds[key]) ? siteDb.deletedContentIds[key] : [];
-  return new Set(
-    ids
-      .map((id) => String(id || "").trim())
-      .filter(Boolean),
-  );
+  return new Set(ids.map((id) => String(id || "").trim()).filter(Boolean));
 }
 
 function applyExplicitContentDeletes(targetDb, markerDb = targetDb) {
@@ -2862,8 +2990,7 @@ function visualSnapshotPublishIssues(siteDb) {
     const visualHtml = typeof page.visualHtml === "string" ? page.visualHtml.trim() : "";
     if (!visualHtml || page.visualMode === "coded") continue;
 
-    const visualBaseCss =
-      typeof page.visualBaseCss === "string" ? page.visualBaseCss.trim() : "";
+    const visualBaseCss = typeof page.visualBaseCss === "string" ? page.visualBaseCss.trim() : "";
     const visualCss = typeof page.visualCss === "string" ? page.visualCss.trim() : "";
 
     if (!visualBaseCss) issues.push(`${slug}: missing visualBaseCss`);
@@ -2937,14 +3064,25 @@ async function upsertPortalUserAccount(runner, user) {
   }
 }
 
-async function upsertTeacherUserAccount(runner, { id, name, email, password, status = "Active" }) {
+async function upsertTeacherUserAccount(
+  runner,
+  { id, name, email, recoveryEmail, password, status = "Active" },
+) {
   const requestedAccountId = String(id || "").trim();
   const accountEmail = normalizeEmail(email);
+  const recoveryEmailProvided = recoveryEmail !== undefined;
+  const normalizedRecoveryEmail = normalizeEmail(recoveryEmail);
   const accountName = String(name || accountEmail.split("@")[0] || "Teacher").trim();
   const accountStatus = normalizeAccountStatus(status);
 
-  if (!accountEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
+  if (!isValidEmail(accountEmail)) {
     throw new Error("A valid teacher account email is required");
+  }
+  if (recoveryEmailProvided && normalizedRecoveryEmail && !isValidEmail(normalizedRecoveryEmail)) {
+    throw new Error("A valid personal recovery email is required");
+  }
+  if (normalizedRecoveryEmail && normalizedRecoveryEmail === accountEmail) {
+    throw new Error("Recovery email must be different from the teacher portal email");
   }
 
   const [emailMatches] = await runner.query("SELECT id FROM users WHERE email = ? LIMIT 1", [
@@ -2962,7 +3100,13 @@ async function upsertTeacherUserAccount(runner, { id, name, email, password, sta
     throw new Error("This email is already used by another user account");
   }
 
-  const [idMatches] = await runner.query("SELECT id FROM users WHERE id = ? LIMIT 1", [accountId]);
+  const [idMatches] = await runner.query(
+    "SELECT id, recovery_email FROM users WHERE id = ? LIMIT 1",
+    [accountId],
+  );
+  const accountRecoveryEmail = recoveryEmailProvided
+    ? normalizedRecoveryEmail || null
+    : idMatches[0]?.recovery_email || null;
   const hasPassword = typeof password === "string" && password.length > 0;
   if (!idMatches.length && !hasPassword) {
     throw new Error("Password is required for a new teacher account");
@@ -2976,20 +3120,20 @@ async function upsertTeacherUserAccount(runner, { id, name, email, password, sta
     if (hasPassword) {
       const passwordHash = await bcrypt.hash(password, 12);
       await runner.query(
-        "UPDATE users SET name = ?, email = ?, role = 'teacher', status = ?, password_hash = ? WHERE id = ?",
-        [accountName, accountEmail, accountStatus, passwordHash, accountId],
+        "UPDATE users SET name = ?, email = ?, recovery_email = ?, role = 'teacher', status = ?, password_hash = ? WHERE id = ?",
+        [accountName, accountEmail, accountRecoveryEmail, accountStatus, passwordHash, accountId],
       );
     } else {
       await runner.query(
-        "UPDATE users SET name = ?, email = ?, role = 'teacher', status = ? WHERE id = ?",
-        [accountName, accountEmail, accountStatus, accountId],
+        "UPDATE users SET name = ?, email = ?, recovery_email = ?, role = 'teacher', status = ? WHERE id = ?",
+        [accountName, accountEmail, accountRecoveryEmail, accountStatus, accountId],
       );
     }
   } else {
     const passwordHash = await bcrypt.hash(password, 12);
     await runner.query(
-      "INSERT INTO users (id, name, email, role, status, password_hash) VALUES (?, ?, ?, 'teacher', ?, ?)",
-      [accountId, accountName, accountEmail, accountStatus, passwordHash],
+      "INSERT INTO users (id, name, email, recovery_email, role, status, password_hash) VALUES (?, ?, ?, ?, 'teacher', ?, ?)",
+      [accountId, accountName, accountEmail, accountRecoveryEmail, accountStatus, passwordHash],
     );
   }
 
@@ -2997,6 +3141,7 @@ async function upsertTeacherUserAccount(runner, { id, name, email, password, sta
     id: accountId,
     name: accountName,
     email: accountEmail,
+    recoveryEmail: accountRecoveryEmail || "",
     role: "teacher",
     status: accountStatus,
   };
@@ -3938,8 +4083,7 @@ app.patch("/api/maintenance", websiteAdminOnly, async (req, res) => {
     const current = await readMaintenanceSettings();
     const next = await writeMaintenanceSettings({
       enabled: Boolean(req.body?.enabled),
-      message:
-        typeof req.body?.message === "string" ? req.body.message : current.message,
+      message: typeof req.body?.message === "string" ? req.body.message : current.message,
     });
     res.json({ success: true, ...next, canViewSite: true });
   } catch (error) {
@@ -3958,7 +4102,9 @@ function isPublicContentApiRequest(req) {
     "/api/media",
     "/api/teachers",
   ];
-  return publicApiPaths.some((apiPath) => req.path === apiPath || req.path.startsWith(`${apiPath}/`));
+  return publicApiPaths.some(
+    (apiPath) => req.path === apiPath || req.path.startsWith(`${apiPath}/`),
+  );
 }
 
 app.use(async (req, res, next) => {
@@ -4154,12 +4300,20 @@ app.post("/api/users/:id/2fa/reset", masterAdminOnly, async (req, res) => {
 app.post("/api/staff-accounts", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureContentTables();
-    const { teacherId, name, email, password = "", status = "Active" } = req.body || {};
+    const {
+      teacherId,
+      name,
+      email,
+      recoveryEmail,
+      password = "",
+      status = "Active",
+    } = req.body || {};
 
     const user = await upsertTeacherUserAccount(db, {
       id: teacherId,
       name,
       email,
+      recoveryEmail,
       password,
       status,
     });
@@ -4167,7 +4321,7 @@ app.post("/api/staff-accounts", eduzyncAdminOnly, async (req, res) => {
     res.json({ success: true, user });
   } catch (error) {
     const statusCode =
-      /already used|valid teacher account|Password is required|at least 6|id is required/i.test(
+      /already used|valid teacher account|valid personal recovery email|Recovery email|Password is required|at least 6|id is required/i.test(
         error.message,
       )
         ? 400
@@ -5515,7 +5669,8 @@ function requestAuditMeta(req) {
 
 function dateOnly(value) {
   if (!value) return "";
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime()))
+    return value.toISOString().slice(0, 10);
   const text = String(value);
   const match = text.match(/\d{4}-\d{2}-\d{2}/);
   return match ? match[0] : text.slice(0, 10);
@@ -5557,15 +5712,13 @@ async function eduTrackActor(req) {
 
 function normalizeDailyProgressInput(body = {}, actor, existing = null) {
   const completedWork = String(
-    body.completed_work ||
-      body.topic_done_today ||
-      body.topic ||
-      existing?.completed_work ||
-      "",
+    body.completed_work || body.topic_done_today || body.topic || existing?.completed_work || "",
   ).trim();
   const record = {
     teacher_user_id: String(body.teacher_user_id || existing?.teacher_user_id || actor.id || ""),
-    teacher_id: String(body.teacher_id || existing?.teacher_id || actor.teacherId || actor.id || ""),
+    teacher_id: String(
+      body.teacher_id || existing?.teacher_id || actor.teacherId || actor.id || "",
+    ),
     teacher_name: String(
       body.teacher_name || existing?.teacher_name || actor.teacherName || actor.name || "",
     ),
@@ -5578,7 +5731,9 @@ function normalizeDailyProgressInput(body = {}, actor, existing = null) {
     main_topic: String(body.main_topic || completedWork || existing?.main_topic || "").trim(),
     subtopic: String(body.subtopic || existing?.subtopic || "").trim(),
     completed_work: completedWork,
-    page_reference: String(body.page_reference || body.pages || existing?.page_reference || "").trim(),
+    page_reference: String(
+      body.page_reference || body.pages || existing?.page_reference || "",
+    ).trim(),
     notes: String(body.notes || body.note || existing?.notes || "").trim(),
     completion_status: String(
       body.completion_status || existing?.completion_status || "Completed",
@@ -5596,11 +5751,16 @@ function normalizeDailyProgressInput(body = {}, actor, existing = null) {
 
 function assertDailyProgressRequired(record) {
   const missing = [];
-  ["record_date", "section", "subject", "unit_number", "completed_work", "completion_status"].forEach(
-    (field) => {
-      if (!record[field]) missing.push(field);
-    },
-  );
+  [
+    "record_date",
+    "section",
+    "subject",
+    "unit_number",
+    "completed_work",
+    "completion_status",
+  ].forEach((field) => {
+    if (!record[field]) missing.push(field);
+  });
   if (missing.length) {
     const error = new Error(`Missing required fields: ${missing.join(", ")}`);
     error.status = 400;
@@ -5612,7 +5772,8 @@ function canAccessDailyRecord(req, actor, row, action) {
   if (isEduTrackMasterUser(req)) return true;
   if (req.user?.role === ROLES.eduzync) return action !== "delete";
   const ownsRecord =
-    String(row.teacher_user_id || "") === actor.id || String(row.teacher_id || "") === actor.teacherId;
+    String(row.teacher_user_id || "") === actor.id ||
+    String(row.teacher_id || "") === actor.teacherId;
   if (!ownsRecord) return false;
   if (action === "read" || action === "create") return true;
   if (action === "delete") return false;
@@ -5757,7 +5918,17 @@ function canAccessAssignment(req, actor, assignment) {
   );
 }
 
-async function insertYearPlanAudit(conn, req, yearPlanId, entityType, entityId, action, oldValue, newValue, actor) {
+async function insertYearPlanAudit(
+  conn,
+  req,
+  yearPlanId,
+  entityType,
+  entityId,
+  action,
+  oldValue,
+  newValue,
+  actor,
+) {
   const meta = requestAuditMeta(req);
   await conn.query(
     `
@@ -5883,10 +6054,10 @@ async function refreshYearPlanProgress(yearPlanId, runner = db) {
   for (const row of topicRows) {
     const total = Number(row.total || 0);
     const pct = total ? Math.round((Number(row.done || 0) / total) * 100) : 0;
-    await runner.query("UPDATE edutrack_year_plan_topics SET progress_percentage = ? WHERE id = ?", [
-      pct,
-      row.topic_id,
-    ]);
+    await runner.query(
+      "UPDATE edutrack_year_plan_topics SET progress_percentage = ? WHERE id = ?",
+      [pct, row.topic_id],
+    );
   }
 
   const [unitRows] = await runner.query(
@@ -5935,15 +6106,17 @@ async function refreshYearPlanProgress(yearPlanId, runner = db) {
   );
   const total = Number(planRow.total || 0);
   const pct = total ? Math.round((Number(planRow.done || 0) / total) * 100) : 0;
-  await runner.query("UPDATE edutrack_year_plans SET progress_percentage = ?, updated_at = NOW() WHERE id = ?", [
-    pct,
-    Number(yearPlanId),
-  ]);
+  await runner.query(
+    "UPDATE edutrack_year_plans SET progress_percentage = ?, updated_at = NOW() WHERE id = ?",
+    [pct, Number(yearPlanId)],
+  );
 }
 
 async function readPlanByChild(table, id, runner = db) {
   const safeTable = table.replace(/[^a-z0-9_]/gi, "");
-  const [rows] = await runner.query(`SELECT * FROM ${safeTable} WHERE id = ? LIMIT 1`, [Number(id)]);
+  const [rows] = await runner.query(`SELECT * FROM ${safeTable} WHERE id = ? LIMIT 1`, [
+    Number(id),
+  ]);
   const row = rows[0];
   if (!row) return null;
   const [plans] = await runner.query("SELECT * FROM edutrack_year_plans WHERE id = ? LIMIT 1", [
@@ -6078,7 +6251,17 @@ app.post("/api/edutrack/teacher-assignments", eduzyncAdminOnly, async (req, res)
         payload.status,
       ],
     );
-    await insertYearPlanAudit(conn, req, null, "assignment", result.insertId, "created", null, payload, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      null,
+      "assignment",
+      result.insertId,
+      "created",
+      null,
+      payload,
+      actor,
+    );
     await conn.commit();
     res.status(201).json({ success: true, id: result.insertId });
   } catch (error) {
@@ -6146,7 +6329,17 @@ app.put("/api/edutrack/teacher-assignments/:id", eduzyncAdminOnly, async (req, r
         existing.id,
       ],
     );
-    await insertYearPlanAudit(conn, req, null, "assignment", existing.id, "updated", existing, payload, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      null,
+      "assignment",
+      existing.id,
+      "updated",
+      existing,
+      payload,
+      actor,
+    );
     await conn.commit();
     res.json({ success: true });
   } catch (error) {
@@ -6172,8 +6365,20 @@ app.delete("/api/edutrack/teacher-assignments/:id", edutrackMasterOnly, async (r
       await conn.rollback();
       return res.status(404).json({ error: "Teacher assignment not found" });
     }
-    await conn.query("DELETE FROM edutrack_teacher_subject_assignments WHERE id = ?", [existing.id]);
-    await insertYearPlanAudit(conn, req, null, "assignment", existing.id, "deleted", existing, null, actor);
+    await conn.query("DELETE FROM edutrack_teacher_subject_assignments WHERE id = ?", [
+      existing.id,
+    ]);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      null,
+      "assignment",
+      existing.id,
+      "deleted",
+      existing,
+      null,
+      actor,
+    );
     await conn.commit();
     res.json({ success: true });
   } catch (error) {
@@ -6275,18 +6480,29 @@ app.post("/api/edutrack/year-plans", teacherOrAdmin, async (req, res) => {
     }
     const payload = {
       assignment_id: assignment?.id || null,
-      teacher_user_id: assignment?.teacher_user_id || shortText(req.body?.teacher_user_id || actor.id, 64),
-      teacher_id: assignment?.teacher_id || shortText(req.body?.teacher_id || actor.teacherId || actor.id, 80),
+      teacher_user_id:
+        assignment?.teacher_user_id || shortText(req.body?.teacher_user_id || actor.id, 64),
+      teacher_id:
+        assignment?.teacher_id ||
+        shortText(req.body?.teacher_id || actor.teacherId || actor.id, 80),
       teacher_name:
-        assignment?.teacher_name || shortText(req.body?.teacher_name || actor.teacherName || actor.name, 190),
-      subject_name: assignment?.subject_name || shortText(req.body?.subject_name || req.body?.subject || "", 150),
+        assignment?.teacher_name ||
+        shortText(req.body?.teacher_name || actor.teacherName || actor.name, 190),
+      subject_name:
+        assignment?.subject_name ||
+        shortText(req.body?.subject_name || req.body?.subject || "", 150),
       grade: assignment?.grade || shortText(req.body?.grade || "", 50),
       section: assignment?.section || shortText(req.body?.section || "", 50),
-      academic_year: assignment?.academic_year || shortText(req.body?.academic_year || currentAcademicYear(), 20),
+      academic_year:
+        assignment?.academic_year ||
+        shortText(req.body?.academic_year || currentAcademicYear(), 20),
       status: shortText(req.body?.status || "Draft", 40) || "Draft",
     };
-    const missing = ["teacher_name", "subject_name", "grade", "academic_year"].filter((key) => !payload[key]);
-    if (missing.length) return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
+    const missing = ["teacher_name", "subject_name", "grade", "academic_year"].filter(
+      (key) => !payload[key],
+    );
+    if (missing.length)
+      return res.status(400).json({ error: `Missing required fields: ${missing.join(", ")}` });
     if (!isEduTrackAdminUser(req)) {
       payload.teacher_user_id = actor.id;
       payload.teacher_id = actor.teacherId || actor.id;
@@ -6313,9 +6529,25 @@ app.post("/api/edutrack/year-plans", teacherOrAdmin, async (req, res) => {
         actor.id,
       ],
     );
-    await insertYearPlanAudit(conn, req, result.insertId, "year_plan", result.insertId, "created", null, payload, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      result.insertId,
+      "year_plan",
+      result.insertId,
+      "created",
+      null,
+      payload,
+      actor,
+    );
     await conn.commit();
-    res.status(201).json({ success: true, id: result.insertId, plan: await readYearPlanDetail(result.insertId) });
+    res
+      .status(201)
+      .json({
+        success: true,
+        id: result.insertId,
+        plan: await readYearPlanDetail(result.insertId),
+      });
   } catch (error) {
     await conn.rollback();
     res.status(error.status || 500).json({ error: error.message });
@@ -6330,7 +6562,8 @@ app.get("/api/edutrack/year-plans/:id", teacherOrAdmin, async (req, res) => {
     const actor = await eduTrackActor(req);
     const plan = await readYearPlanDetail(req.params.id);
     if (!plan) return res.status(404).json({ error: "Year plan not found" });
-    if (!canAccessYearPlan(req, actor, plan, "read")) return res.status(403).json({ error: "Access denied" });
+    if (!canAccessYearPlan(req, actor, plan, "read"))
+      return res.status(403).json({ error: "Access denied" });
     res.json(plan);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -6402,7 +6635,11 @@ app.post("/api/edutrack/year-plans/:id/generate-units", teacherOrAdmin, async (r
     }
     const counts = {
       1: boundedInt(req.body?.term1_units || req.body?.term_1 || req.body?.first_term_units, 0, 50),
-      2: boundedInt(req.body?.term2_units || req.body?.term_2 || req.body?.second_term_units, 0, 50),
+      2: boundedInt(
+        req.body?.term2_units || req.body?.term_2 || req.body?.second_term_units,
+        0,
+        50,
+      ),
       3: boundedInt(req.body?.term3_units || req.body?.term_3 || req.body?.third_term_units, 0, 50),
     };
     for (const term of YEAR_PLAN_TERMS) {
@@ -6432,7 +6669,17 @@ app.post("/api/edutrack/year-plans/:id/generate-units", teacherOrAdmin, async (r
       }
     }
     await refreshYearPlanProgress(plan.id, conn);
-    await insertYearPlanAudit(conn, req, plan.id, "year_plan", plan.id, "generated_units", null, counts, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      plan.id,
+      "year_plan",
+      plan.id,
+      "generated_units",
+      null,
+      counts,
+      actor,
+    );
     await conn.commit();
     res.json({ success: true, plan: await readYearPlanDetail(plan.id) });
   } catch (error) {
@@ -6450,12 +6697,23 @@ app.put("/api/edutrack/year-plan-terms/:id", teacherOrAdmin, async (req, res) =>
     const actor = await eduTrackActor(req);
     const found = await readPlanByChild("edutrack_year_plan_terms", req.params.id, conn);
     if (!found?.row) return res.status(404).json({ error: "Term not found" });
-    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit"))
+      return res.status(403).json({ error: "Access denied" });
     await conn.query(
       "UPDATE edutrack_year_plan_terms SET unit_count = ?, updated_at = NOW() WHERE id = ?",
       [boundedInt(req.body?.unit_count, found.row.unit_count || 0, 50), found.row.id],
     );
-    await insertYearPlanAudit(conn, req, found.plan.id, "term", found.row.id, "updated", found.row, req.body, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      found.plan.id,
+      "term",
+      found.row.id,
+      "updated",
+      found.row,
+      req.body,
+      actor,
+    );
     res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -6471,7 +6729,8 @@ app.put("/api/edutrack/year-plan-units/:id", teacherOrAdmin, async (req, res) =>
     const actor = await eduTrackActor(req);
     const found = await readPlanByChild("edutrack_year_plan_units", req.params.id, conn);
     if (!found?.row) return res.status(404).json({ error: "Unit not found" });
-    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit"))
+      return res.status(403).json({ error: "Access denied" });
     const unitNumber = shortText(req.body?.unit_number || found.row.unit_number, 80);
     const unitTitle = nullableShortText(req.body?.unit_title ?? found.row.unit_title, 255);
     const displayOrder = positiveInt(req.body?.display_order, found.row.display_order || 1);
@@ -6479,7 +6738,17 @@ app.put("/api/edutrack/year-plan-units/:id", teacherOrAdmin, async (req, res) =>
       "UPDATE edutrack_year_plan_units SET unit_number = ?, unit_title = ?, display_order = ?, updated_at = NOW() WHERE id = ?",
       [unitNumber, unitTitle, displayOrder, found.row.id],
     );
-    await insertYearPlanAudit(conn, req, found.plan.id, "unit", found.row.id, "updated", found.row, req.body, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      found.plan.id,
+      "unit",
+      found.row.id,
+      "updated",
+      found.row,
+      req.body,
+      actor,
+    );
     res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -6495,14 +6764,18 @@ app.post("/api/edutrack/year-plan-units/:id/topics", teacherOrAdmin, async (req,
     const actor = await eduTrackActor(req);
     const found = await readPlanByChild("edutrack_year_plan_units", req.params.id, conn);
     if (!found?.row) return res.status(404).json({ error: "Unit not found" });
-    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit"))
+      return res.status(403).json({ error: "Access denied" });
     const mainTopic = shortText(req.body?.main_topic || req.body?.topic || "", 255);
     if (!mainTopic) return res.status(400).json({ error: "main_topic is required" });
     const [maxRows] = await conn.query(
       "SELECT COALESCE(MAX(display_order), 0) AS max_order FROM edutrack_year_plan_topics WHERE unit_id = ?",
       [found.row.id],
     );
-    const displayOrder = positiveInt(req.body?.display_order, Number(maxRows[0]?.max_order || 0) + 1);
+    const displayOrder = positiveInt(
+      req.body?.display_order,
+      Number(maxRows[0]?.max_order || 0) + 1,
+    );
     const [result] = await conn.query(
       `
         INSERT INTO edutrack_year_plan_topics
@@ -6511,8 +6784,20 @@ app.post("/api/edutrack/year-plan-units/:id/topics", teacherOrAdmin, async (req,
       `,
       [found.row.id, found.row.term_id, found.row.year_plan_id, mainTopic, displayOrder],
     );
-    await insertYearPlanAudit(conn, req, found.plan.id, "topic", result.insertId, "created", null, req.body, actor);
-    res.status(201).json({ success: true, id: result.insertId, plan: await readYearPlanDetail(found.plan.id) });
+    await insertYearPlanAudit(
+      conn,
+      req,
+      found.plan.id,
+      "topic",
+      result.insertId,
+      "created",
+      null,
+      req.body,
+      actor,
+    );
+    res
+      .status(201)
+      .json({ success: true, id: result.insertId, plan: await readYearPlanDetail(found.plan.id) });
   } catch (error) {
     res.status(500).json({ error: error.message });
   } finally {
@@ -6527,14 +6812,28 @@ app.put("/api/edutrack/year-plan-topics/:id", teacherOrAdmin, async (req, res) =
     const actor = await eduTrackActor(req);
     const found = await readPlanByChild("edutrack_year_plan_topics", req.params.id, conn);
     if (!found?.row) return res.status(404).json({ error: "Topic not found" });
-    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
-    const mainTopic = shortText(req.body?.main_topic || req.body?.topic || found.row.main_topic, 255);
+    if (!canAccessYearPlan(req, actor, found.plan, "edit"))
+      return res.status(403).json({ error: "Access denied" });
+    const mainTopic = shortText(
+      req.body?.main_topic || req.body?.topic || found.row.main_topic,
+      255,
+    );
     const displayOrder = positiveInt(req.body?.display_order, found.row.display_order || 1);
     await conn.query(
       "UPDATE edutrack_year_plan_topics SET main_topic = ?, display_order = ?, updated_at = NOW() WHERE id = ?",
       [mainTopic, displayOrder, found.row.id],
     );
-    await insertYearPlanAudit(conn, req, found.plan.id, "topic", found.row.id, "updated", found.row, req.body, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      found.plan.id,
+      "topic",
+      found.row.id,
+      "updated",
+      found.row,
+      req.body,
+      actor,
+    );
     res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -6550,13 +6849,16 @@ app.post("/api/edutrack/year-plan-topics/:id/subtopics", teacherOrAdmin, async (
     const actor = await eduTrackActor(req);
     const found = await readPlanByChild("edutrack_year_plan_topics", req.params.id, conn);
     if (!found?.row) return res.status(404).json({ error: "Topic not found" });
-    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
+    if (!canAccessYearPlan(req, actor, found.plan, "edit"))
+      return res.status(403).json({ error: "Access denied" });
     const raw = Array.isArray(req.body?.subtopics)
       ? req.body.subtopics
       : String(req.body?.subtopic_title || req.body?.subtopics || req.body?.title || "")
           .split(/\r?\n/)
           .map((item) => item.trim());
-    const titles = raw.map((item) => shortText(item?.subtopic_title || item?.title || item, 255)).filter(Boolean);
+    const titles = raw
+      .map((item) => shortText(item?.subtopic_title || item?.title || item, 255))
+      .filter(Boolean);
     if (!titles.length) return res.status(400).json({ error: "At least one subtopic is required" });
     const [maxRows] = await conn.query(
       "SELECT COALESCE(MAX(display_order), 0) AS max_order FROM edutrack_year_plan_subtopics WHERE topic_id = ?",
@@ -6571,13 +6873,30 @@ app.post("/api/edutrack/year-plan-topics/:id/subtopics", teacherOrAdmin, async (
             (topic_id, unit_id, term_id, year_plan_id, subtopic_title, display_order)
           VALUES (?, ?, ?, ?, ?, ?)
         `,
-        [found.row.id, found.row.unit_id, found.row.term_id, found.row.year_plan_id, title, nextOrder],
+        [
+          found.row.id,
+          found.row.unit_id,
+          found.row.term_id,
+          found.row.year_plan_id,
+          title,
+          nextOrder,
+        ],
       );
       ids.push(result.insertId);
       nextOrder += 1;
     }
     await refreshYearPlanProgress(found.plan.id, conn);
-    await insertYearPlanAudit(conn, req, found.plan.id, "subtopic", ids.join(","), "created", null, titles, actor);
+    await insertYearPlanAudit(
+      conn,
+      req,
+      found.plan.id,
+      "subtopic",
+      ids.join(","),
+      "created",
+      null,
+      titles,
+      actor,
+    );
     res.status(201).json({ success: true, ids, plan: await readYearPlanDetail(found.plan.id) });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -6593,53 +6912,27 @@ app.put("/api/edutrack/year-plan-subtopics/:id", teacherOrAdmin, async (req, res
     const actor = await eduTrackActor(req);
     const found = await readPlanByChild("edutrack_year_plan_subtopics", req.params.id, conn);
     if (!found?.row) return res.status(404).json({ error: "Subtopic not found" });
-    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
-    const title = shortText(req.body?.subtopic_title || req.body?.title || found.row.subtopic_title, 255);
+    if (!canAccessYearPlan(req, actor, found.plan, "edit"))
+      return res.status(403).json({ error: "Access denied" });
+    const title = shortText(
+      req.body?.subtopic_title || req.body?.title || found.row.subtopic_title,
+      255,
+    );
     const note = nullableShortText(req.body?.completion_note ?? found.row.completion_note, 2000);
     const displayOrder = positiveInt(req.body?.display_order, found.row.display_order || 1);
     await conn.query(
       "UPDATE edutrack_year_plan_subtopics SET subtopic_title = ?, completion_note = ?, display_order = ?, updated_at = NOW() WHERE id = ?",
       [title, note, displayOrder, found.row.id],
     );
-    await insertYearPlanAudit(conn, req, found.plan.id, "subtopic", found.row.id, "updated", found.row, req.body, actor);
-    res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  } finally {
-    conn.release();
-  }
-});
-
-app.post("/api/edutrack/year-plan-subtopics/:id/toggle-complete", teacherOrAdmin, async (req, res) => {
-  const conn = await db.getConnection();
-  try {
-    await ensureContentTables();
-    const actor = await eduTrackActor(req);
-    const found = await readPlanByChild("edutrack_year_plan_subtopics", req.params.id, conn);
-    if (!found?.row) return res.status(404).json({ error: "Subtopic not found" });
-    if (!canAccessYearPlan(req, actor, found.plan, "edit")) return res.status(403).json({ error: "Access denied" });
-    const hasExplicit = Object.prototype.hasOwnProperty.call(req.body || {}, "is_completed");
-    const completed = hasExplicit ? Number(req.body.is_completed) === 1 || req.body.is_completed === true : !Number(found.row.is_completed);
-    const note = nullableShortText(req.body?.completion_note || req.body?.note || found.row.completion_note, 2000);
-    await conn.query(
-      `
-        UPDATE edutrack_year_plan_subtopics
-        SET is_completed = ?, completed_at = ?, completed_by_user_id = ?, completed_by_name = ?,
-          completion_note = ?, updated_at = NOW()
-        WHERE id = ?
-      `,
-      [completed ? 1 : 0, completed ? mysqlDateTime() : null, completed ? actor.id : null, completed ? actor.name : null, note, found.row.id],
-    );
-    await refreshYearPlanProgress(found.plan.id, conn);
     await insertYearPlanAudit(
       conn,
       req,
       found.plan.id,
       "subtopic",
       found.row.id,
-      completed ? "completed" : "reopened",
+      "updated",
       found.row,
-      { is_completed: completed, completion_note: note },
+      req.body,
       actor,
     );
     res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
@@ -6649,6 +6942,63 @@ app.post("/api/edutrack/year-plan-subtopics/:id/toggle-complete", teacherOrAdmin
     conn.release();
   }
 });
+
+app.post(
+  "/api/edutrack/year-plan-subtopics/:id/toggle-complete",
+  teacherOrAdmin,
+  async (req, res) => {
+    const conn = await db.getConnection();
+    try {
+      await ensureContentTables();
+      const actor = await eduTrackActor(req);
+      const found = await readPlanByChild("edutrack_year_plan_subtopics", req.params.id, conn);
+      if (!found?.row) return res.status(404).json({ error: "Subtopic not found" });
+      if (!canAccessYearPlan(req, actor, found.plan, "edit"))
+        return res.status(403).json({ error: "Access denied" });
+      const hasExplicit = Object.prototype.hasOwnProperty.call(req.body || {}, "is_completed");
+      const completed = hasExplicit
+        ? Number(req.body.is_completed) === 1 || req.body.is_completed === true
+        : !Number(found.row.is_completed);
+      const note = nullableShortText(
+        req.body?.completion_note || req.body?.note || found.row.completion_note,
+        2000,
+      );
+      await conn.query(
+        `
+        UPDATE edutrack_year_plan_subtopics
+        SET is_completed = ?, completed_at = ?, completed_by_user_id = ?, completed_by_name = ?,
+          completion_note = ?, updated_at = NOW()
+        WHERE id = ?
+      `,
+        [
+          completed ? 1 : 0,
+          completed ? mysqlDateTime() : null,
+          completed ? actor.id : null,
+          completed ? actor.name : null,
+          note,
+          found.row.id,
+        ],
+      );
+      await refreshYearPlanProgress(found.plan.id, conn);
+      await insertYearPlanAudit(
+        conn,
+        req,
+        found.plan.id,
+        "subtopic",
+        found.row.id,
+        completed ? "completed" : "reopened",
+        found.row,
+        { is_completed: completed, completion_note: note },
+        actor,
+      );
+      res.json({ success: true, plan: await readYearPlanDetail(found.plan.id) });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    } finally {
+      conn.release();
+    }
+  },
+);
 
 function yearPlanReportWhere(query, req, actor) {
   const where = [];
@@ -6938,7 +7288,15 @@ app.put("/api/edutrack/daily-syllabus-progress/:id", teacherOrAdmin, async (req,
       return res.status(404).json({ error: "Daily progress record not found" });
     }
     if (!canAccessDailyRecord(req, actor, existing, "edit")) {
-      await insertDailySyllabusAudit(conn, req, existing.id, "blocked_edit", existing, req.body, actor);
+      await insertDailySyllabusAudit(
+        conn,
+        req,
+        existing.id,
+        "blocked_edit",
+        existing,
+        req.body,
+        actor,
+      );
       await conn.commit();
       return res.status(403).json({ error: "You cannot edit this progress record" });
     }
@@ -7008,7 +7366,15 @@ app.delete("/api/edutrack/daily-syllabus-progress/:id", teacherOrAdmin, async (r
       return res.status(404).json({ error: "Daily progress record not found" });
     }
     if (!isEduTrackMasterUser(req)) {
-      await insertDailySyllabusAudit(conn, req, existing.id, "blocked_delete", existing, null, actor);
+      await insertDailySyllabusAudit(
+        conn,
+        req,
+        existing.id,
+        "blocked_delete",
+        existing,
+        null,
+        actor,
+      );
       await conn.commit();
       return res.status(403).json({ error: "Master EduTrack access required to delete records" });
     }
@@ -7036,7 +7402,8 @@ app.get("/api/edutrack/daily-syllabus-progress/report", teacherOrAdmin, async (r
           (acc.byStatus[row.completion_status || "Unknown"] || 0) + 1;
         acc.byTeacher[row.teacher_name || row.teacher_id || "Unknown"] =
           (acc.byTeacher[row.teacher_name || row.teacher_id || "Unknown"] || 0) + 1;
-        acc.bySubject[row.subject || "Unknown"] = (acc.bySubject[row.subject || "Unknown"] || 0) + 1;
+        acc.bySubject[row.subject || "Unknown"] =
+          (acc.bySubject[row.subject || "Unknown"] || 0) + 1;
         return acc;
       },
       { total: 0, byStatus: {}, byTeacher: {}, bySubject: {} },
@@ -7602,13 +7969,21 @@ async function unlockReliefExtra(req, res, kind) {
   }
 }
 
-app.post("/api/edutrack/relief-assignments/:id/unlock-one-download", edutrackMasterOnly, (req, res) => {
-  unlockReliefExtra(req, res, "download");
-});
+app.post(
+  "/api/edutrack/relief-assignments/:id/unlock-one-download",
+  edutrackMasterOnly,
+  (req, res) => {
+    unlockReliefExtra(req, res, "download");
+  },
+);
 
-app.post("/api/edutrack/relief-assignments/:id/unlock-one-print", edutrackMasterOnly, (req, res) => {
-  unlockReliefExtra(req, res, "print");
-});
+app.post(
+  "/api/edutrack/relief-assignments/:id/unlock-one-print",
+  edutrackMasterOnly,
+  (req, res) => {
+    unlockReliefExtra(req, res, "print");
+  },
+);
 
 app.post("/api/edutrack/relief-assignments/:id/unlock", edutrackMasterOnly, (req, res) => {
   unlockReliefExtra(req, res, "download");
@@ -7645,110 +8020,118 @@ app.get("/api/edutrack/relief-assignments/:id/audit", eduzyncAdminOnly, async (r
   }
 });
 
-app.post("/api/edutrack/relief-assignments/:id/delete-request", eduzyncAdminOnly, async (req, res) => {
-  try {
-    await ensureContentTables();
-    const actor = await reliefActorInfo(req);
-    const assignmentId = Number(req.params.id);
-    const reason = String(req.body?.reason || "Delete requested").trim();
-    const [rows] = await db.query(
-      "SELECT * FROM edutrack_relief_assignments WHERE id = ? AND status <> 'deleted' LIMIT 1",
-      [assignmentId],
-    );
-    const assignment = rows[0];
-    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
-    const [result] = await db.query(
-      "UPDATE edutrack_relief_assignments SET status = 'delete_requested', updated_at = NOW() WHERE id = ?",
-      [assignmentId],
-    );
-    if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
-    await insertReliefAudit(
-      db,
-      req,
-      assignment,
-      "delete_requested",
-      { message: reason },
-      actor,
-    );
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-app.post("/api/edutrack/relief-assignments/:id/approve-delete", edutrackMasterOnly, async (req, res) => {
-  try {
-    await ensureContentTables();
-    const actor = await reliefActorInfo(req);
-    const assignmentId = Number(req.params.id);
-    const [rows] = await db.query(
-      "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
-      [assignmentId],
-    );
-    const assignment = rows[0];
-    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
-    const filePath = resolveReliefPdfPath(assignment);
-    let fileDeleted = false;
-    if (filePath && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      fileDeleted = true;
+app.post(
+  "/api/edutrack/relief-assignments/:id/delete-request",
+  eduzyncAdminOnly,
+  async (req, res) => {
+    try {
+      await ensureContentTables();
+      const actor = await reliefActorInfo(req);
+      const assignmentId = Number(req.params.id);
+      const reason = String(req.body?.reason || "Delete requested").trim();
+      const [rows] = await db.query(
+        "SELECT * FROM edutrack_relief_assignments WHERE id = ? AND status <> 'deleted' LIMIT 1",
+        [assignmentId],
+      );
+      const assignment = rows[0];
+      if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+      const [result] = await db.query(
+        "UPDATE edutrack_relief_assignments SET status = 'delete_requested', updated_at = NOW() WHERE id = ?",
+        [assignmentId],
+      );
+      if (result.affectedRows === 0) return res.status(404).json({ error: "Assignment not found" });
+      await insertReliefAudit(db, req, assignment, "delete_requested", { message: reason }, actor);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-    await db.query(
-      "UPDATE edutrack_relief_assignments SET status = 'deleted', pdf_file_path = NULL, updated_at = NOW() WHERE id = ?",
-      [assignmentId],
-    );
-    await insertReliefAudit(
-      db,
-      req,
-      assignment,
-      "delete_approved",
-      { message: String(req.body?.reason || "Delete approved").trim(), file_deleted: fileDeleted },
-      actor,
-    );
-    if (fileDeleted) {
+  },
+);
+
+app.post(
+  "/api/edutrack/relief-assignments/:id/approve-delete",
+  edutrackMasterOnly,
+  async (req, res) => {
+    try {
+      await ensureContentTables();
+      const actor = await reliefActorInfo(req);
+      const assignmentId = Number(req.params.id);
+      const [rows] = await db.query(
+        "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
+        [assignmentId],
+      );
+      const assignment = rows[0];
+      if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+      const filePath = resolveReliefPdfPath(assignment);
+      let fileDeleted = false;
+      if (filePath && fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        fileDeleted = true;
+      }
+      await db.query(
+        "UPDATE edutrack_relief_assignments SET status = 'deleted', pdf_file_path = NULL, updated_at = NOW() WHERE id = ?",
+        [assignmentId],
+      );
       await insertReliefAudit(
         db,
         req,
         assignment,
-        "file_deleted",
-        { message: "PDF file deleted from protected storage" },
+        "delete_approved",
+        {
+          message: String(req.body?.reason || "Delete approved").trim(),
+          file_deleted: fileDeleted,
+        },
         actor,
       );
+      if (fileDeleted) {
+        await insertReliefAudit(
+          db,
+          req,
+          assignment,
+          "file_deleted",
+          { message: "PDF file deleted from protected storage" },
+          actor,
+        );
+      }
+      res.json({ success: true, fileDeleted });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
     }
-    res.json({ success: true, fileDeleted });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+  },
+);
 
-app.post("/api/edutrack/relief-assignments/:id/reject-delete", edutrackMasterOnly, async (req, res) => {
-  try {
-    await ensureContentTables();
-    const actor = await reliefActorInfo(req);
-    const assignmentId = Number(req.params.id);
-    const [rows] = await db.query(
-      "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
-      [assignmentId],
-    );
-    const assignment = rows[0];
-    if (!assignment) return res.status(404).json({ error: "Assignment not found" });
-    await db.query(
-      "UPDATE edutrack_relief_assignments SET status = 'pending_download', updated_at = NOW() WHERE id = ?",
-      [assignmentId],
-    );
-    await insertReliefAudit(
-      db,
-      req,
-      assignment,
-      "delete_rejected",
-      { message: String(req.body?.reason || "Delete rejected").trim() },
-      actor,
-    );
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
+app.post(
+  "/api/edutrack/relief-assignments/:id/reject-delete",
+  edutrackMasterOnly,
+  async (req, res) => {
+    try {
+      await ensureContentTables();
+      const actor = await reliefActorInfo(req);
+      const assignmentId = Number(req.params.id);
+      const [rows] = await db.query(
+        "SELECT * FROM edutrack_relief_assignments WHERE id = ? LIMIT 1",
+        [assignmentId],
+      );
+      const assignment = rows[0];
+      if (!assignment) return res.status(404).json({ error: "Assignment not found" });
+      await db.query(
+        "UPDATE edutrack_relief_assignments SET status = 'pending_download', updated_at = NOW() WHERE id = ?",
+        [assignmentId],
+      );
+      await insertReliefAudit(
+        db,
+        req,
+        assignment,
+        "delete_rejected",
+        { message: String(req.body?.reason || "Delete rejected").trim() },
+        actor,
+      );
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
 
 app.delete("/api/edutrack/relief-assignments/:id", edutrackMasterOnly, async (req, res) => {
   try {
@@ -7808,7 +8191,12 @@ function firstEduTrackValue(...values) {
 function addEduTrackIdentityHint(index, hint = {}) {
   const normalized = {
     userId: firstEduTrackValue(hint.userId, hint.user_id, hint.account_user_id),
-    teacherId: firstEduTrackValue(hint.teacherId, hint.teacher_id, hint.edutrack_teacher_id, hint.id),
+    teacherId: firstEduTrackValue(
+      hint.teacherId,
+      hint.teacher_id,
+      hint.edutrack_teacher_id,
+      hint.id,
+    ),
     staffId: firstEduTrackValue(hint.staffId, hint.staff_id, hint.external_staff_id, hint.id),
     email: firstEduTrackValue(hint.email, hint.account_email, hint.user_email).toLowerCase(),
     name: firstEduTrackValue(hint.name, hint.full_name),
@@ -7835,7 +8223,11 @@ async function loadEduTrackIdentityHints() {
       profiles.forEach((profile) =>
         addEduTrackIdentityHint(index, {
           userId: firstEduTrackValue(profile.user_id, profile.teacher_id),
-          teacherId: firstEduTrackValue(profile.edutrack_teacher_id, profile.id, profile.teacher_id),
+          teacherId: firstEduTrackValue(
+            profile.edutrack_teacher_id,
+            profile.id,
+            profile.teacher_id,
+          ),
           staffId: profile.id,
           email: firstEduTrackValue(profile.email, profile.user_email),
           name: profile.full_name,
@@ -8357,6 +8749,133 @@ app.post(
 );
 
 app.post(
+  "/api/password-reset/request",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 5, keyPrefix: "password-reset-request" }),
+  async (req, res) => {
+    const accountEmail = normalizeEmail(req.body?.email);
+
+    try {
+      await ensureAccessTables();
+      await db.query(
+        "DELETE FROM password_reset_tokens WHERE used_at IS NOT NULL OR expires_at <= UTC_TIMESTAMP()",
+      );
+
+      if (isValidEmail(accountEmail)) {
+        const [[user]] = await db.query(
+          `
+            SELECT id, name, email, recovery_email, role, status
+            FROM users
+            WHERE email = ?
+            LIMIT 1
+          `,
+          [accountEmail],
+        );
+        const recoveryEmail = normalizeEmail(user?.recovery_email);
+        const canReset =
+          user?.role === ROLES.teacher &&
+          String(user?.status || "").toLowerCase() === "active" &&
+          isValidEmail(recoveryEmail) &&
+          recoveryEmail !== accountEmail;
+
+        if (canReset) {
+          const token = crypto.randomBytes(32).toString("base64url");
+          const tokenHash = passwordResetTokenHash(token);
+          const expiresAt = mysqlDateTime(Date.now() + PASSWORD_RESET_TOKEN_TTL_MS);
+
+          await db.query(
+            "DELETE FROM password_reset_tokens WHERE user_id = ? AND used_at IS NULL",
+            [user.id],
+          );
+          await db.query(
+            "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES (?, ?, ?)",
+            [user.id, tokenHash, expiresAt],
+          );
+
+          try {
+            await sendTeacherPasswordResetEmail(user, recoveryEmail, token);
+          } catch (error) {
+            await db.query("DELETE FROM password_reset_tokens WHERE token_hash = ?", [tokenHash]);
+            throw error;
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`[password-reset] Could not process reset request: ${error.message}`);
+    }
+
+    res.json({ success: true, message: PASSWORD_RESET_RESPONSE });
+  },
+);
+
+app.post(
+  "/api/password-reset/confirm",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "password-reset-confirm" }),
+  async (req, res) => {
+    const token = String(req.body?.token || "").trim();
+    const password = String(req.body?.password || "");
+    if (!/^[A-Za-z0-9_-]{40,100}$/.test(token)) {
+      return res.status(400).json({ error: "This password reset link is invalid or expired." });
+    }
+    if (password.length < 8 || password.length > 128) {
+      return res.status(400).json({ error: "Password must be between 8 and 128 characters." });
+    }
+
+    await ensureAccessTables();
+    const passwordHash = await bcrypt.hash(password, 12);
+    const tokenHash = passwordResetTokenHash(token);
+    const connection = await db.getConnection();
+
+    try {
+      await connection.beginTransaction();
+      const [[resetRequest]] = await connection.query(
+        `
+          SELECT prt.id, prt.user_id, u.role, u.status
+          FROM password_reset_tokens prt
+          INNER JOIN users u ON u.id = prt.user_id
+          WHERE prt.token_hash = ?
+            AND prt.used_at IS NULL
+            AND prt.expires_at > UTC_TIMESTAMP()
+          LIMIT 1
+          FOR UPDATE
+        `,
+        [tokenHash],
+      );
+
+      if (
+        !resetRequest ||
+        resetRequest.role !== ROLES.teacher ||
+        String(resetRequest.status || "").toLowerCase() !== "active"
+      ) {
+        await connection.rollback();
+        return res.status(400).json({ error: "This password reset link is invalid or expired." });
+      }
+
+      await connection.query("UPDATE users SET password_hash = ? WHERE id = ?", [
+        passwordHash,
+        resetRequest.user_id,
+      ]);
+      await connection.query(
+        "UPDATE password_reset_tokens SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND used_at IS NULL",
+        [resetRequest.user_id],
+      );
+      await connection.commit();
+
+      clearAuthCookie(res);
+      clearCsrfCookie(res);
+      return res.json({
+        success: true,
+        message: "Your password has been reset. You can now sign in.",
+      });
+    } catch (error) {
+      await connection.rollback();
+      return res.status(500).json({ error: "Could not reset the password. Please try again." });
+    } finally {
+      connection.release();
+    }
+  },
+);
+
+app.post(
   "/api/login",
   rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: "login" }),
   async (req, res) => {
@@ -8644,7 +9163,10 @@ app.post("/api/me/2fa/disable", auth, async (req, res) => {
     const [[user]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [req.user.id]);
     if (!user) return res.status(404).json({ error: "User not found" });
 
-    const validPassword = await bcrypt.compare(String(req.body?.password || ""), user.password_hash);
+    const validPassword = await bcrypt.compare(
+      String(req.body?.password || ""),
+      user.password_hash,
+    );
     if (!validPassword) {
       return res.status(401).json({ error: "Password is incorrect." });
     }
@@ -8842,6 +9364,8 @@ if (fs.existsSync(frontendIndex)) {
     [
       ...(process.env.APP_NAME === "edutrack" ? [] : ["/"]),
       "/login",
+      "/forgot-password",
+      "/reset-password",
       "/portal",
       "/admin",
       "/portal/edutrack",
