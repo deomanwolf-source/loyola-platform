@@ -4947,13 +4947,9 @@ function StaffPanel({ db }: { db: DB }) {
   const saveTeacherAccount = async (teacherId: string, fullName: string) => {
     if (!formAccountEnabled) return null;
     const email = formAccountEmail.trim().toLowerCase();
-    const recoveryEmail = formRecoveryEmail.trim().toLowerCase();
     const password = formAccountPassword;
 
     if (!email) throw new Error("Teacher portal email is required.");
-    if (!recoveryEmail) throw new Error("Personal recovery email is required.");
-    if (email === recoveryEmail)
-      throw new Error("Recovery email must be different from the teacher portal email.");
     if (!editingId && !password)
       throw new Error("Temporary password is required for a new account.");
 
@@ -4965,7 +4961,6 @@ function StaffPanel({ db }: { db: DB }) {
         teacherId,
         name: fullName,
         email,
-        recoveryEmail,
         password,
         status: "Active",
       }),
@@ -6149,21 +6144,6 @@ function StaffPanel({ db }: { db: DB }) {
                       disabled={!formAccountEnabled}
                       onChange={(e) => setFormAccountEmail(e.target.value)}
                     />
-                  </div>
-                  <div>
-                    <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Personal Recovery Email
-                    </label>
-                    <TextInput
-                      type="email"
-                      placeholder="teacher.personal@example.com"
-                      value={formRecoveryEmail}
-                      disabled={!formAccountEnabled}
-                      onChange={(e) => setFormRecoveryEmail(e.target.value)}
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Private. Password reset links are sent here.
-                    </p>
                   </div>
                   <div>
                     <label className="mb-1 block text-xs font-bold uppercase tracking-wider text-muted-foreground">

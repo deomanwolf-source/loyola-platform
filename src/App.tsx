@@ -63,8 +63,6 @@ import {
   TwoFactorRequiredError,
   authHeaders,
   getMaintenanceStatus,
-  requestPasswordReset,
-  resetPassword,
   type MaintenanceStatus,
 } from "@/lib/api";
 import {
@@ -1369,12 +1367,7 @@ export function App() {
       pageIsLive(FACILITIES_PAGE_ID)) ||
     (COLLEGE_DEPARTMENT_PAGE_IDS.has(requestedPageId) && pageIsLive(requestedPageId));
   const isSystemPath =
-    path === "/login" ||
-    path === "/forgot-password" ||
-    path === "/reset-password" ||
-    path === "/portal" ||
-    path === "/admin" ||
-    path.startsWith("/portal/");
+    path === "/login" || path === "/portal" || path === "/admin" || path.startsWith("/portal/");
   const canViewDuringMaintenance =
     maintenanceStatus?.canViewSite ||
     Boolean(auth.user && MAINTENANCE_BYPASS_ROLES.includes(auth.user.role));
@@ -1570,7 +1563,7 @@ export function App() {
   if (path === "/student-portal" && pageIsLive("student-portal"))
     return <StudentPortalLandingPage />;
   if (path === "/contact" && pageIsLive("contact")) return <ContactPage />;
-  if (["/login", "/forgot-password", "/reset-password"].includes(path)) return <LoginPage />;
+  if (path === "/login") return <LoginPage />;
   if (path === "/portal") return <CentralPortal />;
   if (path === "/admin") {
     return (
@@ -5275,18 +5268,9 @@ function RectorsMessagePage({ pageId = "rectors-message" }: { pageId?: string })
 
 function LoginPage() {
   const db = useDb();
-  const currentPath = typeof window === "undefined" ? "/login" : window.location.pathname;
-  const isForgotPassword = currentPath === "/forgot-password";
-  const isResetPassword = currentPath === "/reset-password";
-  const resetToken =
-    typeof window === "undefined"
-      ? ""
-      : new URLSearchParams(window.location.search).get("token") || "";
   const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordResetComplete, setPasswordResetComplete] = useState(false);
   const [twoFactorChallenge, setTwoFactorChallenge] = useState<{
     token: string;
     email: string;
@@ -5302,29 +5286,9 @@ function LoginPage() {
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
-    setNotice("");
     setSubmitting(true);
     try {
       const formData = new FormData(event.currentTarget);
-      if (isForgotPassword) {
-        const result = await requestPasswordReset(String(formData.get("email") || ""));
-        setNotice(result.message);
-        setSubmitting(false);
-        return;
-      }
-
-      if (isResetPassword) {
-        const password = String(formData.get("password") || "");
-        const confirmPassword = String(formData.get("confirmPassword") || "");
-        if (!resetToken) throw new Error("This password reset link is invalid or expired.");
-        if (password !== confirmPassword) throw new Error("Passwords do not match.");
-        const result = await resetPassword(resetToken, password);
-        setNotice(result.message);
-        setPasswordResetComplete(true);
-        setSubmitting(false);
-        return;
-      }
-
       if (twoFactorChallenge) {
         await authenticateTwoFactor(twoFactorChallenge.token, twoFactorCode);
         redirectAfterLogin();
@@ -5349,20 +5313,10 @@ function LoginPage() {
     }
   };
 
-  const pageTitle = isForgotPassword
-    ? "Forgot password"
-    : isResetPassword
-      ? "Choose a new password"
-      : twoFactorChallenge
-        ? "Verify sign in"
-        : "Welcome back";
-  const pageSubtitle = isForgotPassword
-    ? "Enter your Loyola teacher email. The reset link will be sent to your private recovery email."
-    : isResetPassword
-      ? "Use at least 8 characters for your new portal password."
-      : twoFactorChallenge
-        ? `Enter the authentication code for ${twoFactorChallenge.email}.`
-        : "Enter your assigned email and password to continue.";
+  const pageTitle = twoFactorChallenge ? "Verify sign in" : "Welcome back";
+  const pageSubtitle = twoFactorChallenge
+    ? `Enter the authentication code for ${twoFactorChallenge.email}.`
+    : "Enter your assigned email and password to continue.";
 
   const roleChips = [
     { label: "Student", color: "bg-sky-100 text-sky-800" },
@@ -5531,63 +5485,7 @@ function LoginPage() {
             <p className="mt-2 text-sm text-muted-foreground">{pageSubtitle}</p>
           </div>
 
-          {isResetPassword ? (
-            passwordResetComplete ? (
-              <div className="mt-7">
-                <a
-                  href="/login"
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white"
-                >
-                  Return to sign in
-                </a>
-              </div>
-            ) : (
-              <div className="mt-7 space-y-5">
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                    New password
-                  </span>
-                  <div className="relative mt-2">
-                    <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      name="password"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      minLength={8}
-                      maxLength={128}
-                      autoComplete="new-password"
-                      className="input-line pl-7 pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((value) => !value)}
-                      className="absolute top-1/2 right-0 -translate-y-1/2 text-slate-400 transition hover:text-navy"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                  </div>
-                </label>
-                <label className="block">
-                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                    Confirm new password
-                  </span>
-                  <div className="relative mt-2">
-                    <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                    <input
-                      name="confirmPassword"
-                      type={showPassword ? "text" : "password"}
-                      required
-                      minLength={8}
-                      maxLength={128}
-                      autoComplete="new-password"
-                      className="input-line pl-7"
-                    />
-                  </div>
-                </label>
-              </div>
-            )
-          ) : twoFactorChallenge ? (
+          {twoFactorChallenge ? (
             <div className="mt-7 space-y-5">
               <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
                 <p className="text-sm font-bold text-emerald-900">Two-factor authentication</p>
@@ -5652,49 +5550,34 @@ function LoginPage() {
                 </label>
               </div>
 
-              {!isForgotPassword && (
-                <div className="mt-5">
-                  <label className="block">
-                    <span className="flex items-center justify-between gap-3 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                      <span>Password</span>
-                      <a
-                        href="/forgot-password"
-                        className="normal-case tracking-normal text-[#b70f1b] hover:underline"
-                      >
-                        Forgot password?
-                      </a>
-                    </span>
-                    <div className="relative mt-2">
-                      <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                      <input
-                        id="login-password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        required
-                        autoComplete="current-password"
-                        placeholder="••••••••"
-                        className="input-line pl-7 pr-10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword((v) => !v)}
-                        className="absolute top-1/2 right-0 -translate-y-1/2 text-slate-400 transition hover:text-navy"
-                        tabIndex={-1}
-                      >
-                        <Eye className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </label>
-                </div>
-              )}
+              <div className="mt-5">
+                <label className="block">
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                    Password
+                  </span>
+                  <div className="relative mt-2">
+                    <Lock className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                      id="login-password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="current-password"
+                      placeholder="••••••••"
+                      className="input-line pl-7 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      className="absolute top-1/2 right-0 -translate-y-1/2 text-slate-400 transition hover:text-navy"
+                      tabIndex={-1}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                  </div>
+                </label>
+              </div>
             </>
-          )}
-
-          {notice && (
-            <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
-              <p className="text-sm font-medium text-emerald-800">{notice}</p>
-            </div>
           )}
 
           {error && (
@@ -5704,50 +5587,29 @@ function LoginPage() {
             </div>
           )}
 
-          {!passwordResetComplete && (
-            <button
-              id="login-submit"
-              disabled={
-                submitting ||
-                Boolean(twoFactorChallenge && twoFactorCode.replace(/\s+/g, "").length < 6)
-              }
-              type="submit"
-              className="login-submit mt-7 w-full rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white shadow-[0_12px_32px_-16px_rgba(10,22,40,0.6)] transition-all hover:-translate-y-0.5 hover:bg-[#122040] disabled:translate-y-0 disabled:cursor-wait disabled:opacity-60"
-            >
-              {submitting ? (
-                <span className="inline-flex items-center gap-2">
-                  <span
-                    className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
-                    style={{ animation: "spin 0.7s linear infinite" }}
-                  />
-                  {isForgotPassword
-                    ? "Sending..."
-                    : isResetPassword
-                      ? "Resetting..."
-                      : twoFactorChallenge
-                        ? "Verifying..."
-                        : "Signing in..."}
-                </span>
-              ) : isForgotPassword ? (
-                "Send reset link"
-              ) : isResetPassword ? (
-                "Reset password"
-              ) : twoFactorChallenge ? (
-                "Verify and continue ->"
-              ) : (
-                "Sign in to portal ->"
-              )}
-            </button>
-          )}
-
-          {(isForgotPassword || isResetPassword) && !passwordResetComplete && (
-            <a
-              href="/login"
-              className="mt-4 block text-center text-xs font-bold text-slate-500 hover:text-navy"
-            >
-              Back to sign in
-            </a>
-          )}
+          <button
+            id="login-submit"
+            disabled={
+              submitting ||
+              Boolean(twoFactorChallenge && twoFactorCode.replace(/\s+/g, "").length < 6)
+            }
+            type="submit"
+            className="login-submit mt-7 w-full rounded-xl bg-[#0a1628] px-5 py-4 text-sm font-bold text-white shadow-[0_12px_32px_-16px_rgba(10,22,40,0.6)] transition-all hover:-translate-y-0.5 hover:bg-[#122040] disabled:translate-y-0 disabled:cursor-wait disabled:opacity-60"
+          >
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <span
+                  className="inline-block h-4 w-4 rounded-full border-2 border-white/30 border-t-white"
+                  style={{ animation: "spin 0.7s linear infinite" }}
+                />
+                {twoFactorChallenge ? "Verifying..." : "Signing in..."}
+              </span>
+            ) : twoFactorChallenge ? (
+              "Verify and continue ->"
+            ) : (
+              "Sign in to portal ->"
+            )}
+          </button>
 
           <div className="mt-8 border-t border-border pt-6">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">

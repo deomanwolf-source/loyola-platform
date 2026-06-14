@@ -615,6 +615,7 @@ const REPORT_CARD_VIEW_ROLES = [
 const AUTH_COOKIE_NAME = "loyola_session_token";
 const CSRF_COOKIE_NAME = "loyola_csrf_token";
 const AUTH_COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const PASSWORD_RESET_ENABLED = false;
 const PASSWORD_RESET_TOKEN_TTL_MS = 30 * 60 * 1000;
 const PASSWORD_RESET_RESPONSE =
   "If an active teacher account with a recovery email exists, a reset link will be sent.";
@@ -8752,6 +8753,10 @@ app.post(
   "/api/password-reset/request",
   rateLimit({ windowMs: 15 * 60 * 1000, max: 5, keyPrefix: "password-reset-request" }),
   async (req, res) => {
+    if (!PASSWORD_RESET_ENABLED) {
+      return res.status(404).json({ error: "Password recovery is not available." });
+    }
+
     const accountEmail = normalizeEmail(req.body?.email);
 
     try {
@@ -8825,6 +8830,10 @@ app.post(
   "/api/password-reset/confirm",
   rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "password-reset-confirm" }),
   async (req, res) => {
+    if (!PASSWORD_RESET_ENABLED) {
+      return res.status(404).json({ error: "Password recovery is not available." });
+    }
+
     const token = String(req.body?.token || "").trim();
     const password = String(req.body?.password || "");
     if (!/^[A-Za-z0-9_-]{40,100}$/.test(token)) {
@@ -9378,8 +9387,6 @@ if (fs.existsSync(frontendIndex)) {
     [
       ...(process.env.APP_NAME === "edutrack" ? [] : ["/"]),
       "/login",
-      "/forgot-password",
-      "/reset-password",
       "/portal",
       "/admin",
       "/portal/edutrack",
