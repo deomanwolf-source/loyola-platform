@@ -328,35 +328,10 @@ function GroupBlock({
               <p className="mt-2 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
                 {assignment.position.display_title}
               </p>
-              {positionMeta(assignment.position) && (
-                <p className="mt-2 max-w-[230px] text-xs font-semibold leading-5 text-slate-500">
-                  {positionMeta(assignment.position)}
-                </p>
-              )}
               {assignment.profile.qualifications && (
                 <p className="mt-3 line-clamp-3 max-w-[230px] text-xs font-semibold leading-5 text-slate-500">
                   {assignment.profile.qualifications}
                 </p>
-              )}
-              {(assignment.profile.email || assignment.profile.phone) && (
-                <div className="mt-3 flex flex-wrap justify-center gap-3 text-xs font-semibold text-slate-600">
-                  {assignment.profile.email && (
-                    <a
-                      href={`mailto:${assignment.profile.email}`}
-                      className="inline-flex items-center gap-1 hover:text-crimson"
-                    >
-                      <Mail className="h-3.5 w-3.5" /> Email
-                    </a>
-                  )}
-                  {assignment.profile.phone && (
-                    <a
-                      href={`tel:${assignment.profile.phone}`}
-                      className="inline-flex items-center gap-1 hover:text-crimson"
-                    >
-                      <Phone className="h-3.5 w-3.5" /> Phone
-                    </a>
-                  )}
-                </div>
               )}
             </div>
             <button
