@@ -2611,6 +2611,172 @@ function registerStaffRoutes(app, context) {
       .includes(term);
   }
 
+  async function syncAttendanceProfilesFromLinkedTeachers() {
+    await db.query(`
+      INSERT INTO staff_profiles
+        (
+          id,
+          user_id,
+          teacher_id,
+          full_name,
+          email,
+          staff_type,
+          department,
+          position,
+          qualification,
+          status,
+          profile_image,
+          photo_url
+        )
+      SELECT
+        linked.staff_id,
+        linked.user_id,
+        linked.teacher_id,
+        linked.full_name,
+        linked.email,
+        linked.staff_type,
+        linked.department,
+        linked.position,
+        linked.qualification,
+        linked.status,
+        linked.profile_image,
+        linked.photo_url
+      FROM (
+        SELECT
+          COALESCE(
+            NULLIF(t.staff_id, ''),
+            NULLIF(t.external_staff_id, ''),
+            NULLIF(u.external_staff_id, ''),
+            CASE
+              WHEN t.id LIKE '%__%' THEN SUBSTRING_INDEX(t.id, '__', 1)
+              ELSE NULLIF(t.id, '')
+            END
+          ) AS staff_id,
+          u.id AS user_id,
+          COALESCE(NULLIF(t.staff_id, ''), NULLIF(t.external_staff_id, ''), NULLIF(t.id, ''), u.external_staff_id) AS teacher_id,
+          COALESCE(NULLIF(t.name, ''), u.name, u.email) AS full_name,
+          COALESCE(NULLIF(t.account_email, ''), NULLIF(t.email, ''), u.email) AS email,
+          COALESCE(NULLIF(t.type, ''), 'Academic Staff') AS staff_type,
+          COALESCE(NULLIF(t.section, ''), NULLIF(t.category, ''), NULLIF(t.website_place, ''), '') AS department,
+          COALESCE(NULLIF(t.position, ''), 'Teacher') AS position,
+          NULLIF(t.qualifications, '') AS qualification,
+          CASE
+            WHEN LOWER(COALESCE(t.status, u.status, 'Active')) IN ('active', '') THEN 'Active'
+            ELSE 'Inactive'
+          END AS status,
+          NULLIF(t.image, '') AS profile_image,
+          NULLIF(t.image, '') AS photo_url
+        FROM teachers t
+        JOIN users u ON u.id = NULLIF(t.account_user_id, '')
+        WHERE u.role = 'teacher'
+          AND LOWER(COALESCE(u.status, '')) = 'active'
+      ) linked
+      WHERE NULLIF(linked.staff_id, '') IS NOT NULL
+        AND NULLIF(linked.full_name, '') IS NOT NULL
+        AND NULLIF(linked.email, '') IS NOT NULL
+      ON DUPLICATE KEY UPDATE
+        user_id = COALESCE(NULLIF(staff_profiles.user_id, ''), VALUES(user_id)),
+        teacher_id = COALESCE(NULLIF(staff_profiles.teacher_id, ''), VALUES(teacher_id)),
+        email = COALESCE(NULLIF(staff_profiles.email, ''), VALUES(email)),
+        staff_type = COALESCE(NULLIF(staff_profiles.staff_type, ''), VALUES(staff_type)),
+        department = COALESCE(NULLIF(staff_profiles.department, ''), VALUES(department)),
+        position = COALESCE(NULLIF(staff_profiles.position, ''), VALUES(position)),
+        profile_image = COALESCE(NULLIF(staff_profiles.profile_image, ''), VALUES(profile_image)),
+        photo_url = COALESCE(NULLIF(staff_profiles.photo_url, ''), VALUES(photo_url))
+    `);
+
+    await db.query(`
+      UPDATE staff_profiles sp
+      JOIN teachers t
+        ON t.staff_id = sp.id
+        OR t.external_staff_id = sp.id
+        OR t.id = sp.teacher_id
+        OR t.id = sp.id
+      JOIN users u ON u.id = t.account_user_id
+      SET sp.user_id = u.id
+      WHERE u.role = 'teacher'
+        AND LOWER(COALESCE(u.status, '')) = 'active'
+        AND (sp.user_id IS NULL OR sp.user_id = '')
+    `);
+  }
+
+  async function linkedTeacherAttendanceProfiles() {
+    const [rows] = await db.query(`
+      SELECT
+        linked.staff_id AS id,
+        linked.user_id,
+        linked.teacher_id,
+        linked.full_name,
+        linked.email,
+        linked.staff_type,
+        linked.department,
+        linked.position,
+        linked.status,
+        linked.profile_image,
+        linked.photo_url,
+        linked.subject,
+        linked.classes,
+        linked.category,
+        linked.responsibilities
+      FROM (
+        SELECT
+          COALESCE(
+            NULLIF(t.staff_id, ''),
+            NULLIF(t.external_staff_id, ''),
+            NULLIF(u.external_staff_id, ''),
+            CASE
+              WHEN t.id LIKE '%__%' THEN SUBSTRING_INDEX(t.id, '__', 1)
+              ELSE NULLIF(t.id, '')
+            END
+          ) AS staff_id,
+          u.id AS user_id,
+          COALESCE(NULLIF(t.staff_id, ''), NULLIF(t.external_staff_id, ''), NULLIF(t.id, ''), u.external_staff_id) AS teacher_id,
+          COALESCE(NULLIF(t.name, ''), u.name, u.email) AS full_name,
+          COALESCE(NULLIF(t.account_email, ''), NULLIF(t.email, ''), u.email) AS email,
+          COALESCE(NULLIF(t.type, ''), 'Academic Staff') AS staff_type,
+          COALESCE(NULLIF(t.section, ''), NULLIF(t.category, ''), NULLIF(t.website_place, ''), '') AS department,
+          COALESCE(NULLIF(t.position, ''), 'Teacher') AS position,
+          CASE
+            WHEN LOWER(COALESCE(t.status, u.status, 'Active')) IN ('active', '') THEN 'Active'
+            ELSE 'Inactive'
+          END AS status,
+          NULLIF(t.image, '') AS profile_image,
+          NULLIF(t.image, '') AS photo_url,
+          t.subject,
+          t.classes,
+          t.category,
+          t.responsibilities
+        FROM teachers t
+        JOIN users u ON u.id = NULLIF(t.account_user_id, '')
+        WHERE u.role = 'teacher'
+          AND LOWER(COALESCE(u.status, '')) = 'active'
+      ) linked
+      WHERE NULLIF(linked.staff_id, '') IS NOT NULL
+        AND NULLIF(linked.full_name, '') IS NOT NULL
+        AND NULLIF(linked.email, '') IS NOT NULL
+    `);
+
+    const seen = new Set();
+    return rows
+      .filter((row) => {
+        const id = clean(row.id, 50);
+        if (!id || seen.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((row) => serializeProfile(row, []));
+  }
+
+  async function readAttendanceProfiles() {
+    await syncAttendanceProfilesFromLinkedTeachers();
+    const profiles = await readProfiles();
+    const byId = new Map(profiles.map((profile) => [String(profile.id), profile]));
+    for (const profile of await linkedTeacherAttendanceProfiles()) {
+      if (!byId.has(String(profile.id))) byId.set(String(profile.id), profile);
+    }
+    return [...byId.values()];
+  }
+
   async function attendanceRecordsByDate(date) {
     const [rows] = await db.query(
       `
@@ -2636,7 +2802,7 @@ function registerStaffRoutes(app, context) {
       : "All Sections";
     const staffType = clean(query.staff_type || query.staffType || "All", 100);
     const search = clean(query.search, 120);
-    const profiles = (await readProfiles()).filter((profile) =>
+    const profiles = (await readAttendanceProfiles()).filter((profile) =>
       staffAttendanceProfileMatches(profile, { section, staffType, search }),
     );
     const byProfile = await attendanceRecordsByDate(date);
@@ -2727,7 +2893,7 @@ function registerStaffRoutes(app, context) {
       const date =
         normalizeDate(req.body?.date || input[0]?.attendance_date || input[0]?.date) ||
         new Date().toISOString().slice(0, 10);
-      const profiles = await readProfiles();
+      const profiles = await readAttendanceProfiles();
       const profilesById = new Map(profiles.map((profile) => [String(profile.id), profile]));
       await conn.beginTransaction();
       let saved = 0;
