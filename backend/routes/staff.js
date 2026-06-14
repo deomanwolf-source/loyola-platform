@@ -3072,6 +3072,7 @@ function registerStaffRoutes(app, context) {
       }
       const user = await upsertTeacherUserAccount(runner, {
         id: selectedUser?.id || "",
+        externalStaffId: id,
         name: payload.fullName,
         email: payload.email,
         password: payload.accountPassword,
