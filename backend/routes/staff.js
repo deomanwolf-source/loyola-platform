@@ -3040,10 +3040,10 @@ function registerStaffRoutes(app, context) {
     const cleanUserId = clean(userId, 50);
     if (!cleanUserId) return null;
 
-    const [rows] = await runner.query("SELECT id, email FROM users WHERE id = ? LIMIT 1", [
+    const [rows] = await runner.query("SELECT id, email, role FROM users WHERE id = ? LIMIT 1", [
       cleanUserId,
     ]);
-    return rows[0] || null;
+    return rows[0]?.role === ROLES.teacher ? rows[0] : null;
   }
 
   async function readTeacherId(runner, teacherId) {

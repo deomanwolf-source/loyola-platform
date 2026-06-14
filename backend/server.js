@@ -1127,19 +1127,48 @@ async function writeMaintenanceSettings({ enabled, message }) {
   };
 }
 
-function auth(req, res, next) {
+async function auth(req, res, next) {
   const token = tokenFromRequest(req);
 
   if (!token) {
     return res.status(401).json({ error: "No token provided" });
   }
 
+  let tokenUser;
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    if (req.user.role === "admin") req.user.role = ROLES.website;
-    next();
+    tokenUser = jwt.verify(token, process.env.JWT_SECRET);
+    if (tokenUser.role === "admin") tokenUser.role = ROLES.website;
   } catch {
     return res.status(401).json({ error: "Invalid token" });
+  }
+
+  try {
+    const [[currentUser]] = await db.query(
+      "SELECT id, name, email, role, status FROM users WHERE id = ? LIMIT 1",
+      [tokenUser.id],
+    );
+    if (!currentUser || String(currentUser.status || "").toLowerCase() !== "active") {
+      clearAuthCookie(res);
+      clearCsrfCookie(res);
+      return res.status(401).json({ error: "This account is not active" });
+    }
+
+    req.user = {
+      ...tokenUser,
+      id: currentUser.id,
+      name: currentUser.name,
+      email: currentUser.email,
+      role: currentUser.role === "admin" ? ROLES.website : currentUser.role,
+      status: currentUser.status,
+    };
+
+    if (tokenUser.email !== req.user.email || tokenUser.role !== req.user.role) {
+      setAuthCookie(res, createToken(req.user));
+    }
+
+    return next();
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 }
 
@@ -3113,9 +3142,17 @@ async function upsertTeacherUserAccount(
     throw new Error("Recovery email must be different from the teacher portal email");
   }
 
-  const [emailMatches] = await runner.query("SELECT id FROM users WHERE email = ? LIMIT 1", [
-    accountEmail,
-  ]);
+  const [emailMatches] = await runner.query(
+    "SELECT id, role FROM users WHERE email = ? LIMIT 1",
+    [accountEmail],
+  );
+  if (emailMatches.length && emailMatches[0].role !== ROLES.teacher) {
+    const error = new Error(
+      "This email belongs to a non-teacher account. Use a different teacher login email.",
+    );
+    error.status = 409;
+    throw error;
+  }
   const accountId =
     (emailMatches.length && String(emailMatches[0].id)) ||
     requestedAccountId ||
@@ -3129,9 +3166,16 @@ async function upsertTeacherUserAccount(
   }
 
   const [idMatches] = await runner.query(
-    "SELECT id, recovery_email FROM users WHERE id = ? LIMIT 1",
+    "SELECT id, recovery_email, role FROM users WHERE id = ? LIMIT 1",
     [accountId],
   );
+  if (idMatches.length && idMatches[0].role !== ROLES.teacher) {
+    const error = new Error(
+      "This staff profile is linked to a non-teacher account. Remove that link before creating a teacher login.",
+    );
+    error.status = 409;
+    throw error;
+  }
   const accountRecoveryEmail = recoveryEmailProvided
     ? normalizedRecoveryEmail || null
     : idMatches[0]?.recovery_email || null;
@@ -4349,6 +4393,7 @@ app.post("/api/staff-accounts", eduzyncAdminOnly, async (req, res) => {
     res.json({ success: true, user });
   } catch (error) {
     const statusCode =
+      error.status ||
       /already used|valid teacher account|valid personal recovery email|Recovery email|Password is required|at least 6|id is required/i.test(
         error.message,
       )
