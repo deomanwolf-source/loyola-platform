@@ -2742,6 +2742,34 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}) {
   const websitePlace = compactText(payload.websitePlace || payload.website_place || "", 120);
   const staffType = compactText(payload.staffType || payload.staff_type || "Academic Staff", 100);
   const photoUrl = compactText(payload.photoUrl || payload.photo_url || "", 2048);
+  const [linkedTeacherRows] = await runner.query(
+    `
+      SELECT id
+      FROM teachers
+      WHERE account_user_id = ?
+         OR (
+           (staff_id = ? OR external_staff_id = ?)
+           AND account_user_id = ?
+         )
+      ORDER BY (account_user_id = ?) DESC, id
+      LIMIT 1
+    `,
+    [userId, staffId, staffId, userId, userId],
+  );
+  let storageTeacherId = linkedTeacherRows[0]?.id || teacherId;
+  if (!linkedTeacherRows.length) {
+    const [idOwners] = await runner.query(
+      "SELECT id FROM teachers WHERE id = ? LIMIT 1",
+      [teacherId],
+    );
+    if (idOwners.length) {
+      storageTeacherId = `SYNC-${crypto
+        .createHash("sha256")
+        .update(`${userId}:${staffId}`)
+        .digest("hex")
+        .slice(0, 40)}`;
+    }
+  }
 
   await runner.query(
     `
@@ -2771,7 +2799,7 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}) {
         account_user_id = VALUES(account_user_id)
     `,
     [
-      teacherId,
+      storageTeacherId,
       staffId,
       staffId,
       syncSlug(name),
@@ -2793,7 +2821,7 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}) {
   );
 
   await markStaffEduTrackSync(runner, payload, "synced", "", teacherId);
-  return { userId, teacherId };
+  return { userId, teacherId, storageTeacherId };
 }
 
 async function postExternalEduTrackSync(payload) {
@@ -7501,9 +7529,14 @@ async function lookupEduTrackTeacher(teacherId, conn = db) {
         account_user_id, account_email
       FROM teachers
       WHERE id = ? OR staff_id = ? OR external_staff_id = ? OR account_user_id = ?
+      ORDER BY
+        (account_user_id IS NOT NULL AND account_user_id <> '') DESC,
+        (staff_id = ?) DESC,
+        (external_staff_id = ?) DESC,
+        (id = ?) DESC
       LIMIT 1
     `,
-    [value, value, value, value],
+    [value, value, value, value, value, value, value],
   );
   const row = rows[0];
   if (!row) return null;
@@ -8298,17 +8331,17 @@ function findEduTrackIdentityHint(index, row = {}, extra = {}) {
 
 function mergeEduTrackIdentity(row = {}, extra = {}, hint = null) {
   const staffId = firstEduTrackValue(
-    extra.staffId,
-    extra.staff_id,
     hint?.staffId,
     row.external_staff_id,
+    extra.staffId,
+    extra.staff_id,
   );
   const teacherId = firstEduTrackValue(
-    extra.teacherId,
-    extra.teacher_id,
     hint?.teacherId,
     staffId,
     row.external_staff_id,
+    extra.teacherId,
+    extra.teacher_id,
   );
   const merged = {
     ...extra,
@@ -8372,7 +8405,29 @@ async function listEduTrackDocs(collectionName) {
 
 async function platformUsersForEduTrack() {
   const [users] = await db.query(
-    "SELECT id, external_staff_id, name, email, role, status, created_at FROM users WHERE role IN ('teacher','eduzync_admin','master_edutrack_admin','superadmin','masteradmin') ORDER BY name",
+    `
+      SELECT DISTINCT
+        u.id,
+        u.external_staff_id,
+        u.name,
+        u.email,
+        u.role,
+        u.status,
+        u.created_at
+      FROM users u
+      LEFT JOIN teachers t
+        ON t.account_user_id = u.id
+       AND COALESCE(NULLIF(t.staff_id, ''), NULLIF(t.external_staff_id, ''), t.id) =
+           u.external_staff_id
+      WHERE u.role IN ('eduzync_admin','master_edutrack_admin','superadmin','masteradmin')
+         OR (
+           u.role = 'teacher'
+           AND LOWER(COALESCE(u.status, '')) = 'active'
+           AND NULLIF(u.external_staff_id, '') IS NOT NULL
+           AND t.account_user_id IS NOT NULL
+         )
+      ORDER BY u.name
+    `,
   );
   const docs = await listEduTrackDocs("users");
   const extraById = new Map(docs.map((item) => [item.id, item.data]));
