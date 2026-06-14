@@ -7627,18 +7627,13 @@ async function insertReliefAudit(conn, req, assignment, action, details = {}, ac
 function normalizeReliefAssignment(row) {
   const downloadCount = Number(row.download_count ?? row.print_count ?? 0);
   const allowedDownloads = 1 + Number(row.allowed_extra_downloads ?? row.allowed_extra_prints ?? 0);
-  const printCount = Number(row.print_count || 0);
-  const allowedPrints = 1 + Number(row.allowed_extra_prints || 0);
   return {
     ...row,
     fileUrl: `/api/edutrack/relief-assignments/${row.id}/file`,
     download_count: downloadCount,
     allowed_extra_downloads: Number(row.allowed_extra_downloads ?? row.allowed_extra_prints ?? 0),
-    print_count: printCount,
-    allowed_extra_prints: Number(row.allowed_extra_prints || 0),
-    isLocked: downloadCount >= allowedDownloads || printCount >= allowedPrints,
+    isLocked: downloadCount >= allowedDownloads,
     isDownloadLocked: downloadCount >= allowedDownloads,
-    isPrintLocked: printCount >= allowedPrints,
   };
 }
 
@@ -7903,114 +7898,11 @@ app.post(
   },
 );
 
-app.post("/api/edutrack/relief-assignments/:id/print", eduzyncAdminOnly, async (req, res) => {
-  const { relief_teacher_id, reason = "" } = req.body || {};
-  if (!relief_teacher_id) {
-    return res.status(400).json({ error: "relief_teacher_id required" });
-  }
-
-  const conn = await db.getConnection();
-  let committed = false;
-  try {
-    await ensureContentTables();
-    const actor = await reliefActorInfo(req);
-    await conn.beginTransaction();
-    const [rows] = await conn.query(
-      "SELECT * FROM edutrack_relief_assignments WHERE id = ? FOR UPDATE",
-      [Number(req.params.id)],
-    );
-    const assignment = rows[0];
-    if (!assignment) throw new Error("Assignment not found");
-
-    const printCount = Number(assignment.print_count || 0);
-    const allowedPrints = 1 + Number(assignment.allowed_extra_prints || 0);
-    if (printCount >= allowedPrints) {
-      await insertReliefAudit(
-        conn,
-        req,
-        assignment,
-        "blocked_print_attempt",
-        {
-          message: "Print blocked because the assignment is locked",
-          relief_teacher_id,
-        },
-        actor,
-      );
-      await conn.commit();
-      committed = true;
-      return res.status(403).json({ error: "Already printed and locked" });
-    }
-
-    const printReason = String(reason || "").trim();
-    if (printCount > 0 && !printReason) {
-      throw new Error("Reason required for an extra print");
-    }
-
-    const filePath = resolveReliefPdfPath(assignment);
-    if (!filePath) throw new Error("PDF file not found");
-
-    const teacher = await lookupEduTrackTeacher(relief_teacher_id, conn);
-    if (!teacher) throw new Error("Relief teacher not found");
-
-    const nextPrintCount = printCount + 1;
-    const willLock = nextPrintCount >= allowedPrints;
-    await conn.query(
-      `
-          UPDATE edutrack_relief_assignments
-          SET relief_teacher_id = ?, relief_teacher_name = ?, relief_teacher_position = ?,
-            relief_teacher_subject = ?, print_count = ?, printed_by_user_id = ?,
-            printed_by_name = ?, printed_by_email = ?, printed_at = NOW(),
-            locked_at = CASE WHEN ? THEN NOW() ELSE locked_at END,
-            locked_by_user_id = CASE WHEN ? THEN ? ELSE locked_by_user_id END,
-            status = CASE WHEN ? THEN 'locked' ELSE 'printed' END
-          WHERE id = ?
-        `,
-      [
-        teacher.id,
-        teacher.name,
-        teacher.position || "",
-        teacher.subject || "",
-        nextPrintCount,
-        actor.id,
-        actor.name,
-        actor.email,
-        willLock ? 1 : 0,
-        willLock ? 1 : 0,
-        actor.id,
-        willLock ? 1 : 0,
-        assignment.id,
-      ],
-    );
-
-    await insertReliefAudit(
-      conn,
-      req,
-      assignment,
-      printCount > 0 ? "extra_print_used" : "first_print",
-      {
-        message:
-          printCount > 0
-            ? `Extra official print used. Reason: ${printReason}`
-            : "First official print used",
-        relief_teacher_id: teacher.id,
-        relief_teacher_name: teacher.name,
-        print_count: nextPrintCount,
-        locked: willLock,
-      },
-      actor,
-    );
-    await conn.commit();
-    committed = true;
-    res.download(filePath, assignment.original_file_name || path.basename(filePath));
-  } catch (error) {
-    if (!committed) await conn.rollback();
-    res.status(400).json({ error: error.message });
-  } finally {
-    conn.release();
-  }
+app.post("/api/edutrack/relief-assignments/:id/print", eduzyncAdminOnly, (req, res) => {
+  res.status(410).json({ error: "Printing is disabled. Use Official Download." });
 });
 
-async function unlockReliefExtra(req, res, kind) {
+async function unlockReliefDownload(req, res) {
   try {
     await ensureContentTables();
     const actor = await reliefActorInfo(req);
@@ -8019,8 +7911,7 @@ async function unlockReliefExtra(req, res, kind) {
     const [result] = await db.query(
       `
           UPDATE edutrack_relief_assignments
-          SET ${kind === "print" ? "allowed_extra_prints" : "allowed_extra_downloads"} =
-            ${kind === "print" ? "allowed_extra_prints" : "allowed_extra_downloads"} + 1,
+          SET allowed_extra_downloads = allowed_extra_downloads + 1,
             last_unlocked_by = ?, last_unlocked_at = NOW(), last_unlock_reason = ?
           WHERE id = ?
         `,
@@ -8031,8 +7922,8 @@ async function unlockReliefExtra(req, res, kind) {
       db,
       req,
       { id: Number(req.params.id) },
-      kind === "print" ? "one_more_print_unlocked" : "one_more_download_unlocked",
-      { message: reason, unlock_kind: kind },
+      "one_more_download_unlocked",
+      { message: reason, unlock_kind: "download" },
       actor,
     );
     res.json({ success: true });
@@ -8045,27 +7936,19 @@ app.post(
   "/api/edutrack/relief-assignments/:id/unlock-one-download",
   edutrackMasterOnly,
   (req, res) => {
-    unlockReliefExtra(req, res, "download");
-  },
-);
-
-app.post(
-  "/api/edutrack/relief-assignments/:id/unlock-one-print",
-  edutrackMasterOnly,
-  (req, res) => {
-    unlockReliefExtra(req, res, "print");
+    unlockReliefDownload(req, res);
   },
 );
 
 app.post("/api/edutrack/relief-assignments/:id/unlock", edutrackMasterOnly, (req, res) => {
-  unlockReliefExtra(req, res, "download");
+  unlockReliefDownload(req, res);
 });
 
 app.get("/api/edutrack/relief-assignments/:id/file", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
     return res.status(403).json({
-      error: "Use the official download or print endpoint so access can be audited and locked.",
+      error: "Use the official download endpoint so access can be audited and locked.",
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
