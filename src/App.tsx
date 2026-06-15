@@ -352,6 +352,7 @@ type CollegeDepartment = {
     email: string;
   };
   staffDepartments?: string[];
+  staffTypes?: string[];
   skipDepartmentPage?: boolean;
 };
 
@@ -852,6 +853,7 @@ const collegeDepartments: CollegeDepartment[] = [
       email: "loyolacollege.negombo@hotmail.com",
     },
     staffDepartments: ["it department", "information technology", "ict department"],
+    staffTypes: ["non-academic staff"],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/gym`,
@@ -3473,47 +3475,100 @@ function FacilitiesServicesPage() {
   );
 }
 
-function staffMatchesDepartment(staff: Teacher, department: CollegeDepartment) {
-  const normalize = (value?: string) =>
-    String(value || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9/]+/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  const aliases = (department.staffDepartments || [department.title])
-    .map(normalize)
-    .filter(Boolean);
-  const positions = staff.positions || [];
-  const assignments = [
-    ...(staff.departments || []),
-    staff.category,
-    staff.section,
-    staff.websitePlace,
-    ...positions.flatMap((position) => [
-      position.main_category,
-      position.mainCategory,
-      position.section,
-      position.subsection,
-      position.websitePlace,
-      position.website_place,
-      position.department,
-    ]),
-  ]
-    .map(normalize)
-    .filter(Boolean);
+function normalizeStaffTaxonomy(value?: string) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9/]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
-  return assignments.some((assignment) =>
-    aliases.some(
-      (alias) =>
-        assignment === alias ||
-        assignment.startsWith(`${alias} `) ||
-        assignment.endsWith(` ${alias}`),
-    ),
+function taxonomyValueMatches(value: string, aliases: string[]) {
+  return aliases.some(
+    (alias) => value === alias || value.startsWith(`${alias} `) || value.endsWith(` ${alias}`),
   );
 }
 
-function staffRoleLabel(staff: Teacher) {
-  return staff.position || staff.subject || staff.category || staff.type || "Department Member";
+function visibleStaffPositions(staff: Teacher) {
+  return (staff.positions || []).filter(
+    (position) => position.visibleOnWebsite !== false && position.visible_on_website !== false,
+  );
+}
+
+function positionMatchesDepartment(
+  position: NonNullable<Teacher["positions"]>[number],
+  departmentAliases: string[],
+) {
+  return [
+    position.section,
+    position.subsection,
+    position.websitePlace,
+    position.website_place,
+    position.department,
+  ]
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean)
+    .some((value) => taxonomyValueMatches(value, departmentAliases));
+}
+
+function positionMatchesStaffType(
+  position: NonNullable<Teacher["positions"]>[number],
+  staffTypeAliases: string[],
+) {
+  if (!staffTypeAliases.length) return true;
+  return [position.main_category, position.mainCategory]
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean)
+    .some((value) => taxonomyValueMatches(value, staffTypeAliases));
+}
+
+function departmentPositionForStaff(staff: Teacher, department: CollegeDepartment) {
+  const departmentAliases = (department.staffDepartments || [department.title])
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean);
+  const staffTypeAliases = (department.staffTypes || [])
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean);
+
+  return visibleStaffPositions(staff).find(
+    (position) =>
+      positionMatchesDepartment(position, departmentAliases) &&
+      positionMatchesStaffType(position, staffTypeAliases),
+  );
+}
+
+function staffMatchesDepartment(staff: Teacher, department: CollegeDepartment) {
+  const positions = visibleStaffPositions(staff);
+  if (positions.length) return Boolean(departmentPositionForStaff(staff, department));
+
+  const departmentAliases = (department.staffDepartments || [department.title])
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean);
+  const staffTypeAliases = (department.staffTypes || [])
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean);
+  const staffType = normalizeStaffTaxonomy(staff.type);
+  if (staffTypeAliases.length && !taxonomyValueMatches(staffType, staffTypeAliases)) {
+    return false;
+  }
+
+  return [...(staff.departments || []), staff.category, staff.section, staff.websitePlace]
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean)
+    .some((value) => taxonomyValueMatches(value, departmentAliases));
+}
+
+function staffRoleLabel(staff: Teacher, position?: NonNullable<Teacher["positions"]>[number]) {
+  return (
+    position?.display_title ||
+    position?.displayTitle ||
+    position?.position ||
+    staff.position ||
+    staff.subject ||
+    staff.category ||
+    staff.type ||
+    "Department Member"
+  );
 }
 
 function initialsForName(name: string) {
@@ -3526,20 +3581,37 @@ function initialsForName(name: string) {
 }
 
 function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepartment) {
-  return teachers
+  const members = new Map<
+    string,
+    {
+      name: string;
+      role: string;
+      note?: string;
+      email?: string;
+      image?: string;
+    }
+  >();
+
+  teachers
     .filter(
       (staff) =>
         (staff.status || "Active").toLowerCase() === "active" &&
         staffMatchesDepartment(staff, department),
     )
-    .slice(0, 8)
-    .map((staff) => ({
-      name: staff.name,
-      role: staffRoleLabel(staff),
-      note: staff.responsibilities || staff.qualifications || staff.classes || staff.subject,
-      email: staff.email,
-      image: staff.image,
-    }));
+    .forEach((staff) => {
+      const position = departmentPositionForStaff(staff, department);
+      const profileId = staff.staffId || staff.id.split("__")[0] || staff.email || staff.name;
+      if (members.has(profileId)) return;
+      members.set(profileId, {
+        name: staff.name,
+        role: staffRoleLabel(staff, position),
+        note: staff.responsibilities || staff.qualifications || staff.classes || staff.subject,
+        email: staff.email,
+        image: staff.image,
+      });
+    });
+
+  return [...members.values()].slice(0, 8);
 }
 
 function CollegeDepartmentPage({ pageId }: { pageId: string }) {
