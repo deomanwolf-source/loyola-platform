@@ -12,6 +12,11 @@ const multer = require("multer");
 const { registerStaffRoutes } = require("./routes/staff");
 const { sanitizeSiteDbSecurity, scanVisualContent } = require("./lib/sanitize-visual-content");
 const {
+  inferPositionCode,
+  normalizePositionCode,
+  parsePositionCode,
+} = require("./lib/staff-position-codes");
+const {
   EDUTRACK_SSO_ROLES,
   createEduTrackSsoToken,
   resolveEduTrackPublicUrl,
@@ -1323,18 +1328,6 @@ function serializeTeacherRow(row) {
   };
 }
 
-function staffProfileTeacherRowId(staffId, position, index) {
-  if (index === 0) return String(staffId || "");
-  const suffix =
-    String(position.website_place || position.websitePlace || position.position || "position")
-      .trim()
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 30) || "position";
-  return `${staffId}__${suffix}-${index}`.slice(0, 50);
-}
-
 function staffProfileWebsitePlace(profile) {
   const text = [profile.position, profile.department, profile.staff_type]
     .filter(Boolean)
@@ -1383,6 +1376,57 @@ function serializeStaffProfilePosition(row) {
     is_known: known,
     isKnown: known,
   };
+}
+
+function staffProfilePositionIdentity(position = {}) {
+  const rawCode = normalizePositionCode(position.position_code || position.positionCode || "");
+  const direct = parsePositionCode(rawCode);
+  const inferredCode = direct.is_known ? rawCode : inferPositionCode(position);
+  const parsed = parsePositionCode(inferredCode || rawCode);
+  const taxonomy = parsed.is_known
+    ? parsed
+    : {
+        display_title: position.display_title || position.displayTitle || position.position || "",
+        main_category: position.main_category || position.mainCategory || "",
+        section: position.section || "",
+        subsection: position.subsection || "",
+        grade: position.grade || null,
+        stream: position.stream || "",
+        medium: position.medium || "",
+        class_or_stream: position.class_or_stream || position.classOrStream || "",
+      };
+
+  return [
+    taxonomy.display_title,
+    taxonomy.main_category,
+    taxonomy.section,
+    taxonomy.subsection,
+    taxonomy.grade,
+    taxonomy.stream,
+    taxonomy.medium,
+    taxonomy.class_or_stream,
+    position.subject,
+    position.classes,
+  ]
+    .map((value) => String(value || "").trim().toLowerCase().replace(/\s+/g, " "))
+    .join("|");
+}
+
+function dedupeStaffProfilePositions(positions = []) {
+  const unique = new Map();
+  positions.forEach((position) => {
+    const key = staffProfilePositionIdentity(position);
+    const existing = unique.get(key);
+    if (!existing) {
+      unique.set(key, position);
+      return;
+    }
+    const shouldReplace =
+      (existing.visibleOnWebsite === false && position.visibleOnWebsite !== false) ||
+      (!existing.isPrimary && position.isPrimary);
+    if (shouldReplace) unique.set(key, position);
+  });
+  return [...unique.values()];
 }
 
 async function readStaffProfileSiteRows(runner = db) {
@@ -1437,9 +1481,9 @@ async function readStaffProfileSiteRows(runner = db) {
     positionsByStaff.get(row.staff_id).push(position);
   });
 
-  return profiles.flatMap((profile) => {
+  return profiles.map((profile) => {
     const staffId = String(profile.id || "");
-    const allPositions = positionsByStaff.get(staffId) || [];
+    const allPositions = dedupeStaffProfilePositions(positionsByStaff.get(staffId) || []);
     const fallbackWebsitePlace = staffProfileWebsitePlace(profile);
     const fallbackPosition = {
       position_code: "",
@@ -1464,41 +1508,44 @@ async function readStaffProfileSiteRows(runner = db) {
       isKnown: true,
     };
     const visiblePositions = allPositions.filter((position) => position.visibleOnWebsite !== false);
-    const rows = visiblePositions.length ? visiblePositions : [fallbackPosition];
-    const primary = rows[0] || fallbackPosition;
+    const primary =
+      visiblePositions.find((position) => position.isPrimary) ||
+      visiblePositions[0] ||
+      allPositions.find((position) => position.isPrimary) ||
+      allPositions[0] ||
+      fallbackPosition;
     const positionCodes = allPositions
       .map((position) => position.positionCode || position.position_code || "")
       .filter(Boolean);
-    const positionsJson = JSON.stringify(allPositions.length ? allPositions : [fallbackPosition]);
+    const hasVisibleWebsitePosition =
+      profile.status === "Active" && visiblePositions.length > 0;
 
-    return rows.map((position, index) =>
-      serializeTeacherRow({
-        id: staffProfileTeacherRowId(staffId, position, index),
-        staff_id: staffId,
-        slug: profile.slug || syncSlug(profile.full_name || staffId),
-        name: profile.full_name || "",
-        email: profile.email || "",
-        phone: profile.phone || "",
-        subject: position.subject || primary.subject || "",
-        classes: position.classes || primary.classes || "",
-        status: profile.status === "Active" ? "Active" : "Hidden",
-        image: profile.photo_url || profile.profile_image || "",
-        type: profile.staff_type || "Academic Staff",
-        category: position.mainCategory || position.websitePlace || fallbackWebsitePlace,
-        website_place: position.section || position.websitePlace || fallbackWebsitePlace,
-        qualifications: profile.qualification || "",
-        responsibilities: profile.bio || "",
-        bio: profile.bio || "",
-        section: position.department || primary.department || profile.department || "",
-        position: position.displayTitle || position.position || profile.position || "",
-        positions_json: positionsJson,
-        position_codes: JSON.stringify(positionCodes),
-        sort_order: Number(profile.sort_order || 0) + Number(position.sortOrder || 0),
-        account_email: profile.account_email || "",
-        account_user_id: profile.user_id || "",
-        recovery_email: profile.recovery_email || "",
-      }),
-    );
+    return serializeTeacherRow({
+      id: staffId,
+      staff_id: staffId,
+      slug: profile.slug || syncSlug(profile.full_name || staffId),
+      name: profile.full_name || "",
+      email: profile.email || "",
+      phone: profile.phone || "",
+      subject: primary.subject || "",
+      classes: primary.classes || "",
+      status: hasVisibleWebsitePosition ? "Active" : "Hidden",
+      image: profile.photo_url || profile.profile_image || "",
+      type: profile.staff_type || "Academic Staff",
+      category: primary.mainCategory || primary.websitePlace || fallbackWebsitePlace,
+      website_place: primary.section || primary.websitePlace || fallbackWebsitePlace,
+      qualifications: profile.qualification || "",
+      responsibilities: profile.bio || "",
+      bio: profile.bio || "",
+      section: primary.department || profile.department || "",
+      position: primary.displayTitle || primary.position || profile.position || "",
+      positions_json: JSON.stringify(allPositions),
+      position_codes: JSON.stringify(positionCodes),
+      sort_order: Number(profile.sort_order || 0) + Number(primary.sortOrder || 0),
+      account_email: profile.account_email || "",
+      account_user_id: profile.user_id || "",
+      recovery_email: profile.recovery_email || "",
+    });
   });
 }
 
@@ -5245,10 +5292,7 @@ app.delete("/api/students/:id", eduzyncAdminOnly, async (req, res) => {
 app.get("/api/teachers", async (req, res) => {
   try {
     await ensureContentTables();
-    const [rows] = await db.query(
-      "SELECT id, staff_id, slug, name, email, phone, subject, classes, status, image, type, category, website_place, qualifications, responsibilities, bio, section, position, positions_json, position_codes, sort_order, created_at FROM teachers ORDER BY category, sort_order, name",
-    );
-    res.json(rows.map(serializeTeacherRow));
+    res.json(await readTeacherSiteRows());
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

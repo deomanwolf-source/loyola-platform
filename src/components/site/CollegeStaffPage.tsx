@@ -27,7 +27,6 @@ type StaffProfile = {
 };
 
 type StaffAssignment = {
-  key: string;
   profile: StaffProfile;
   position: ParsedPositionCode;
   group: StaffDisplayGroup;
@@ -115,6 +114,22 @@ function visiblePositions(staff: Teacher) {
     .map((position) => coerceUnknownNonAcademicPosition(parseStaffPosition(position), staff));
 }
 
+function positionAssignmentKey(position: ParsedPositionCode) {
+  return [
+    staffDisplayGroupFor(position).id,
+    position.display_title,
+    position.main_category,
+    position.section,
+    position.subsection,
+    position.grade,
+    position.stream,
+    position.medium,
+    position.class_or_stream,
+  ]
+    .map((value) => normalize(String(value || "")))
+    .join("|");
+}
+
 function staffDirectoryProfiles(teachers: Teacher[]) {
   const profiles = new Map<string, StaffProfile>();
 
@@ -136,9 +151,9 @@ function staffDirectoryProfiles(teachers: Teacher[]) {
         profile.bio = staff.bio || staff.responsibilities || "";
       }
 
-      const seen = new Set(profile.positions.map((position) => position.position_code || position.display_title));
+      const seen = new Set(profile.positions.map(positionAssignmentKey));
       visiblePositions(staff).forEach((position) => {
-        const dedupKey = position.position_code || position.display_title;
+        const dedupKey = positionAssignmentKey(position);
         if (!dedupKey || seen.has(dedupKey)) return;
         seen.add(dedupKey);
         profile.positions.push(position);
@@ -173,7 +188,6 @@ function makeAssignments(profiles: StaffProfile[]) {
   return profiles
     .flatMap((profile) =>
       profile.positions.map((position) => ({
-        key: `${profile.id}-${position.position_code || position.display_title}`,
         profile,
         position,
         group: staffDisplayGroupFor(position),
@@ -309,15 +323,36 @@ function GroupBlock({
   onViewProfile: (assignment: StaffAssignment) => void;
 }) {
   if (!assignments.length) return null;
+  const cards = new Map<
+    string,
+    {
+      assignment: StaffAssignment;
+      titles: string[];
+    }
+  >();
+  assignments.forEach((assignment) => {
+    const existing = cards.get(assignment.profile.id);
+    if (!existing) {
+      cards.set(assignment.profile.id, {
+        assignment,
+        titles: [assignment.position.display_title],
+      });
+      return;
+    }
+    if (!existing.titles.includes(assignment.position.display_title)) {
+      existing.titles.push(assignment.position.display_title);
+    }
+  });
+
   return (
     <section className="mt-10">
       <h2 className="font-serif text-2xl font-bold text-slate-950 md:text-[1.65rem]">
         {sectionTitle(group)}
       </h2>
       <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-        {assignments.map((assignment) => (
+        {[...cards.values()].map(({ assignment, titles }) => (
           <article
-            key={assignment.key}
+            key={`${group.id}-${assignment.profile.id}`}
             className="flex min-h-[340px] flex-col items-center justify-between rounded-lg border border-slate-200 bg-white px-6 py-6 text-center shadow-[0_12px_26px_rgba(15,23,42,0.08)]"
           >
             <div className="flex flex-col items-center">
@@ -325,9 +360,11 @@ function GroupBlock({
               <h3 className="mt-5 max-w-[220px] text-base font-extrabold leading-snug text-slate-950">
                 {assignment.profile.name}
               </h3>
-              <p className="mt-2 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
-                {assignment.position.display_title}
-              </p>
+              <div className="mt-2 grid gap-1 text-[0.72rem] font-black uppercase tracking-[0.16em] text-crimson">
+                {titles.map((title) => (
+                  <p key={title}>{title}</p>
+                ))}
+              </div>
               {assignment.profile.qualifications && (
                 <p className="mt-3 line-clamp-3 max-w-[230px] text-xs font-semibold leading-5 text-slate-500">
                   {assignment.profile.qualifications}
@@ -560,9 +597,11 @@ export function CollegeStaffPage({
       STAFF_TYPE_FILTERS.reduce(
         (counts, type) => ({
           ...counts,
-          [type]: visibleAssignments.filter(
-            (assignment) => assignmentStaffType(assignment) === type,
-          ).length,
+          [type]: new Set(
+            visibleAssignments
+              .filter((assignment) => assignmentStaffType(assignment) === type)
+              .map((assignment) => assignment.profile.id),
+          ).size,
         }),
         {} as Record<StaffTypeFilter, number>,
       ),
