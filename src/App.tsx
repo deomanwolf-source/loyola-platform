@@ -35,6 +35,15 @@ import { BrandedLoader } from "@/components/BrandedLoader";
 import { HeroBackgroundLayer, PageHeader, PublicLayout } from "@/components/site/PublicLayout";
 import { CollegeStaffPage } from "@/components/site/CollegeStaffPage";
 import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrationPage";
+import {
+  EXTRA_CURRICULAR_GROUPS,
+  EXTRA_CURRICULAR_HOME_FEATURED_IDS,
+  EXTRA_CURRICULAR_SOURCE_FILE,
+  EXTRA_CURRICULAR_SOURCE_TITLE,
+  extraCurricularActivitiesByGroup,
+  extraCurricularActivityById,
+  type ExtraCurricularActivity,
+} from "@/lib/extracurricular-activities";
 import { normalizePositionCode } from "@/lib/staff-position-codes";
 import { formatDisplayHeading, normalizeHeadingHtml } from "@/lib/utils";
 import {
@@ -1926,14 +1935,10 @@ function HomeRequiredSections() {
     "To strive to form a citizen of upright character to achieve excellence in social, religious, academic and industrial spheres.",
     "To promote character formation based on human and religious values.",
   ];
-  const clubs = [
-    { title: "Media Unit", icon: Camera },
-    { title: "Science Society", icon: Award },
-    { title: "ICT Society", icon: Film },
-    { title: "Prefects Board", icon: ShieldCheck },
-    { title: "English Literary Association", icon: GraduationCap },
-    { title: "Religious Society", icon: Landmark },
-  ];
+  const clubs = EXTRA_CURRICULAR_HOME_FEATURED_IDS.flatMap((id) => {
+    const activity = extraCurricularActivityById(id);
+    return activity ? [activity] : [];
+  });
   const academicPreviews = [
     {
       title: "Primary Section",
@@ -1965,6 +1970,23 @@ function HomeRequiredSections() {
   const pageIsLive = (href: string) => {
     const id = href.replace(/^\/+/, "") || "home";
     return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+  };
+  const clubIcon = (activity: ExtraCurricularActivity) => {
+    const iconMap: Record<string, LucideIcon> = {
+      "photography-and-media-unit": Camera,
+      "english-literary-union-secondary": GraduationCap,
+      "sinhala-literary-association": BookOpen,
+      "teachers-in-charge-of-prefects-senior": ShieldCheck,
+      "bible-association": Landmark,
+      scouts: Users,
+    };
+    return iconMap[activity.id] || Award;
+  };
+  const clubSummary = (activity: ExtraCurricularActivity) => {
+    if (activity.teachers.length >= 3) return `${activity.teachers.length} teachers in charge`;
+    if (activity.teachers.length === 2) return `${activity.teachers[0]} and ${activity.teachers[1]}`;
+    if (activity.teachers.length === 1) return activity.teachers[0];
+    return activity.note || "Teacher list on Sports & Clubs page";
   };
 
   return (
@@ -2022,19 +2044,27 @@ function HomeRequiredSections() {
           </div>
 
           <div className="mt-14 text-center">
-            <h2 className="font-serif text-3xl font-bold text-navy">Extra Curriculars</h2>
+            <h2 className="font-serif text-3xl font-bold text-navy">
+              Extra & Co-Curricular Activities
+            </h2>
+            <p className="mt-2 text-sm text-slate-500">
+              Teacher-in-charge highlights from the current college activity list.
+            </p>
           </div>
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {clubs.map((club) => {
-              const Icon = club.icon;
+              const Icon = clubIcon(club);
               return (
                 <a
-                  key={club.title}
-                  href="/sports-clubs"
+                  key={club.id}
+                  href={`/sports-clubs#${club.id}`}
                   className="rounded border border-[#e6e9ef] bg-white px-5 py-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-gold/60"
                 >
                   <Icon className="mx-auto h-5 w-5 text-gold" />
                   <p className="mt-3 text-sm font-black text-navy">{club.title}</p>
+                  <p className="mt-2 text-xs font-medium text-slate-500">
+                    {club.note || clubSummary(club)}
+                  </p>
                 </a>
               );
             })}
@@ -4511,16 +4541,14 @@ function NewsPage() {
 function SportsClubsPage() {
   const db = useDb();
   const page = db.pages["sports-clubs"];
-  const sports = ["Athletics", "Cricket", "Football", "Basketball", "Swimming", "Badminton"];
-  const clubs = [
-    "Media Unit",
-    "Science Society",
-    "ICT Society",
-    "Prefects Board",
-    "English Literary Association",
-    "Religious Society",
-    "Environmental Society",
-  ];
+  const groups = EXTRA_CURRICULAR_GROUPS.map((group) => ({
+    ...group,
+    items: extraCurricularActivitiesByGroup(group.id),
+  })).filter((group) => group.items.length > 0);
+  const activityCount = groups.reduce((total, group) => total + group.items.length, 0);
+  const teacherCount = new Set(
+    groups.flatMap((group) => group.items.flatMap((item) => item.teachers)),
+  ).size;
   return (
     <PublicLayout>
       <PageHeader
@@ -4529,71 +4557,83 @@ function SportsClubsPage() {
         title={page.title || "Student leadership, clubs, societies, sports, and achievements."}
         subtitle={
           page.body ||
-          "A dedicated space for sports teams, clubs, student leadership, schedules, achievements, galleries, and society updates."
+          "Teacher-in-charge coverage for Loyola's clubs, societies, sports, houses, coaches, and trainers."
         }
         image={page.image}
       />
       <section id="sports" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="grid gap-8 lg:grid-cols-[1fr_1fr]">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-              Sports Overview
-            </p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-              Sports clubs and event schedules.
-            </h2>
-            <div className="stagger-children mt-6 grid gap-3 sm:grid-cols-2">
-              {sports.map((sport) => (
-                <article
-                  key={sport}
-                  className="hover-lift rounded-lg border border-border bg-white p-5 shadow-soft"
-                >
-                  <Trophy className="h-7 w-7 text-gold" />
-                  <h3 className="mt-3 font-bold text-navy">{sport}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Team updates, fixtures, teacher-in-charge, achievements, and gallery.
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-          <div id="clubs">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-              Clubs & Societies
-            </p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-              Student communities across campus.
-            </h2>
-            <div className="stagger-children mt-6 grid gap-3">
-              {clubs.map((club) => (
-                <article
-                  key={club}
-                  className="hover-lift rounded-lg border border-border bg-white p-5 shadow-soft"
-                >
-                  <h3 className="font-bold text-navy">{club}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    Club logo, description, teacher-in-charge, president, secretary, members,
-                    events, news, and gallery.
-                  </p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div id="achievements" className="stagger-children mt-12 grid gap-5 md:grid-cols-3">
-          {["Sports Achievements", "Student Leadership", "Club Gallery"].map((item) => (
-            <article
-              key={item}
-              className="hover-lift rounded-lg bg-navy p-6 text-white shadow-elegant"
-            >
-              <Award className="h-7 w-7 text-gold-light" />
-              <h2 className="mt-3 font-serif text-2xl">{item}</h2>
-              <p className="mt-2 text-sm text-white/70">
-                A publishable section for records, leaders, events, and media coverage.
+        <div className="rounded-lg border border-gold/30 bg-gold/10 p-6 shadow-soft">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+            Teacher-In-Charge Directory
+          </p>
+          <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
+            Extra and co-curricular activities from the college source document.
+          </h2>
+          <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
+            This page was updated from the document body titled {EXTRA_CURRICULAR_SOURCE_TITLE}.
+            The supplied file name is {EXTRA_CURRICULAR_SOURCE_FILE}, so the website follows the
+            document heading rather than the file name.
+          </p>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                Activity Groups
               </p>
+              <p className="mt-2 font-serif text-3xl font-bold text-navy">{groups.length}</p>
             </article>
-          ))}
+            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                Activities Listed
+              </p>
+              <p className="mt-2 font-serif text-3xl font-bold text-navy">{activityCount}</p>
+            </article>
+            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                Named Teachers
+              </p>
+              <p className="mt-2 font-serif text-3xl font-bold text-navy">{teacherCount}</p>
+            </article>
+          </div>
         </div>
+        {groups.map((group) => (
+          <section key={group.id} id={group.id} className="mt-12">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+              {group.title}
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{group.title}</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">{group.description}</p>
+            <div className="stagger-children mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {group.items.map((activity) => (
+                <article
+                  key={activity.id}
+                  id={activity.id}
+                  className="rounded-lg border border-border bg-white p-5 shadow-soft"
+                >
+                  <h3 className="font-serif text-2xl font-bold text-navy">{activity.title}</h3>
+                  {activity.note && (
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                      {activity.note}
+                    </p>
+                  )}
+                  {activity.teachers.length > 0 ? (
+                    <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
+                      {activity.teachers.map((teacher) => (
+                        <li key={`${activity.id}-${teacher}`} className="flex gap-2">
+                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
+                          <span>{teacher}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="mt-4 text-sm leading-6 text-slate-500">
+                      Teacher names were not fully legible in the provided document.
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
       </section>
       <SubpagesSection parentId="sports-clubs" />
     </PublicLayout>
