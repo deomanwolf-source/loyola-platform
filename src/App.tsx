@@ -561,19 +561,14 @@ const collegeDepartments: CollegeDepartment[] = [
     ],
     members: [
       {
-        name: "Head of Academics",
-        role: "Academic Leadership",
-        note: "Curriculum, standards, and reporting",
+        name: "Head - Academic Office",
+        role: "Academic Office Lead",
+        note: "Academic planning, coordination, and reporting",
       },
       {
-        name: "Sectional Heads",
-        role: "Section Coordination",
-        note: "Primary, Middle, Upper School, and Advanced Level",
-      },
-      {
-        name: "Subject Teachers",
-        role: "Teaching Team",
-        note: "Subjects, lessons, assessments, and progress",
+        name: "Academic Officer",
+        role: "Academic Office Support",
+        note: "Records, coordination, and office workflow",
       },
     ],
     gallery: [
@@ -619,6 +614,7 @@ const collegeDepartments: CollegeDepartment[] = [
       "advanced level",
       "a/l section",
     ],
+    memberPositionCodes: ["head-academic-office", "academic-officer"],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/finance`,
