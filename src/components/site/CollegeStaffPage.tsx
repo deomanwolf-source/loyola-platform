@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Briefcase, GraduationCap, Mail, Phone, Search, User, Users, X } from "lucide-react";
+import { Briefcase, GraduationCap, Search, User, Users, X } from "lucide-react";
 import { PublicLayout } from "@/components/site/PublicLayout";
 import { useDb, type Teacher } from "@/lib/store";
 import { API_URL } from "@/lib/api";
@@ -16,8 +16,6 @@ type StaffProfile = {
   id: string;
   slug: string;
   name: string;
-  email: string;
-  phone: string;
   image: string;
   qualifications: string;
   bio: string;
@@ -70,8 +68,6 @@ function profileFromTeacher(staff: Teacher): StaffProfile {
     id: profileKey(staff),
     slug: staff.slug || slugify(staff.name || profileKey(staff)),
     name: staff.name || "",
-    email: staff.email || "",
-    phone: staff.phone || "",
     image: staff.image || "",
     qualifications: staff.qualifications || "",
     bio: staff.bio || staff.responsibilities || "",
@@ -144,8 +140,6 @@ function staffDirectoryProfiles(teachers: Teacher[]) {
       const existing = profiles.get(key);
       const profile = existing || profileFromTeacher(staff);
       if (!profile.image && staff.image) profile.image = staff.image;
-      if (!profile.email && staff.email) profile.email = staff.email;
-      if (!profile.phone && staff.phone) profile.phone = staff.phone;
       if (!profile.qualifications && staff.qualifications) profile.qualifications = staff.qualifications;
       if (!profile.bio && (staff.bio || staff.responsibilities)) {
         profile.bio = staff.bio || staff.responsibilities || "";
@@ -463,20 +457,6 @@ function StaffProfileModal({
               <dd className="mt-2 leading-6 text-slate-800">{profile.bio}</dd>
             </div>
           )}
-          {(profile.email || profile.phone) && (
-            <div className="flex flex-wrap justify-center gap-4 text-sm font-semibold text-slate-700">
-              {profile.email && (
-                <a href={`mailto:${profile.email}`} className="inline-flex items-center gap-2">
-                  <Mail className="h-4 w-4" /> {profile.email}
-                </a>
-              )}
-              {profile.phone && (
-                <a href={`tel:${profile.phone}`} className="inline-flex items-center gap-2">
-                  <Phone className="h-4 w-4" /> {profile.phone}
-                </a>
-              )}
-            </div>
-          )}
         </dl>
       </article>
     </div>
@@ -517,12 +497,6 @@ function StaffProfileView({ profile }: { profile: StaffProfile }) {
                       <Briefcase className="h-4 w-4" /> Bio
                     </h2>
                     <p className="mt-2 leading-7 text-black">{profile.bio}</p>
-                  </div>
-                )}
-                {(profile.email || profile.phone) && (
-                  <div className="flex flex-wrap gap-4 text-sm text-black">
-                    {profile.email && <span className="inline-flex items-center gap-2"><Mail className="h-4 w-4" /> {profile.email}</span>}
-                    {profile.phone && <span className="inline-flex items-center gap-2"><Phone className="h-4 w-4" /> {profile.phone}</span>}
                   </div>
                 )}
               </div>

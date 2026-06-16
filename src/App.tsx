@@ -304,7 +304,6 @@ type DepartmentMember = {
   name: string;
   role: string;
   note?: string;
-  email?: string;
   image?: string;
 };
 
@@ -3606,7 +3605,6 @@ function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepa
         name: staff.name,
         role: staffRoleLabel(staff, position),
         note: staff.responsibilities || staff.qualifications || staff.classes || staff.subject,
-        email: staff.email,
         image: staff.image,
       });
     });
@@ -3774,14 +3772,6 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
                         <p className="mt-2 text-sm leading-6 text-muted-foreground">
                           {member.note}
                         </p>
-                      )}
-                      {member.email && (
-                        <a
-                          href={`mailto:${member.email}`}
-                          className="mt-2 inline-flex text-xs font-bold text-crimson"
-                        >
-                          {member.email}
-                        </a>
                       )}
                     </div>
                   </article>
