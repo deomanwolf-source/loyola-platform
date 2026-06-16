@@ -1976,15 +1976,7 @@ function HomeRequiredSections() {
     return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   };
   const clubIcon = (activity: ExtraCurricularActivity) => {
-    const iconMap: Record<string, LucideIcon> = {
-      "photography-and-media-unit": Camera,
-      "english-literary-union-secondary": GraduationCap,
-      "sinhala-literary-association": BookOpen,
-      "teachers-in-charge-of-prefects-senior": ShieldCheck,
-      "bible-association": Landmark,
-      scouts: Users,
-    };
-    return iconMap[activity.id] || Award;
+    return extraCurricularActivityIcon(activity);
   };
   const clubSummary = (activity: ExtraCurricularActivity) => {
     if (activity.teachers.length >= 3) return `${activity.teachers.length} teachers in charge`;
@@ -2061,7 +2053,7 @@ function HomeRequiredSections() {
               return (
                 <a
                   key={club.id}
-                  href={`/sports-clubs#${club.id}`}
+                  href={extraCurricularActivityHref(club.id)}
                   className="rounded border border-[#e6e9ef] bg-white px-5 py-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-gold/60"
                 >
                   <Icon className="mx-auto h-5 w-5 text-gold" />
@@ -4687,17 +4679,187 @@ function activitySummary(activity: ExtraCurricularActivity) {
   return `${teacherCount} teacher${teacherCount === 1 ? "" : "s"} in charge`;
 }
 
+function extraCurricularGroupIcon(groupId: string): LucideIcon {
+  const iconMap: Record<string, LucideIcon> = {
+    "clubs-and-societies": BookOpen,
+    "leadership-and-service": ShieldCheck,
+    "faith-and-performing-arts": Bell,
+    "sports-and-outdoor": Trophy,
+    "houses-coaches-and-trainers": Award,
+  };
+  return iconMap[groupId] || Award;
+}
+
+function extraCurricularGroupTheme(groupId: string) {
+  const themes: Record<
+    string,
+    {
+      panelClass: string;
+      iconClass: string;
+      pillClass: string;
+      softCardClass: string;
+      glowClass: string;
+    }
+  > = {
+    "clubs-and-societies": {
+      panelClass: "from-[#f7fbff] via-white to-[#eef5ff]",
+      iconClass: "bg-[#edf4ff] text-[#234b93]",
+      pillClass: "border border-[#d8e6ff] bg-[#eef4ff] text-[#234b93]",
+      softCardClass: "border-[#dce7f8] bg-[#f7fbff]",
+      glowClass: "bg-[#dbeafe]",
+    },
+    "leadership-and-service": {
+      panelClass: "from-[#fffaf0] via-white to-[#fff3dc]",
+      iconClass: "bg-[#fff1cf] text-[#9a6700]",
+      pillClass: "border border-[#f2dfad] bg-[#fff6df] text-[#8a5b00]",
+      softCardClass: "border-[#f0e1bc] bg-[#fffaf0]",
+      glowClass: "bg-[#fde68a]",
+    },
+    "faith-and-performing-arts": {
+      panelClass: "from-[#fff7f9] via-white to-[#ffeef3]",
+      iconClass: "bg-[#ffe7ef] text-[#a4285d]",
+      pillClass: "border border-[#f3d6e2] bg-[#fff0f5] text-[#9d2957]",
+      softCardClass: "border-[#f2dde6] bg-[#fff8fb]",
+      glowClass: "bg-[#fbcfe8]",
+    },
+    "sports-and-outdoor": {
+      panelClass: "from-[#f4fff8] via-white to-[#ebf7ff]",
+      iconClass: "bg-[#e7fbef] text-[#0d6b4d]",
+      pillClass: "border border-[#ccefd9] bg-[#eefbf3] text-[#0d6b4d]",
+      softCardClass: "border-[#d8eee1] bg-[#f5fff9]",
+      glowClass: "bg-[#bbf7d0]",
+    },
+    "houses-coaches-and-trainers": {
+      panelClass: "from-[#faf7ff] via-white to-[#f2efff]",
+      iconClass: "bg-[#f0ebff] text-[#5e4bb6]",
+      pillClass: "border border-[#ddd6fe] bg-[#f4f0ff] text-[#5a48b2]",
+      softCardClass: "border-[#e2dcfb] bg-[#faf8ff]",
+      glowClass: "bg-[#ddd6fe]",
+    },
+  };
+
+  return (
+    themes[groupId] || {
+      panelClass: "from-[#f8fafc] via-white to-[#eef2f7]",
+      iconClass: "bg-slate-100 text-slate-700",
+      pillClass: "border border-slate-200 bg-slate-50 text-slate-700",
+      softCardClass: "border-slate-200 bg-slate-50",
+      glowClass: "bg-slate-200",
+    }
+  );
+}
+
+function extraCurricularActivityIcon(activity: ExtraCurricularActivity): LucideIcon {
+  const label = normalizeStaffTaxonomy(`${activity.title} ${activity.note || ""} ${activity.id}`);
+
+  if (
+    label.includes("photography") ||
+    label.includes("media") ||
+    label.includes("broadcasting")
+  ) {
+    return Camera;
+  }
+  if (
+    label.includes("literary") ||
+    label.includes("debate") ||
+    label.includes("speech") ||
+    label.includes("wall mag") ||
+    label.includes("articles")
+  ) {
+    return BookOpen;
+  }
+  if (
+    label.includes("prefect") ||
+    label.includes("discipline") ||
+    label.includes("steward") ||
+    label.includes("leadership")
+  ) {
+    return ShieldCheck;
+  }
+  if (
+    label.includes("choir") ||
+    label.includes("band") ||
+    label.includes("orchestra") ||
+    label.includes("drama") ||
+    label.includes("dance")
+  ) {
+    return PlayCircle;
+  }
+  if (
+    label.includes("bible") ||
+    label.includes("liturgical") ||
+    label.includes("altar") ||
+    label.includes("vocation") ||
+    label.includes("religious")
+  ) {
+    return Landmark;
+  }
+  if (label.includes("scout") || label.includes("cadet")) {
+    return Users;
+  }
+  if (label.includes("swimming")) {
+    return Waves;
+  }
+  if (
+    label.includes("cricket") ||
+    label.includes("volleyball") ||
+    label.includes("basketball") ||
+    label.includes("athletics") ||
+    label.includes("karate") ||
+    label.includes("chess") ||
+    label.includes("sports")
+  ) {
+    return Trophy;
+  }
+  if (label.includes("coach") || label.includes("trainer") || label.includes("house")) {
+    return Award;
+  }
+  return extraCurricularGroupIcon(activity.groupId);
+}
+
+function activityTeacherPreview(activity: ExtraCurricularActivity, limit = 3) {
+  return [...new Set(activity.teachers)].filter(Boolean).slice(0, limit);
+}
+
+function activityLeadText(activity: ExtraCurricularActivity) {
+  if (activity.note) {
+    return `${activity.note} activity page with teacher profiles, photos, and related events.`;
+  }
+  return "Dedicated activity page with teacher profiles, matched staff photos, and activity events.";
+}
+
 function SportsClubsPage() {
   const db = useDb();
   const page = db.pages["sports-clubs"];
   const groups = EXTRA_CURRICULAR_GROUPS.map((group) => ({
     ...group,
-    items: extraCurricularActivitiesByGroup(group.id),
+    icon: extraCurricularGroupIcon(group.id),
+    theme: extraCurricularGroupTheme(group.id),
+    items: extraCurricularActivitiesByGroup(group.id).map((activity) => {
+      const teacherMatches = activityTeacherMatches(activity, db.teachers);
+      const matchedEvents = activityEvents(activity, db.events);
+      return {
+        activity,
+        icon: extraCurricularActivityIcon(activity),
+        matchedEvents,
+        matchedProfileCount: teacherMatches.filter((item) => item.staff).length,
+      };
+    }),
   })).filter((group) => group.items.length > 0);
   const activityCount = groups.reduce((total, group) => total + group.items.length, 0);
   const teacherCount = new Set(
-    groups.flatMap((group) => group.items.flatMap((item) => item.teachers)),
+    groups.flatMap((group) => group.items.flatMap(({ activity }) => activity.teachers)),
   ).size;
+  const matchedProfileCount = groups.reduce(
+    (total, group) =>
+      total + group.items.reduce((groupTotal, item) => groupTotal + item.matchedProfileCount, 0),
+    0,
+  );
+  const matchedEventCount = groups.reduce(
+    (total, group) =>
+      total + group.items.reduce((groupTotal, item) => groupTotal + item.matchedEvents.length, 0),
+    0,
+  );
   return (
     <PublicLayout>
       <PageHeader
@@ -4711,77 +4873,209 @@ function SportsClubsPage() {
         image={page.image}
       />
       <section id="sports" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="rounded-lg border border-gold/30 bg-gold/10 p-6 shadow-soft">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-            Teacher-In-Charge Directory
-          </p>
-          <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
-            Extra and co-curricular activities from the college source document.
-          </h2>
-          <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
-            This page was updated from the document body titled {EXTRA_CURRICULAR_SOURCE_TITLE}.
-            The supplied file name is {EXTRA_CURRICULAR_SOURCE_FILE}, so the website follows the
-            document heading rather than the file name.
-          </p>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                Activity Groups
-              </p>
-              <p className="mt-2 font-serif text-3xl font-bold text-navy">{groups.length}</p>
-            </article>
-            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                Activities Listed
-              </p>
-              <p className="mt-2 font-serif text-3xl font-bold text-navy">{activityCount}</p>
-            </article>
-            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                Named Teachers
-              </p>
-              <p className="mt-2 font-serif text-3xl font-bold text-navy">{teacherCount}</p>
-            </article>
+        <div className="overflow-hidden rounded-[32px] border border-[#dbe5f1] bg-white shadow-[0_24px_80px_-44px_rgba(10,22,40,0.5)]">
+          <div className="bg-gradient-to-br from-[#f8fbff] via-white to-[#fff7ea] p-8 md:p-10">
+            <div className="grid gap-8 xl:grid-cols-[1.25fr_0.95fr]">
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="grid h-14 w-14 place-items-center rounded-3xl bg-[#edf4ff] text-[#234b93] shadow-soft">
+                    <Award className="h-6 w-6" />
+                  </span>
+                  <span className="rounded-full border border-[#d8e6ff] bg-white/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#234b93] shadow-soft">
+                    Teacher-In-Charge Directory
+                  </span>
+                </div>
+                <h2 className="mt-6 max-w-4xl font-serif text-4xl font-bold leading-tight text-navy md:text-5xl">
+                  Beautiful activity pages for clubs, societies, sports, and student leadership.
+                </h2>
+                <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
+                  Browse each activity through a dedicated page with staff photos, teacher-in-charge
+                  profiles, and activity-related events instead of one long text-heavy listing.
+                </p>
+                <div className="mt-7 flex flex-wrap gap-3">
+                  {groups.map((group) => {
+                    const Icon = group.icon;
+                    return (
+                      <a
+                        key={group.id}
+                        href={`#${group.id}`}
+                        className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold shadow-soft ${group.theme.pillClass}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {group.title}
+                      </a>
+                    );
+                  })}
+                </div>
+                <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                  Source: {EXTRA_CURRICULAR_SOURCE_TITLE} ({EXTRA_CURRICULAR_SOURCE_FILE})
+                </p>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                    <BookOpen className="h-4 w-4 text-gold" />
+                    Activity Groups
+                  </p>
+                  <p className="mt-4 font-serif text-4xl font-bold text-navy">{groups.length}</p>
+                  <p className="mt-2 text-sm text-slate-500">Curated website sections</p>
+                </article>
+                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                    <Award className="h-4 w-4 text-gold" />
+                    Activity Pages
+                  </p>
+                  <p className="mt-4 font-serif text-4xl font-bold text-navy">{activityCount}</p>
+                  <p className="mt-2 text-sm text-slate-500">Separate public pages</p>
+                </article>
+                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                    <Users className="h-4 w-4 text-gold" />
+                    Named Teachers
+                  </p>
+                  <p className="mt-4 font-serif text-4xl font-bold text-navy">{teacherCount}</p>
+                  <p className="mt-2 text-sm text-slate-500">Teachers in charge listed</p>
+                </article>
+                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
+                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                    <Calendar className="h-4 w-4 text-gold" />
+                    Linked Coverage
+                  </p>
+                  <p className="mt-4 font-serif text-4xl font-bold text-navy">
+                    {matchedProfileCount + matchedEventCount}
+                  </p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {matchedProfileCount} profile matches and {matchedEventCount} related events
+                  </p>
+                </article>
+              </div>
+            </div>
           </div>
         </div>
-        {groups.map((group) => (
-          <section key={group.id} id={group.id} className="mt-12">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-              {group.title}
-            </p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{group.title}</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-7 text-slate-500">{group.description}</p>
-            <div className="stagger-children mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {group.items.map((activity) => (
-                <article
-                  key={activity.id}
-                  id={activity.id}
-                  className="rounded-lg border border-border bg-white p-5 shadow-soft"
-                >
-                  <h3 className="font-serif text-2xl font-bold text-navy">{activity.title}</h3>
-                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                    {activitySummary(activity)}
-                  </p>
-                  <p className="mt-4 text-sm leading-6 text-slate-600">
-                    {activity.teachers.length > 0
-                      ? activity.teachers.slice(0, 2).join(" • ")
-                      : "Teacher names were not fully legible in the provided document."}
-                  </p>
-                  <div className="mt-5 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                    <span>{activityEvents(activity, db.events).length} matching events</span>
-                    <span>{activity.teachers.length} profiles</span>
+        {groups.map((group) => {
+          const GroupIcon = group.icon;
+          return (
+            <section key={group.id} id={group.id} className="mt-12">
+              <div
+                className={`overflow-hidden rounded-[30px] border border-[#dbe5f1] bg-gradient-to-br ${group.theme.panelClass} p-7 shadow-[0_22px_70px_-42px_rgba(10,22,40,0.45)]`}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-6">
+                  <div className="flex max-w-4xl items-start gap-4">
+                    <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-3xl shadow-soft ${group.theme.iconClass}`}>
+                      <GroupIcon className="h-7 w-7" />
+                    </span>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
+                        Activity Collection
+                      </p>
+                      <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                        {group.title}
+                      </h2>
+                      <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
+                        {group.description}
+                      </p>
+                    </div>
                   </div>
-                  <a
-                    href={extraCurricularActivityHref(activity.id)}
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson"
-                  >
-                    Open Activity Page <ArrowRight className="h-4 w-4" />
-                  </a>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <article className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                        Activities
+                      </p>
+                      <p className="mt-3 font-serif text-3xl font-bold text-navy">
+                        {group.items.length}
+                      </p>
+                    </article>
+                    <article className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}>
+                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                        Named Teachers
+                      </p>
+                      <p className="mt-3 font-serif text-3xl font-bold text-navy">
+                        {new Set(group.items.flatMap(({ activity }) => activity.teachers)).size}
+                      </p>
+                    </article>
+                  </div>
+                </div>
+              </div>
+              <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {group.items.map(({ activity, icon: Icon, matchedEvents, matchedProfileCount }) => {
+                  const teacherPreview = activityTeacherPreview(activity);
+                  return (
+                    <article
+                      key={activity.id}
+                      id={activity.id}
+                      className="group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[#dbe4f0] bg-white p-6 shadow-[0_18px_50px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
+                    >
+                      <div className={`absolute right-0 top-0 h-28 w-28 rounded-bl-[32px] opacity-70 ${group.theme.glowClass}`} />
+                      <div className="relative flex items-start justify-between gap-4">
+                        <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl shadow-soft ${group.theme.iconClass}`}>
+                          <Icon className="h-5 w-5" />
+                        </span>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {activity.note && (
+                            <span
+                              className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${group.theme.pillClass}`}
+                            >
+                              {activity.note}
+                            </span>
+                          )}
+                          <span className="rounded-full border border-[#d9e1ef] bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                            {activity.teachers.length}{" "}
+                            {activity.teachers.length === 1 ? "Teacher" : "Teachers"}
+                          </span>
+                        </div>
+                      </div>
+                      <h3 className="relative mt-6 font-serif text-[2rem] font-bold leading-tight text-navy">
+                        {activity.title}
+                      </h3>
+                      <p className="relative mt-3 text-sm leading-7 text-slate-600">
+                        {activityLeadText(activity)}
+                      </p>
+                      <div className="relative mt-5 flex flex-wrap gap-2">
+                        {teacherPreview.map((teacherName) => (
+                          <span
+                            key={`${activity.id}-${teacherName}`}
+                            className="rounded-full bg-[#f7f8fb] px-3 py-1.5 text-xs font-semibold text-slate-600"
+                          >
+                            {teacherName}
+                          </span>
+                        ))}
+                        {activity.teachers.length > teacherPreview.length && (
+                          <span
+                            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${group.theme.pillClass}`}
+                          >
+                            +{activity.teachers.length - teacherPreview.length} more
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative mt-6 grid grid-cols-2 gap-3">
+                        <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
+                          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                            <Calendar className="h-4 w-4 text-gold" />
+                            Related Events
+                          </p>
+                          <p className="mt-2 text-lg font-bold text-navy">{matchedEvents.length}</p>
+                        </div>
+                        <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
+                          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                            <Eye className="h-4 w-4 text-gold" />
+                            Public Profiles
+                          </p>
+                          <p className="mt-2 text-lg font-bold text-navy">{matchedProfileCount}</p>
+                        </div>
+                      </div>
+                      <a
+                        href={extraCurricularActivityHref(activity.id)}
+                        className="relative mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-navy px-5 py-3 text-sm font-bold text-white shadow-soft transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+                      >
+                        View Activity Page <ArrowRight className="h-4 w-4" />
+                      </a>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
       </section>
       <SubpagesSection parentId="sports-clubs" />
     </PublicLayout>
@@ -4816,11 +5110,14 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
   }
 
   const group = EXTRA_CURRICULAR_GROUPS.find((item) => item.id === activity.groupId);
+  const groupTheme = extraCurricularGroupTheme(activity.groupId);
+  const ActivityIcon = extraCurricularActivityIcon(activity);
   const teacherProfiles = activityTeacherMatches(activity, db.teachers);
   const matchedEvents = activityEvents(activity, db.events);
   const relatedActivities = extraCurricularActivitiesByGroup(activity.groupId).filter(
     (item) => item.id !== activity.id,
   );
+  const previewTeachers = activityTeacherPreview(activity);
 
   return (
     <PublicLayout>
@@ -4836,49 +5133,102 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-16">
-        <div className="rounded-lg border border-gold/30 bg-gold/10 p-6 shadow-soft">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+        <div
+          className={`overflow-hidden rounded-[34px] border border-[#dbe5f1] bg-gradient-to-br ${groupTheme.panelClass} p-8 shadow-[0_24px_80px_-42px_rgba(10,22,40,0.5)] md:p-10`}
+        >
+          <div className="grid gap-8 xl:grid-cols-[1.2fr_0.9fr]">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-                Activity Overview
+              <div className="flex flex-wrap items-center gap-3">
+                <span className={`grid h-14 w-14 place-items-center rounded-3xl shadow-soft ${groupTheme.iconClass}`}>
+                  <ActivityIcon className="h-6 w-6" />
+                </span>
+                <span
+                  className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] shadow-soft ${groupTheme.pillClass}`}
+                >
+                  {group?.title || "Sports & Clubs"}
+                </span>
+                {activity.note && (
+                  <span className="rounded-full border border-[#d9e1ef] bg-white/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500 shadow-soft">
+                    {activity.note}
+                  </span>
+                )}
+              </div>
+              <h2 className="mt-6 max-w-4xl font-serif text-4xl font-bold leading-tight text-navy md:text-5xl">
+                {activity.title}
+              </h2>
+              <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
+                {activityLeadText(activity)} This page connects the college activity listing with
+                public staff profiles and matching event coverage.
               </p>
-              <h2 className="mt-3 font-serif text-3xl font-bold text-navy">{activity.title}</h2>
-              <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
-                {activity.note || "Activity page"} from {EXTRA_CURRICULAR_SOURCE_TITLE}. This page
-                shows matched teacher profiles from the staff directory and events that match this
-                activity.
+              <div className="mt-6 flex flex-wrap gap-2">
+                {previewTeachers.map((teacherName) => (
+                  <span
+                    key={`${activity.id}-${teacherName}-hero`}
+                    className="rounded-full bg-white/92 px-4 py-2 text-sm font-semibold text-slate-600 shadow-soft"
+                  >
+                    {teacherName}
+                  </span>
+                ))}
+                {activity.teachers.length > previewTeachers.length && (
+                  <span
+                    className={`rounded-full px-4 py-2 text-sm font-semibold shadow-soft ${groupTheme.pillClass}`}
+                  >
+                    +{activity.teachers.length - previewTeachers.length} more teachers
+                  </span>
+                )}
+              </div>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <a
+                  href="/sports-clubs"
+                  className="inline-flex items-center gap-2 rounded-full bg-navy px-5 py-3 text-sm font-bold text-white shadow-soft transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Back to Directory
+                </a>
+                <a
+                  href="#activity-events"
+                  className="inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white/90 px-5 py-3 text-sm font-bold text-navy shadow-soft transition-smooth hover:-translate-y-0.5 hover:border-gold"
+                >
+                  <Calendar className="h-4 w-4 text-gold" />
+                  View Events
+                </a>
+              </div>
+              <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
+                Source: {EXTRA_CURRICULAR_SOURCE_TITLE}
               </p>
             </div>
-            <a
-              href="/sports-clubs"
-              className="inline-flex items-center gap-2 rounded-lg border border-white/70 bg-white px-5 py-3 text-sm font-bold text-navy shadow-soft"
-            >
-              Back to Directory <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                Teachers In Charge
-              </p>
-              <p className="mt-2 font-serif text-3xl font-bold text-navy">
-                {activity.teachers.length}
-              </p>
-            </article>
-            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                Matched Staff Profiles
-              </p>
-              <p className="mt-2 font-serif text-3xl font-bold text-navy">
-                {teacherProfiles.filter((item) => item.staff).length}
-              </p>
-            </article>
-            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                Related Events
-              </p>
-              <p className="mt-2 font-serif text-3xl font-bold text-navy">{matchedEvents.length}</p>
-            </article>
+            <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
+              <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                  <Users className="h-4 w-4 text-gold" />
+                  Teachers In Charge
+                </p>
+                <p className="mt-4 font-serif text-4xl font-bold text-navy">
+                  {activity.teachers.length}
+                </p>
+                <p className="mt-2 text-sm text-slate-500">Listed on this activity page</p>
+              </article>
+              <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                  <Eye className="h-4 w-4 text-gold" />
+                  Matched Profiles
+                </p>
+                <p className="mt-4 font-serif text-4xl font-bold text-navy">
+                  {teacherProfiles.filter((item) => item.staff).length}
+                </p>
+                <p className="mt-2 text-sm text-slate-500">Public staff photos available</p>
+              </article>
+              <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
+                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                  <Calendar className="h-4 w-4 text-gold" />
+                  Related Events
+                </p>
+                <p className="mt-4 font-serif text-4xl font-bold text-navy">
+                  {matchedEvents.length}
+                </p>
+                <p className="mt-2 text-sm text-slate-500">Events matched from the public list</p>
+              </article>
+            </div>
           </div>
         </div>
       </section>
@@ -4895,66 +5245,140 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
             {teacherProfiles.map(({ teacherName, staff }) => (
               <article
                 key={`${activity.id}-${teacherName}`}
-                className="rounded-lg border border-border bg-white p-5 shadow-soft"
+                className="group overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
               >
-                <div className="flex items-start gap-4">
-                  {staff?.image ? (
-                    <img
-                      src={staff.image}
-                      alt={teacherName}
-                      className="h-20 w-20 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="grid h-20 w-20 place-items-center rounded-full bg-slate-100 text-slate-500">
-                      <Users className="h-8 w-8" />
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                      Teacher In Charge
-                    </p>
-                    <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
-                      {teacherName}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      {staff?.position || staff?.subject || staff?.type || "Public staff profile"}
-                    </p>
+                <div className={`h-20 bg-gradient-to-r ${groupTheme.panelClass}`} />
+                <div className="-mt-10 px-6 pb-6">
+                  <div className="flex items-end justify-between gap-3">
+                    {staff?.image ? (
+                      <img
+                        src={staff.image}
+                        alt={teacherName}
+                        className="h-24 w-24 rounded-[24px] border-4 border-white object-cover shadow-soft"
+                      />
+                    ) : (
+                      <div className="grid h-24 w-24 place-items-center rounded-[24px] border-4 border-white bg-slate-100 text-slate-500 shadow-soft">
+                        <Users className="h-9 w-9" />
+                      </div>
+                    )}
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${
+                        staff
+                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : "border border-amber-200 bg-amber-50 text-amber-700"
+                      }`}
+                    >
+                      {staff ? "Matched Profile" : "Name Listed"}
+                    </span>
                   </div>
-                </div>
-                {staff?.qualifications && (
-                  <p className="mt-4 text-sm leading-6 text-slate-600">{staff.qualifications}</p>
-                )}
-                {staff ? (
-                  <a
-                    href={`/staff/${publicStaffSlug(staff.slug || staff.name || teacherName)}`}
-                    className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson"
-                  >
-                    View Staff Profile <ArrowRight className="h-4 w-4" />
-                  </a>
-                ) : (
-                  <p className="mt-5 text-sm leading-6 text-slate-500">
-                    No public staff profile photo was matched for this name yet.
+                  <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                    Teacher In Charge
                   </p>
-                )}
+                  <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
+                    {teacherName}
+                  </h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-500">
+                    {staff?.position || staff?.subject || staff?.type || "Public staff profile"}
+                  </p>
+                  {staff?.qualifications ? (
+                    <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate-600">
+                      {staff.qualifications}
+                    </p>
+                  ) : (
+                    <p className="mt-4 text-sm leading-7 text-slate-500">
+                      Profile information is limited for this teacher on the public website.
+                    </p>
+                  )}
+                  {staff ? (
+                    <a
+                      href={`/staff/${publicStaffSlug(staff.slug || staff.name || teacherName)}`}
+                      className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-bold text-navy shadow-soft transition-smooth hover:-translate-y-0.5 hover:border-gold"
+                    >
+                      <Eye className="h-4 w-4 text-gold" />
+                      View Staff Profile
+                    </a>
+                  ) : (
+                    <p className="mt-5 flex items-center gap-2 text-sm leading-6 text-slate-500">
+                      <CheckCircle2 className="h-4 w-4 text-gold" />
+                      No public staff profile photo was matched for this name yet.
+                    </p>
+                  )}
+                </div>
               </article>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-secondary/35 py-16">
+      <section id="activity-events" className="bg-secondary/35 py-16">
         <div className="mx-auto max-w-7xl px-6">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-            Activity Events
-          </p>
-          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-            Events matched to {activity.title}
-          </h2>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+                Activity Events
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                Events matched to {activity.title}
+              </h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-500">
+                Matching is based on titles, descriptions, and event categories related to this
+                activity.
+              </p>
+            </div>
+            <div
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold shadow-soft ${groupTheme.pillClass}`}
+            >
+              <Calendar className="h-4 w-4" />
+              {matchedEvents.length} matched event{matchedEvents.length === 1 ? "" : "s"}
+            </div>
+          </div>
           {matchedEvents.length ? (
-            <div className="stagger-children mt-8 grid gap-5 md:grid-cols-3">
-              {matchedEvents.map((event) => (
-                <EventCard key={event.id} event={event} />
-              ))}
+            <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {matchedEvents.map((event) => {
+                const eventDate = new Date(event.date);
+                return (
+                  <article
+                    key={event.id}
+                    className="overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
+                  >
+                    <div className="flex items-start justify-between gap-4 border-b border-[#edf2f7] bg-[#fbfcfe] p-5">
+                      <span className={`grid h-12 w-12 place-items-center rounded-2xl shadow-soft ${groupTheme.iconClass}`}>
+                        <Calendar className="h-5 w-5" />
+                      </span>
+                      <div className="text-right">
+                        <p className="font-serif text-3xl font-bold text-navy">
+                          {Number.isNaN(eventDate.getTime()) ? "-" : eventDate.getDate()}
+                        </p>
+                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                          {Number.isNaN(eventDate.getTime())
+                            ? "Date"
+                            : eventDate.toLocaleString("en", { month: "short" })}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="font-serif text-2xl font-bold leading-tight text-navy">
+                        {event.title}
+                      </h3>
+                      <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
+                        <p className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-gold" />
+                          {event.location || event.venue || "Loyola College campus"}
+                        </p>
+                        <p className="flex items-center gap-2">
+                          <Award className="h-4 w-4 text-gold" />
+                          {event.type || "College event"}
+                        </p>
+                      </div>
+                      {event.description && (
+                        <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate-500">
+                          {event.description}
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <p className="mt-6 rounded-lg border border-border bg-white p-5 text-sm leading-6 text-slate-500 shadow-soft">
@@ -4975,24 +5399,50 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
               Related activity pages
             </h2>
             <div className="stagger-children mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {relatedActivities.slice(0, 6).map((item) => (
-                <a
-                  key={item.id}
-                  href={extraCurricularActivityHref(item.id)}
-                  className="rounded-lg border border-border bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-gold/60"
-                >
-                  <h3 className="font-serif text-2xl font-bold text-navy">{item.title}</h3>
-                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                    {activitySummary(item)}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    {item.teachers.slice(0, 2).join(" • ") || "Open the activity page for details."}
-                  </p>
-                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
-                    Open Page <ArrowRight className="h-4 w-4" />
-                  </span>
-                </a>
-              ))}
+              {relatedActivities.slice(0, 6).map((item) => {
+                const RelatedIcon = extraCurricularActivityIcon(item);
+                const preview = activityTeacherPreview(item, 2);
+                return (
+                  <a
+                    key={item.id}
+                    href={extraCurricularActivityHref(item.id)}
+                    className="group relative overflow-hidden rounded-[26px] border border-[#dde6f4] bg-white p-5 shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
+                  >
+                    <div className={`absolute right-0 top-0 h-24 w-24 rounded-bl-[28px] opacity-70 ${groupTheme.glowClass}`} />
+                    <div className="relative flex items-start justify-between gap-3">
+                      <span className={`grid h-11 w-11 place-items-center rounded-2xl shadow-soft ${groupTheme.iconClass}`}>
+                        <RelatedIcon className="h-5 w-5" />
+                      </span>
+                      {item.note && (
+                        <span
+                          className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${groupTheme.pillClass}`}
+                        >
+                          {item.note}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="relative mt-5 font-serif text-2xl font-bold text-navy">
+                      {item.title}
+                    </h3>
+                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                      {activitySummary(item)}
+                    </p>
+                    <div className="relative mt-4 flex flex-wrap gap-2">
+                      {preview.map((teacherName) => (
+                        <span
+                          key={`${item.id}-${teacherName}-related`}
+                          className="rounded-full bg-[#f7f8fb] px-3 py-1.5 text-xs font-semibold text-slate-600"
+                        >
+                          {teacherName}
+                        </span>
+                      ))}
+                    </div>
+                    <span className="relative mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
+                      Open Page <ArrowRight className="h-4 w-4" />
+                    </span>
+                  </a>
+                );
+              })}
             </div>
           </div>
         </section>
