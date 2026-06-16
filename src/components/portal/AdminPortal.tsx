@@ -81,6 +81,13 @@ const IMAGE_TYPES = ["image/jpeg", "image/png"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
+const EDUTRACK_PUBLIC_URL = String(import.meta.env.VITE_EDUTRACK_PUBLIC_URL || "").replace(
+  /\/+$/,
+  "",
+);
+const EDUTRACK_LAUNCH_URL = EDUTRACK_PUBLIC_URL
+  ? `${EDUTRACK_PUBLIC_URL}/portal/edutrack`
+  : "/portal/edutrack";
 const MAX_SHORT_VIDEO_SECONDS = 120;
 
 function rememberDeletedContentId(
@@ -420,7 +427,7 @@ function DashboardPanel({
       },
       {
         title: "EduTrack",
-        href: "/portal/edutrack",
+        href: EDUTRACK_LAUNCH_URL,
         icon: GraduationCap,
         meta: "Academic terms, syllabus coverage, progress, warnings, and reports.",
       },

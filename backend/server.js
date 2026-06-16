@@ -10196,7 +10196,7 @@ async function maintenancePageGate(req, res, next) {
   }
 }
 
-const frontendRoot = path.join(__dirname, "..", "public");
+const frontendRoot = path.resolve(process.env.FRONTEND_ROOT || path.join(__dirname, "..", "public"));
 const frontendIndex = path.join(frontendRoot, "index.html");
 const frontendAssets = path.join(frontendRoot, "assets");
 
@@ -10259,7 +10259,7 @@ if (fs.existsSync(frontendIndex)) {
       "/login",
       "/portal",
       "/admin",
-      "/portal/edutrack",
+      ...(process.env.APP_NAME === "edutrack" ? ["/portal/edutrack"] : []),
       "/portal/eduzync",
       "/portal/elms",
       "/portal/reports",
@@ -10267,9 +10267,11 @@ if (fs.existsSync(frontendIndex)) {
     sendFrontendApp,
   );
 
-  app.get(["/edutrack", "/edutrack/"], (req, res) => {
-    res.sendFile(path.join(frontendRoot, "edutrack", "index.html"));
-  });
+  if (process.env.APP_NAME === "edutrack") {
+    app.get(["/edutrack", "/edutrack/"], (req, res) => {
+      res.sendFile(path.join(frontendRoot, "edutrack", "index.html"));
+    });
+  }
 
   app.get(["/staff", "/staff/"], (req, res) => {
     res.sendFile(path.join(frontendRoot, "staff", "index.html"));
@@ -10301,6 +10303,18 @@ if (fs.existsSync(frontendIndex)) {
 
   app.use((req, res, next) => {
     if (req.method !== "GET" || req.path.startsWith("/api/")) return next();
+    if (
+      process.env.APP_NAME !== "edutrack" &&
+      (req.path === "/edutrack" ||
+        req.path.startsWith("/edutrack/") ||
+        req.path === "/portal/edutrack" ||
+        req.path === "/portal/edutrack/")
+    ) {
+      return res
+        .status(404)
+        .type("text/plain")
+        .send("EduTrack runs as a separate application. Set EDUTRACK_PUBLIC_URL on the website backend.");
+    }
     if (req.path.startsWith("/assets/") || path.extname(req.path)) {
       return res.status(404).type("text/plain").send("Static file not found");
     }

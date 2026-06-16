@@ -73,12 +73,31 @@ EDUTRACK_SYNC_TIMEOUT_MS=5000
 
 ## 4. EduTrack Backend Environment
 
-For the `edutrack.loyolacollege.lk` Node.js app:
+For the `edutrack.loyolacollege.lk` Node.js app, use the separate app folder:
+
+```txt
+apps/edutrack
+```
+
+Start command:
+
+```bash
+npm start
+```
+
+The repository root also has:
+
+```bash
+npm run edutrack:start
+```
+
+Use this environment:
 
 ```env
 NODE_ENV=production
 PORT=5002
 APP_NAME=edutrack
+FRONTEND_ROOT=./public
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=u414000991_edutrack
@@ -171,7 +190,7 @@ npm install
 
 4. Restart the website Node.js app.
 5. Open the EduTrack Node.js app.
-6. Pull/deploy latest code from GitHub.
+6. Pull/deploy latest code from GitHub and make sure its app root is `apps/edutrack`.
 7. Run install if needed.
 8. Restart the EduTrack Node.js app.
 
