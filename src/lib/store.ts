@@ -1659,12 +1659,29 @@ function ensureCollegeAnthemPage(db: DB): DB {
   return changed ? { ...db, pages, navigation } : db;
 }
 
+const FORMER_LEADERSHIP_PAGE_LABEL = "Former Leadership";
+const FORMER_LEADERSHIP_LEGACY_LABEL = "Past Rectors & Vice Rectors";
+const FORMER_LEADERSHIP_DEFAULT_BODY =
+  "Honouring the former rectors, vice rectors, and leadership who shaped Loyola College Negombo.";
+const FORMER_LEADERSHIP_LEGACY_BODY =
+  "Remembering the leaders who shaped Loyola College Negombo.";
+
+function migrateFormerLeadershipVisualHtml(value?: string) {
+  if (!value) return value;
+  return value
+    .replaceAll("Past Rectors &amp; Vice Rectors", FORMER_LEADERSHIP_PAGE_LABEL)
+    .replaceAll(FORMER_LEADERSHIP_LEGACY_LABEL, FORMER_LEADERSHIP_PAGE_LABEL)
+    .replaceAll(FORMER_LEADERSHIP_LEGACY_BODY, FORMER_LEADERSHIP_DEFAULT_BODY)
+    .replaceAll("Past Rectors and Vice Rectors collage", "Former leadership collage")
+    .replaceAll("Profile Records", "Leadership Records")
+    .replaceAll("Rector Profiles", "Former Leadership Profiles");
+}
+
 function ensurePastRectorsPage(db: DB): DB {
   const pageId = "about/past-rectors-vice-rectors";
-  const label = "Former Leadership";
-  const legacyLabel = "Past Rectors & Vice Rectors";
-  const defaultBody =
-    "Honouring the former rectors, vice rectors, and leadership who shaped Loyola College Negombo.";
+  const label = FORMER_LEADERSHIP_PAGE_LABEL;
+  const legacyLabel = FORMER_LEADERSHIP_LEGACY_LABEL;
+  const defaultBody = FORMER_LEADERSHIP_DEFAULT_BODY;
   const pages = { ...db.pages };
   const navigation = [...db.navigation];
   let changed = false;
@@ -1686,11 +1703,16 @@ function ensurePastRectorsPage(db: DB): DB {
           ? label
           : existing.title,
       body:
-        !existing.body || existing.body === "Remembering the leaders who shaped Loyola College Negombo."
+        !existing.body || existing.body === FORMER_LEADERSHIP_LEGACY_BODY
           ? defaultBody
           : existing.body,
+      visualHtml: migrateFormerLeadershipVisualHtml(existing.visualHtml),
     };
-    if (nextPage.title !== existing.title || nextPage.body !== existing.body) {
+    if (
+      nextPage.title !== existing.title ||
+      nextPage.body !== existing.body ||
+      nextPage.visualHtml !== existing.visualHtml
+    ) {
       pages[pageId] = nextPage;
       changed = true;
     }

@@ -762,7 +762,8 @@ function shouldUsePastRectorsTemplate(pageId: string, savedVisualHtml?: string) 
   if (!isPastRectorsPage(pageId) || !savedVisualHtml) return false;
   if (savedVisualHtml.includes("past-rectors-collage.jpeg")) return false;
   return (
-    savedVisualHtml.includes("Past Rectors & Vice Rectors overview") &&
+    (savedVisualHtml.includes("Past Rectors & Vice Rectors overview") ||
+      savedVisualHtml.includes("Former Leadership overview")) &&
     savedVisualHtml.includes("Key information") &&
     savedVisualHtml.includes("Next steps")
   );
@@ -1133,7 +1134,7 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
   const page = db.pages[pageId] || db.pages["about/college-history"] || {};
   const body = cleanBody(
     page.body,
-    "Remembering the leaders who shaped Loyola College Negombo.",
+    "Honouring the former rectors, vice rectors, and leadership who shaped Loyola College Negombo.",
   );
   const image =
     page.image || db.media.campusImage || db.websiteContent.heroImage || "/loyola-crest.jpg";
@@ -1141,7 +1142,7 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
 
   return `${pageHeroHtml({
     kicker: page.kicker || "Faith, Learning, Discipline, and Service",
-    title: page.title || "Past Rectors & Vice Rectors",
+    title: page.title || "Former Leadership",
     body,
     image,
   })}
@@ -1150,9 +1151,9 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
   <div class="container">
     <article class="feature-card">
       <p class="eyebrow">Legacy Wall</p>
-      <h2 style="margin-top:12px;">Past Rectors & Vice Rectors</h2>
+      <h2 style="margin-top:12px;">Former Leadership</h2>
       <div style="margin-top:28px;overflow:hidden;border:1px solid #dde4ed;border-radius:8px;background:#fff;">
-        <img src="/assets/past-rectors/past-rectors-collage.jpeg" alt="Past Rectors and Vice Rectors collage" style="width:100%;height:auto;object-fit:contain;" />
+        <img src="/assets/past-rectors/past-rectors-collage.jpeg" alt="Former leadership collage" style="width:100%;height:auto;object-fit:contain;" />
       </div>
     </article>
   </div>
@@ -1160,8 +1161,8 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
 
 <section>
   <div class="container">
-    <p class="eyebrow">Profile Records</p>
-    <h2 style="margin-top:12px;">Rector Profiles</h2>
+    <p class="eyebrow">Leadership Records</p>
+    <h2 style="margin-top:12px;">Former Leadership Profiles</h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:28px;margin-top:32px;">
       ${profiles
         .map(
@@ -1170,7 +1171,7 @@ function pastRectorsVisualStarter(db: DB, pageId: string) {
           <h3>${escapeHtml(profile.name)}</h3>
           <p class="eyebrow" style="margin-top:10px;">Service Period: ${escapeHtml(profile.years)}</p>
         </div>
-        <img src="${escapeHtml(profile.image || "/loyola-crest.jpg")}" alt="${escapeHtml(profile.name)} profile" loading="lazy" style="width:100%;max-height:720px;object-fit:contain;background:#fff;" />
+        <img src="${escapeHtml(profile.image || "/loyola-crest.jpg")}" alt="${escapeHtml(profile.name)} leadership profile" loading="lazy" style="width:100%;max-height:720px;object-fit:contain;background:#fff;" />
       </article>`,
         )
         .join("")}
