@@ -60,6 +60,7 @@ import {
   setDb,
   useAuth,
   useDb,
+  type EventItem,
   type GalleryItem,
   type GalleryVideo,
   type FacilityItem,
@@ -1588,6 +1589,9 @@ export function App() {
   if (path === "/admissions" && pageIsLive("admissions")) return <AdmissionsPage />;
   if (path === "/events" && pageIsLive("events")) return <EventsPage />;
   if ((path === "/news" || path === "/notices") && pageIsLive("news")) return <NewsPage />;
+  if (path.startsWith("/sports-clubs/") && pageIsLive("sports-clubs")) {
+    return <SportsClubsActivityPage activityId={decodeURIComponent(path.split("/").pop() || "")} />;
+  }
   if (path === "/sports-clubs" && pageIsLive("sports-clubs")) return <SportsClubsPage />;
   if (path === "/gallery" && pageIsLive("gallery")) return <GalleryPage />;
   if (path.startsWith("/gallery/photo-gallery/") && pageIsLive("gallery/photo-gallery")) {
@@ -4538,6 +4542,151 @@ function NewsPage() {
   );
 }
 
+const EXTRA_CURRICULAR_NAME_TITLES = new Set([
+  "rev",
+  "fr",
+  "sr",
+  "mr",
+  "mrs",
+  "ms",
+  "miss",
+  "dr",
+  "prof",
+]);
+
+const EXTRA_CURRICULAR_EVENT_STOPWORDS = new Set([
+  "and",
+  "the",
+  "for",
+  "with",
+  "from",
+  "into",
+  "this",
+  "that",
+  "school",
+  "secondary",
+  "primary",
+  "middle",
+  "upper",
+  "senior",
+  "girls",
+  "boys",
+  "section",
+  "college",
+  "teachers",
+  "charge",
+]);
+
+function extraCurricularActivityHref(activityId: string) {
+  return `/sports-clubs/${encodeURIComponent(activityId)}`;
+}
+
+function publicStaffSlug(value: string) {
+  return normalizeStaffTaxonomy(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
+function normalizeTeacherLookupName(value: string) {
+  return normalizeStaffTaxonomy(value)
+    .split(" ")
+    .filter(Boolean)
+    .filter((part) => !EXTRA_CURRICULAR_NAME_TITLES.has(part))
+    .join(" ");
+}
+
+function activityTeacherMatches(activity: ExtraCurricularActivity, teachers: Teacher[]) {
+  const staffIndex = new Map<string, Teacher>();
+  teachers.forEach((teacher) => {
+    const keys = [
+      normalizeTeacherLookupName(teacher.name || ""),
+      normalizeStaffTaxonomy(teacher.name || ""),
+    ].filter(Boolean);
+    keys.forEach((key) => {
+      if (!staffIndex.has(key)) staffIndex.set(key, teacher);
+    });
+  });
+
+  return [...new Set(activity.teachers)]
+    .filter(Boolean)
+    .map((teacherName) => {
+      const match =
+        staffIndex.get(normalizeTeacherLookupName(teacherName)) ||
+        staffIndex.get(normalizeStaffTaxonomy(teacherName)) ||
+        null;
+      return { teacherName, staff: match };
+    });
+}
+
+function activityEventKeywords(activity: ExtraCurricularActivity) {
+  const manualKeywords: Record<string, string[]> = {
+    "photography-and-media-unit": ["photography", "media", "broadcasting"],
+    "teachers-in-charge-of-prefects-senior": ["prefects", "prefect", "leadership"],
+    "teachers-in-charge-of-prefects-primary": ["prefects", "prefect", "leadership"],
+    "teachers-in-charge-of-stewards": ["steward", "stewards"],
+    "discipline-and-prefects-advisory-committee": ["discipline", "prefects", "prefect"],
+    "english-literary-union-secondary": ["english literary", "literary", "debate"],
+    "english-literary-union-primary": ["english literary", "literary", "debate"],
+    "sinhala-literary-association": ["sinhala literary", "literary"],
+    "bible-association": ["bible", "religious", "faith"],
+    "liturgical-committee": ["liturgical", "liturgy", "altar"],
+    "altar-servers-association": ["altar", "servers", "liturgy"],
+    "scouts": ["scout", "scouts", "camp"],
+    "cub-scouts": ["cub scout", "cub scouts", "scout"],
+    "singithi-scouts": ["singithi scout", "singithi scouts", "scout"],
+    athletics: ["athletic", "athletics", "sports meet"],
+    cricket: ["cricket"],
+    "cricket-academy": ["cricket academy", "cricket"],
+    volleyball: ["volleyball"],
+    basketball: ["basketball"],
+    karate: ["karate"],
+    swimming: ["swimming", "swim"],
+    chess: ["chess"],
+  };
+
+  const phraseKeywords = [activity.title, activity.note]
+    .map((value) => normalizeStaffTaxonomy(value || ""))
+    .filter(Boolean);
+  const wordKeywords = phraseKeywords.flatMap((phrase) =>
+    phrase
+      .split(" ")
+      .filter((word) => word.length >= 4)
+      .filter((word) => !EXTRA_CURRICULAR_EVENT_STOPWORDS.has(word)),
+  );
+  const allKeywords = [...phraseKeywords, ...wordKeywords, ...(manualKeywords[activity.id] || [])]
+    .map((value) => normalizeStaffTaxonomy(value))
+    .filter(Boolean);
+
+  return [...new Set(allKeywords)];
+}
+
+function activityEvents(activity: ExtraCurricularActivity, events: EventItem[]) {
+  const keywords = activityEventKeywords(activity);
+  return events.filter((event) => {
+    const haystack = normalizeStaffTaxonomy(
+      [
+        event.title,
+        event.type,
+        event.location,
+        event.description,
+        event.venue,
+        event.posterUrl,
+        event.poster_url,
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+    return keywords.some((keyword) => haystack.includes(keyword));
+  });
+}
+
+function activitySummary(activity: ExtraCurricularActivity) {
+  const teacherCount = activity.teachers.length;
+  if (activity.note && teacherCount) {
+    return `${activity.note} | ${teacherCount} teacher${teacherCount === 1 ? "" : "s"} in charge`;
+  }
+  if (activity.note) return activity.note;
+  return `${teacherCount} teacher${teacherCount === 1 ? "" : "s"} in charge`;
+}
+
 function SportsClubsPage() {
   const db = useDb();
   const page = db.pages["sports-clubs"];
@@ -4610,31 +4759,245 @@ function SportsClubsPage() {
                   className="rounded-lg border border-border bg-white p-5 shadow-soft"
                 >
                   <h3 className="font-serif text-2xl font-bold text-navy">{activity.title}</h3>
-                  {activity.note && (
-                    <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                      {activity.note}
-                    </p>
-                  )}
-                  {activity.teachers.length > 0 ? (
-                    <ul className="mt-4 space-y-2 text-sm leading-6 text-slate-600">
-                      {activity.teachers.map((teacher) => (
-                        <li key={`${activity.id}-${teacher}`} className="flex gap-2">
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                          <span>{teacher}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="mt-4 text-sm leading-6 text-slate-500">
-                      Teacher names were not fully legible in the provided document.
-                    </p>
-                  )}
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                    {activitySummary(activity)}
+                  </p>
+                  <p className="mt-4 text-sm leading-6 text-slate-600">
+                    {activity.teachers.length > 0
+                      ? activity.teachers.slice(0, 2).join(" • ")
+                      : "Teacher names were not fully legible in the provided document."}
+                  </p>
+                  <div className="mt-5 flex items-center justify-between gap-3 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                    <span>{activityEvents(activity, db.events).length} matching events</span>
+                    <span>{activity.teachers.length} profiles</span>
+                  </div>
+                  <a
+                    href={extraCurricularActivityHref(activity.id)}
+                    className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson"
+                  >
+                    Open Activity Page <ArrowRight className="h-4 w-4" />
+                  </a>
                 </article>
               ))}
             </div>
           </section>
         ))}
       </section>
+      <SubpagesSection parentId="sports-clubs" />
+    </PublicLayout>
+  );
+}
+
+function SportsClubsActivityPage({ activityId }: { activityId: string }) {
+  const db = useDb();
+  const page = db.pages["sports-clubs"];
+  const activity = extraCurricularActivityById(activityId);
+
+  if (!activity) {
+    return (
+      <PublicLayout>
+        <PageHeader
+          pageId="sports-clubs"
+          kicker={page.kicker || "Sports & Clubs"}
+          title="Activity not found"
+          subtitle="This sports or club activity page is not available."
+          image={page.image}
+        />
+        <section className="mx-auto max-w-5xl px-6 py-20">
+          <a
+            href="/sports-clubs"
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-white px-5 py-3 text-sm font-bold text-navy shadow-soft"
+          >
+            Back to Sports & Clubs <ArrowRight className="h-4 w-4" />
+          </a>
+        </section>
+      </PublicLayout>
+    );
+  }
+
+  const group = EXTRA_CURRICULAR_GROUPS.find((item) => item.id === activity.groupId);
+  const teacherProfiles = activityTeacherMatches(activity, db.teachers);
+  const matchedEvents = activityEvents(activity, db.events);
+  const relatedActivities = extraCurricularActivitiesByGroup(activity.groupId).filter(
+    (item) => item.id !== activity.id,
+  );
+
+  return (
+    <PublicLayout>
+      <PageHeader
+        pageId="sports-clubs"
+        kicker={group?.title || page.kicker || "Sports & Clubs"}
+        title={activity.title}
+        subtitle={
+          activity.note
+            ? `${activity.note}. Teacher profiles and event coverage for this activity.`
+            : "Teacher profiles and event coverage for this activity."
+        }
+        image={page.image}
+      />
+      <section className="mx-auto max-w-7xl px-6 py-16">
+        <div className="rounded-lg border border-gold/30 bg-gold/10 p-6 shadow-soft">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+                Activity Overview
+              </p>
+              <h2 className="mt-3 font-serif text-3xl font-bold text-navy">{activity.title}</h2>
+              <p className="mt-3 max-w-4xl text-sm leading-7 text-slate-600">
+                {activity.note || "Activity page"} from {EXTRA_CURRICULAR_SOURCE_TITLE}. This page
+                shows matched teacher profiles from the staff directory and events that match this
+                activity.
+              </p>
+            </div>
+            <a
+              href="/sports-clubs"
+              className="inline-flex items-center gap-2 rounded-lg border border-white/70 bg-white px-5 py-3 text-sm font-bold text-navy shadow-soft"
+            >
+              Back to Directory <ArrowRight className="h-4 w-4" />
+            </a>
+          </div>
+          <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                Teachers In Charge
+              </p>
+              <p className="mt-2 font-serif text-3xl font-bold text-navy">
+                {activity.teachers.length}
+              </p>
+            </article>
+            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                Matched Staff Profiles
+              </p>
+              <p className="mt-2 font-serif text-3xl font-bold text-navy">
+                {teacherProfiles.filter((item) => item.staff).length}
+              </p>
+            </article>
+            <article className="rounded-lg border border-white/60 bg-white/80 p-4">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
+                Related Events
+              </p>
+              <p className="mt-2 font-serif text-3xl font-bold text-navy">{matchedEvents.length}</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+            Teacher Profiles
+          </p>
+          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+            Public profiles for this activity
+          </h2>
+          <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {teacherProfiles.map(({ teacherName, staff }) => (
+              <article
+                key={`${activity.id}-${teacherName}`}
+                className="rounded-lg border border-border bg-white p-5 shadow-soft"
+              >
+                <div className="flex items-start gap-4">
+                  {staff?.image ? (
+                    <img
+                      src={staff.image}
+                      alt={teacherName}
+                      className="h-20 w-20 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="grid h-20 w-20 place-items-center rounded-full bg-slate-100 text-slate-500">
+                      <Users className="h-8 w-8" />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                      Teacher In Charge
+                    </p>
+                    <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
+                      {teacherName}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {staff?.position || staff?.subject || staff?.type || "Public staff profile"}
+                    </p>
+                  </div>
+                </div>
+                {staff?.qualifications && (
+                  <p className="mt-4 text-sm leading-6 text-slate-600">{staff.qualifications}</p>
+                )}
+                {staff ? (
+                  <a
+                    href={`/staff/${publicStaffSlug(staff.slug || staff.name || teacherName)}`}
+                    className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson"
+                  >
+                    View Staff Profile <ArrowRight className="h-4 w-4" />
+                  </a>
+                ) : (
+                  <p className="mt-5 text-sm leading-6 text-slate-500">
+                    No public staff profile photo was matched for this name yet.
+                  </p>
+                )}
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-secondary/35 py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+            Activity Events
+          </p>
+          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+            Events matched to {activity.title}
+          </h2>
+          {matchedEvents.length ? (
+            <div className="stagger-children mt-8 grid gap-5 md:grid-cols-3">
+              {matchedEvents.map((event) => (
+                <EventCard key={event.id} event={event} />
+              ))}
+            </div>
+          ) : (
+            <p className="mt-6 rounded-lg border border-border bg-white p-5 text-sm leading-6 text-slate-500 shadow-soft">
+              No public events currently match this activity. Add or update event titles,
+              descriptions, or types with the activity name to make them appear here.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {relatedActivities.length > 0 && (
+        <section className="bg-white py-16">
+          <div className="mx-auto max-w-7xl px-6">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+              More in {group?.title || "this group"}
+            </p>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              Related activity pages
+            </h2>
+            <div className="stagger-children mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {relatedActivities.slice(0, 6).map((item) => (
+                <a
+                  key={item.id}
+                  href={extraCurricularActivityHref(item.id)}
+                  className="rounded-lg border border-border bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:border-gold/60"
+                >
+                  <h3 className="font-serif text-2xl font-bold text-navy">{item.title}</h3>
+                  <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                    {activitySummary(item)}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    {item.teachers.slice(0, 2).join(" • ") || "Open the activity page for details."}
+                  </p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
+                    Open Page <ArrowRight className="h-4 w-4" />
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       <SubpagesSection parentId="sports-clubs" />
     </PublicLayout>
   );
