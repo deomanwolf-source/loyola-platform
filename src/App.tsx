@@ -35,6 +35,7 @@ import { BrandedLoader } from "@/components/BrandedLoader";
 import { HeroBackgroundLayer, PageHeader, PublicLayout } from "@/components/site/PublicLayout";
 import { CollegeStaffPage } from "@/components/site/CollegeStaffPage";
 import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrationPage";
+import { normalizePositionCode } from "@/lib/staff-position-codes";
 import { formatDisplayHeading, normalizeHeadingHtml } from "@/lib/utils";
 import {
   DEFAULT_ANTHEM_VIDEO_URL,
@@ -352,6 +353,7 @@ type CollegeDepartment = {
   };
   staffDepartments?: string[];
   staffTypes?: string[];
+  memberPositionCodes?: string[];
   skipDepartmentPage?: boolean;
 };
 
@@ -477,6 +479,7 @@ const collegeDepartments: CollegeDepartment[] = [
       "administrative department",
       "front office",
     ],
+    memberPositionCodes: ["rector-principal", "administrative-secretary", "secretary"],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/academic`,
@@ -3536,6 +3539,37 @@ function departmentPositionForStaff(staff: Teacher, department: CollegeDepartmen
   );
 }
 
+function departmentMemberPositionForStaff(staff: Teacher, department: CollegeDepartment) {
+  const memberPositionCodes = new Set(
+    (department.memberPositionCodes || []).map(normalizePositionCode).filter(Boolean),
+  );
+  if (!memberPositionCodes.size) return departmentPositionForStaff(staff, department);
+
+  const departmentAliases = (department.staffDepartments || [department.title])
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean);
+  const staffTypeAliases = (department.staffTypes || [])
+    .map(normalizeStaffTaxonomy)
+    .filter(Boolean);
+
+  return visibleStaffPositions(staff).find((position) => {
+    const positionCode = normalizePositionCode(
+      position.position_code ||
+        position.positionCode ||
+        position.display_title ||
+        position.displayTitle ||
+        position.position ||
+        "",
+    );
+    return (
+      Boolean(positionCode) &&
+      memberPositionCodes.has(positionCode) &&
+      positionMatchesDepartment(position, departmentAliases) &&
+      positionMatchesStaffType(position, staffTypeAliases)
+    );
+  });
+}
+
 function staffMatchesDepartment(staff: Teacher, department: CollegeDepartment) {
   const positions = visibleStaffPositions(staff);
   if (positions.length) return Boolean(departmentPositionForStaff(staff, department));
@@ -3592,13 +3626,12 @@ function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepa
   >();
 
   teachers
-    .filter(
-      (staff) =>
-        (staff.status || "Active").toLowerCase() === "active" &&
-        staffMatchesDepartment(staff, department),
-    )
+    .filter((staff) => (staff.status || "Active").toLowerCase() === "active")
     .forEach((staff) => {
-      const position = departmentPositionForStaff(staff, department);
+      const position = departmentMemberPositionForStaff(staff, department);
+      if (!position && (department.memberPositionCodes?.length || !staffMatchesDepartment(staff, department))) {
+        return;
+      }
       const profileId = staff.staffId || staff.id.split("__")[0] || staff.email || staff.name;
       if (members.has(profileId)) return;
       members.set(profileId, {
