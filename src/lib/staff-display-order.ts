@@ -37,10 +37,10 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
     id: "vice-principals",
     title: "Vice Principals",
     codes: [
-      "vice-principal-advanced-level",
       "vice-principal-primary",
       "vice-principal-middle",
       "vice-principal-upper",
+      "vice-principal-advanced-level",
     ],
   },
   {
