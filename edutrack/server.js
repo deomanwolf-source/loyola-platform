@@ -12,4 +12,4 @@ process.env.FRONTEND_ROOT = process.env.FRONTEND_ROOT || path.join(__dirname, "p
 process.env.NODE_PATH = [appNodeModules, process.env.NODE_PATH].filter(Boolean).join(path.delimiter);
 Module._initPaths();
 
-await import("../../backend/server.js");
+await import("../backend/server.js");

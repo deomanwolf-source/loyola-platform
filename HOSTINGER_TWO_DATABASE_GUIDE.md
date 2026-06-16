@@ -76,7 +76,7 @@ EDUTRACK_SYNC_TIMEOUT_MS=5000
 For the `edutrack.loyolacollege.lk` Node.js app, use the separate app folder:
 
 ```txt
-apps/edutrack
+edutrack
 ```
 
 Start command:
@@ -190,7 +190,7 @@ npm install
 
 4. Restart the website Node.js app.
 5. Open the EduTrack Node.js app.
-6. Pull/deploy latest code from GitHub and make sure its app root is `apps/edutrack`.
+6. Pull/deploy latest code from GitHub and make sure its app root is `edutrack`.
 7. Run install if needed.
 8. Restart the EduTrack Node.js app.
 
