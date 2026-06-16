@@ -1758,7 +1758,8 @@ function editablePastRectorProfiles(page?: { pastRectorProfiles?: PastRectorProf
 function isGenericPastRectorsVisualHtml(html?: string) {
   if (!html || html.includes("past-rectors-collage.jpeg")) return false;
   return (
-    html.includes("Past Rectors & Vice Rectors overview") &&
+    (html.includes("Past Rectors & Vice Rectors overview") ||
+      html.includes("Former Leadership overview")) &&
     html.includes("Key information") &&
     html.includes("Next steps")
   );
@@ -1768,8 +1769,8 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
   const db = useDb();
   const defaultPage = {
     kicker: "Faith, Learning, Discipline, and Service",
-    title: "Past Rectors & Vice Rectors",
-    body: "Remembering the leaders who shaped Loyola College Negombo.",
+    title: "Former Leadership",
+    body: "Honouring the former rectors, vice rectors, and leadership who shaped Loyola College Negombo.",
     image: "",
   };
   const page = db.pages[pageId] || defaultPage;
@@ -1805,12 +1806,12 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
               Legacy Wall
             </p>
             <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
-              Past Rectors & Vice Rectors
+              Former Leadership
             </h2>
             <div className="mt-6 overflow-hidden rounded-lg border border-border bg-white">
               <img
                 src="/assets/past-rectors/past-rectors-collage.jpeg"
-                alt="Past Rectors and Vice Rectors collage"
+                alt="Former leadership collage"
                 className="w-full object-contain"
               />
             </div>
@@ -1818,9 +1819,11 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
 
           <div className="mt-14">
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
-              Profile Records
+              Leadership Records
             </p>
-            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">Rector Profiles</h2>
+            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
+              Former Leadership Profiles
+            </h2>
             <div className="mt-8 grid gap-8 lg:grid-cols-2">
               {profiles.map((profile, index) => (
                 <article
@@ -1835,7 +1838,7 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
                   </div>
                   <img
                     src={profile.image || "/loyola-crest.jpg"}
-                    alt={`${profile.name} profile`}
+                    alt={`${profile.name} leadership profile`}
                     loading="lazy"
                     className="mx-auto w-full max-w-[560px] bg-white object-contain"
                   />

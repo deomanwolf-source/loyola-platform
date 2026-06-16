@@ -659,7 +659,7 @@ export const seed: DB = {
     },
     {
       id: "about/past-rectors-vice-rectors",
-      label: "Past Rectors & Vice Rectors",
+      label: "Former Leadership",
       order: 4,
       visible: true,
       parentId: "about",
@@ -742,8 +742,8 @@ export const seed: DB = {
     },
     "about/past-rectors-vice-rectors": {
       kicker: "Faith, Learning, Discipline, and Service",
-      title: "Past Rectors & Vice Rectors",
-      body: "Remembering the leaders who shaped Loyola College Negombo.",
+      title: "Former Leadership",
+      body: "Honouring the former rectors, vice rectors, and leadership who shaped Loyola College Negombo.",
       image: "",
     },
     admissions: {
@@ -1661,7 +1661,10 @@ function ensureCollegeAnthemPage(db: DB): DB {
 
 function ensurePastRectorsPage(db: DB): DB {
   const pageId = "about/past-rectors-vice-rectors";
-  const label = "Past Rectors & Vice Rectors";
+  const label = "Former Leadership";
+  const legacyLabel = "Past Rectors & Vice Rectors";
+  const defaultBody =
+    "Honouring the former rectors, vice rectors, and leadership who shaped Loyola College Negombo.";
   const pages = { ...db.pages };
   const navigation = [...db.navigation];
   let changed = false;
@@ -1670,10 +1673,27 @@ function ensurePastRectorsPage(db: DB): DB {
     pages[pageId] = {
       kicker: "Faith, Learning, Discipline, and Service",
       title: label,
-      body: "Remembering the leaders who shaped Loyola College Negombo.",
+      body: defaultBody,
       image: "",
     };
     changed = true;
+  } else {
+    const existing = pages[pageId];
+    const nextPage = {
+      ...existing,
+      title:
+        !existing.title || existing.title === legacyLabel || existing.title === "Past Rectors & Vice Rectors"
+          ? label
+          : existing.title,
+      body:
+        !existing.body || existing.body === "Remembering the leaders who shaped Loyola College Negombo."
+          ? defaultBody
+          : existing.body,
+    };
+    if (nextPage.title !== existing.title || nextPage.body !== existing.body) {
+      pages[pageId] = nextPage;
+      changed = true;
+    }
   }
 
   const navIndex = navigation.findIndex((item) => item.id === pageId);
@@ -1690,7 +1710,7 @@ function ensurePastRectorsPage(db: DB): DB {
     const item = navigation[navIndex];
     const nextItem = {
       ...item,
-      label: item.label || label,
+      label: !item.label || item.label === legacyLabel ? label : item.label,
       order: item.order || 4,
       visible: true,
       parentId: item.parentId || "about",
