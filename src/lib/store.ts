@@ -8,6 +8,7 @@ import {
   loginUser,
   logoutUser,
 } from "./api";
+import type { ExtraCurricularActivity } from "./extracurricular-activities";
 
 export const DEFAULT_ANTHEM_VIDEO_URL = "https://youtu.be/0X2iA064w9k";
 export const DEFAULT_HERO_IMAGE = "/flag1.png";
@@ -119,12 +120,17 @@ export interface GalleryItem {
   image: string;
   images?: string[];
   activityId?: string;
+  departmentId?: string;
   logoImage?: string;
   videos?: GalleryVideo[];
   description?: string;
   link?: string;
   visible?: boolean;
 }
+export type CustomActivity = ExtraCurricularActivity & {
+  createdAt?: string;
+  updatedAt?: string;
+};
 export interface GalleryVideo {
   id: string;
   name: string;
@@ -587,6 +593,7 @@ export interface DB {
     events?: string[];
   };
   gallery: GalleryItem[];
+  customActivities: CustomActivity[];
   videoGallery: VideoGalleryItem[];
   downloads: DownloadItem[];
   library: Book[];
@@ -1018,6 +1025,7 @@ export const seed: DB = {
   events: [],
   news: [],
   gallery: [],
+  customActivities: [],
   videoGallery: [],
   downloads: [],
   library: [],
@@ -1884,6 +1892,37 @@ function ensureRequiredHomeSections(db: DB): DB {
   return { ...db, homeSections };
 }
 
+function normalizeCustomActivities(value: unknown): CustomActivity[] {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((activity) => {
+      if (!activity || typeof activity !== "object") return null;
+      const row = activity as Partial<CustomActivity>;
+      const title = typeof row.title === "string" ? row.title.trim() : "";
+      if (!title) return null;
+      return {
+        id: typeof row.id === "string" && row.id.trim() ? row.id.trim() : makeId("ACTIVITY"),
+        groupId:
+          typeof row.groupId === "string" && row.groupId.trim()
+            ? row.groupId.trim()
+            : "clubs-and-societies",
+        title,
+        teachers: Array.isArray(row.teachers)
+          ? row.teachers.map((teacher) => String(teacher || "").trim()).filter(Boolean)
+          : [],
+        note: typeof row.note === "string" ? row.note.trim() : "",
+        positionCodes: Array.isArray(row.positionCodes)
+          ? row.positionCodes.map((code) => String(code || "").trim()).filter(Boolean)
+          : [],
+        visible: row.visible !== false,
+        createdAt: typeof row.createdAt === "string" ? row.createdAt : undefined,
+        updatedAt: typeof row.updatedAt === "string" ? row.updatedAt : undefined,
+      };
+    })
+    .filter((activity): activity is CustomActivity => Boolean(activity));
+}
+
 function prepareDb(db: DB): DB {
   const prepared = ensureRequiredHomeSections(
     repairRequiredPages(
@@ -1912,6 +1951,7 @@ function prepareDb(db: DB): DB {
   );
   return {
     ...prepared,
+    customActivities: normalizeCustomActivities(prepared.customActivities),
     contentVersion:
       typeof prepared.contentVersion === "number" && prepared.contentVersion > 0
         ? prepared.contentVersion
@@ -1963,6 +2003,7 @@ function mergeStoredDb(parsed: Partial<DB>): DB {
     admissionsSteps: parsed.admissionsSteps || seed.admissionsSteps,
     forms: { ...seed.forms, ...(parsed.forms || {}) },
     media: { ...seed.media, ...(parsed.media || {}) },
+    customActivities: normalizeCustomActivities(parsed.customActivities),
     staffAttendance: parsed.staffAttendance || seed.staffAttendance,
     staffLeaveRequests: parsed.staffLeaveRequests || seed.staffLeaveRequests,
     staffDocuments: parsed.staffDocuments || seed.staffDocuments,

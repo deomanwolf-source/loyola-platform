@@ -77,6 +77,7 @@ import { createPublishRequest } from "@/lib/publish-requests";
 import { MediaUploadStatus } from "./MediaUploadStatus";
 import {
   EXTRA_CURRICULAR_GROUPS,
+  extraCurricularActivitySlug,
   extraCurricularActivitiesByGroup,
 } from "@/lib/extracurricular-activities";
 
@@ -86,6 +87,13 @@ const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 const MAX_SHORT_VIDEO_SECONDS = 120;
+const DEPARTMENT_MEDIA_PAGES = [
+  { id: "the-college/departments/administration", label: "Administration" },
+  { id: "the-college/departments/academic", label: "Academic" },
+  { id: "the-college/departments/finance", label: "Finance" },
+  { id: "the-college/departments/it-department", label: "IT Department" },
+  { id: "the-college/departments/sports-department", label: "Sports Department" },
+];
 
 function rememberDeletedContentId(
   current: DB,
@@ -108,6 +116,8 @@ type PanelId =
   | "vacancies"
   | "media"
   | "activityMedia"
+  | "clubsSocieties"
+  | "departmentMedia"
   | "storage"
   | "design"
   | "messages"
@@ -133,6 +143,8 @@ const navGroups: {
       { id: "vacancies", label: "Job Vacancies", icon: Briefcase },
       { id: "media", label: "Media Library", icon: ImageIcon },
       { id: "activityMedia", label: "Activity Media", icon: GalleryHorizontal },
+      { id: "clubsSocieties", label: "Clubs & Societies", icon: Users },
+      { id: "departmentMedia", label: "Department Media", icon: GalleryHorizontal },
       { id: "storage", label: "Storage", icon: Database },
       { id: "design", label: "Design System", icon: Palette },
     ],
@@ -325,6 +337,14 @@ function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`input-line resize-none ${props.className || ""}`} />;
+}
+
+function adminSearchKey(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 const corePageIds = new Set([
@@ -1934,7 +1954,7 @@ function MediaPanel({ db }: { db: DB }) {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const videoCoverInputRef = useRef<HTMLInputElement>(null);
-  const generalAlbums = db.gallery.filter((item) => !item.activityId);
+  const generalAlbums = db.gallery.filter((item) => !item.activityId && !item.departmentId);
 
   const createAlbum = () => {
     const title = albumTitle.trim() || "New Gallery Album";
@@ -2683,15 +2703,313 @@ function MediaPanel({ db }: { db: DB }) {
   );
 }
 
+function teacherNamesFromInput(value: string) {
+  return value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function activityDisplayLabel(activity: {
+  title: string;
+  note?: string;
+  groupId: string;
+  teachers?: string[];
+}) {
+  const group = EXTRA_CURRICULAR_GROUPS.find((item) => item.id === activity.groupId);
+  return [
+    activity.title,
+    activity.note || "",
+    group?.title || "",
+    ...(activity.teachers || []),
+  ].join(" ");
+}
+
+function ClubsSocietiesPanel({ db }: { db: DB }) {
+  const [title, setTitle] = useState("");
+  const [groupId, setGroupId] = useState("clubs-and-societies");
+  const [note, setNote] = useState("");
+  const [teachers, setTeachers] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [message, setMessage] = useState(
+    "Add a new club, society, sport, house, or activity page without changing the built-in list.",
+  );
+
+  const customActivities = db.customActivities || [];
+  const searchKey = adminSearchKey(searchTerm);
+  const filteredCustomActivities = customActivities.filter((activity) => {
+    if (!searchKey) return true;
+    return adminSearchKey(activityDisplayLabel(activity)).includes(searchKey);
+  });
+  const builtInCount = EXTRA_CURRICULAR_GROUPS.reduce(
+    (count, group) => count + extraCurricularActivitiesByGroup(group.id).length,
+    0,
+  );
+
+  const updateCustomActivity = (
+    id: string,
+    patch: Partial<DB["customActivities"][number]>,
+  ) => {
+    setDb((current) => ({
+      ...current,
+      customActivities: (current.customActivities || []).map((activity) =>
+        activity.id === id
+          ? { ...activity, ...patch, updatedAt: new Date().toISOString() }
+          : activity,
+      ),
+    }));
+  };
+
+  const createCustomActivity = () => {
+    const cleanTitle = title.trim();
+    if (!cleanTitle) {
+      setMessage("Enter a club or society name first.");
+      return;
+    }
+
+    const cleanTeachers = teacherNamesFromInput(teachers);
+    const createdAt = new Date().toISOString();
+    let createdId = "";
+    setDb((current) => {
+      const builtInIds = new Set(
+        EXTRA_CURRICULAR_GROUPS.flatMap((group) =>
+          extraCurricularActivitiesByGroup(group.id).map((activity) => activity.id),
+        ),
+      );
+      const existingIds = new Set([
+        ...builtInIds,
+        ...(current.customActivities || []).map((activity) => activity.id),
+      ]);
+      const baseId = `custom-${extraCurricularActivitySlug(cleanTitle)}`;
+      createdId = existingIds.has(baseId) ? `${baseId}-${Date.now().toString(36)}` : baseId;
+      return {
+        ...current,
+        customActivities: [
+          {
+            id: createdId,
+            groupId,
+            title: cleanTitle,
+            note: note.trim(),
+            teachers: cleanTeachers,
+            positionCodes: [],
+            visible: true,
+            createdAt,
+            updatedAt: createdAt,
+          },
+          ...(current.customActivities || []),
+        ],
+      };
+    });
+    setTitle("");
+    setNote("");
+    setTeachers("");
+    audit(`Custom activity created: ${cleanTitle}`, "Admin");
+    setMessage(`Added ${cleanTitle}. Use Activity Media to upload its logo and photos.`);
+    if (createdId) {
+      window.setTimeout(() => {
+        const element = document.getElementById(`custom-activity-${createdId}`);
+        element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 60);
+    }
+  };
+
+  const deleteCustomActivity = (activity: DB["customActivities"][number]) => {
+    if (
+      !window.confirm(
+        `Delete "${activity.title}"? Linked media albums will move to Media Library, not be erased.`,
+      )
+    ) {
+      return;
+    }
+
+    setDb((current) => ({
+      ...current,
+      customActivities: (current.customActivities || []).filter((item) => item.id !== activity.id),
+      gallery: current.gallery.map((album) =>
+        album.activityId === activity.id ? { ...album, activityId: undefined } : album,
+      ),
+    }));
+    audit(`Custom activity deleted: ${activity.title}`, "Admin");
+    setMessage(`${activity.title} was deleted. Existing uploaded media was kept.`);
+  };
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+      <PanelShell title="Add club or society" kicker="Sports & Clubs directory">
+        <div className="space-y-4">
+          <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-900">
+            Built-in activities stay protected. New rows are saved separately and appear on the
+            public Sports & Clubs page after Save/Publish.
+          </p>
+          <TextInput
+            value={title}
+            placeholder="Club or society name"
+            onChange={(e) => setTitle(e.target.value)}
+          />
+          <select
+            value={groupId}
+            onChange={(e) => setGroupId(e.target.value)}
+            className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+          >
+            {EXTRA_CURRICULAR_GROUPS.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.title}
+              </option>
+            ))}
+          </select>
+          <TextInput
+            value={note}
+            placeholder="Short note, section, or level"
+            onChange={(e) => setNote(e.target.value)}
+          />
+          <TextArea
+            rows={5}
+            value={teachers}
+            placeholder="Teacher names, one per line"
+            onChange={(e) => setTeachers(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={createCustomActivity}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-5 py-4 text-sm font-black text-navy"
+          >
+            <Plus className="h-5 w-5" /> Add club or society
+          </button>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            {message}
+          </div>
+        </div>
+      </PanelShell>
+
+      <PanelShell
+        title="Custom clubs and societies"
+        kicker={`${customActivities.length} custom | ${builtInCount} built-in protected`}
+        action={
+          <div className="relative w-full md:w-80">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search custom activities"
+              className="h-11 w-full rounded-xl border border-border bg-white pl-10 pr-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+            />
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {filteredCustomActivities.map((activity) => {
+            const group = EXTRA_CURRICULAR_GROUPS.find((item) => item.id === activity.groupId);
+            const linkedAlbumCount = db.gallery.filter(
+              (album) => album.activityId === activity.id,
+            ).length;
+            return (
+              <div
+                key={activity.id}
+                id={`custom-activity-${activity.id}`}
+                className="rounded-2xl border border-border bg-white p-4 shadow-soft"
+              >
+                <div className="grid gap-3 lg:grid-cols-[1fr_220px]">
+                  <div className="space-y-3">
+                    <TextInput
+                      value={activity.title}
+                      placeholder="Activity title"
+                      onChange={(e) => updateCustomActivity(activity.id, { title: e.target.value })}
+                    />
+                    <TextInput
+                      value={activity.note || ""}
+                      placeholder="Short note"
+                      onChange={(e) => updateCustomActivity(activity.id, { note: e.target.value })}
+                    />
+                    <TextArea
+                      rows={3}
+                      value={(activity.teachers || []).join("\n")}
+                      placeholder="Teacher names"
+                      onChange={(e) =>
+                        updateCustomActivity(activity.id, {
+                          teachers: teacherNamesFromInput(e.target.value),
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <select
+                      value={activity.groupId}
+                      onChange={(e) =>
+                        updateCustomActivity(activity.id, { groupId: e.target.value })
+                      }
+                      className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+                    >
+                      {EXTRA_CURRICULAR_GROUPS.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="rounded-xl border border-border bg-secondary/35 p-3 text-xs font-semibold leading-5 text-muted-foreground">
+                      <span className="block font-black uppercase tracking-[0.12em] text-navy">
+                        {group?.title || "Sports & Clubs"}
+                      </span>
+                      {linkedAlbumCount} linked album{linkedAlbumCount === 1 ? "" : "s"}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateCustomActivity(activity.id, { visible: activity.visible === false })
+                        }
+                        className={`rounded-lg px-2.5 py-1.5 text-xs font-black ${
+                          activity.visible === false
+                            ? "bg-slate-200 text-slate-500"
+                            : "bg-emerald-100 text-emerald-700"
+                        }`}
+                      >
+                        {activity.visible === false ? "Hidden" : "Visible"}
+                      </button>
+                      <a
+                        href={`/sports-clubs/${encodeURIComponent(activity.id)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-black text-navy"
+                      >
+                        Preview
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => deleteCustomActivity(activity)}
+                        className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-black text-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {filteredCustomActivities.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-secondary/35 p-6 text-sm font-semibold leading-6 text-muted-foreground">
+              {customActivities.length === 0
+                ? "No custom clubs or societies added yet."
+                : "No custom activity matches the current search."}
+            </div>
+          )}
+        </div>
+      </PanelShell>
+    </div>
+  );
+}
+
 function ActivityMediaPanel({ db }: { db: DB }) {
   const activityOptions = EXTRA_CURRICULAR_GROUPS.flatMap((group) =>
-    extraCurricularActivitiesByGroup(group.id).map((activity) => ({
+    extraCurricularActivitiesByGroup(group.id, db.customActivities).map((activity) => ({
       id: activity.id,
       label: `${activity.title}${activity.note ? ` - ${activity.note}` : ""}`,
       groupId: group.id,
       group: group.title,
+      teachers: activity.teachers,
     })),
   );
+  const [activitySearchTerm, setActivitySearchTerm] = useState("");
   const [selectedActivityId, setSelectedActivityId] = useState(activityOptions[0]?.id || "");
   const [albumTitle, setAlbumTitle] = useState("");
   const [targetAlbumId, setTargetAlbumId] = useState("");
@@ -2703,6 +3021,18 @@ function ActivityMediaPanel({ db }: { db: DB }) {
   const coverInputRef = useRef<HTMLInputElement>(null);
 
   const selectedActivity = activityOptions.find((item) => item.id === selectedActivityId);
+  const activitySearchKey = adminSearchKey(activitySearchTerm);
+  const filteredActivityOptions = activitySearchKey
+    ? activityOptions.filter((activity) =>
+        adminSearchKey(
+          `${activity.label} ${activity.group} ${(activity.teachers || []).join(" ")}`,
+        ).includes(activitySearchKey),
+      )
+    : activityOptions;
+  const selectableActivityOptions =
+    selectedActivity && !filteredActivityOptions.some((item) => item.id === selectedActivity.id)
+      ? [selectedActivity, ...filteredActivityOptions]
+      : filteredActivityOptions;
   const activityAlbums = db.gallery.filter((album) => album.activityId === selectedActivityId);
   const targetAlbum =
     activityAlbums.find((album) => album.id === targetAlbumId) || activityAlbums[0] || null;
@@ -2742,6 +3072,24 @@ function ActivityMediaPanel({ db }: { db: DB }) {
     setAlbumTitle("");
     audit(`Activity album created: ${title}`, "Admin");
     setMessage(`Activity album created for ${selectedActivity.label}.`);
+  };
+
+  const deleteActivityAlbum = (album: DB["gallery"][number]) => {
+    if (
+      !window.confirm(
+        `Delete "${album.label}" from Activity Media? Uploaded files stay on the server.`,
+      )
+    ) {
+      return;
+    }
+
+    setDb((current) => ({
+      ...current,
+      gallery: current.gallery.filter((item) => item.id !== album.id),
+    }));
+    setTargetAlbumId((current) => (current === album.id ? "" : current));
+    audit(`Activity album deleted: ${album.label}`, "Admin");
+    setMessage(`Deleted ${album.label}. Uploaded files were not erased from storage.`);
   };
 
   const uploadActivityLogo = async (file?: File) => {
@@ -2872,6 +3220,15 @@ function ActivityMediaPanel({ db }: { db: DB }) {
             Safe activity media: logo is stored separately, cover photo is separate, and gallery
             photos are only shown on the selected activity page.
           </p>
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={activitySearchTerm}
+              onChange={(e) => setActivitySearchTerm(e.target.value)}
+              placeholder="Search activity, club, or society"
+              className="h-12 w-full rounded-xl border border-border bg-white pl-10 pr-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+            />
+          </div>
           <select
             value={selectedActivityId}
             onChange={(e) => {
@@ -2882,7 +3239,7 @@ function ActivityMediaPanel({ db }: { db: DB }) {
           >
             {EXTRA_CURRICULAR_GROUPS.map((group) => (
               <optgroup key={group.id} label={group.title}>
-                {activityOptions
+                {selectableActivityOptions
                   .filter((activity) => activity.groupId === group.id)
                   .map((activity) => (
                     <option key={activity.id} value={activity.id}>
@@ -2892,6 +3249,11 @@ function ActivityMediaPanel({ db }: { db: DB }) {
               </optgroup>
             ))}
           </select>
+          {activitySearchKey && filteredActivityOptions.length === 0 && (
+            <p className="rounded-xl border border-dashed border-border bg-secondary/35 px-3 py-2 text-xs font-semibold text-muted-foreground">
+              No activity matches this search. Add a new one in Clubs & Societies.
+            </p>
+          )}
           <TextInput
             value={albumTitle}
             placeholder="New linked album name"
@@ -3057,6 +3419,13 @@ function ActivityMediaPanel({ db }: { db: DB }) {
                     >
                       Move to Media Library
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteActivityAlbum(album)}
+                      className="rounded-lg border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-black text-red-700"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
               </div>
@@ -3066,6 +3435,327 @@ function ActivityMediaPanel({ db }: { db: DB }) {
             <div className="rounded-2xl border border-dashed border-border bg-secondary/35 p-6 text-sm font-semibold leading-6 text-muted-foreground">
               No linked album for this activity yet. Create one from the left panel, then upload the
               logo and photos.
+            </div>
+          )}
+        </div>
+      </PanelShell>
+    </div>
+  );
+}
+
+function DepartmentMediaPanel({ db }: { db: DB }) {
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState(
+    DEPARTMENT_MEDIA_PAGES[0]?.id || "",
+  );
+  const [albumTitle, setAlbumTitle] = useState("");
+  const [targetAlbumId, setTargetAlbumId] = useState("");
+  const [message, setMessage] = useState(
+    "Choose a department page, create a linked album, then upload page photos.",
+  );
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedDepartment = DEPARTMENT_MEDIA_PAGES.find(
+    (item) => item.id === selectedDepartmentId,
+  );
+  const departmentAlbums = db.gallery.filter(
+    (album) => album.departmentId === selectedDepartmentId,
+  );
+  const targetAlbum =
+    departmentAlbums.find((album) => album.id === targetAlbumId) || departmentAlbums[0] || null;
+
+  const updateAlbum = (id: string, patch: Partial<DB["gallery"][number]>) => {
+    setDb((current) => ({
+      ...current,
+      gallery: current.gallery.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }));
+  };
+
+  const createDepartmentAlbum = () => {
+    if (!selectedDepartment) {
+      setMessage("Select a department page first.");
+      return;
+    }
+    const title = albumTitle.trim() || `${selectedDepartment.label} Gallery`;
+    const id = makeId("DEPTALBUM");
+    setDb((current) => ({
+      ...current,
+      gallery: [
+        {
+          id,
+          label: title,
+          image: "",
+          images: [],
+          departmentId: selectedDepartment.id,
+          description: "",
+          link: "",
+          visible: true,
+        },
+        ...current.gallery,
+      ],
+    }));
+    setTargetAlbumId(id);
+    setAlbumTitle("");
+    audit(`Department album created: ${title}`, "Admin");
+    setMessage(`Department album created for ${selectedDepartment.label}.`);
+  };
+
+  const uploadDepartmentImages = async (files?: FileList | null) => {
+    if (!files?.length || !targetAlbum) {
+      setMessage("Create or select a department album before uploading photos.");
+      return;
+    }
+    const currentImages = (targetAlbum.images || (targetAlbum.image ? [targetAlbum.image] : []))
+      .filter(Boolean)
+      .filter((image) => image !== targetAlbum.logoImage);
+    const remaining = Math.max(0, 30 - currentImages.length);
+    const selectedFiles = Array.from(files).slice(0, remaining);
+    if (!selectedFiles.length) {
+      setMessage("This department album already has the maximum 30 photos.");
+      return;
+    }
+    try {
+      setMessage(
+        `Uploading ${selectedFiles.length} department photo${selectedFiles.length === 1 ? "" : "s"}...`,
+      );
+      await Promise.all(selectedFiles.map((file) => compressImage(file, 1200, 0.78)));
+      const uploadedImages = await Promise.all(
+        selectedFiles.map((file) => uploadFileToBackend("department-gallery/photos", file)),
+      );
+      const nextImages = [...currentImages, ...uploadedImages].slice(0, 30);
+      updateAlbum(targetAlbum.id, {
+        images: nextImages,
+        image: targetAlbum.image || nextImages[0] || "",
+      });
+      audit(`Department photos uploaded: ${selectedFiles.length}`, "Admin");
+      setMessage(
+        `Uploaded ${selectedFiles.length} department photo${selectedFiles.length === 1 ? "" : "s"}.`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Department photo upload failed.");
+    }
+  };
+
+  const uploadDepartmentCover = async (file?: File) => {
+    if (!file || !targetAlbum) {
+      setMessage("Create or select a department album before uploading a cover photo.");
+      return;
+    }
+    try {
+      setMessage("Uploading department cover photo...");
+      await compressImage(file, 1400, 0.78);
+      const coverUrl = await uploadFileToBackend("department-gallery/covers", file);
+      const currentImages = (targetAlbum.images || (targetAlbum.image ? [targetAlbum.image] : []))
+        .filter(Boolean)
+        .filter((image) => image !== coverUrl && image !== targetAlbum.logoImage);
+      updateAlbum(targetAlbum.id, {
+        image: coverUrl,
+        images: [coverUrl, ...currentImages].slice(0, 30),
+      });
+      audit(`Department cover uploaded: ${targetAlbum.id}`, "Admin");
+      setMessage("Department cover photo updated.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Department cover upload failed.");
+    }
+  };
+
+  const removeDepartmentImage = (albumId: string, image: string) => {
+    setDb((current) => ({
+      ...current,
+      gallery: current.gallery.map((album) => {
+        if (album.id !== albumId) return album;
+        const images = (album.images || (album.image ? [album.image] : [])).filter(
+          (item) => item && item !== image,
+        );
+        return { ...album, images, image: album.image === image ? images[0] || "" : album.image };
+      }),
+    }));
+  };
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+      <PanelShell title="Department image manager" kicker="Page galleries">
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            void uploadDepartmentImages(e.target.files);
+            e.currentTarget.value = "";
+          }}
+        />
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="hidden"
+          onChange={(e) => {
+            void uploadDepartmentCover(e.target.files?.[0]);
+            e.currentTarget.value = "";
+          }}
+        />
+        <div className="space-y-4">
+          <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-900">
+            Safe department media: albums are linked to one department page and hidden from the
+            normal Media Library so page images stay organized.
+          </p>
+          <select
+            value={selectedDepartmentId}
+            onChange={(e) => {
+              setSelectedDepartmentId(e.target.value);
+              setTargetAlbumId("");
+            }}
+            className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+          >
+            {DEPARTMENT_MEDIA_PAGES.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.label}
+              </option>
+            ))}
+          </select>
+          <TextInput
+            value={albumTitle}
+            placeholder="New linked album name"
+            onChange={(e) => setAlbumTitle(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={createDepartmentAlbum}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-5 py-4 text-sm font-black text-navy"
+          >
+            <Plus className="h-5 w-5" /> Create linked department album
+          </button>
+          <select
+            value={targetAlbum?.id || ""}
+            onChange={(e) => setTargetAlbumId(e.target.value)}
+            className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+          >
+            <option value="">Select linked album</option>
+            {departmentAlbums.map((album) => (
+              <option key={album.id} value={album.id}>
+                {album.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-gold/50 bg-gold/10 px-5 py-10 text-sm font-black text-navy"
+          >
+            <Upload className="h-6 w-6" /> Upload department photos
+          </button>
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-white px-5 py-4 text-sm font-black text-navy"
+          >
+            <GalleryHorizontal className="h-5 w-5" /> Upload page cover
+          </button>
+          <a
+            href={`/${selectedDepartmentId}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-navy px-5 py-4 text-sm font-black text-white"
+          >
+            <Globe className="h-5 w-5" /> Preview department page
+          </a>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            {message}
+          </div>
+        </div>
+      </PanelShell>
+
+      <PanelShell title={selectedDepartment?.label || "Department media"} kicker="Linked albums">
+        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          {departmentAlbums.map((album) => {
+            const images = (album.images || (album.image ? [album.image] : []))
+              .filter(Boolean)
+              .slice(0, 30);
+            const cover = album.image || images[0] || "/loyola-crest.jpg";
+            return (
+              <div
+                key={album.id}
+                className="overflow-hidden rounded-2xl border border-border bg-white shadow-soft"
+              >
+                <img src={cover} alt={album.label} className="aspect-video w-full object-cover" />
+                <div className="space-y-3 p-4">
+                  <TextInput
+                    value={album.label}
+                    placeholder="Album title"
+                    onChange={(e) => updateAlbum(album.id, { label: e.target.value })}
+                  />
+                  <TextArea
+                    rows={2}
+                    value={album.description || ""}
+                    placeholder="Short department description"
+                    onChange={(e) => updateAlbum(album.id, { description: e.target.value })}
+                  />
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {images.map((image) => (
+                      <button
+                        key={image}
+                        type="button"
+                        onClick={() => removeDepartmentImage(album.id, image)}
+                        title="Remove from this album"
+                        className="group relative overflow-hidden rounded-md border border-border bg-secondary"
+                      >
+                        <img src={image} alt="" className="aspect-square w-full object-cover" />
+                        <span className="absolute inset-0 grid place-items-center bg-crimson/72 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetAlbumId(album.id);
+                        imageInputRef.current?.click();
+                      }}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-black text-navy"
+                    >
+                      Add photos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetAlbumId(album.id);
+                        coverInputRef.current?.click();
+                      }}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-black text-navy"
+                    >
+                      Cover
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateAlbum(album.id, { visible: album.visible === false })}
+                      className={`rounded-lg px-2.5 py-1.5 text-xs font-black ${
+                        album.visible === false
+                          ? "bg-slate-200 text-slate-500"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {album.visible === false ? "Hidden" : "Visible"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateAlbum(album.id, { departmentId: undefined })}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-black text-slate-600"
+                    >
+                      Move to Media Library
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {departmentAlbums.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-secondary/35 p-6 text-sm font-semibold leading-6 text-muted-foreground">
+              No linked album for this department yet. Create one from the left panel, then upload
+              the page cover and department photos.
             </div>
           )}
         </div>
@@ -5210,6 +5900,8 @@ export function AdminPortal() {
           {activePanel === "vacancies" && <VacanciesPanel />}
           {activePanel === "media" && <MediaPanel db={db} />}
           {activePanel === "activityMedia" && <ActivityMediaPanel db={db} />}
+          {activePanel === "clubsSocieties" && <ClubsSocietiesPanel db={db} />}
+          {activePanel === "departmentMedia" && <DepartmentMediaPanel db={db} />}
           {activePanel === "storage" && <StoragePanel />}
           {activePanel === "design" && <DesignPanel db={db} />}
           {activePanel === "messages" && <MessagesPanel db={db} />}

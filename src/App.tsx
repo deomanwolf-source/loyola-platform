@@ -23,6 +23,7 @@ import {
   MapPin,
   Phone,
   PlayCircle,
+  Search,
   ShieldCheck,
   Trophy,
   Users,
@@ -3630,6 +3631,14 @@ function initialsForName(name: string) {
     .join("");
 }
 
+function departmentGalleryAlbums(departmentId: string, gallery: GalleryItem[]) {
+  return gallery.filter(
+    (album) =>
+      album.visible !== false &&
+      normalizeStaffTaxonomy(album.departmentId || "") === normalizeStaffTaxonomy(departmentId),
+  );
+}
+
 function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepartment) {
   const members = new Map<
     string,
@@ -3677,15 +3686,34 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
   const positions = department.positions || [];
   const liveMembers = departmentMembersFromStaff(db.teachers, department);
   const members = liveMembers;
-  const gallery = department.gallery || [];
+  const linkedGalleryAlbums = departmentGalleryAlbums(department.id, db.gallery);
+  const gallery =
+    linkedGalleryAlbums.length > 0
+      ? linkedGalleryAlbums.map((album) => {
+          const images = albumImages(album);
+          return {
+            title: album.label,
+            body: album.description || `Photos from the ${department.title} department.`,
+            image: album.image || images[0] || "",
+          };
+        })
+      : department.gallery || [];
   const documents = department.documents || [];
   const contact = department.contact || {
     location: "College Office",
     hours: "School office hours",
     email: db.websiteContent.email,
   };
+  const departmentCoverImage =
+    linkedGalleryAlbums.find((album) => album.image)?.image ||
+    linkedGalleryAlbums.flatMap((album) => albumImages(album))[0] ||
+    "";
   const galleryFallback =
-    page?.image || db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE;
+    departmentCoverImage ||
+    page?.image ||
+    db.media.campusImage ||
+    db.websiteContent.heroImage ||
+    DEFAULT_HERO_IMAGE;
   const title = page?.title || department.title;
   const body =
     page?.body && page.body.trim() !== "New page content goes here."
@@ -3699,7 +3727,9 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
         kicker={page?.kicker || department.kicker}
         title={title}
         subtitle={body}
-        image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
+        image={
+          departmentCoverImage || page?.image || db.media.campusImage || db.websiteContent.heroImage
+        }
       />
 
       <section className="bg-page-soft py-16 md:py-20">
@@ -4753,7 +4783,8 @@ function activityEvents(activity: ExtraCurricularActivity, events: EventItem[]) 
 function activityGalleryAlbums(activity: ExtraCurricularActivity, gallery: GalleryItem[]) {
   const directMatches = gallery.filter(
     (album) =>
-      album.visible !== false && normalizeStaffTaxonomy(album.activityId || "") === activity.id,
+      album.visible !== false &&
+      normalizeStaffTaxonomy(album.activityId || "") === normalizeStaffTaxonomy(activity.id),
   );
   if (directMatches.length) return directMatches;
 
@@ -4942,24 +4973,43 @@ function activityLeadText(activity: ExtraCurricularActivity) {
 function SportsClubsPage() {
   const db = useDb();
   const page = db.pages["sports-clubs"];
+  const [searchTerm, setSearchTerm] = useState("");
+  const searchKey = normalizeStaffTaxonomy(searchTerm);
   const groups = EXTRA_CURRICULAR_GROUPS.map((group) => ({
     ...group,
     icon: extraCurricularGroupIcon(group.id),
     theme: extraCurricularGroupTheme(group.id),
-    items: extraCurricularActivitiesByGroup(group.id).map((activity) => {
-      const teacherMatches = activityTeacherMatches(activity, db.teachers);
-      const matchedTeacherProfiles = matchedActivityTeacherProfiles(teacherMatches);
-      const galleryAlbums = activityGalleryAlbums(activity, db.gallery);
-      return {
-        activity,
-        icon: extraCurricularActivityIcon(activity),
-        matchedTeacherProfiles,
-        galleryAlbums,
-        galleryPhotoCount: activityGalleryImages(galleryAlbums).length,
-        matchedProfileCount: matchedTeacherProfiles.length,
-      };
-    }),
+    items: extraCurricularActivitiesByGroup(group.id, db.customActivities)
+      .map((activity) => {
+        const teacherMatches = activityTeacherMatches(activity, db.teachers);
+        const matchedTeacherProfiles = matchedActivityTeacherProfiles(teacherMatches);
+        const galleryAlbums = activityGalleryAlbums(activity, db.gallery);
+        return {
+          activity,
+          icon: extraCurricularActivityIcon(activity),
+          matchedTeacherProfiles,
+          galleryAlbums,
+          galleryPhotoCount: activityGalleryImages(galleryAlbums).length,
+          matchedProfileCount: matchedTeacherProfiles.length,
+        };
+      })
+      .filter(({ activity, matchedTeacherProfiles }) => {
+        if (!searchKey) return true;
+        return normalizeStaffTaxonomy(
+          [
+            activity.title,
+            activity.note,
+            group.title,
+            group.description,
+            ...(activity.teachers || []),
+            ...matchedTeacherProfiles.map((match) => match.teacherName),
+          ]
+            .filter(Boolean)
+            .join(" "),
+        ).includes(searchKey);
+      }),
   })).filter((group) => group.items.length > 0);
+  const visibleActivityCount = groups.reduce((count, group) => count + group.items.length, 0);
   return (
     <PublicLayout>
       <PageHeader
@@ -4991,6 +5041,21 @@ function SportsClubsPage() {
                 Open a category below to view dedicated activity pages with assigned
                 teacher-in-charge profiles, club logos, and achievement galleries.
               </p>
+              <div className="relative mt-7 max-w-xl">
+                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
+                <input
+                  value={searchTerm}
+                  onChange={(event) => setSearchTerm(event.target.value)}
+                  placeholder="Search clubs, societies, sports, or teachers"
+                  className="h-14 w-full rounded-2xl border border-[#d9e4f2] bg-white pl-12 pr-4 text-sm font-semibold text-navy shadow-soft outline-none transition-smooth focus:border-gold"
+                />
+              </div>
+              {searchKey && (
+                <p className="mt-3 text-sm font-semibold text-slate-500">
+                  Showing {visibleActivityCount} result{visibleActivityCount === 1 ? "" : "s"} for
+                  "{searchTerm.trim()}"
+                </p>
+              )}
               <div className="mt-7 flex flex-wrap gap-3">
                 {groups.map((group) => {
                   const Icon = group.icon;
@@ -5009,6 +5074,11 @@ function SportsClubsPage() {
             </div>
           </div>
         </div>
+        {groups.length === 0 && (
+          <div className="mt-8 rounded-[24px] border border-dashed border-[#dbe5f1] bg-white p-8 text-sm font-semibold leading-7 text-slate-500 shadow-soft">
+            No club, society, sport, or activity matches this search.
+          </div>
+        )}
         {groups.map((group) => {
           const GroupIcon = group.icon;
           return (
@@ -5144,7 +5214,7 @@ function SportsClubsPage() {
 function SportsClubsActivityPage({ activityId }: { activityId: string }) {
   const db = useDb();
   const page = db.pages["sports-clubs"];
-  const activity = extraCurricularActivityById(activityId);
+  const activity = extraCurricularActivityById(activityId, db.customActivities);
 
   if (!activity) {
     return (
@@ -5176,7 +5246,10 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
   const galleryAlbums = activityGalleryAlbums(activity, db.gallery);
   const galleryImages = activityGalleryImages(galleryAlbums);
   const logoImage = activityGalleryLogo(galleryAlbums);
-  const relatedActivities = extraCurricularActivitiesByGroup(activity.groupId).filter(
+  const relatedActivities = extraCurricularActivitiesByGroup(
+    activity.groupId,
+    db.customActivities,
+  ).filter(
     (item) => item.id !== activity.id,
   );
   const previewTeachers = activityTeacherPreview(activity, 3, matchedTeacherProfiles);
@@ -5289,67 +5362,6 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
               </article>
             </div>
           </div>
-        </div>
-      </section>
-
-      <section className="bg-white py-16">
-        <div className="mx-auto max-w-7xl px-6">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-            Teacher Profiles
-          </p>
-          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-            Public profiles for this activity
-          </h2>
-          {matchedTeacherProfiles.length ? (
-            <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {matchedTeacherProfiles.map(({ teacherName, staff }) => (
-                <article
-                  key={`${activity.id}-${activityTeacherProfileKey(staff)}`}
-                  className="group overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
-                >
-                  <div className={`h-20 bg-gradient-to-r ${groupTheme.panelClass}`} />
-                  <div className="-mt-10 px-6 pb-6">
-                    <div className="flex items-end justify-between gap-3">
-                      <img
-                        src={staff.image || "/loyola-crest.jpg"}
-                        alt={teacherName}
-                        className="h-24 w-24 rounded-[24px] border-4 border-white bg-slate-100 object-cover shadow-soft"
-                      />
-                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
-                        Matched Profile
-                      </span>
-                    </div>
-                    <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                      Teacher In Charge
-                    </p>
-                    <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
-                      {teacherName}
-                    </h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-500">
-                      {staff.position || staff.subject || staff.type || "Public staff profile"}
-                    </p>
-                    {staff.qualifications && (
-                      <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate-600">
-                        {staff.qualifications}
-                      </p>
-                    )}
-                    <a
-                      href={`/staff/${publicStaffSlug(staff.slug || staff.name || teacherName)}`}
-                      className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-bold text-navy shadow-soft transition-smooth hover:-translate-y-0.5 hover:border-gold"
-                    >
-                      <Eye className="h-4 w-4 text-gold" />
-                      View Staff Profile
-                    </a>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-8 rounded-lg border border-border bg-white p-5 text-sm leading-6 text-slate-500 shadow-soft">
-              No staff profiles are assigned to this activity yet. Add the matching extra activity
-              position code in staff management to show teachers here.
-            </p>
-          )}
         </div>
       </section>
 

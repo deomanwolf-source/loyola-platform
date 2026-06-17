@@ -11,6 +11,7 @@ export type ExtraCurricularActivity = {
   teachers: string[];
   note?: string;
   positionCodes?: string[];
+  visible?: boolean;
 };
 
 export const EXTRA_CURRICULAR_SOURCE_FILE =
@@ -626,10 +627,76 @@ export const EXTRA_CURRICULAR_HOME_FEATURED_IDS = [
   "scouts",
 ];
 
-export function extraCurricularActivityById(id: string) {
-  return EXTRA_CURRICULAR_ACTIVITIES.find((activity) => activity.id === id) || null;
+const EXTRA_CURRICULAR_GROUP_IDS = new Set(EXTRA_CURRICULAR_GROUPS.map((group) => group.id));
+
+export function extraCurricularActivitySlug(value: string) {
+  const slug = value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
+  return slug || "activity";
 }
 
-export function extraCurricularActivitiesByGroup(groupId: string) {
-  return EXTRA_CURRICULAR_ACTIVITIES.filter((activity) => activity.groupId === groupId);
+function normalizeCustomActivity(
+  activity: Partial<ExtraCurricularActivity> | null | undefined,
+): ExtraCurricularActivity | null {
+  const title = typeof activity?.title === "string" ? activity.title.trim() : "";
+  if (!title) return null;
+
+  const id =
+    typeof activity?.id === "string" && activity.id.trim()
+      ? extraCurricularActivitySlug(activity.id)
+      : `custom-${extraCurricularActivitySlug(title)}`;
+  const groupId =
+    typeof activity?.groupId === "string" && EXTRA_CURRICULAR_GROUP_IDS.has(activity.groupId)
+      ? activity.groupId
+      : "clubs-and-societies";
+  const teachers = Array.isArray(activity?.teachers)
+    ? activity.teachers.map((teacher) => String(teacher || "").trim()).filter(Boolean)
+    : [];
+  const positionCodes = Array.isArray(activity?.positionCodes)
+    ? activity.positionCodes.map((code) => String(code || "").trim()).filter(Boolean)
+    : [];
+
+  return {
+    id,
+    groupId,
+    title,
+    teachers,
+    note: typeof activity?.note === "string" ? activity.note.trim() : "",
+    positionCodes,
+    visible: activity?.visible !== false,
+  };
+}
+
+export function extraCurricularActivities(
+  customActivities: Partial<ExtraCurricularActivity>[] = [],
+) {
+  const builtInIds = new Set(EXTRA_CURRICULAR_ACTIVITIES.map((activity) => activity.id));
+  const custom = customActivities
+    .map(normalizeCustomActivity)
+    .filter((activity): activity is ExtraCurricularActivity => Boolean(activity))
+    .filter((activity) => activity.visible !== false && !builtInIds.has(activity.id));
+
+  const seen = new Set<string>();
+  return [...EXTRA_CURRICULAR_ACTIVITIES, ...custom].filter((activity) => {
+    if (seen.has(activity.id)) return false;
+    seen.add(activity.id);
+    return true;
+  });
+}
+
+export function extraCurricularActivityById(
+  id: string,
+  customActivities: Partial<ExtraCurricularActivity>[] = [],
+) {
+  return extraCurricularActivities(customActivities).find((activity) => activity.id === id) || null;
+}
+
+export function extraCurricularActivitiesByGroup(
+  groupId: string,
+  customActivities: Partial<ExtraCurricularActivity>[] = [],
+) {
+  return extraCurricularActivities(customActivities).filter((activity) => activity.groupId === groupId);
 }
