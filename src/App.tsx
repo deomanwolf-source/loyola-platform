@@ -4622,6 +4622,12 @@ function teacherHasActivityPositionCode(activity: ExtraCurricularActivity, teach
   return activityStaffPositionCodes(teacher).some((code) => activityCodes.has(code));
 }
 
+function matchedActivityTeacherProfiles(matches: ActivityTeacherMatch[]) {
+  return matches.filter((match): match is ActivityTeacherMatch & { staff: Teacher } =>
+    Boolean(match.staff),
+  );
+}
+
 function activityTeacherMatches(activity: ExtraCurricularActivity, teachers: Teacher[]) {
   const staffIndex = new Map<string, Teacher>();
   teachers.forEach((teacher) => {
@@ -4919,20 +4925,23 @@ function SportsClubsPage() {
     theme: extraCurricularGroupTheme(group.id),
     items: extraCurricularActivitiesByGroup(group.id).map((activity) => {
       const teacherMatches = activityTeacherMatches(activity, db.teachers);
+      const matchedTeacherProfiles = matchedActivityTeacherProfiles(teacherMatches);
       const matchedEvents = activityEvents(activity, db.events);
       return {
         activity,
         icon: extraCurricularActivityIcon(activity),
-        teacherMatches,
+        matchedTeacherProfiles,
         matchedEvents,
-        matchedProfileCount: teacherMatches.filter((item) => item.staff).length,
+        matchedProfileCount: matchedTeacherProfiles.length,
       };
     }),
   })).filter((group) => group.items.length > 0);
   const activityCount = groups.reduce((total, group) => total + group.items.length, 0);
   const teacherCount = new Set(
     groups.flatMap((group) =>
-      group.items.flatMap(({ teacherMatches }) => teacherMatches.map((match) => match.teacherName)),
+      group.items.flatMap(({ matchedTeacherProfiles }) =>
+        matchedTeacherProfiles.map((match) => match.teacherName),
+      ),
     ),
   ).size;
   const matchedProfileCount = groups.reduce(
@@ -5016,10 +5025,10 @@ function SportsClubsPage() {
                 <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
                   <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
                     <Users className="h-4 w-4 text-gold" />
-                    Named Teachers
+                    Matched Teachers
                   </p>
                   <p className="mt-4 font-serif text-4xl font-bold text-navy">{teacherCount}</p>
-                  <p className="mt-2 text-sm text-slate-500">Teachers in charge listed</p>
+                  <p className="mt-2 text-sm text-slate-500">Assigned by staff position codes</p>
                 </article>
                 <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
                   <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -5078,13 +5087,13 @@ function SportsClubsPage() {
                       className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}
                     >
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                        Named Teachers
+                        Matched Teachers
                       </p>
                       <p className="mt-3 font-serif text-3xl font-bold text-navy">
                         {
                           new Set(
-                            group.items.flatMap(({ teacherMatches }) =>
-                              teacherMatches.map((match) => match.teacherName),
+                            group.items.flatMap(({ matchedTeacherProfiles }) =>
+                              matchedTeacherProfiles.map((match) => match.teacherName),
                             ),
                           ).size
                         }
@@ -5098,12 +5107,16 @@ function SportsClubsPage() {
                   ({
                     activity,
                     icon: Icon,
-                    teacherMatches,
+                    matchedTeacherProfiles,
                     matchedEvents,
                     matchedProfileCount,
                   }) => {
-                    const teacherPreview = activityTeacherPreview(activity, 3, teacherMatches);
-                    const teacherCount = teacherMatches.length;
+                    const teacherPreview = activityTeacherPreview(
+                      activity,
+                      3,
+                      matchedTeacherProfiles,
+                    );
+                    const teacherCount = matchedTeacherProfiles.length;
                     return (
                       <article
                         key={activity.id}
@@ -5226,11 +5239,12 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
   const groupTheme = extraCurricularGroupTheme(activity.groupId);
   const ActivityIcon = extraCurricularActivityIcon(activity);
   const teacherProfiles = activityTeacherMatches(activity, db.teachers);
+  const matchedTeacherProfiles = matchedActivityTeacherProfiles(teacherProfiles);
   const matchedEvents = activityEvents(activity, db.events);
   const relatedActivities = extraCurricularActivitiesByGroup(activity.groupId).filter(
     (item) => item.id !== activity.id,
   );
-  const previewTeachers = activityTeacherPreview(activity, 3, teacherProfiles);
+  const previewTeachers = activityTeacherPreview(activity, 3, matchedTeacherProfiles);
 
   return (
     <PublicLayout>
@@ -5284,11 +5298,11 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                     {teacherName}
                   </span>
                 ))}
-                {teacherProfiles.length > previewTeachers.length && (
+                {matchedTeacherProfiles.length > previewTeachers.length && (
                   <span
                     className={`rounded-full px-4 py-2 text-sm font-semibold shadow-soft ${groupTheme.pillClass}`}
                   >
-                    +{teacherProfiles.length - previewTeachers.length} more teachers
+                    +{matchedTeacherProfiles.length - previewTeachers.length} more teachers
                   </span>
                 )}
               </div>
@@ -5319,9 +5333,9 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                   Teachers In Charge
                 </p>
                 <p className="mt-4 font-serif text-4xl font-bold text-navy">
-                  {teacherProfiles.length}
+                  {matchedTeacherProfiles.length}
                 </p>
-                <p className="mt-2 text-sm text-slate-500">Listed on this activity page</p>
+                <p className="mt-2 text-sm text-slate-500">Matched from staff positions</p>
               </article>
               <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
                 <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
@@ -5329,7 +5343,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                   Matched Profiles
                 </p>
                 <p className="mt-4 font-serif text-4xl font-bold text-navy">
-                  {teacherProfiles.filter((item) => item.staff).length}
+                  {matchedTeacherProfiles.length}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">Public staff photos available</p>
               </article>
@@ -5356,55 +5370,39 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
           <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
             Public profiles for this activity
           </h2>
-          <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {teacherProfiles.map(({ teacherName, staff }) => (
-              <article
-                key={`${activity.id}-${teacherName}`}
-                className="group overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
-              >
-                <div className={`h-20 bg-gradient-to-r ${groupTheme.panelClass}`} />
-                <div className="-mt-10 px-6 pb-6">
-                  <div className="flex items-end justify-between gap-3">
-                    {staff?.image ? (
+          {matchedTeacherProfiles.length ? (
+            <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {matchedTeacherProfiles.map(({ teacherName, staff }) => (
+                <article
+                  key={`${activity.id}-${activityTeacherProfileKey(staff)}`}
+                  className="group overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
+                >
+                  <div className={`h-20 bg-gradient-to-r ${groupTheme.panelClass}`} />
+                  <div className="-mt-10 px-6 pb-6">
+                    <div className="flex items-end justify-between gap-3">
                       <img
-                        src={staff.image}
+                        src={staff.image || "/loyola-crest.jpg"}
                         alt={teacherName}
-                        className="h-24 w-24 rounded-[24px] border-4 border-white object-cover shadow-soft"
+                        className="h-24 w-24 rounded-[24px] border-4 border-white bg-slate-100 object-cover shadow-soft"
                       />
-                    ) : (
-                      <div className="grid h-24 w-24 place-items-center rounded-[24px] border-4 border-white bg-slate-100 text-slate-500 shadow-soft">
-                        <Users className="h-9 w-9" />
-                      </div>
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                        Matched Profile
+                      </span>
+                    </div>
+                    <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                      Teacher In Charge
+                    </p>
+                    <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
+                      {teacherName}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {staff.position || staff.subject || staff.type || "Public staff profile"}
+                    </p>
+                    {staff.qualifications && (
+                      <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate-600">
+                        {staff.qualifications}
+                      </p>
                     )}
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${
-                        staff
-                          ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                          : "border border-amber-200 bg-amber-50 text-amber-700"
-                      }`}
-                    >
-                      {staff ? "Matched Profile" : "Name Listed"}
-                    </span>
-                  </div>
-                  <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                    Teacher In Charge
-                  </p>
-                  <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
-                    {teacherName}
-                  </h3>
-                  <p className="mt-2 text-sm leading-6 text-slate-500">
-                    {staff?.position || staff?.subject || staff?.type || "Public staff profile"}
-                  </p>
-                  {staff?.qualifications ? (
-                    <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate-600">
-                      {staff.qualifications}
-                    </p>
-                  ) : (
-                    <p className="mt-4 text-sm leading-7 text-slate-500">
-                      Profile information is limited for this teacher on the public website.
-                    </p>
-                  )}
-                  {staff ? (
                     <a
                       href={`/staff/${publicStaffSlug(staff.slug || staff.name || teacherName)}`}
                       className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-bold text-navy shadow-soft transition-smooth hover:-translate-y-0.5 hover:border-gold"
@@ -5412,16 +5410,16 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                       <Eye className="h-4 w-4 text-gold" />
                       View Staff Profile
                     </a>
-                  ) : (
-                    <p className="mt-5 flex items-center gap-2 text-sm leading-6 text-slate-500">
-                      <CheckCircle2 className="h-4 w-4 text-gold" />
-                      No public staff profile photo was matched for this name yet.
-                    </p>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-8 rounded-lg border border-border bg-white p-5 text-sm leading-6 text-slate-500 shadow-soft">
+              No staff profiles are assigned to this activity yet. Add the matching extra activity
+              position code in staff management to show teachers here.
+            </p>
+          )}
         </div>
       </section>
 
@@ -5516,7 +5514,9 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
             <div className="stagger-children mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {relatedActivities.slice(0, 6).map((item) => {
                 const RelatedIcon = extraCurricularActivityIcon(item);
-                const relatedTeacherProfiles = activityTeacherMatches(item, db.teachers);
+                const relatedTeacherProfiles = matchedActivityTeacherProfiles(
+                  activityTeacherMatches(item, db.teachers),
+                );
                 const preview = activityTeacherPreview(item, 2, relatedTeacherProfiles);
                 return (
                   <a
