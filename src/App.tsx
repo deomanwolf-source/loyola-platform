@@ -734,12 +734,7 @@ const collegeDepartments: CollegeDepartment[] = [
       hours: "School finance office hours",
       email: "loyolacollege.negombo@hotmail.com",
     },
-    staffDepartments: [
-      "finance",
-      "finance department",
-      "financial department",
-      "accounts",
-    ],
+    staffDepartments: ["finance", "finance department", "financial department", "accounts"],
   },
   {
     id: `${COLLEGE_DEPARTMENT_BASE_ID}/it-department`,
@@ -1805,9 +1800,7 @@ function PastRectorsPage({ pageId = "about/college-history" }: { pageId?: string
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
               Legacy Wall
             </p>
-            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
-              Former Leadership
-            </h2>
+            <h2 className="mt-3 font-serif text-3xl font-bold text-navy">Former Leadership</h2>
             <div className="mt-6 overflow-hidden rounded-lg border border-border bg-white">
               <img
                 src="/assets/past-rectors/past-rectors-collage.jpeg"
@@ -1979,7 +1972,8 @@ function HomeRequiredSections() {
   };
   const clubSummary = (activity: ExtraCurricularActivity) => {
     if (activity.teachers.length >= 3) return `${activity.teachers.length} teachers in charge`;
-    if (activity.teachers.length === 2) return `${activity.teachers[0]} and ${activity.teachers[1]}`;
+    if (activity.teachers.length === 2)
+      return `${activity.teachers[0]} and ${activity.teachers[1]}`;
     if (activity.teachers.length === 1) return activity.teachers[0];
     return activity.note || "Teacher list on Sports & Clubs page";
   };
@@ -3654,7 +3648,10 @@ function departmentMembersFromStaff(teachers: Teacher[], department: CollegeDepa
     .filter((staff) => (staff.status || "Active").toLowerCase() === "active")
     .forEach((staff) => {
       const position = departmentMemberPositionForStaff(staff, department);
-      if (!position && (department.memberPositionCodes?.length || !staffMatchesDepartment(staff, department))) {
+      if (
+        !position &&
+        (department.memberPositionCodes?.length || !staffMatchesDepartment(staff, department))
+      ) {
         return;
       }
       const profileId = staff.staffId || staff.id.split("__")[0] || staff.email || staff.name;
@@ -4362,9 +4359,7 @@ function JobVacanciesPage() {
                       </div>
                       <span
                         className={`rounded-full px-3 py-1 text-xs font-bold ${
-                          isOpen
-                            ? "bg-emerald-100 text-emerald-800"
-                            : "bg-slate-200 text-slate-700"
+                          isOpen ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"
                         }`}
                       >
                         {vacancy.status}
@@ -4573,7 +4568,9 @@ function extraCurricularActivityHref(activityId: string) {
 }
 
 function publicStaffSlug(value: string) {
-  return normalizeStaffTaxonomy(value).replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return normalizeStaffTaxonomy(value)
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
 
 function normalizeTeacherLookupName(value: string) {
@@ -4582,6 +4579,47 @@ function normalizeTeacherLookupName(value: string) {
     .filter(Boolean)
     .filter((part) => !EXTRA_CURRICULAR_NAME_TITLES.has(part))
     .join(" ");
+}
+
+type ActivityTeacherMatch = {
+  teacherName: string;
+  staff: Teacher | null;
+  source: "document" | "position-code";
+};
+
+function activityTeacherNameKey(value: string) {
+  return normalizeTeacherLookupName(value) || normalizeStaffTaxonomy(value);
+}
+
+function activityTeacherProfileKey(teacher: Teacher) {
+  return teacher.staffId || teacher.id.split("__")[0] || teacher.slug || teacher.name;
+}
+
+function activityStaffPositionCodes(teacher: Teacher) {
+  const codes: string[] = [];
+  const positions = Array.isArray(teacher.positions) ? teacher.positions : [];
+
+  if (Array.isArray(teacher.positionCodes)) {
+    codes.push(...teacher.positionCodes);
+  }
+
+  positions
+    .filter(
+      (position) => position.visibleOnWebsite !== false && position.visible_on_website !== false,
+    )
+    .forEach((position) => {
+      codes.push(position.position_code || "", position.positionCode || "");
+    });
+
+  return [...new Set(codes.map(normalizePositionCode).filter(Boolean))];
+}
+
+function teacherHasActivityPositionCode(activity: ExtraCurricularActivity, teacher: Teacher) {
+  const activityCodes = new Set(
+    (activity.positionCodes || []).map(normalizePositionCode).filter(Boolean),
+  );
+  if (!activityCodes.size) return false;
+  return activityStaffPositionCodes(teacher).some((code) => activityCodes.has(code));
 }
 
 function activityTeacherMatches(activity: ExtraCurricularActivity, teachers: Teacher[]) {
@@ -4596,15 +4634,54 @@ function activityTeacherMatches(activity: ExtraCurricularActivity, teachers: Tea
     });
   });
 
-  return [...new Set(activity.teachers)]
+  const matches: ActivityTeacherMatch[] = [...new Set(activity.teachers)]
     .filter(Boolean)
     .map((teacherName) => {
       const match =
         staffIndex.get(normalizeTeacherLookupName(teacherName)) ||
         staffIndex.get(normalizeStaffTaxonomy(teacherName)) ||
         null;
-      return { teacherName, staff: match };
+      return { teacherName, staff: match, source: "document" };
     });
+
+  const matchesByName = new Map(
+    matches
+      .map((match) => [activityTeacherNameKey(match.teacherName), match] as const)
+      .filter(([key]) => Boolean(key)),
+  );
+  const matchedStaffKeys = new Set(
+    matches
+      .map((match) => (match.staff ? activityTeacherProfileKey(match.staff) : ""))
+      .filter(Boolean),
+  );
+
+  teachers.forEach((teacher) => {
+    if (!teacherHasActivityPositionCode(activity, teacher)) return;
+    const staffKey = activityTeacherProfileKey(teacher);
+    const nameKey = activityTeacherNameKey(teacher.name || "");
+    const existingNameMatch = nameKey ? matchesByName.get(nameKey) : undefined;
+
+    if (existingNameMatch) {
+      if (!existingNameMatch.staff) existingNameMatch.staff = teacher;
+      matchedStaffKeys.add(staffKey);
+      return;
+    }
+
+    if (matchedStaffKeys.has(staffKey)) return;
+
+    const teacherName = teacher.name || staffKey;
+    const match: ActivityTeacherMatch = {
+      teacherName,
+      staff: teacher,
+      source: "position-code",
+    };
+    matches.push(match);
+    matchedStaffKeys.add(staffKey);
+    const newNameKey = activityTeacherNameKey(teacherName);
+    if (newNameKey) matchesByName.set(newNameKey, match);
+  });
+
+  return matches;
 }
 
 function activityEventKeywords(activity: ExtraCurricularActivity) {
@@ -4620,7 +4697,7 @@ function activityEventKeywords(activity: ExtraCurricularActivity) {
     "bible-association": ["bible", "religious", "faith"],
     "liturgical-committee": ["liturgical", "liturgy", "altar"],
     "altar-servers-association": ["altar", "servers", "liturgy"],
-    "scouts": ["scout", "scouts", "camp"],
+    scouts: ["scout", "scouts", "camp"],
     "cub-scouts": ["cub scout", "cub scouts", "scout"],
     "singithi-scouts": ["singithi scout", "singithi scouts", "scout"],
     athletics: ["athletic", "athletics", "sports meet"],
@@ -4669,8 +4746,11 @@ function activityEvents(activity: ExtraCurricularActivity, events: EventItem[]) 
   });
 }
 
-function activitySummary(activity: ExtraCurricularActivity) {
-  const teacherCount = activity.teachers.length;
+function activitySummary(
+  activity: ExtraCurricularActivity,
+  teacherMatches?: ActivityTeacherMatch[],
+) {
+  const teacherCount = teacherMatches?.length ?? activity.teachers.length;
   if (activity.note && teacherCount) {
     return `${activity.note} | ${teacherCount} teacher${teacherCount === 1 ? "" : "s"} in charge`;
   }
@@ -4751,11 +4831,7 @@ function extraCurricularGroupTheme(groupId: string) {
 function extraCurricularActivityIcon(activity: ExtraCurricularActivity): LucideIcon {
   const label = normalizeStaffTaxonomy(`${activity.title} ${activity.note || ""} ${activity.id}`);
 
-  if (
-    label.includes("photography") ||
-    label.includes("media") ||
-    label.includes("broadcasting")
-  ) {
+  if (label.includes("photography") || label.includes("media") || label.includes("broadcasting")) {
     return Camera;
   }
   if (
@@ -4816,8 +4892,15 @@ function extraCurricularActivityIcon(activity: ExtraCurricularActivity): LucideI
   return extraCurricularGroupIcon(activity.groupId);
 }
 
-function activityTeacherPreview(activity: ExtraCurricularActivity, limit = 3) {
-  return [...new Set(activity.teachers)].filter(Boolean).slice(0, limit);
+function activityTeacherPreview(
+  activity: ExtraCurricularActivity,
+  limit = 3,
+  teacherMatches?: ActivityTeacherMatch[],
+) {
+  const names = teacherMatches
+    ? teacherMatches.map((match) => match.teacherName)
+    : activity.teachers;
+  return [...new Set(names)].filter(Boolean).slice(0, limit);
 }
 
 function activityLeadText(activity: ExtraCurricularActivity) {
@@ -4840,6 +4923,7 @@ function SportsClubsPage() {
       return {
         activity,
         icon: extraCurricularActivityIcon(activity),
+        teacherMatches,
         matchedEvents,
         matchedProfileCount: teacherMatches.filter((item) => item.staff).length,
       };
@@ -4847,7 +4931,9 @@ function SportsClubsPage() {
   })).filter((group) => group.items.length > 0);
   const activityCount = groups.reduce((total, group) => total + group.items.length, 0);
   const teacherCount = new Set(
-    groups.flatMap((group) => group.items.flatMap(({ activity }) => activity.teachers)),
+    groups.flatMap((group) =>
+      group.items.flatMap(({ teacherMatches }) => teacherMatches.map((match) => match.teacherName)),
+    ),
   ).size;
   const matchedProfileCount = groups.reduce(
     (total, group) =>
@@ -4960,7 +5046,9 @@ function SportsClubsPage() {
               >
                 <div className="flex flex-wrap items-start justify-between gap-6">
                   <div className="flex max-w-4xl items-start gap-4">
-                    <span className={`grid h-16 w-16 shrink-0 place-items-center rounded-3xl shadow-soft ${group.theme.iconClass}`}>
+                    <span
+                      className={`grid h-16 w-16 shrink-0 place-items-center rounded-3xl shadow-soft ${group.theme.iconClass}`}
+                    >
                       <GroupIcon className="h-7 w-7" />
                     </span>
                     <div>
@@ -4976,7 +5064,9 @@ function SportsClubsPage() {
                     </div>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <article className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}>
+                    <article
+                      className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}
+                    >
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                         Activities
                       </p>
@@ -4984,93 +5074,117 @@ function SportsClubsPage() {
                         {group.items.length}
                       </p>
                     </article>
-                    <article className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}>
+                    <article
+                      className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}
+                    >
                       <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                         Named Teachers
                       </p>
                       <p className="mt-3 font-serif text-3xl font-bold text-navy">
-                        {new Set(group.items.flatMap(({ activity }) => activity.teachers)).size}
+                        {
+                          new Set(
+                            group.items.flatMap(({ teacherMatches }) =>
+                              teacherMatches.map((match) => match.teacherName),
+                            ),
+                          ).size
+                        }
                       </p>
                     </article>
                   </div>
                 </div>
               </div>
               <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                {group.items.map(({ activity, icon: Icon, matchedEvents, matchedProfileCount }) => {
-                  const teacherPreview = activityTeacherPreview(activity);
-                  return (
-                    <article
-                      key={activity.id}
-                      id={activity.id}
-                      className="group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[#dbe4f0] bg-white p-6 shadow-[0_18px_50px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
-                    >
-                      <div className={`absolute right-0 top-0 h-28 w-28 rounded-bl-[32px] opacity-70 ${group.theme.glowClass}`} />
-                      <div className="relative flex items-start justify-between gap-4">
-                        <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl shadow-soft ${group.theme.iconClass}`}>
-                          <Icon className="h-5 w-5" />
-                        </span>
-                        <div className="flex flex-wrap justify-end gap-2">
-                          {activity.note && (
+                {group.items.map(
+                  ({
+                    activity,
+                    icon: Icon,
+                    teacherMatches,
+                    matchedEvents,
+                    matchedProfileCount,
+                  }) => {
+                    const teacherPreview = activityTeacherPreview(activity, 3, teacherMatches);
+                    const teacherCount = teacherMatches.length;
+                    return (
+                      <article
+                        key={activity.id}
+                        id={activity.id}
+                        className="group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[#dbe4f0] bg-white p-6 shadow-[0_18px_50px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
+                      >
+                        <div
+                          className={`absolute right-0 top-0 h-28 w-28 rounded-bl-[32px] opacity-70 ${group.theme.glowClass}`}
+                        />
+                        <div className="relative flex items-start justify-between gap-4">
+                          <span
+                            className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl shadow-soft ${group.theme.iconClass}`}
+                          >
+                            <Icon className="h-5 w-5" />
+                          </span>
+                          <div className="flex flex-wrap justify-end gap-2">
+                            {activity.note && (
+                              <span
+                                className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${group.theme.pillClass}`}
+                              >
+                                {activity.note}
+                              </span>
+                            )}
+                            <span className="rounded-full border border-[#d9e1ef] bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                              {teacherCount} {teacherCount === 1 ? "Teacher" : "Teachers"}
+                            </span>
+                          </div>
+                        </div>
+                        <h3 className="relative mt-6 font-serif text-[2rem] font-bold leading-tight text-navy">
+                          {activity.title}
+                        </h3>
+                        <p className="relative mt-3 text-sm leading-7 text-slate-600">
+                          {activityLeadText(activity)}
+                        </p>
+                        <div className="relative mt-5 flex flex-wrap gap-2">
+                          {teacherPreview.map((teacherName) => (
                             <span
-                              className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${group.theme.pillClass}`}
+                              key={`${activity.id}-${teacherName}`}
+                              className="rounded-full bg-[#f7f8fb] px-3 py-1.5 text-xs font-semibold text-slate-600"
                             >
-                              {activity.note}
+                              {teacherName}
+                            </span>
+                          ))}
+                          {teacherCount > teacherPreview.length && (
+                            <span
+                              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${group.theme.pillClass}`}
+                            >
+                              +{teacherCount - teacherPreview.length} more
                             </span>
                           )}
-                          <span className="rounded-full border border-[#d9e1ef] bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                            {activity.teachers.length}{" "}
-                            {activity.teachers.length === 1 ? "Teacher" : "Teachers"}
-                          </span>
                         </div>
-                      </div>
-                      <h3 className="relative mt-6 font-serif text-[2rem] font-bold leading-tight text-navy">
-                        {activity.title}
-                      </h3>
-                      <p className="relative mt-3 text-sm leading-7 text-slate-600">
-                        {activityLeadText(activity)}
-                      </p>
-                      <div className="relative mt-5 flex flex-wrap gap-2">
-                        {teacherPreview.map((teacherName) => (
-                          <span
-                            key={`${activity.id}-${teacherName}`}
-                            className="rounded-full bg-[#f7f8fb] px-3 py-1.5 text-xs font-semibold text-slate-600"
-                          >
-                            {teacherName}
-                          </span>
-                        ))}
-                        {activity.teachers.length > teacherPreview.length && (
-                          <span
-                            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${group.theme.pillClass}`}
-                          >
-                            +{activity.teachers.length - teacherPreview.length} more
-                          </span>
-                        )}
-                      </div>
-                      <div className="relative mt-6 grid grid-cols-2 gap-3">
-                        <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
-                          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                            <Calendar className="h-4 w-4 text-gold" />
-                            Related Events
-                          </p>
-                          <p className="mt-2 text-lg font-bold text-navy">{matchedEvents.length}</p>
+                        <div className="relative mt-6 grid grid-cols-2 gap-3">
+                          <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
+                            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                              <Calendar className="h-4 w-4 text-gold" />
+                              Related Events
+                            </p>
+                            <p className="mt-2 text-lg font-bold text-navy">
+                              {matchedEvents.length}
+                            </p>
+                          </div>
+                          <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
+                            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                              <Eye className="h-4 w-4 text-gold" />
+                              Public Profiles
+                            </p>
+                            <p className="mt-2 text-lg font-bold text-navy">
+                              {matchedProfileCount}
+                            </p>
+                          </div>
                         </div>
-                        <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
-                          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                            <Eye className="h-4 w-4 text-gold" />
-                            Public Profiles
-                          </p>
-                          <p className="mt-2 text-lg font-bold text-navy">{matchedProfileCount}</p>
-                        </div>
-                      </div>
-                      <a
-                        href={extraCurricularActivityHref(activity.id)}
-                        className="relative mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-navy px-5 py-3 text-sm font-bold text-white shadow-soft transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
-                      >
-                        View Activity Page <ArrowRight className="h-4 w-4" />
-                      </a>
-                    </article>
-                  );
-                })}
+                        <a
+                          href={extraCurricularActivityHref(activity.id)}
+                          className="relative mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-navy px-5 py-3 text-sm font-bold text-white shadow-soft transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+                        >
+                          View Activity Page <ArrowRight className="h-4 w-4" />
+                        </a>
+                      </article>
+                    );
+                  },
+                )}
               </div>
             </section>
           );
@@ -5116,7 +5230,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
   const relatedActivities = extraCurricularActivitiesByGroup(activity.groupId).filter(
     (item) => item.id !== activity.id,
   );
-  const previewTeachers = activityTeacherPreview(activity);
+  const previewTeachers = activityTeacherPreview(activity, 3, teacherProfiles);
 
   return (
     <PublicLayout>
@@ -5138,7 +5252,9 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
           <div className="grid gap-8 xl:grid-cols-[1.2fr_0.9fr]">
             <div>
               <div className="flex flex-wrap items-center gap-3">
-                <span className={`grid h-14 w-14 place-items-center rounded-3xl shadow-soft ${groupTheme.iconClass}`}>
+                <span
+                  className={`grid h-14 w-14 place-items-center rounded-3xl shadow-soft ${groupTheme.iconClass}`}
+                >
                   <ActivityIcon className="h-6 w-6" />
                 </span>
                 <span
@@ -5168,11 +5284,11 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                     {teacherName}
                   </span>
                 ))}
-                {activity.teachers.length > previewTeachers.length && (
+                {teacherProfiles.length > previewTeachers.length && (
                   <span
                     className={`rounded-full px-4 py-2 text-sm font-semibold shadow-soft ${groupTheme.pillClass}`}
                   >
-                    +{activity.teachers.length - previewTeachers.length} more teachers
+                    +{teacherProfiles.length - previewTeachers.length} more teachers
                   </span>
                 )}
               </div>
@@ -5203,7 +5319,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                   Teachers In Charge
                 </p>
                 <p className="mt-4 font-serif text-4xl font-bold text-navy">
-                  {activity.teachers.length}
+                  {teacherProfiles.length}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">Listed on this activity page</p>
               </article>
@@ -5341,7 +5457,9 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                     className="overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
                   >
                     <div className="flex items-start justify-between gap-4 border-b border-[#edf2f7] bg-[#fbfcfe] p-5">
-                      <span className={`grid h-12 w-12 place-items-center rounded-2xl shadow-soft ${groupTheme.iconClass}`}>
+                      <span
+                        className={`grid h-12 w-12 place-items-center rounded-2xl shadow-soft ${groupTheme.iconClass}`}
+                      >
                         <Calendar className="h-5 w-5" />
                       </span>
                       <div className="text-right">
@@ -5394,22 +5512,25 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
               More in {group?.title || "this group"}
             </p>
-            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-              Related activity pages
-            </h2>
+            <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Related activity pages</h2>
             <div className="stagger-children mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {relatedActivities.slice(0, 6).map((item) => {
                 const RelatedIcon = extraCurricularActivityIcon(item);
-                const preview = activityTeacherPreview(item, 2);
+                const relatedTeacherProfiles = activityTeacherMatches(item, db.teachers);
+                const preview = activityTeacherPreview(item, 2, relatedTeacherProfiles);
                 return (
                   <a
                     key={item.id}
                     href={extraCurricularActivityHref(item.id)}
                     className="group relative overflow-hidden rounded-[26px] border border-[#dde6f4] bg-white p-5 shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
                   >
-                    <div className={`absolute right-0 top-0 h-24 w-24 rounded-bl-[28px] opacity-70 ${groupTheme.glowClass}`} />
+                    <div
+                      className={`absolute right-0 top-0 h-24 w-24 rounded-bl-[28px] opacity-70 ${groupTheme.glowClass}`}
+                    />
                     <div className="relative flex items-start justify-between gap-3">
-                      <span className={`grid h-11 w-11 place-items-center rounded-2xl shadow-soft ${groupTheme.iconClass}`}>
+                      <span
+                        className={`grid h-11 w-11 place-items-center rounded-2xl shadow-soft ${groupTheme.iconClass}`}
+                      >
                         <RelatedIcon className="h-5 w-5" />
                       </span>
                       {item.note && (
@@ -5424,7 +5545,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                       {item.title}
                     </h3>
                     <p className="mt-2 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                      {activitySummary(item)}
+                      {activitySummary(item, relatedTeacherProfiles)}
                     </p>
                     <div className="relative mt-4 flex flex-wrap gap-2">
                       {preview.map((teacherName) => (
