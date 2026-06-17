@@ -38,8 +38,6 @@ import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrati
 import {
   EXTRA_CURRICULAR_GROUPS,
   EXTRA_CURRICULAR_HOME_FEATURED_IDS,
-  EXTRA_CURRICULAR_SOURCE_FILE,
-  EXTRA_CURRICULAR_SOURCE_TITLE,
   extraCurricularActivitiesByGroup,
   extraCurricularActivityById,
   type ExtraCurricularActivity,
@@ -4936,24 +4934,6 @@ function SportsClubsPage() {
       };
     }),
   })).filter((group) => group.items.length > 0);
-  const activityCount = groups.reduce((total, group) => total + group.items.length, 0);
-  const teacherCount = new Set(
-    groups.flatMap((group) =>
-      group.items.flatMap(({ matchedTeacherProfiles }) =>
-        matchedTeacherProfiles.map((match) => match.teacherName),
-      ),
-    ),
-  ).size;
-  const matchedProfileCount = groups.reduce(
-    (total, group) =>
-      total + group.items.reduce((groupTotal, item) => groupTotal + item.matchedProfileCount, 0),
-    0,
-  );
-  const matchedEventCount = groups.reduce(
-    (total, group) =>
-      total + group.items.reduce((groupTotal, item) => groupTotal + item.matchedEvents.length, 0),
-    0,
-  );
   return (
     <PublicLayout>
       <PageHeader
@@ -4969,79 +4949,36 @@ function SportsClubsPage() {
       <section id="sports" className="mx-auto max-w-7xl px-6 py-20">
         <div className="overflow-hidden rounded-[32px] border border-[#dbe5f1] bg-white shadow-[0_24px_80px_-44px_rgba(10,22,40,0.5)]">
           <div className="bg-gradient-to-br from-[#f8fbff] via-white to-[#fff7ea] p-8 md:p-10">
-            <div className="grid gap-8 xl:grid-cols-[1.25fr_0.95fr]">
-              <div>
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="grid h-14 w-14 place-items-center rounded-3xl bg-[#edf4ff] text-[#234b93] shadow-soft">
-                    <Award className="h-6 w-6" />
-                  </span>
-                  <span className="rounded-full border border-[#d8e6ff] bg-white/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#234b93] shadow-soft">
-                    Teacher-In-Charge Directory
-                  </span>
-                </div>
-                <h2 className="mt-6 max-w-4xl font-serif text-4xl font-bold leading-tight text-navy md:text-5xl">
-                  Beautiful activity pages for clubs, societies, sports, and student leadership.
-                </h2>
-                <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-                  Browse each activity through a dedicated page with staff photos, teacher-in-charge
-                  profiles, and activity-related events instead of one long text-heavy listing.
-                </p>
-                <div className="mt-7 flex flex-wrap gap-3">
-                  {groups.map((group) => {
-                    const Icon = group.icon;
-                    return (
-                      <a
-                        key={group.id}
-                        href={`#${group.id}`}
-                        className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold shadow-soft ${group.theme.pillClass}`}
-                      >
-                        <Icon className="h-4 w-4" />
-                        {group.title}
-                      </a>
-                    );
-                  })}
-                </div>
-                <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
-                  Source: {EXTRA_CURRICULAR_SOURCE_TITLE} ({EXTRA_CURRICULAR_SOURCE_FILE})
-                </p>
+            <div className="max-w-5xl">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="grid h-14 w-14 place-items-center rounded-3xl bg-[#edf4ff] text-[#234b93] shadow-soft">
+                  <Award className="h-6 w-6" />
+                </span>
+                <span className="rounded-full border border-[#d8e6ff] bg-white/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#234b93] shadow-soft">
+                  Co-Curricular Directory
+                </span>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                    <BookOpen className="h-4 w-4 text-gold" />
-                    Activity Groups
-                  </p>
-                  <p className="mt-4 font-serif text-4xl font-bold text-navy">{groups.length}</p>
-                  <p className="mt-2 text-sm text-slate-500">Curated website sections</p>
-                </article>
-                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                    <Award className="h-4 w-4 text-gold" />
-                    Activity Pages
-                  </p>
-                  <p className="mt-4 font-serif text-4xl font-bold text-navy">{activityCount}</p>
-                  <p className="mt-2 text-sm text-slate-500">Separate public pages</p>
-                </article>
-                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                    <Users className="h-4 w-4 text-gold" />
-                    Matched Teachers
-                  </p>
-                  <p className="mt-4 font-serif text-4xl font-bold text-navy">{teacherCount}</p>
-                  <p className="mt-2 text-sm text-slate-500">Assigned by staff position codes</p>
-                </article>
-                <article className="rounded-[26px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
-                  <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                    <Calendar className="h-4 w-4 text-gold" />
-                    Linked Coverage
-                  </p>
-                  <p className="mt-4 font-serif text-4xl font-bold text-navy">
-                    {matchedProfileCount + matchedEventCount}
-                  </p>
-                  <p className="mt-2 text-sm text-slate-500">
-                    {matchedProfileCount} profile matches and {matchedEventCount} related events
-                  </p>
-                </article>
+              <h2 className="mt-6 max-w-4xl font-serif text-4xl font-bold leading-tight text-navy md:text-5xl">
+                Activities, clubs, societies, sports, and student leadership.
+              </h2>
+              <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
+                Open a category below to view dedicated activity pages with assigned
+                teacher-in-charge profiles and related event coverage.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                {groups.map((group) => {
+                  const Icon = group.icon;
+                  return (
+                    <a
+                      key={group.id}
+                      href={`#${group.id}`}
+                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold shadow-soft ${group.theme.pillClass}`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {group.title}
+                    </a>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -5071,34 +5008,6 @@ function SportsClubsPage() {
                         {group.description}
                       </p>
                     </div>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <article
-                      className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}
-                    >
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                        Activities
-                      </p>
-                      <p className="mt-3 font-serif text-3xl font-bold text-navy">
-                        {group.items.length}
-                      </p>
-                    </article>
-                    <article
-                      className={`min-w-[180px] rounded-[22px] border p-4 shadow-soft ${group.theme.softCardClass}`}
-                    >
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
-                        Matched Teachers
-                      </p>
-                      <p className="mt-3 font-serif text-3xl font-bold text-navy">
-                        {
-                          new Set(
-                            group.items.flatMap(({ matchedTeacherProfiles }) =>
-                              matchedTeacherProfiles.map((match) => match.teacherName),
-                            ),
-                          ).size
-                        }
-                      </p>
-                    </article>
                   </div>
                 </div>
               </div>
@@ -5322,11 +5231,8 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                   View Events
                 </a>
               </div>
-              <p className="mt-6 text-xs font-medium uppercase tracking-[0.16em] text-slate-500">
-                Source: {EXTRA_CURRICULAR_SOURCE_TITLE}
-              </p>
             </div>
-            <div className="grid gap-4 sm:grid-cols-3 xl:grid-cols-1">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">
               <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
                 <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
                   <Users className="h-4 w-4 text-gold" />
@@ -5336,16 +5242,6 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                   {matchedTeacherProfiles.length}
                 </p>
                 <p className="mt-2 text-sm text-slate-500">Matched from staff positions</p>
-              </article>
-              <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
-                <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                  <Eye className="h-4 w-4 text-gold" />
-                  Matched Profiles
-                </p>
-                <p className="mt-4 font-serif text-4xl font-bold text-navy">
-                  {matchedTeacherProfiles.length}
-                </p>
-                <p className="mt-2 text-sm text-slate-500">Public staff photos available</p>
               </article>
               <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
                 <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
