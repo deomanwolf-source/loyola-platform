@@ -118,6 +118,8 @@ export interface GalleryItem {
   label: string;
   image: string;
   images?: string[];
+  activityId?: string;
+  logoImage?: string;
   videos?: GalleryVideo[];
   description?: string;
   link?: string;

@@ -4750,6 +4750,32 @@ function activityEvents(activity: ExtraCurricularActivity, events: EventItem[]) 
   });
 }
 
+function activityGalleryAlbums(activity: ExtraCurricularActivity, gallery: GalleryItem[]) {
+  const directMatches = gallery.filter(
+    (album) =>
+      album.visible !== false && normalizeStaffTaxonomy(album.activityId || "") === activity.id,
+  );
+  if (directMatches.length) return directMatches;
+
+  const keywords = activityEventKeywords(activity);
+  return gallery.filter((album) => {
+    if (album.visible === false) return false;
+    const haystack = normalizeStaffTaxonomy(
+      [album.id, album.label, album.description, album.link].filter(Boolean).join(" "),
+    );
+    return keywords.some((keyword) => haystack.includes(keyword));
+  });
+}
+
+function activityGalleryImages(albums: GalleryItem[]) {
+  return [...new Set(albums.flatMap((album) => albumImages(album)).filter(Boolean))];
+}
+
+function activityGalleryLogo(albums: GalleryItem[]) {
+  const logoAlbum = albums.find((album) => album.logoImage || album.image);
+  return logoAlbum?.logoImage || logoAlbum?.image || "";
+}
+
 function activitySummary(
   activity: ExtraCurricularActivity,
   teacherMatches?: ActivityTeacherMatch[],
@@ -4909,9 +4935,9 @@ function activityTeacherPreview(
 
 function activityLeadText(activity: ExtraCurricularActivity) {
   if (activity.note) {
-    return `${activity.note} activity page with teacher profiles, photos, and related events.`;
+    return `${activity.note} activity page with teacher profiles, gallery photos, and achievements.`;
   }
-  return "Dedicated activity page with teacher profiles, matched staff photos, and activity events.";
+  return "Dedicated activity page with teacher profiles, gallery photos, and achievements.";
 }
 
 function SportsClubsPage() {
@@ -4924,12 +4950,13 @@ function SportsClubsPage() {
     items: extraCurricularActivitiesByGroup(group.id).map((activity) => {
       const teacherMatches = activityTeacherMatches(activity, db.teachers);
       const matchedTeacherProfiles = matchedActivityTeacherProfiles(teacherMatches);
-      const matchedEvents = activityEvents(activity, db.events);
+      const galleryAlbums = activityGalleryAlbums(activity, db.gallery);
       return {
         activity,
         icon: extraCurricularActivityIcon(activity),
         matchedTeacherProfiles,
-        matchedEvents,
+        galleryAlbums,
+        galleryPhotoCount: activityGalleryImages(galleryAlbums).length,
         matchedProfileCount: matchedTeacherProfiles.length,
       };
     }),
@@ -4963,7 +4990,7 @@ function SportsClubsPage() {
               </h2>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
                 Open a category below to view dedicated activity pages with assigned
-                teacher-in-charge profiles and related event coverage.
+                teacher-in-charge profiles, club logos, and achievement galleries.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 {groups.map((group) => {
@@ -5017,7 +5044,7 @@ function SportsClubsPage() {
                     activity,
                     icon: Icon,
                     matchedTeacherProfiles,
-                    matchedEvents,
+                    galleryPhotoCount,
                     matchedProfileCount,
                   }) => {
                     const teacherPreview = activityTeacherPreview(
@@ -5080,12 +5107,10 @@ function SportsClubsPage() {
                         <div className="relative mt-6 grid grid-cols-2 gap-3">
                           <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
                             <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                              <Calendar className="h-4 w-4 text-gold" />
-                              Related Events
+                              <Images className="h-4 w-4 text-gold" />
+                              Gallery Photos
                             </p>
-                            <p className="mt-2 text-lg font-bold text-navy">
-                              {matchedEvents.length}
-                            </p>
+                            <p className="mt-2 text-lg font-bold text-navy">{galleryPhotoCount}</p>
                           </div>
                           <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
                             <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
@@ -5149,7 +5174,9 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
   const ActivityIcon = extraCurricularActivityIcon(activity);
   const teacherProfiles = activityTeacherMatches(activity, db.teachers);
   const matchedTeacherProfiles = matchedActivityTeacherProfiles(teacherProfiles);
-  const matchedEvents = activityEvents(activity, db.events);
+  const galleryAlbums = activityGalleryAlbums(activity, db.gallery);
+  const galleryImages = activityGalleryImages(galleryAlbums);
+  const logoImage = activityGalleryLogo(galleryAlbums);
   const relatedActivities = extraCurricularActivitiesByGroup(activity.groupId).filter(
     (item) => item.id !== activity.id,
   );
@@ -5163,8 +5190,8 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
         title={activity.title}
         subtitle={
           activity.note
-            ? `${activity.note}. Teacher profiles and event coverage for this activity.`
-            : "Teacher profiles and event coverage for this activity."
+            ? `${activity.note}. Teacher profiles, logo, and achievement gallery for this activity.`
+            : "Teacher profiles, logo, and achievement gallery for this activity."
         }
         image={page.image}
       />
@@ -5178,7 +5205,15 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                 <span
                   className={`grid h-14 w-14 place-items-center rounded-3xl shadow-soft ${groupTheme.iconClass}`}
                 >
-                  <ActivityIcon className="h-6 w-6" />
+                  {logoImage ? (
+                    <img
+                      src={logoImage}
+                      alt={`${activity.title} logo`}
+                      className="h-full w-full rounded-3xl object-cover"
+                    />
+                  ) : (
+                    <ActivityIcon className="h-6 w-6" />
+                  )}
                 </span>
                 <span
                   className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] shadow-soft ${groupTheme.pillClass}`}
@@ -5196,7 +5231,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
               </h2>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
                 {activityLeadText(activity)} This page connects the college activity listing with
-                public staff profiles and matching event coverage.
+                public staff profiles and an admin-managed gallery for photos and achievements.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {previewTeachers.map((teacherName) => (
@@ -5224,11 +5259,11 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                   Back to Directory
                 </a>
                 <a
-                  href="#activity-events"
+                  href="#activity-gallery"
                   className="inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white/90 px-5 py-3 text-sm font-bold text-navy shadow-soft transition-smooth hover:-translate-y-0.5 hover:border-gold"
                 >
-                  <Calendar className="h-4 w-4 text-gold" />
-                  View Events
+                  <Images className="h-4 w-4 text-gold" />
+                  View Gallery
                 </a>
               </div>
             </div>
@@ -5245,13 +5280,13 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
               </article>
               <article className="rounded-[24px] border border-[#dce7f8] bg-white/92 p-5 shadow-soft">
                 <p className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-slate-500">
-                  <Calendar className="h-4 w-4 text-gold" />
-                  Related Events
+                  <Images className="h-4 w-4 text-gold" />
+                  Gallery Photos
                 </p>
                 <p className="mt-4 font-serif text-4xl font-bold text-navy">
-                  {matchedEvents.length}
+                  {galleryImages.length}
                 </p>
-                <p className="mt-2 text-sm text-slate-500">Events matched from the public list</p>
+                <p className="mt-2 text-sm text-slate-500">Uploaded by website admins</p>
               </article>
             </div>
           </div>
@@ -5319,73 +5354,74 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
         </div>
       </section>
 
-      <section id="activity-events" className="bg-secondary/35 py-16">
+      <section id="activity-gallery" className="bg-secondary/35 py-16">
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-                Activity Events
+                Activity Gallery
               </p>
               <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-                Events matched to {activity.title}
+                Photos and achievements for {activity.title}
               </h2>
               <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-500">
-                Matching is based on titles, descriptions, and event categories related to this
-                activity.
+                Website admins can link a gallery album to this activity, upload a club logo, and
+                add event or achievement photos from the Media Library.
               </p>
             </div>
             <div
               className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold shadow-soft ${groupTheme.pillClass}`}
             >
-              <Calendar className="h-4 w-4" />
-              {matchedEvents.length} matched event{matchedEvents.length === 1 ? "" : "s"}
+              <Images className="h-4 w-4" />
+              {galleryImages.length} photo{galleryImages.length === 1 ? "" : "s"}
             </div>
           </div>
-          {matchedEvents.length ? (
+          {galleryAlbums.length ? (
             <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-              {matchedEvents.map((event) => {
-                const eventDate = new Date(event.date);
+              {galleryAlbums.map((album) => {
+                const images = albumImages(album);
+                const cover = album.logoImage || images[0] || "/loyola-crest.jpg";
                 return (
                   <article
-                    key={event.id}
+                    key={album.id}
                     className="overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
                   >
-                    <div className="flex items-start justify-between gap-4 border-b border-[#edf2f7] bg-[#fbfcfe] p-5">
-                      <span
-                        className={`grid h-12 w-12 place-items-center rounded-2xl shadow-soft ${groupTheme.iconClass}`}
-                      >
-                        <Calendar className="h-5 w-5" />
-                      </span>
-                      <div className="text-right">
-                        <p className="font-serif text-3xl font-bold text-navy">
-                          {Number.isNaN(eventDate.getTime()) ? "-" : eventDate.getDate()}
-                        </p>
-                        <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                          {Number.isNaN(eventDate.getTime())
-                            ? "Date"
-                            : eventDate.toLocaleString("en", { month: "short" })}
-                        </p>
-                      </div>
-                    </div>
+                    <a href={albumHref(album)} className="block overflow-hidden bg-[#fbfcfe]">
+                      <img
+                        src={cover}
+                        alt={album.label}
+                        className="aspect-video w-full object-cover transition-smooth hover:scale-105"
+                      />
+                    </a>
                     <div className="p-6">
-                      <h3 className="font-serif text-2xl font-bold leading-tight text-navy">
-                        {event.title}
+                      <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                        {images.length} photo{images.length === 1 ? "" : "s"}
+                      </p>
+                      <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
+                        {album.label}
                       </h3>
-                      <div className="mt-4 space-y-3 text-sm leading-6 text-slate-600">
-                        <p className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-gold" />
-                          {event.location || event.venue || "Loyola College campus"}
-                        </p>
-                        <p className="flex items-center gap-2">
-                          <Award className="h-4 w-4 text-gold" />
-                          {event.type || "College event"}
-                        </p>
-                      </div>
-                      {event.description && (
-                        <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate-500">
-                          {event.description}
+                      {album.description && (
+                        <p className="mt-3 line-clamp-3 text-sm leading-7 text-slate-500">
+                          {album.description}
                         </p>
                       )}
+                      <div className="mt-5 grid grid-cols-4 gap-2">
+                        {images.slice(0, 4).map((image) => (
+                          <img
+                            key={`${album.id}-${image}`}
+                            src={image}
+                            alt=""
+                            className="aspect-square rounded-lg object-cover"
+                          />
+                        ))}
+                      </div>
+                      <a
+                        href={albumHref(album)}
+                        className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-bold text-navy shadow-soft transition-smooth hover:-translate-y-0.5 hover:border-gold"
+                      >
+                        <Images className="h-4 w-4 text-gold" />
+                        Open Gallery
+                      </a>
                     </div>
                   </article>
                 );
@@ -5393,8 +5429,8 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
             </div>
           ) : (
             <p className="mt-6 rounded-lg border border-border bg-white p-5 text-sm leading-6 text-slate-500 shadow-soft">
-              No public events currently match this activity. Add or update event titles,
-              descriptions, or types with the activity name to make them appear here.
+              No gallery album is linked yet. In Website Admin, open Media Library, create or edit a
+              photo album, select this activity page, then upload the logo and achievement photos.
             </p>
           )}
         </div>

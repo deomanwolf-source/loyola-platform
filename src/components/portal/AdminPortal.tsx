@@ -75,6 +75,10 @@ import {
 } from "@/lib/api";
 import { createPublishRequest } from "@/lib/publish-requests";
 import { MediaUploadStatus } from "./MediaUploadStatus";
+import {
+  EXTRA_CURRICULAR_GROUPS,
+  extraCurricularActivitiesByGroup,
+} from "@/lib/extracurricular-activities";
 
 const adminRoles: Role[] = ["website_admin", "superadmin", "masteradmin", "viewadmin"];
 const IMAGE_TYPES = ["image/jpeg", "image/png"];
@@ -1922,10 +1926,19 @@ function MediaPanel({ db }: { db: DB }) {
   const [youtubeTitle, setYoutubeTitle] = useState("");
   const [selectedAlbumId, setSelectedAlbumId] = useState(db.gallery[0]?.id || "");
   const [selectedVideoAlbumId, setSelectedVideoAlbumId] = useState(db.videoGallery[0]?.id || "");
+  const [selectedLogoAlbumId, setSelectedLogoAlbumId] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const activityLogoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const videoCoverInputRef = useRef<HTMLInputElement>(null);
+  const activityOptions = EXTRA_CURRICULAR_GROUPS.flatMap((group) =>
+    extraCurricularActivitiesByGroup(group.id).map((activity) => ({
+      id: activity.id,
+      label: `${activity.title}${activity.note ? ` - ${activity.note}` : ""}`,
+      group: group.title,
+    })),
+  );
 
   const createAlbum = () => {
     const title = albumTitle.trim() || "New Gallery Album";
@@ -2109,6 +2122,29 @@ function MediaPanel({ db }: { db: DB }) {
     }
   };
 
+  const uploadActivityLogo = async (file?: File) => {
+    const albumId = selectedLogoAlbumId || selectedAlbumId || db.gallery[0]?.id;
+    if (!file || !albumId) {
+      setMessage("Create or select an album before uploading an activity logo.");
+      return;
+    }
+    try {
+      setMessage("Uploading activity logo...");
+      await compressImage(file, 800, 0.82);
+      const logoUrl = await uploadFileToBackend("activity-logos", file);
+      setDb((current) => ({
+        ...current,
+        gallery: current.gallery.map((item) =>
+          item.id === albumId ? { ...item, logoImage: logoUrl } : item,
+        ),
+      }));
+      audit(`Activity logo uploaded: ${albumId}`, "Admin");
+      setMessage("Activity logo updated. Link this album to an activity page if not already done.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Activity logo upload failed.");
+    }
+  };
+
   const uploadVideoAlbumCover = async (file?: File) => {
     const albumId = selectedVideoAlbumId || db.videoGallery[0]?.id;
     if (!file || !albumId) {
@@ -2260,6 +2296,16 @@ function MediaPanel({ db }: { db: DB }) {
               }}
             />
             <input
+              ref={activityLogoInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={(e) => {
+                void uploadActivityLogo(e.target.files?.[0]);
+                e.currentTarget.value = "";
+              }}
+            />
+            <input
               ref={videoInputRef}
               type="file"
               accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
@@ -2281,6 +2327,11 @@ function MediaPanel({ db }: { db: DB }) {
             />
             <div className="space-y-4">
               <MediaUploadStatus />
+              <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-900">
+                For club and society pages: create a photo album, select its Activity Page, upload
+                the activity logo, then add achievement or event photos. Only linked visible albums
+                appear on that activity page.
+              </p>
               <TextInput
                 value={albumTitle}
                 placeholder="Album name"
@@ -2464,6 +2515,56 @@ function MediaPanel({ db }: { db: DB }) {
                           placeholder="Show more website link"
                           onChange={(e) => updateAlbum(item.id, { link: e.target.value })}
                         />
+                        <select
+                          value={item.activityId || ""}
+                          onChange={(e) =>
+                            updateAlbum(item.id, { activityId: e.target.value || undefined })
+                          }
+                          className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+                        >
+                          <option value="">No linked activity page</option>
+                          {EXTRA_CURRICULAR_GROUPS.map((group) => {
+                            const options = activityOptions.filter(
+                              (activity) => activity.group === group.title,
+                            );
+                            return (
+                              <optgroup key={group.id} label={group.title}>
+                                {options.map((activity) => (
+                                  <option key={activity.id} value={activity.id}>
+                                    {activity.label}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            );
+                          })}
+                        </select>
+                      </div>
+                      <div className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-secondary/35 p-2">
+                        <img
+                          src={item.logoImage || item.image || "/loyola-crest.jpg"}
+                          alt=""
+                          className="h-12 w-12 rounded-xl bg-white object-cover"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                            Activity logo
+                          </p>
+                          <p className="truncate text-sm font-bold text-navy">
+                            {item.logoImage
+                              ? "Custom logo uploaded"
+                              : "Uses cover photo until changed"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedLogoAlbumId(item.id);
+                            activityLogoInputRef.current?.click();
+                          }}
+                          className="shrink-0 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs font-black text-navy"
+                        >
+                          Logo
+                        </button>
                       </div>
                       <div className="mt-3 grid grid-cols-5 gap-1.5">
                         {images.map((image) => (
