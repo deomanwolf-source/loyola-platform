@@ -591,6 +591,8 @@ export interface DB {
   deletedContentIds?: {
     news?: string[];
     events?: string[];
+    gallery?: string[];
+    customActivities?: string[];
   };
   gallery: GalleryItem[];
   customActivities: CustomActivity[];

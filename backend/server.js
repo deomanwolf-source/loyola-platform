@@ -2594,7 +2594,7 @@ function isPlainObject(value) {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-const EXPLICIT_DELETE_COLLECTIONS = ["news", "events"];
+const EXPLICIT_DELETE_COLLECTIONS = ["news", "events", "gallery", "customActivities"];
 
 function explicitDeletedIds(siteDb, key) {
   if (!isPlainObject(siteDb?.deletedContentIds)) return new Set();

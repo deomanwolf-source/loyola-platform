@@ -97,7 +97,7 @@ const DEPARTMENT_MEDIA_PAGES = [
 
 function rememberDeletedContentId(
   current: DB,
-  key: "news" | "events",
+  key: "news" | "events" | "gallery" | "customActivities",
   id: string,
 ): DB["deletedContentIds"] {
   const existing = current.deletedContentIds?.[key] || [];
@@ -2024,7 +2024,11 @@ function MediaPanel({ db }: { db: DB }) {
 
   const deleteAlbum = (id: string) => {
     if (!window.confirm("Delete this album and its media?")) return;
-    setDb((current) => ({ ...current, gallery: current.gallery.filter((item) => item.id !== id) }));
+    setDb((current) => ({
+      ...current,
+      deletedContentIds: rememberDeletedContentId(current, "gallery", id),
+      gallery: current.gallery.filter((item) => item.id !== id),
+    }));
     if (selectedAlbumId === id) setSelectedAlbumId("");
     audit(`Album deleted: ${id}`, "Admin");
   };
@@ -2824,6 +2828,7 @@ function ClubsSocietiesPanel({ db }: { db: DB }) {
 
     setDb((current) => ({
       ...current,
+      deletedContentIds: rememberDeletedContentId(current, "customActivities", activity.id),
       customActivities: (current.customActivities || []).filter((item) => item.id !== activity.id),
       gallery: current.gallery.map((album) =>
         album.activityId === activity.id ? { ...album, activityId: undefined } : album,
@@ -3085,6 +3090,7 @@ function ActivityMediaPanel({ db }: { db: DB }) {
 
     setDb((current) => ({
       ...current,
+      deletedContentIds: rememberDeletedContentId(current, "gallery", album.id),
       gallery: current.gallery.filter((item) => item.id !== album.id),
     }));
     setTargetAlbumId((current) => (current === album.id ? "" : current));
