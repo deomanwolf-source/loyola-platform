@@ -107,6 +107,7 @@ type PanelId =
   | "content"
   | "vacancies"
   | "media"
+  | "activityMedia"
   | "storage"
   | "design"
   | "messages"
@@ -131,6 +132,7 @@ const navGroups: {
       { id: "content", label: "News / Events", icon: Newspaper },
       { id: "vacancies", label: "Job Vacancies", icon: Briefcase },
       { id: "media", label: "Media Library", icon: ImageIcon },
+      { id: "activityMedia", label: "Activity Media", icon: GalleryHorizontal },
       { id: "storage", label: "Storage", icon: Database },
       { id: "design", label: "Design System", icon: Palette },
     ],
@@ -1924,21 +1926,15 @@ function MediaPanel({ db }: { db: DB }) {
   const [videoAlbumLink, setVideoAlbumLink] = useState("");
   const [youtubeUrl, setYoutubeUrl] = useState("");
   const [youtubeTitle, setYoutubeTitle] = useState("");
-  const [selectedAlbumId, setSelectedAlbumId] = useState(db.gallery[0]?.id || "");
+  const [selectedAlbumId, setSelectedAlbumId] = useState(
+    db.gallery.find((item) => !item.activityId)?.id || "",
+  );
   const [selectedVideoAlbumId, setSelectedVideoAlbumId] = useState(db.videoGallery[0]?.id || "");
-  const [selectedLogoAlbumId, setSelectedLogoAlbumId] = useState("");
   const imageInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
-  const activityLogoInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const videoCoverInputRef = useRef<HTMLInputElement>(null);
-  const activityOptions = EXTRA_CURRICULAR_GROUPS.flatMap((group) =>
-    extraCurricularActivitiesByGroup(group.id).map((activity) => ({
-      id: activity.id,
-      label: `${activity.title}${activity.note ? ` - ${activity.note}` : ""}`,
-      group: group.title,
-    })),
-  );
+  const generalAlbums = db.gallery.filter((item) => !item.activityId);
 
   const createAlbum = () => {
     const title = albumTitle.trim() || "New Gallery Album";
@@ -2048,7 +2044,7 @@ function MediaPanel({ db }: { db: DB }) {
   };
 
   const uploadImages = async (files?: FileList | null) => {
-    const albumId = selectedAlbumId || db.gallery[0]?.id;
+    const albumId = selectedAlbumId || generalAlbums[0]?.id;
     if (!files?.length || !albumId) {
       setMessage("Create or select an album before uploading images.");
       return;
@@ -2094,7 +2090,7 @@ function MediaPanel({ db }: { db: DB }) {
   };
 
   const uploadAlbumCover = async (file?: File) => {
-    const albumId = selectedAlbumId || db.gallery[0]?.id;
+    const albumId = selectedAlbumId || generalAlbums[0]?.id;
     if (!file || !albumId) {
       setMessage("Create or select an album before uploading a cover photo.");
       return;
@@ -2119,29 +2115,6 @@ function MediaPanel({ db }: { db: DB }) {
       setMessage("Album cover photo updated.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Cover photo upload failed.");
-    }
-  };
-
-  const uploadActivityLogo = async (file?: File) => {
-    const albumId = selectedLogoAlbumId || selectedAlbumId || db.gallery[0]?.id;
-    if (!file || !albumId) {
-      setMessage("Create or select an album before uploading an activity logo.");
-      return;
-    }
-    try {
-      setMessage("Uploading activity logo...");
-      await compressImage(file, 800, 0.82);
-      const logoUrl = await uploadFileToBackend("activity-logos", file);
-      setDb((current) => ({
-        ...current,
-        gallery: current.gallery.map((item) =>
-          item.id === albumId ? { ...item, logoImage: logoUrl } : item,
-        ),
-      }));
-      audit(`Activity logo uploaded: ${albumId}`, "Admin");
-      setMessage("Activity logo updated. Link this album to an activity page if not already done.");
-    } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Activity logo upload failed.");
     }
   };
 
@@ -2265,7 +2238,8 @@ function MediaPanel({ db }: { db: DB }) {
     setMessage("YouTube video added to the album.");
   };
 
-  const selectedAlbum = db.gallery.find((item) => item.id === selectedAlbumId) || db.gallery[0];
+  const selectedAlbum =
+    generalAlbums.find((item) => item.id === selectedAlbumId) || generalAlbums[0];
   const selectedVideoAlbum =
     db.videoGallery.find((item) => item.id === selectedVideoAlbumId) || db.videoGallery[0];
 
@@ -2296,16 +2270,6 @@ function MediaPanel({ db }: { db: DB }) {
               }}
             />
             <input
-              ref={activityLogoInputRef}
-              type="file"
-              accept="image/jpeg,image/png"
-              className="hidden"
-              onChange={(e) => {
-                void uploadActivityLogo(e.target.files?.[0]);
-                e.currentTarget.value = "";
-              }}
-            />
-            <input
               ref={videoInputRef}
               type="file"
               accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
@@ -2327,10 +2291,9 @@ function MediaPanel({ db }: { db: DB }) {
             />
             <div className="space-y-4">
               <MediaUploadStatus />
-              <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-900">
-                For club and society pages: create a photo album, select its Activity Page, upload
-                the activity logo, then add achievement or event photos. Only linked visible albums
-                appear on that activity page.
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold leading-5 text-slate-600">
+                Use this panel for normal public gallery albums. Club and society logos/photos are
+                managed separately in Activity Media.
               </p>
               <TextInput
                 value={albumTitle}
@@ -2355,7 +2318,7 @@ function MediaPanel({ db }: { db: DB }) {
                 className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
               >
                 <option value="">Select album</option>
-                {db.gallery.map((album) => (
+                {generalAlbums.map((album) => (
                   <option key={album.id} value={album.id}>
                     {album.label}
                   </option>
@@ -2472,6 +2435,7 @@ function MediaPanel({ db }: { db: DB }) {
           <PanelShell title="Photo albums" kicker="Images">
             <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
               {db.gallery.map((item) => {
+                if (item.activityId) return null;
                 const images = (item.images || (item.image ? [item.image] : []))
                   .filter(Boolean)
                   .slice(0, 10);
@@ -2515,56 +2479,6 @@ function MediaPanel({ db }: { db: DB }) {
                           placeholder="Show more website link"
                           onChange={(e) => updateAlbum(item.id, { link: e.target.value })}
                         />
-                        <select
-                          value={item.activityId || ""}
-                          onChange={(e) =>
-                            updateAlbum(item.id, { activityId: e.target.value || undefined })
-                          }
-                          className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
-                        >
-                          <option value="">No linked activity page</option>
-                          {EXTRA_CURRICULAR_GROUPS.map((group) => {
-                            const options = activityOptions.filter(
-                              (activity) => activity.group === group.title,
-                            );
-                            return (
-                              <optgroup key={group.id} label={group.title}>
-                                {options.map((activity) => (
-                                  <option key={activity.id} value={activity.id}>
-                                    {activity.label}
-                                  </option>
-                                ))}
-                              </optgroup>
-                            );
-                          })}
-                        </select>
-                      </div>
-                      <div className="mt-3 flex items-center gap-3 rounded-xl border border-border bg-secondary/35 p-2">
-                        <img
-                          src={item.logoImage || item.image || "/loyola-crest.jpg"}
-                          alt=""
-                          className="h-12 w-12 rounded-xl bg-white object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
-                            Activity logo
-                          </p>
-                          <p className="truncate text-sm font-bold text-navy">
-                            {item.logoImage
-                              ? "Custom logo uploaded"
-                              : "Uses cover photo until changed"}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedLogoAlbumId(item.id);
-                            activityLogoInputRef.current?.click();
-                          }}
-                          className="shrink-0 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs font-black text-navy"
-                        >
-                          Logo
-                        </button>
                       </div>
                       <div className="mt-3 grid grid-cols-5 gap-1.5">
                         {images.map((image) => (
@@ -2765,6 +2679,397 @@ function MediaPanel({ db }: { db: DB }) {
           </PanelShell>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ActivityMediaPanel({ db }: { db: DB }) {
+  const activityOptions = EXTRA_CURRICULAR_GROUPS.flatMap((group) =>
+    extraCurricularActivitiesByGroup(group.id).map((activity) => ({
+      id: activity.id,
+      label: `${activity.title}${activity.note ? ` - ${activity.note}` : ""}`,
+      groupId: group.id,
+      group: group.title,
+    })),
+  );
+  const [selectedActivityId, setSelectedActivityId] = useState(activityOptions[0]?.id || "");
+  const [albumTitle, setAlbumTitle] = useState("");
+  const [targetAlbumId, setTargetAlbumId] = useState("");
+  const [message, setMessage] = useState(
+    "Choose an activity, create a linked album, then upload a logo and achievement photos.",
+  );
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedActivity = activityOptions.find((item) => item.id === selectedActivityId);
+  const activityAlbums = db.gallery.filter((album) => album.activityId === selectedActivityId);
+  const targetAlbum =
+    activityAlbums.find((album) => album.id === targetAlbumId) || activityAlbums[0] || null;
+
+  const updateAlbum = (id: string, patch: Partial<DB["gallery"][number]>) => {
+    setDb((current) => ({
+      ...current,
+      gallery: current.gallery.map((item) => (item.id === id ? { ...item, ...patch } : item)),
+    }));
+  };
+
+  const createActivityAlbum = () => {
+    if (!selectedActivity) {
+      setMessage("Select an activity page first.");
+      return;
+    }
+    const title = albumTitle.trim() || `${selectedActivity.label} Gallery`;
+    const id = makeId("ACTALBUM");
+    setDb((current) => ({
+      ...current,
+      gallery: [
+        {
+          id,
+          label: title,
+          image: "",
+          images: [],
+          activityId: selectedActivity.id,
+          logoImage: "",
+          description: "",
+          link: "",
+          visible: true,
+        },
+        ...current.gallery,
+      ],
+    }));
+    setTargetAlbumId(id);
+    setAlbumTitle("");
+    audit(`Activity album created: ${title}`, "Admin");
+    setMessage(`Activity album created for ${selectedActivity.label}.`);
+  };
+
+  const uploadActivityLogo = async (file?: File) => {
+    if (!file || !targetAlbum) {
+      setMessage("Create or select an activity album before uploading a logo.");
+      return;
+    }
+    try {
+      setMessage("Uploading activity logo...");
+      await compressImage(file, 800, 0.82);
+      const logoUrl = await uploadFileToBackend("activity-logos", file);
+      updateAlbum(targetAlbum.id, { logoImage: logoUrl });
+      audit(`Activity logo uploaded: ${targetAlbum.id}`, "Admin");
+      setMessage("Activity logo updated. It is separate from gallery photos.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Activity logo upload failed.");
+    }
+  };
+
+  const uploadActivityImages = async (files?: FileList | null) => {
+    if (!files?.length || !targetAlbum) {
+      setMessage("Create or select an activity album before uploading photos.");
+      return;
+    }
+    const currentImages = (targetAlbum.images || (targetAlbum.image ? [targetAlbum.image] : []))
+      .filter(Boolean)
+      .filter((image) => image !== targetAlbum.logoImage);
+    const remaining = Math.max(0, 30 - currentImages.length);
+    const selectedFiles = Array.from(files).slice(0, remaining);
+    if (!selectedFiles.length) {
+      setMessage("This activity album already has the maximum 30 photos.");
+      return;
+    }
+    try {
+      setMessage(
+        `Uploading ${selectedFiles.length} activity photo${selectedFiles.length === 1 ? "" : "s"}...`,
+      );
+      await Promise.all(selectedFiles.map((file) => compressImage(file, 1100, 0.76)));
+      const uploadedImages = await Promise.all(
+        selectedFiles.map((file) => uploadFileToBackend("activity-gallery/photos", file)),
+      );
+      const nextImages = [...currentImages, ...uploadedImages].slice(0, 30);
+      updateAlbum(targetAlbum.id, {
+        images: nextImages,
+        image: targetAlbum.image || nextImages[0] || "",
+      });
+      audit(`Activity photos uploaded: ${selectedFiles.length}`, "Admin");
+      setMessage(
+        `Uploaded ${selectedFiles.length} activity photo${selectedFiles.length === 1 ? "" : "s"}.`,
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Activity photo upload failed.");
+    }
+  };
+
+  const uploadActivityCover = async (file?: File) => {
+    if (!file || !targetAlbum) {
+      setMessage("Create or select an activity album before uploading a cover photo.");
+      return;
+    }
+    try {
+      setMessage("Uploading activity cover photo...");
+      await compressImage(file, 1200, 0.78);
+      const coverUrl = await uploadFileToBackend("activity-gallery/covers", file);
+      const currentImages = (targetAlbum.images || (targetAlbum.image ? [targetAlbum.image] : []))
+        .filter(Boolean)
+        .filter((image) => image !== coverUrl && image !== targetAlbum.logoImage);
+      updateAlbum(targetAlbum.id, {
+        image: coverUrl,
+        images: [coverUrl, ...currentImages].slice(0, 30),
+      });
+      audit(`Activity cover uploaded: ${targetAlbum.id}`, "Admin");
+      setMessage("Activity cover photo updated. Logo was not changed.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Activity cover upload failed.");
+    }
+  };
+
+  const removeActivityImage = (albumId: string, image: string) => {
+    setDb((current) => ({
+      ...current,
+      gallery: current.gallery.map((album) => {
+        if (album.id !== albumId) return album;
+        const images = (album.images || (album.image ? [album.image] : [])).filter(
+          (item) => item && item !== image,
+        );
+        return { ...album, images, image: album.image === image ? images[0] || "" : album.image };
+      }),
+    }));
+  };
+
+  return (
+    <div className="grid gap-6 xl:grid-cols-[380px_1fr]">
+      <PanelShell title="Activity image manager" kicker="Logos & achievements">
+        <input
+          ref={logoInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="hidden"
+          onChange={(e) => {
+            void uploadActivityLogo(e.target.files?.[0]);
+            e.currentTarget.value = "";
+          }}
+        />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            void uploadActivityImages(e.target.files);
+            e.currentTarget.value = "";
+          }}
+        />
+        <input
+          ref={coverInputRef}
+          type="file"
+          accept="image/jpeg,image/png"
+          className="hidden"
+          onChange={(e) => {
+            void uploadActivityCover(e.target.files?.[0]);
+            e.currentTarget.value = "";
+          }}
+        />
+        <div className="space-y-4">
+          <p className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold leading-5 text-blue-900">
+            Safe activity media: logo is stored separately, cover photo is separate, and gallery
+            photos are only shown on the selected activity page.
+          </p>
+          <select
+            value={selectedActivityId}
+            onChange={(e) => {
+              setSelectedActivityId(e.target.value);
+              setTargetAlbumId("");
+            }}
+            className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+          >
+            {EXTRA_CURRICULAR_GROUPS.map((group) => (
+              <optgroup key={group.id} label={group.title}>
+                {activityOptions
+                  .filter((activity) => activity.groupId === group.id)
+                  .map((activity) => (
+                    <option key={activity.id} value={activity.id}>
+                      {activity.label}
+                    </option>
+                  ))}
+              </optgroup>
+            ))}
+          </select>
+          <TextInput
+            value={albumTitle}
+            placeholder="New linked album name"
+            onChange={(e) => setAlbumTitle(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={createActivityAlbum}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-gold px-5 py-4 text-sm font-black text-navy"
+          >
+            <Plus className="h-5 w-5" /> Create linked activity album
+          </button>
+          <select
+            value={targetAlbum?.id || ""}
+            onChange={(e) => setTargetAlbumId(e.target.value)}
+            className="h-12 w-full rounded-xl border border-border bg-white px-3 text-sm font-semibold text-navy outline-none focus:border-gold"
+          >
+            <option value="">Select linked album</option>
+            {activityAlbums.map((album) => (
+              <option key={album.id} value={album.id}>
+                {album.label}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => logoInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-white px-5 py-4 text-sm font-black text-navy"
+          >
+            <ImageIcon className="h-5 w-5" /> Upload activity logo
+          </button>
+          <button
+            type="button"
+            onClick={() => imageInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-gold/50 bg-gold/10 px-5 py-10 text-sm font-black text-navy"
+          >
+            <Upload className="h-6 w-6" /> Upload achievement photos
+          </button>
+          <button
+            type="button"
+            onClick={() => coverInputRef.current?.click()}
+            className="flex w-full items-center justify-center gap-3 rounded-2xl border border-border bg-white px-5 py-4 text-sm font-black text-navy"
+          >
+            <GalleryHorizontal className="h-5 w-5" /> Upload gallery cover
+          </button>
+          <a
+            href={`/sports-clubs/${encodeURIComponent(selectedActivityId)}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex w-full items-center justify-center gap-3 rounded-2xl bg-navy px-5 py-4 text-sm font-black text-white"
+          >
+            <Globe className="h-5 w-5" /> Preview activity page
+          </a>
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">
+            {message}
+          </div>
+        </div>
+      </PanelShell>
+
+      <PanelShell title={selectedActivity?.label || "Activity media"} kicker="Linked albums">
+        <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+          {activityAlbums.map((album) => {
+            const images = (album.images || (album.image ? [album.image] : []))
+              .filter(Boolean)
+              .filter((image) => image !== album.logoImage)
+              .slice(0, 30);
+            const cover = album.image || images[0] || "/loyola-crest.jpg";
+            return (
+              <div
+                key={album.id}
+                className="overflow-hidden rounded-2xl border border-border bg-white shadow-soft"
+              >
+                <img src={cover} alt={album.label} className="aspect-video w-full object-cover" />
+                <div className="space-y-3 p-4">
+                  <TextInput
+                    value={album.label}
+                    placeholder="Album title"
+                    onChange={(e) => updateAlbum(album.id, { label: e.target.value })}
+                  />
+                  <TextArea
+                    rows={2}
+                    value={album.description || ""}
+                    placeholder="Short achievement description"
+                    onChange={(e) => updateAlbum(album.id, { description: e.target.value })}
+                  />
+                  <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/35 p-2">
+                    <img
+                      src={album.logoImage || "/loyola-crest.jpg"}
+                      alt=""
+                      className="h-12 w-12 rounded-xl bg-white object-contain"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black uppercase tracking-[0.14em] text-muted-foreground">
+                        Activity logo
+                      </p>
+                      <p className="truncate text-sm font-bold text-navy">
+                        {album.logoImage ? "Custom logo set" : "No custom logo yet"}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetAlbumId(album.id);
+                        logoInputRef.current?.click();
+                      }}
+                      className="shrink-0 rounded-lg border border-border bg-white px-2.5 py-1.5 text-xs font-black text-navy"
+                    >
+                      Logo
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1.5">
+                    {images.map((image) => (
+                      <button
+                        key={image}
+                        type="button"
+                        onClick={() => removeActivityImage(album.id, image)}
+                        title="Remove from this album"
+                        className="group relative overflow-hidden rounded-md border border-border bg-secondary"
+                      >
+                        <img src={image} alt="" className="aspect-square w-full object-cover" />
+                        <span className="absolute inset-0 grid place-items-center bg-crimson/72 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetAlbumId(album.id);
+                        imageInputRef.current?.click();
+                      }}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-black text-navy"
+                    >
+                      Add photos
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setTargetAlbumId(album.id);
+                        coverInputRef.current?.click();
+                      }}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-black text-navy"
+                    >
+                      Cover
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateAlbum(album.id, { visible: album.visible === false })}
+                      className={`rounded-lg px-2.5 py-1.5 text-xs font-black ${
+                        album.visible === false
+                          ? "bg-slate-200 text-slate-500"
+                          : "bg-emerald-100 text-emerald-700"
+                      }`}
+                    >
+                      {album.visible === false ? "Hidden" : "Visible"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => updateAlbum(album.id, { activityId: undefined })}
+                      className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-black text-slate-600"
+                    >
+                      Move to Media Library
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          {activityAlbums.length === 0 && (
+            <div className="rounded-2xl border border-dashed border-border bg-secondary/35 p-6 text-sm font-semibold leading-6 text-muted-foreground">
+              No linked album for this activity yet. Create one from the left panel, then upload the
+              logo and photos.
+            </div>
+          )}
+        </div>
+      </PanelShell>
     </div>
   );
 }
@@ -4904,6 +5209,7 @@ export function AdminPortal() {
           {activePanel === "content" && <ContentPanel db={db} />}
           {activePanel === "vacancies" && <VacanciesPanel />}
           {activePanel === "media" && <MediaPanel db={db} />}
+          {activePanel === "activityMedia" && <ActivityMediaPanel db={db} />}
           {activePanel === "storage" && <StoragePanel />}
           {activePanel === "design" && <DesignPanel db={db} />}
           {activePanel === "messages" && <MessagesPanel db={db} />}

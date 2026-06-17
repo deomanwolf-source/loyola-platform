@@ -4772,8 +4772,7 @@ function activityGalleryImages(albums: GalleryItem[]) {
 }
 
 function activityGalleryLogo(albums: GalleryItem[]) {
-  const logoAlbum = albums.find((album) => album.logoImage || album.image);
-  return logoAlbum?.logoImage || logoAlbum?.image || "";
+  return albums.find((album) => album.logoImage)?.logoImage || "";
 }
 
 function activitySummary(
@@ -5380,7 +5379,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
             <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
               {galleryAlbums.map((album) => {
                 const images = albumImages(album);
-                const cover = album.logoImage || images[0] || "/loyola-crest.jpg";
+                const cover = images[0] || album.image || "/loyola-crest.jpg";
                 return (
                   <article
                     key={album.id}
