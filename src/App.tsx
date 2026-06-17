@@ -5365,6 +5365,65 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
         </div>
       </section>
 
+      <section className="bg-white py-16">
+        <div className="mx-auto max-w-7xl px-6">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
+            Teacher Profiles
+          </p>
+          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Teachers In Charge</h2>
+          {matchedTeacherProfiles.length ? (
+            <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              {matchedTeacherProfiles.map(({ teacherName, staff }) => (
+                <article
+                  key={`${activity.id}-${activityTeacherProfileKey(staff)}`}
+                  className="group overflow-hidden rounded-[28px] border border-[#dde6f4] bg-white shadow-[0_18px_48px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
+                >
+                  <div className={`h-20 bg-gradient-to-r ${groupTheme.panelClass}`} />
+                  <div className="-mt-10 px-6 pb-6">
+                    <div className="flex items-end justify-between gap-3">
+                      <img
+                        src={staff.image || "/loyola-crest.jpg"}
+                        alt={teacherName}
+                        className="h-24 w-24 rounded-[24px] border-4 border-white bg-slate-100 object-cover shadow-soft"
+                      />
+                      <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">
+                        Matched Profile
+                      </span>
+                    </div>
+                    <p className="mt-5 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                      Teacher In Charge
+                    </p>
+                    <h3 className="mt-2 font-serif text-2xl font-bold leading-tight text-navy">
+                      {teacherName}
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-slate-500">
+                      {staff.position || staff.subject || staff.type || "Public staff profile"}
+                    </p>
+                    {staff.qualifications && (
+                      <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate-600">
+                        {staff.qualifications}
+                      </p>
+                    )}
+                    <a
+                      href={`/staff/${publicStaffSlug(staff.slug || staff.name || teacherName)}`}
+                      className="mt-6 inline-flex items-center gap-2 rounded-full border border-[#d9e1ef] bg-white px-4 py-2.5 text-sm font-bold text-navy shadow-soft transition-smooth hover:-translate-y-0.5 hover:border-gold"
+                    >
+                      <Eye className="h-4 w-4 text-gold" />
+                      View Staff Profile
+                    </a>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-8 rounded-lg border border-border bg-white p-5 text-sm leading-6 text-slate-500 shadow-soft">
+              No staff profiles are assigned to this activity yet. Add the matching extra activity
+              position code in staff management to show teachers here.
+            </p>
+          )}
+        </div>
+      </section>
+
       <section id="activity-gallery" className="bg-secondary/35 py-16">
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
