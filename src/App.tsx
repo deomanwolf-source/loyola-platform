@@ -4606,6 +4606,7 @@ function normalizeTeacherLookupName(value: string) {
     .split(" ")
     .filter(Boolean)
     .filter((part) => !EXTRA_CURRICULAR_NAME_TITLES.has(part))
+    .filter((part) => part.length > 1)
     .join(" ");
 }
 
@@ -4621,6 +4622,56 @@ function activityTeacherNameKey(value: string) {
 
 function activityTeacherProfileKey(teacher: Teacher) {
   return teacher.staffId || teacher.id.split("__")[0] || teacher.slug || teacher.name;
+}
+
+type ActivityStaffLookupEntry = {
+  staff: Teacher;
+  tokens: Set<string>;
+};
+
+function uniqueActivityStaffMatch(matches: Teacher[]) {
+  const byProfile = new Map<string, Teacher>();
+  matches.forEach((staff) => {
+    const key = activityTeacherProfileKey(staff);
+    if (key) byProfile.set(key, staff);
+  });
+  return byProfile.size === 1 ? [...byProfile.values()][0] : null;
+}
+
+function findActivityStaffByTeacherName(
+  teacherName: string,
+  staffIndex: Map<string, Teacher>,
+  staffLookupEntries: ActivityStaffLookupEntry[],
+) {
+  const lookupKeys = [
+    normalizeTeacherLookupName(teacherName),
+    normalizeStaffTaxonomy(teacherName),
+  ].filter(Boolean);
+
+  for (const key of lookupKeys) {
+    const match = staffIndex.get(key);
+    if (match) return match;
+  }
+
+  const tokens = normalizeTeacherLookupName(teacherName)
+    .split(" ")
+    .filter((token) => token.length >= 3);
+  if (!tokens.length) return null;
+
+  const fullTokenMatch = uniqueActivityStaffMatch(
+    staffLookupEntries
+      .filter((entry) => tokens.every((token) => entry.tokens.has(token)))
+      .map((entry) => entry.staff),
+  );
+  if (fullTokenMatch) return fullTokenMatch;
+
+  const leadingToken = tokens[0];
+  if (leadingToken.length < 5) return null;
+  return uniqueActivityStaffMatch(
+    staffLookupEntries
+      .filter((entry) => entry.tokens.has(leadingToken))
+      .map((entry) => entry.staff),
+  );
 }
 
 function activityStaffPositionCodes(teacher: Teacher) {
@@ -4642,10 +4693,52 @@ function activityStaffPositionCodes(teacher: Teacher) {
   return [...new Set(codes.map(normalizePositionCode).filter(Boolean))];
 }
 
+function activityPositionCodeCandidates(activity: ExtraCurricularActivity) {
+  const codes = new Set<string>();
+  const add = (value: unknown) => {
+    const code = normalizePositionCode(value);
+    if (code) codes.add(code);
+  };
+
+  (activity.positionCodes || []).forEach(add);
+  add(activity.id);
+  add(`extra-${activity.id}`);
+  add(`sport-${activity.id}`);
+  add(`sports-${activity.id}`);
+
+  const titleCode = normalizePositionCode(activity.title);
+  const noteCodes = [
+    normalizePositionCode(activity.note),
+    normalizePositionCode(String(activity.note || "").replace(/\bschool\b/gi, "")),
+  ].filter(Boolean);
+  if (titleCode) {
+    add(titleCode);
+    add(`extra-${titleCode}`);
+    add(`sport-${titleCode}`);
+    add(`sports-${titleCode}`);
+    noteCodes.forEach((noteCode) => {
+      add(`${titleCode}-${noteCode}`);
+      add(`extra-${titleCode}-${noteCode}`);
+      add(`sport-${titleCode}-${noteCode}`);
+      add(`sports-${titleCode}-${noteCode}`);
+    });
+  }
+
+  const houseName = normalizePositionCode(activity.title.replace(/\bhouse\b/gi, ""));
+  if (activity.groupId === "houses-coaches-and-trainers" && houseName) {
+    add(`house-${houseName}`);
+    add(`extra-house-${houseName}`);
+    noteCodes.forEach((noteCode) => {
+      add(`house-${houseName}-${noteCode}`);
+      add(`extra-house-${houseName}-${noteCode}`);
+    });
+  }
+
+  return codes;
+}
+
 function teacherHasActivityPositionCode(activity: ExtraCurricularActivity, teacher: Teacher) {
-  const activityCodes = new Set(
-    (activity.positionCodes || []).map(normalizePositionCode).filter(Boolean),
-  );
+  const activityCodes = activityPositionCodeCandidates(activity);
   if (!activityCodes.size) return false;
   return activityStaffPositionCodes(teacher).some((code) => activityCodes.has(code));
 }
@@ -4658,6 +4751,7 @@ function matchedActivityTeacherProfiles(matches: ActivityTeacherMatch[]) {
 
 function activityTeacherMatches(activity: ExtraCurricularActivity, teachers: Teacher[]) {
   const staffIndex = new Map<string, Teacher>();
+  const staffLookupEntries: ActivityStaffLookupEntry[] = [];
   teachers.forEach((teacher) => {
     const keys = [
       normalizeTeacherLookupName(teacher.name || ""),
@@ -4666,15 +4760,20 @@ function activityTeacherMatches(activity: ExtraCurricularActivity, teachers: Tea
     keys.forEach((key) => {
       if (!staffIndex.has(key)) staffIndex.set(key, teacher);
     });
+    staffLookupEntries.push({
+      staff: teacher,
+      tokens: new Set(keys.flatMap((key) => key.split(" ")).filter((token) => token.length >= 3)),
+    });
   });
 
   const matches: ActivityTeacherMatch[] = [...new Set(activity.teachers)]
     .filter(Boolean)
     .map((teacherName) => {
-      const match =
-        staffIndex.get(normalizeTeacherLookupName(teacherName)) ||
-        staffIndex.get(normalizeStaffTaxonomy(teacherName)) ||
-        null;
+      const match = findActivityStaffByTeacherName(
+        teacherName,
+        staffIndex,
+        staffLookupEntries,
+      );
       return { teacherName, staff: match, source: "document" };
     });
 
