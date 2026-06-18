@@ -1974,7 +1974,7 @@ function HomeRequiredSections() {
     if (activity.teachers.length === 2)
       return `${activity.teachers[0]} and ${activity.teachers[1]}`;
     if (activity.teachers.length === 1) return activity.teachers[0];
-    return activity.note || "Teacher list on Sports & Clubs page";
+    return activity.note || "Student activity and enrichment programme";
   };
 
   return (
@@ -5062,11 +5062,42 @@ function activityTeacherPreview(
   return [...new Set(names)].filter(Boolean).slice(0, limit);
 }
 
+const EXTRA_CURRICULAR_ACTIVITY_DESCRIPTIONS: Record<string, string> = {
+  basketball:
+    "Basketball builds teamwork, court awareness, stamina, and sportsmanship through regular practice, skills development, and competitive play.",
+  "defence-cadet-girls":
+    "The girls' Defence Cadet programme develops discipline, confidence, teamwork, and ceremonial readiness through structured cadet training.",
+  "sports-committee-leadership":
+    "Sports Committee Leadership coordinates student participation, inter-house events, fixtures, and the values of fair play across college sports.",
+};
+
 function activityLeadText(activity: ExtraCurricularActivity) {
-  if (activity.note) {
-    return `${activity.note} activity page with teacher profiles, gallery photos, and achievements.`;
+  const customDescription = EXTRA_CURRICULAR_ACTIVITY_DESCRIPTIONS[activity.id];
+  if (customDescription) return customDescription;
+
+  const notePrefix = activity.note && activity.note !== "Team Sport" ? `${activity.note} ` : "";
+  const title = activity.title;
+
+  if (activity.groupId === "sports-and-outdoor") {
+    return `${notePrefix}${title} helps students develop discipline, fitness, teamwork, resilience, and sportsmanship through guided training and active participation.`;
   }
-  return "Dedicated activity page with teacher profiles, gallery photos, and achievements.";
+
+  if (activity.groupId === "faith-and-performing-arts") {
+    return `${notePrefix}${title} nurtures faith, confidence, creativity, cultural expression, and performance skills through guided practice and school events.`;
+  }
+
+  if (activity.groupId === "houses-coaches-and-trainers") {
+    if (normalizeStaffTaxonomy(title).includes("house")) {
+      return `${notePrefix}${title} strengthens house spirit, student leadership, teamwork, and inter-house participation across college activities.`;
+    }
+    return `${notePrefix}${title} supports student development through specialist coaching, structured practice, mentoring, and preparation for school events or competitions.`;
+  }
+
+  if (activity.groupId === "leadership-and-service") {
+    return `${notePrefix}${title} forms students in responsibility, discipline, service, coordination, and practical leadership within the school community.`;
+  }
+
+  return `${notePrefix}${title} gives students a structured space to develop communication, creativity, teamwork, service, and leadership through regular school activities.`;
 }
 
 function SportsClubsPage() {
@@ -5117,7 +5148,7 @@ function SportsClubsPage() {
         title={page.title || "Student leadership, clubs, societies, sports, and achievements."}
         subtitle={
           page.body ||
-          "Teacher-in-charge coverage for Loyola's clubs, societies, sports, houses, coaches, and trainers."
+          "A complete co-curricular directory for student leadership, service, faith formation, performing arts, sports, houses, coaching, and outdoor programmes."
         }
         image={page.image}
       />
@@ -5137,8 +5168,8 @@ function SportsClubsPage() {
                 Activities, clubs, societies, sports, and student leadership.
               </h2>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-                Open a category below to view dedicated activity pages with assigned
-                teacher-in-charge profiles, club logos, and achievement galleries.
+                Explore the programmes that shape confidence, discipline, creativity, teamwork,
+                service, and school spirit beyond the classroom.
               </p>
               <div className="relative mt-7 max-w-xl">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -5359,11 +5390,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
         pageId="sports-clubs"
         kicker={group?.title || page.kicker || "Sports & Clubs"}
         title={activity.title}
-        subtitle={
-          activity.note
-            ? `${activity.note}. Teacher profiles, logo, and achievement gallery for this activity.`
-            : "Teacher profiles, logo, and achievement gallery for this activity."
-        }
+        subtitle={activityLeadText(activity)}
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-16">
@@ -5401,8 +5428,7 @@ function SportsClubsActivityPage({ activityId }: { activityId: string }) {
                 {activity.title}
               </h2>
               <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-                {activityLeadText(activity)} This page connects the college activity listing with
-                public staff profiles and an admin-managed gallery for photos and achievements.
+                {activityLeadText(activity)}
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 {previewTeachers.map((teacherName) => (

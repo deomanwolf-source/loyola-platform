@@ -23,28 +23,31 @@ export const EXTRA_CURRICULAR_GROUPS: ExtraCurricularActivityGroup[] = [
     id: "clubs-and-societies",
     title: "Clubs & Societies",
     description:
-      "Literary, debate, media, charity, and student society activities across sections.",
+      "Student-led spaces for communication, creativity, service, teamwork, and leadership across the college.",
   },
   {
     id: "leadership-and-service",
     title: "Leadership & Student Service",
-    description: "Prefects, stewards, discipline committees, and leadership formation teams.",
+    description:
+      "Structured student leadership programmes that build responsibility, discipline, service, and school spirit.",
   },
   {
     id: "faith-and-performing-arts",
     title: "Faith, Worship & Performing Arts",
-    description: "Choirs, liturgy, Bible groups, bands, music, dance, and media performance units.",
+    description:
+      "Faith formation, worship support, music, dance, choirs, bands, and performance activities that enrich college life.",
   },
   {
     id: "sports-and-outdoor",
     title: "Sports, Scouts & Cadets",
-    description: "Sports committees, games, scouting, cadets, and outdoor student activities.",
+    description:
+      "Sports, scouting, cadet training, fitness, teamwork, and outdoor programmes that develop discipline and resilience.",
   },
   {
     id: "houses-coaches-and-trainers",
     title: "Houses, Coaches & Trainers",
     description:
-      "House leadership, specialist coaches, and technical trainers named in the source document.",
+      "House identity, inter-house participation, specialist coaching, and skill training for sports and performance groups.",
   },
 ];
 
@@ -424,7 +427,7 @@ const EXTRA_CURRICULAR_ACTIVITY_BASE: ExtraCurricularActivity[] = [
     groupId: "sports-and-outdoor",
     title: "Defence Cadet",
     teachers: [],
-    note: "Girls - teacher names were not legible in the provided document",
+    note: "Girls",
   },
   {
     id: "sports-committee-leadership",
@@ -462,7 +465,7 @@ const EXTRA_CURRICULAR_ACTIVITY_BASE: ExtraCurricularActivity[] = [
     groupId: "sports-and-outdoor",
     title: "Basketball",
     teachers: [],
-    note: "Teacher in charge was not legible in the provided document",
+    note: "Team Sport",
   },
   {
     id: "karate",
