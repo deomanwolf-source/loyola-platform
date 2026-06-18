@@ -32,6 +32,7 @@ const FIXED_POSITION_CODE_ORDER = [
   "rector-principal",
   "vice-rector",
   "principal-primary",
+  "principal-middle-upper",
   "priest-in-charge-middle-upper",
   "priest-in-charge-advanced-level",
   "sectional-head-upper",
@@ -323,10 +324,21 @@ function add(code, data) {
   STATIC_CODES.set(code, data);
 }
 
+const POSITION_CODE_ALIASES = new Map([
+  ["principal-of-primary-school", "principal-primary"],
+  ["principal-primary-school", "principal-primary"],
+  ["principal-of-middle-school-upper-school", "principal-middle-upper"],
+  ["principal-of-middle-and-upper-school", "principal-middle-upper"],
+  ["principal-of-middle-upper-school", "principal-middle-upper"],
+  ["principal-middle-and-upper-school", "principal-middle-upper"],
+  ["principal-middle-upper-school", "principal-middle-upper"],
+]);
+
 [
   ["rector-principal", "Rector / Principal"],
   ["vice-rector", "Vice Rector"],
   ["principal-primary", "Principal of Primary School"],
+  ["principal-middle-upper", "Principal of Middle School & Upper School"],
   ["priest-in-charge-middle-upper", "Priest in Charge of Middle School & Upper School"],
   ["priest-in-charge-advanced-level", "Priest in Charge of Advanced Level Section"],
   ["sectional-head-upper", "Sectional Head of Upper School"],
@@ -643,6 +655,9 @@ function parsePositionCode(input) {
     return parseClassTeacher(code) || unknown(code);
   }
 
+  const aliasedCode = POSITION_CODE_ALIASES.get(code);
+  if (aliasedCode && aliasedCode !== code) return parsePositionCode(aliasedCode);
+
   const gradeHead = /^grade-head-(\d{1,2})$/.exec(code);
   if (gradeHead) {
     const grade = Number(gradeHead[1]);
@@ -690,6 +705,12 @@ function inferPositionCode(input = {}) {
     ["vice-rector", "vice-rector"],
     ["principal-of-primary-school", "principal-primary"],
     ["principal-primary-school", "principal-primary"],
+    ["principal-of-middle-school-upper-school", "principal-middle-upper"],
+    ["principal-of-middle-and-upper-school", "principal-middle-upper"],
+    ["principal-of-middle-upper-school", "principal-middle-upper"],
+    ["principal-middle-and-upper-school", "principal-middle-upper"],
+    ["principal-middle-upper-school", "principal-middle-upper"],
+    ["principal-middle-upper", "principal-middle-upper"],
     ["deputy-principal", "deputy-principal"],
     ["vice-principal-primary-school", "vice-principal-primary"],
     ["vice-principal-primary-section", "vice-principal-primary"],

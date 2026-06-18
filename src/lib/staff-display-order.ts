@@ -27,6 +27,7 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
       "rector-principal",
       "vice-rector",
       "principal-primary",
+      "principal-middle-upper",
       "priest-in-charge-middle-upper",
       "priest-in-charge-advanced-level",
       "sectional-head-upper",

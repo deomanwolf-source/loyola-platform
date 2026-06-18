@@ -47,9 +47,21 @@ const FIRST_ADMIN_POSITIONS: AdministrationPositionGroup[] = [
     ],
   },
   {
+    id: "principal-middle-upper",
+    title: "Principal of Middle School & Upper School",
+    order: 4,
+    codes: ["principal-middle-upper"],
+    aliases: [
+      "principal of middle school and upper school",
+      "principal of middle and upper school",
+      "principal middle school upper school",
+      "principal middle and upper school",
+    ],
+  },
+  {
     id: "priest-in-charge-middle-upper",
     title: "Priest in Charge - Middle and Upper School",
-    order: 4,
+    order: 5,
     codes: ["priest-in-charge-middle-upper"],
     aliases: [
       "priest in charge",

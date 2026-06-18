@@ -134,6 +134,13 @@ function registerStaffRoutes(app, context) {
       "Academic Staff",
     ],
     [
+      "Principal of Middle School & Upper School",
+      "College Administration",
+      "Middle School & Upper School",
+      "College Administration",
+      "Academic Staff",
+    ],
+    [
       "Priest in Charge",
       "College Administration",
       "Administration",

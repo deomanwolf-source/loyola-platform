@@ -6168,6 +6168,7 @@ function StaffPanel({ db }: { db: DB }) {
     "Vice Rector": "Top Administration",
     "Vice Rector / Prefect of Games": "Top Administration",
     "Principal of Primary School": "Top Administration",
+    "Principal of Middle School & Upper School": "Top Administration",
     "Priest in Charge": "Top Administration",
     "Priest in Charge & Sectional Head of Upper School": "Top Administration",
     "Vice Principal - Primary School": "Vice Principals",
