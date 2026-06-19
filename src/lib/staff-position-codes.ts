@@ -52,6 +52,7 @@ export const FIXED_POSITION_CODE_ORDER = [
   "vice-principal-middle",
   "vice-principal-upper",
   "vice-principal-advanced-level",
+  "vice-principal-advanced-level-section",
   "academic-coordinator-primary",
   "academic-coordinator-middle",
   "academic-coordinator-upper",
@@ -365,6 +366,7 @@ const POSITION_CODE_ALIASES = new Map<string, string>([
   ["vice-principal-middle", "Vice Principal - Middle School"],
   ["vice-principal-upper", "Vice Principal - Upper School"],
   ["vice-principal-advanced-level", "Vice Principal - Advanced Level Section"],
+  ["vice-principal-advanced-level-section", "Vice Principal - Advanced Level Section"],
 ].forEach(([code, title], index) =>
   add(code, {
     main_category: "Academic Staff",

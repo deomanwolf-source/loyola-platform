@@ -473,6 +473,7 @@
     "priest-in-charge-middle-upper",
     "sectional-head-upper",
     "vice-principal-advanced-level",
+    "vice-principal-advanced-level-section",
     "vice-principal-primary",
     "vice-principal-middle",
     "vice-principal-upper",

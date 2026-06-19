@@ -42,6 +42,7 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
       "vice-principal-middle",
       "vice-principal-upper",
       "vice-principal-advanced-level",
+      "vice-principal-advanced-level-section",
     ],
   },
   {
