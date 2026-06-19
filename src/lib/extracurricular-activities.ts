@@ -45,9 +45,9 @@ export const EXTRA_CURRICULAR_GROUPS: ExtraCurricularActivityGroup[] = [
   },
   {
     id: "houses-coaches-and-trainers",
-    title: "Houses, Coaches & Trainers",
+    title: "Houses",
     description:
-      "House identity, inter-house participation, specialist coaching, and skill training for sports and performance groups.",
+      "House identity, student leadership, teamwork, and inter-house participation across college activities.",
   },
 ];
 
@@ -527,92 +527,6 @@ const EXTRA_CURRICULAR_ACTIVITY_BASE: ExtraCurricularActivity[] = [
     note: "Primary School",
     teachers: ["Miss Iroma Mendis", "Mrs. Ishani Fernando"],
   },
-  {
-    id: "athletics-coaches",
-    groupId: "houses-coaches-and-trainers",
-    title: "Athletic Coaches",
-    teachers: ["Mr. Christopher Pulle", "Mr. Shashika Madushanka", "Mr. Rusiru Thejaka"],
-  },
-  {
-    id: "cricket-coaches-under-13-15",
-    groupId: "houses-coaches-and-trainers",
-    title: "Cricket Coaches",
-    note: "Under 13 & 15",
-    teachers: ["Mr. Mithun Perera"],
-  },
-  {
-    id: "cricket-coaches-under-17-19",
-    groupId: "houses-coaches-and-trainers",
-    title: "Cricket Coaches",
-    note: "Under 17 & 19",
-    teachers: ["Mr. Harshana Lakmal"],
-  },
-  {
-    id: "cricket-academy-coach",
-    groupId: "houses-coaches-and-trainers",
-    title: "Cricket Academy Coach",
-    teachers: ["Mr. Mithun Perera"],
-  },
-  {
-    id: "volleyball-coach",
-    groupId: "houses-coaches-and-trainers",
-    title: "Volleyball Coach",
-    teachers: ["Mr. Samansiri Senevirathne"],
-  },
-  {
-    id: "basketball-coaches",
-    groupId: "houses-coaches-and-trainers",
-    title: "Basketball Coaches",
-    teachers: ["Mr. Kithsiri", "Mr. Shen"],
-  },
-  {
-    id: "karate-coach",
-    groupId: "houses-coaches-and-trainers",
-    title: "Karate Coach",
-    teachers: ["Mr. Randika Dilshan"],
-  },
-  {
-    id: "swimming-coaches",
-    groupId: "houses-coaches-and-trainers",
-    title: "Swimming Coaches",
-    teachers: ["Mr. Sumith Ranasinghe", "Mr. Lakshan Fernando", "Mrs. Stephni Fernando"],
-  },
-  {
-    id: "scouting-trainer",
-    groupId: "houses-coaches-and-trainers",
-    title: "Scouting Trainer",
-    teachers: ["Mrs. Sumihiri Kariyakarawana"],
-  },
-  {
-    id: "boys-band-trainer",
-    groupId: "houses-coaches-and-trainers",
-    title: "Boys' Band Trainer",
-    teachers: ["Mr. Sampath Fernando"],
-  },
-  {
-    id: "girls-band-trainers",
-    groupId: "houses-coaches-and-trainers",
-    title: "Girls' Band Trainers",
-    teachers: ["Mr. Nishantha Akmeemana", "Mr. Sameera Akmeemana"],
-  },
-  {
-    id: "primary-band-trainer",
-    groupId: "houses-coaches-and-trainers",
-    title: "Primary Band Trainer",
-    teachers: ["Mr. Nishantha Akmeemana"],
-  },
-  {
-    id: "army-cadet-trainer",
-    groupId: "houses-coaches-and-trainers",
-    title: "Army Cadet Trainer",
-    teachers: ["Mr. Amila Ranaweera"],
-  },
-  {
-    id: "eastern-band-trainer",
-    groupId: "houses-coaches-and-trainers",
-    title: "Eastern Band Trainer",
-    teachers: ["Mrs. Saumya De Silva"],
-  },
 ];
 
 export const EXTRA_CURRICULAR_ACTIVITIES: ExtraCurricularActivity[] =
@@ -701,5 +615,17 @@ export function extraCurricularActivitiesByGroup(
   groupId: string,
   customActivities: Partial<ExtraCurricularActivity>[] = [],
 ) {
-  return extraCurricularActivities(customActivities).filter((activity) => activity.groupId === groupId);
+  const activities = extraCurricularActivities(customActivities).filter(
+    (activity) => activity.groupId === groupId,
+  );
+
+  if (groupId === "houses-coaches-and-trainers") {
+    return activities.filter((activity) => {
+      const title = activity.title.toLowerCase();
+      const id = activity.id.toLowerCase();
+      return title.includes("house") || id.includes("house");
+    });
+  }
+
+  return activities;
 }
