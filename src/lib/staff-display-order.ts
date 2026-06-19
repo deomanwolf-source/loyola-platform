@@ -198,6 +198,18 @@ export const STAFF_DISPLAY_GROUPS: StaffDisplayGroup[] = [
       position.main_category === "Non-Academic Staff" && position.section === "Office Support",
   },
   {
+    id: "non-academic-primary-office",
+    title: "Primary Office",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Primary Office",
+  },
+  {
+    id: "non-academic-cambridge-office",
+    title: "Cambridge Office",
+    match: (position) =>
+      position.main_category === "Non-Academic Staff" && position.section === "Cambridge Office",
+  },
+  {
     id: "non-academic-maintenance",
     title: "Maintenance Department",
     match: (position) =>
