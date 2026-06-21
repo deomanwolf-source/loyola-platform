@@ -992,6 +992,9 @@ function registerStaffRoutes(app, context) {
       body.position_title || body.positionTitle || body.position || body.title,
       150,
     );
+    const positionCode =
+      normalizePositionCode(body.position_code || body.positionCode) ||
+      normalizePositionCode(positionTitle);
     const category = normalizePositionCategory(
       body.category,
       positionTitle,
@@ -1011,6 +1014,7 @@ function registerStaffRoutes(app, context) {
 
     return {
       positionTitle,
+      positionCode,
       category,
       department: clean(body.department || body.section, 120),
       websitePlace,
@@ -1034,6 +1038,35 @@ function registerStaffRoutes(app, context) {
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/(^-|-$)/g, "") || "position"
     );
+  }
+
+  async function uniquePositionMasterCode(runner, rawCode, currentId = null) {
+    const base = normalizePositionCode(rawCode) || "position";
+    let candidate = base;
+    let suffix = 2;
+
+    for (;;) {
+      const values = [candidate];
+      let currentFilter = "";
+      if (currentId) {
+        currentFilter = " AND id <> ?";
+        values.push(currentId);
+      }
+      const [rows] = await runner.query(
+        `SELECT id FROM staff_position_master WHERE position_code = ?${currentFilter} LIMIT 1`,
+        values,
+      );
+      if (!rows.length) return candidate;
+      candidate = `${base}-${suffix}`;
+      suffix += 1;
+    }
+  }
+
+  async function nextPositionMasterDisplayOrder(runner) {
+    const [[row]] = await runner.query(
+      "SELECT COALESCE(MAX(display_order), 0) + 1 AS next_order FROM staff_position_master",
+    );
+    return Number(row?.next_order || 1);
   }
 
   function profileSlug(value) {
@@ -1329,6 +1362,7 @@ function registerStaffRoutes(app, context) {
       CREATE TABLE IF NOT EXISTS staff_position_master (
         id INT AUTO_INCREMENT PRIMARY KEY,
         position_title VARCHAR(150) NOT NULL,
+        position_code VARCHAR(180) NOT NULL DEFAULT '',
         category VARCHAR(120) NOT NULL DEFAULT '',
         department VARCHAR(120) NOT NULL DEFAULT '',
         website_place VARCHAR(120) NOT NULL DEFAULT 'Subject Teachers',
@@ -1346,12 +1380,23 @@ function registerStaffRoutes(app, context) {
           website_place
         ),
         KEY idx_staff_position_master_title (position_title),
+        KEY idx_staff_position_master_code (position_code),
         KEY idx_staff_position_master_category (category),
         KEY idx_staff_position_master_place (website_place),
         KEY idx_staff_position_master_status (status),
         KEY idx_staff_position_master_order (display_order)
       )
     `);
+    await addColumnIfMissing(
+      "staff_position_master",
+      "position_code",
+      "VARCHAR(180) NOT NULL DEFAULT '' AFTER position_title",
+    );
+    await addIndexIfMissing(
+      "staff_position_master",
+      "idx_staff_position_master_code",
+      "(position_code)",
+    );
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS staff_attendance (
@@ -2325,6 +2370,8 @@ function registerStaffRoutes(app, context) {
       id: row.id,
       position_title: row.position_title || "",
       positionTitle: row.position_title || "",
+      position_code: row.position_code || normalizePositionCode(row.position_title || ""),
+      positionCode: row.position_code || normalizePositionCode(row.position_title || ""),
       category: row.category || "",
       department: row.department || "",
       website_place: row.website_place || "",
@@ -4252,17 +4299,21 @@ function registerStaffRoutes(app, context) {
       if (!payload.positionTitle) {
         return res.status(400).json({ error: "Position title is required" });
       }
+      const positionCode = await uniquePositionMasterCode(db, payload.positionCode);
+      const displayOrder =
+        payload.displayOrder > 0 ? payload.displayOrder : await nextPositionMasterDisplayOrder(db);
       const [result] = await db.query(
         `
           INSERT INTO staff_position_master
             (
-              position_title, category, department, website_place, description,
+              position_title, position_code, category, department, website_place, description,
               default_staff_type, visible_on_website, status, display_order
             )
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         [
           payload.positionTitle,
+          positionCode,
           payload.category,
           payload.department,
           payload.websitePlace,
@@ -4270,7 +4321,7 @@ function registerStaffRoutes(app, context) {
           payload.defaultStaffType,
           payload.visibleOnWebsite ? 1 : 0,
           payload.status,
-          payload.displayOrder,
+          displayOrder,
         ],
       );
       await logStaffAction(req, "position.created", "position", result.insertId, {
@@ -4294,11 +4345,27 @@ function registerStaffRoutes(app, context) {
       if (!payload.positionTitle) {
         return res.status(400).json({ error: "Position title is required" });
       }
+      const [[existing]] = await db.query(
+        "SELECT position_code FROM staff_position_master WHERE id = ? LIMIT 1",
+        [id],
+      );
+      if (!existing) return res.status(404).json({ error: "Position not found" });
+      const explicitCodeProvided = Boolean(
+        clean(req.body?.position_code || req.body?.positionCode, 180),
+      );
+      const positionCode = await uniquePositionMasterCode(
+        db,
+        explicitCodeProvided ? payload.positionCode : existing.position_code || payload.positionCode,
+        id,
+      );
+      const displayOrder =
+        payload.displayOrder > 0 ? payload.displayOrder : await nextPositionMasterDisplayOrder(db);
       const [result] = await db.query(
         `
           UPDATE staff_position_master
           SET
             position_title = ?,
+            position_code = ?,
             category = ?,
             department = ?,
             website_place = ?,
@@ -4311,6 +4378,7 @@ function registerStaffRoutes(app, context) {
         `,
         [
           payload.positionTitle,
+          positionCode,
           payload.category,
           payload.department,
           payload.websitePlace,
@@ -4318,7 +4386,7 @@ function registerStaffRoutes(app, context) {
           payload.defaultStaffType,
           payload.visibleOnWebsite ? 1 : 0,
           payload.status,
-          payload.displayOrder,
+          displayOrder,
           id,
         ],
       );

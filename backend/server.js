@@ -3314,6 +3314,7 @@ function assertVisualSnapshotsReadyForPublish(siteDb) {
 
 async function upsertPortalUserAccount(runner, user) {
   const accountId = String(user?.id || `U-${Date.now()}`).trim();
+  const externalStaffId = compactText(user?.external_staff_id || user?.externalStaffId, 80);
   const accountEmail = normalizeEmail(user?.email || "");
   const accountName = String(user?.name || accountEmail.split("@")[0] || "User")
     .trim()
@@ -3349,20 +3350,28 @@ async function upsertPortalUserAccount(runner, user) {
     if (hasPassword) {
       const passwordHash = await bcrypt.hash(password, 12);
       await runner.query(
-        "UPDATE users SET name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?",
-        [accountName, accountEmail, accountRole, accountStatus, passwordHash, effectiveAccountId],
+        "UPDATE users SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id), name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?",
+        [
+          externalStaffId,
+          accountName,
+          accountEmail,
+          accountRole,
+          accountStatus,
+          passwordHash,
+          effectiveAccountId,
+        ],
       );
     } else {
       await runner.query(
-        "UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?",
-        [accountName, accountEmail, accountRole, accountStatus, effectiveAccountId],
+        "UPDATE users SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id), name = ?, email = ?, role = ?, status = ? WHERE id = ?",
+        [externalStaffId, accountName, accountEmail, accountRole, accountStatus, effectiveAccountId],
       );
     }
   } else {
     const passwordHash = await bcrypt.hash(password, 12);
     await runner.query(
-      "INSERT INTO users (id, name, email, role, status, password_hash) VALUES (?, ?, ?, ?, ?, ?)",
-      [accountId, accountName, accountEmail, accountRole, accountStatus, passwordHash],
+      "INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash) VALUES (?, NULLIF(?, ''), ?, ?, ?, ?, ?)",
+      [accountId, externalStaffId, accountName, accountEmail, accountRole, accountStatus, passwordHash],
     );
   }
 }
@@ -4467,19 +4476,121 @@ app.use(async (req, res, next) => {
   }
 });
 
+async function readManagedPortalUsers() {
+  await ensureAccessTables();
+  const [rows] = await db.query(
+    "SELECT id, external_staff_id, name, email, role, status, two_factor_enabled, created_at FROM users ORDER BY created_at DESC",
+  );
+
+  const users = rows.map((user) => ({
+    ...user,
+    accountMissing: false,
+    source: "users",
+    twoFactorEnabled: Boolean(Number(user.two_factor_enabled || 0)),
+  }));
+
+  if (!(await tableExists("staff_profiles"))) return users;
+
+  const [staffRows] = await db.query(`
+    SELECT
+      sp.id AS external_staff_id,
+      sp.full_name AS name,
+      sp.email AS email,
+      sp.status AS staff_status,
+      sp.created_at AS created_at,
+      sp.user_id AS linked_user_id,
+      u.id AS user_id
+    FROM staff_profiles sp
+    LEFT JOIN users u
+      ON u.id = sp.user_id
+      OR NULLIF(u.external_staff_id, '') = sp.id
+      OR (NULLIF(sp.email, '') IS NOT NULL AND LOWER(u.email) = LOWER(sp.email))
+    WHERE u.id IS NULL
+    ORDER BY sp.full_name ASC
+  `);
+
+  return [
+    ...users,
+    ...staffRows.map((row) => ({
+      id: `staff:${row.external_staff_id}`,
+      external_staff_id: row.external_staff_id,
+      name: row.name || row.external_staff_id,
+      email: row.email || "",
+      role: ROLES.teacher,
+      status: "Not Created",
+      source: "staff_profiles",
+      accountMissing: true,
+      twoFactorEnabled: false,
+      created_at: row.created_at,
+    })),
+  ];
+}
+
+async function linkPortalUserToStaffRecords(runner, userId, externalStaffId, email) {
+  const staffId = compactText(externalStaffId, 80);
+  const accountEmail = normalizeEmail(email);
+  if (!staffId && !accountEmail) return;
+
+  if (await tableExists("staff_profiles", runner)) {
+    const values = [];
+    const clauses = [];
+    if (staffId) {
+      clauses.push("id = ?");
+      values.push(staffId);
+    }
+    if (accountEmail) {
+      clauses.push("LOWER(email) = LOWER(?)");
+      values.push(accountEmail);
+    }
+    if (clauses.length) {
+      await runner.query(
+        `UPDATE staff_profiles SET user_id = ? WHERE ${clauses.join(" OR ")}`,
+        [userId, ...values],
+      );
+    }
+  }
+
+  if (await tableExists("teachers", runner)) {
+    const values = [];
+    const clauses = [];
+    if (staffId) {
+      clauses.push("(staff_id = ? OR external_staff_id = ? OR id = ?)");
+      values.push(staffId, staffId, staffId);
+    }
+    if (accountEmail) {
+      clauses.push("LOWER(email) = LOWER(?)");
+      values.push(accountEmail);
+    }
+    if (clauses.length) {
+      await runner.query(
+        `
+          UPDATE teachers
+          SET account_user_id = ?, account_email = ?
+          WHERE ${clauses.join(" OR ")}
+        `,
+        [userId, accountEmail, ...values],
+      );
+    }
+  }
+}
+
+async function unlinkPortalUserFromStaffRecords(runner, userId) {
+  const accountId = compactText(userId, 50);
+  if (!accountId) return;
+  if (await tableExists("staff_profiles", runner)) {
+    await runner.query("UPDATE staff_profiles SET user_id = NULL WHERE user_id = ?", [accountId]);
+  }
+  if (await tableExists("teachers", runner)) {
+    await runner.query(
+      "UPDATE teachers SET account_user_id = NULL, account_email = NULL WHERE account_user_id = ?",
+      [accountId],
+    );
+  }
+}
+
 app.get("/api/users", masterAdminOnly, async (req, res) => {
   try {
-    await ensureAccessTables();
-    const [rows] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, two_factor_enabled, created_at FROM users ORDER BY created_at DESC",
-    );
-
-    res.json(
-      rows.map((user) => ({
-        ...user,
-        twoFactorEnabled: Boolean(Number(user.two_factor_enabled || 0)),
-      })),
-    );
+    res.json(await readManagedPortalUsers());
   } catch (error) {
     res.status(500).json({
       error: error.message,
@@ -4490,10 +4601,20 @@ app.get("/api/users", masterAdminOnly, async (req, res) => {
 app.post("/api/users", masterAdminOnly, async (req, res) => {
   try {
     await ensureAccessTables();
-    const { id, name, email, password, role = ROLES.teacher, status = "Active" } = req.body || {};
+    const {
+      id,
+      name,
+      email,
+      password,
+      role = ROLES.teacher,
+      status = "Active",
+      external_staff_id,
+      externalStaffId,
+    } = req.body || {};
     const accountEmail = normalizeEmail(email);
     const accountName = compactText(name || accountEmail.split("@")[0], 150);
     const accountPassword = String(password || "");
+    const staffId = compactText(external_staff_id || externalStaffId, 80);
 
     if (!accountName || !accountEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
       return res.status(400).json({ error: "Name and a valid email are required" });
@@ -4512,14 +4633,19 @@ app.post("/api/users", masterAdminOnly, async (req, res) => {
     const accountId = compactText(id, 50) || syncAccountId("USR");
     await upsertPortalUserAccount(db, {
       id: accountId,
+      external_staff_id: staffId,
       name: accountName,
       email: accountEmail,
       password: accountPassword,
       role,
       status,
     });
+    if (normalizePortalRole(role) === ROLES.teacher || staffId) {
+      await linkPortalUserToStaffRecords(db, accountId, staffId, accountEmail);
+    }
     const savedUser = {
       id: accountId,
+      external_staff_id: staffId,
       name: accountName,
       email: accountEmail,
       role: normalizePortalRole(role),
@@ -4554,6 +4680,10 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
       req.body?.role === undefined ? existing.role : normalizePortalRole(req.body.role);
     const nextStatus =
       req.body?.status === undefined ? existing.status : normalizeAccountStatus(req.body.status);
+    const nextExternalStaffId =
+      req.body?.external_staff_id === undefined && req.body?.externalStaffId === undefined
+        ? compactText(existing.external_staff_id || "", 80)
+        : compactText(req.body.external_staff_id || req.body.externalStaffId, 80);
     const nextPassword =
       typeof req.body?.password === "string" && req.body.password.length > 0
         ? req.body.password
@@ -4577,21 +4707,18 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
     if (nextPassword) {
       const passwordHash = await bcrypt.hash(nextPassword, 12);
       await db.query(
-        "UPDATE users SET name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?",
-        [nextName, nextEmail, nextRole, nextStatus, passwordHash, userId],
+        "UPDATE users SET external_staff_id = NULLIF(?, ''), name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?",
+        [nextExternalStaffId, nextName, nextEmail, nextRole, nextStatus, passwordHash, userId],
       );
     } else {
-      await db.query("UPDATE users SET name = ?, email = ?, role = ?, status = ? WHERE id = ?", [
-        nextName,
-        nextEmail,
-        nextRole,
-        nextStatus,
-        userId,
-      ]);
+      await db.query(
+        "UPDATE users SET external_staff_id = NULLIF(?, ''), name = ?, email = ?, role = ?, status = ? WHERE id = ?",
+        [nextExternalStaffId, nextName, nextEmail, nextRole, nextStatus, userId],
+      );
     }
     const savedUser = {
       id: userId,
-      external_staff_id: existing.external_staff_id || "",
+      external_staff_id: nextExternalStaffId,
       name: nextName,
       email: nextEmail,
       role: nextRole,
@@ -4602,6 +4729,9 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
       password: nextPassword,
       previousRole: existing.role,
     });
+    if (nextRole === ROLES.teacher || savedUser.external_staff_id) {
+      await linkPortalUserToStaffRecords(db, userId, savedUser.external_staff_id, nextEmail);
+    }
 
     res.json({
       success: true,
@@ -4614,27 +4744,40 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
 });
 
 app.delete("/api/users/:id", masterAdminOnly, async (req, res) => {
+  const connection = await db.getConnection();
   try {
     await ensureAccessTables();
     const userId = compactText(req.params.id, 50);
     if (req.user?.id === userId) {
-      return res.status(400).json({ error: "You cannot disable your own account" });
+      return res.status(400).json({ error: "You cannot delete your own account" });
     }
 
     const [[existing]] = await db.query(
       "SELECT id, external_staff_id, name, email, role, status FROM users WHERE id = ? LIMIT 1",
       [userId],
     );
-    const [result] = await db.query("UPDATE users SET status = 'Disabled' WHERE id = ?", [userId]);
-    const eduTrackSync = existing
-      ? await syncPortalUserAccountToEduTrack(
-          { ...existing, status: "Disabled" },
-          { previousRole: existing.role, statusOverride: "Disabled" },
-        )
-      : { skipped: true, reason: "user-not-found" };
-    res.json({ success: true, disabled: result.affectedRows > 0, eduTrackSync });
+    if (!existing) return res.status(404).json({ error: "User not found" });
+
+    const eduTrackSync = await syncPortalUserAccountToEduTrack(
+      { ...existing, status: "Disabled" },
+      { previousRole: existing.role, statusOverride: "Disabled" },
+    );
+
+    await connection.beginTransaction();
+    await unlinkPortalUserFromStaffRecords(connection, userId);
+    const [result] = await connection.query("DELETE FROM users WHERE id = ?", [userId]);
+    await connection.commit();
+
+    res.json({ success: true, deleted: result.affectedRows > 0, eduTrackSync });
   } catch (error) {
+    try {
+      await connection.rollback();
+    } catch {
+      // Ignore rollback failures so the original error is reported.
+    }
     res.status(500).json({ error: error.message });
+  } finally {
+    connection.release();
   }
 });
 
