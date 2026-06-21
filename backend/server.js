@@ -10233,7 +10233,22 @@ async function maintenancePageGate(req, res, next) {
   }
 }
 
-const frontendRoot = path.resolve(process.env.FRONTEND_ROOT || path.join(__dirname, "..", "public"));
+function resolveFrontendRoot() {
+  const configured = String(process.env.FRONTEND_ROOT || "").trim();
+
+  if (process.env.APP_NAME === "edutrack") {
+    const standaloneEduTrackPublic = path.join(__dirname, "..", "edutrack", "public");
+    const usesDefaultPublicRoot = !configured || configured === "public" || configured === "./public";
+
+    if (usesDefaultPublicRoot && fs.existsSync(path.join(standaloneEduTrackPublic, "index.html"))) {
+      return standaloneEduTrackPublic;
+    }
+  }
+
+  return path.resolve(configured || path.join(__dirname, "..", "public"));
+}
+
+const frontendRoot = resolveFrontendRoot();
 const frontendIndex = path.join(frontendRoot, "index.html");
 const frontendAssets = path.join(frontendRoot, "assets");
 
