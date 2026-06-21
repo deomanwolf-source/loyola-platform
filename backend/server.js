@@ -2793,7 +2793,7 @@ async function queueStaffEduTrackSync(runner, payload, error) {
   await markStaffEduTrackSync(runner, payload, "failed", error.message || String(error));
 }
 
-async function upsertLocalEduTrackTeacher(runner, payload = {}) {
+async function upsertLocalEduTrackTeacher(runner, payload = {}, options = {}) {
   const staffId = compactText(payload.staffId || payload.staff_id || payload.external_staff_id, 50);
   const teacherId = compactText(payload.teacherId || payload.teacher_id || staffId, 50);
   const requestedUserId = compactText(payload.userId || payload.user_id, 50);
@@ -2947,7 +2947,9 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}) {
     ],
   );
 
-  await markStaffEduTrackSync(runner, payload, "synced", "", teacherId);
+  if (options.markSync !== false) {
+    await markStaffEduTrackSync(runner, payload, "synced", "", teacherId);
+  }
   return { userId, teacherId, storageTeacherId };
 }
 
@@ -3009,12 +3011,12 @@ async function postExternalEduTrackSync(payload) {
   return data;
 }
 
-async function runLocalEduTrackSync(runner, payload) {
+async function runLocalEduTrackSync(runner, payload, options = {}) {
   if (runner === db && typeof db.getConnection === "function") {
     const connection = await db.getConnection();
     try {
       await connection.beginTransaction();
-      const result = await upsertLocalEduTrackTeacher(connection, payload);
+      const result = await upsertLocalEduTrackTeacher(connection, payload, options);
       await connection.commit();
       return result;
     } catch (error) {
@@ -3025,7 +3027,7 @@ async function runLocalEduTrackSync(runner, payload) {
     }
   }
 
-  return upsertLocalEduTrackTeacher(runner, payload);
+  return upsertLocalEduTrackTeacher(runner, payload, options);
 }
 
 async function syncTeacherAccountToEduTrack(runnerOrPayload, maybePayload) {
@@ -9250,6 +9252,347 @@ async function platformUsersForEduTrack() {
   });
 }
 
+const EDUTRACK_TEACHER_CSV_MAX_BYTES = 2 * 1024 * 1024;
+
+function normalizeEduTrackCsvHeader(value) {
+  return String(value || "")
+    .replace(/^\uFEFF/, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/(^_|_$)/g, "");
+}
+
+function parseEduTrackTeacherCsv(text) {
+  const rows = [];
+  let row = [];
+  let cell = "";
+  let quoted = false;
+  const source = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n");
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+    if (quoted) {
+      if (char === '"' && next === '"') {
+        cell += '"';
+        index += 1;
+      } else if (char === '"') {
+        quoted = false;
+      } else {
+        cell += char;
+      }
+      continue;
+    }
+    if (char === '"') {
+      quoted = true;
+      continue;
+    }
+    if (char === ",") {
+      row.push(cell);
+      cell = "";
+      continue;
+    }
+    if (char === "\n") {
+      row.push(cell);
+      rows.push(row);
+      row = [];
+      cell = "";
+      continue;
+    }
+    cell += char;
+  }
+
+  row.push(cell);
+  if (row.some((value) => String(value || "").trim())) rows.push(row);
+  if (!rows.length) return [];
+
+  const headers = rows.shift().map(normalizeEduTrackCsvHeader);
+  return rows
+    .filter((items) => items.some((value) => String(value || "").trim()))
+    .map((items) => {
+      const record = {};
+      headers.forEach((header, index) => {
+        if (!header) return;
+        record[header] = items[index] == null ? "" : String(items[index]).trim();
+      });
+      return record;
+    });
+}
+
+function eduTrackCsvField(row, ...keys) {
+  for (const key of keys) {
+    const normalized = normalizeEduTrackCsvHeader(key);
+    if (Object.prototype.hasOwnProperty.call(row, normalized) && row[normalized]) {
+      return row[normalized];
+    }
+  }
+  return "";
+}
+
+function splitEduTrackCsvList(value) {
+  if (Array.isArray(value)) {
+    return value.map((item) => compactText(item, 80)).filter(Boolean);
+  }
+  return String(value || "")
+    .split(/[,\n;|]+/g)
+    .map((item) => compactText(item, 80))
+    .filter(Boolean);
+}
+
+function eduTrackLevelFromGrade(grade) {
+  const value = Number(grade);
+  if (!Number.isInteger(value) || value < 1 || value > 13) return "";
+  if (value <= 5) return "primary";
+  if (value <= 9) return "middle";
+  if (value <= 11) return "upper";
+  return "advanced";
+}
+
+function parseEduTrackCsvGrades(value) {
+  const grades = splitEduTrackCsvList(value)
+    .map((item) => {
+      const match =
+        String(item).match(/(?:grade|gr|g|level)?\s*-?\s*(1[0-3]|[1-9])\b/i) ||
+        String(item).match(/\b(1[0-3]|[1-9])\b/);
+      return match ? Number(match[1]) : NaN;
+    })
+    .filter((grade) => Number.isInteger(grade) && grade >= 1 && grade <= 13);
+  return [...new Set(grades)].sort((a, b) => a - b);
+}
+
+function deriveEduTrackGradesFromClassIds(classIds) {
+  const grades = classIds
+    .map((classId) => {
+      const text = String(classId || "").toUpperCase();
+      const match =
+        text.match(/(?:GRADE|GR|G)[-_\s]*(1[0-3]|[1-9])(?=[A-Z_\-\s]|$)/) ||
+        text.match(/^(1[0-3]|[1-9])[A-Z]?$/);
+      return match ? Number(match[1]) : NaN;
+    })
+    .filter((grade) => Number.isInteger(grade) && grade >= 1 && grade <= 13);
+  return [...new Set(grades)].sort((a, b) => a - b);
+}
+
+function eduTrackTeacherPayloadFromCsvRow(row, index) {
+  const teacherId = compactText(
+    eduTrackCsvField(
+      row,
+      "teacher_id",
+      "teacher id",
+      "teacher_code",
+      "staff_id",
+      "staff id",
+      "staff_no",
+      "employee_id",
+      "employee no",
+      "id",
+    ),
+    50,
+  ).toUpperCase();
+  const classIds = splitEduTrackCsvList(
+    eduTrackCsvField(row, "class_ids", "class ids", "class_id", "class id", "classes", "class"),
+  ).map((item) => item.toUpperCase());
+  const grades =
+    parseEduTrackCsvGrades(eduTrackCsvField(row, "grades", "grade", "grade_assigned")) ||
+    [];
+  const effectiveGrades = grades.length ? grades : deriveEduTrackGradesFromClassIds(classIds);
+  const email = normalizeEmail(
+    eduTrackCsvField(row, "email", "account_email", "login_email", "teacher_email"),
+  );
+  const password = String(
+    eduTrackCsvField(row, "password", "temporary_password", "temp_password", "new_password"),
+  ).trim();
+
+  return {
+    rowNumber: index + 2,
+    userId: compactText(eduTrackCsvField(row, "user_id", "account_user_id"), 50),
+    staffId: teacherId,
+    teacherId,
+    name: compactText(
+      eduTrackCsvField(row, "name", "full_name", "full name", "teacher_name", "staff_name"),
+      150,
+    ),
+    email,
+    password,
+    status: normalizeAccountStatus(eduTrackCsvField(row, "status", "account_status") || "Active"),
+    subject: compactText(eduTrackCsvField(row, "subject", "subjects", "department_subject"), 100),
+    classes: compactText(classIds.join(", "), 100),
+    position: compactText(eduTrackCsvField(row, "position", "job_title", "designation"), 150),
+    department: compactText(eduTrackCsvField(row, "department", "section"), 100),
+    staffType: compactText(eduTrackCsvField(row, "staff_type", "type") || "Academic Staff", 100),
+    classIds,
+    classId: classIds[0] || "",
+    grades: effectiveGrades,
+    grade: effectiveGrades[0] || "",
+    level: effectiveGrades.length
+      ? eduTrackLevelFromGrade(effectiveGrades[effectiveGrades.length - 1])
+      : "",
+  };
+}
+
+function validateEduTrackTeacherImportPayload(payload) {
+  const errors = [];
+  if (!payload.name) errors.push("name is required");
+  if (!payload.teacherId) errors.push("teacher_id is required");
+  if (!payload.email) errors.push("email is required");
+  else if (!isValidEmail(payload.email)) errors.push("email is invalid");
+  return errors;
+}
+
+async function findEduTrackTeacherImportTarget(payload) {
+  const missing = "__missing__";
+  const [users] = await db.query(
+    `
+      SELECT id, role
+      FROM users
+      WHERE email = ? OR id = ? OR external_staff_id = ?
+      ORDER BY (email = ?) DESC, (id = ?) DESC, id
+      LIMIT 1
+    `,
+    [
+      payload.email,
+      payload.userId || missing,
+      payload.staffId || missing,
+      payload.email,
+      payload.userId || missing,
+    ],
+  );
+  const [teachers] = await db.query(
+    `
+      SELECT id, account_user_id
+      FROM teachers
+      WHERE id = ?
+         OR staff_id = ?
+         OR external_staff_id = ?
+         OR account_email = ?
+         OR email = ?
+         OR account_user_id = ?
+      ORDER BY (account_user_id = ?) DESC, id
+      LIMIT 1
+    `,
+    [
+      payload.teacherId || missing,
+      payload.staffId || missing,
+      payload.staffId || missing,
+      payload.email,
+      payload.email,
+      payload.userId || missing,
+      payload.userId || missing,
+    ],
+  );
+  return { user: users[0] || null, teacher: teachers[0] || null };
+}
+
+async function writeEduTrackTeacherUserDocument(userId, payload) {
+  const current = (await readEduTrackDoc("users", userId)) || {};
+  const now = new Date().toISOString();
+  await writeEduTrackDoc("users", userId, {
+    ...current,
+    id: userId,
+    name: payload.name,
+    email: payload.email,
+    role: "teacher",
+    teacherId: payload.teacherId,
+    teacher_id: payload.teacherId,
+    staffId: payload.staffId,
+    staff_id: payload.staffId,
+    external_staff_id: payload.staffId,
+    classIds: payload.classIds,
+    classId: payload.classId,
+    grades: payload.grades,
+    grade: payload.grade,
+    level: payload.level,
+    subject: payload.subject,
+    position: payload.position,
+    department: payload.department,
+    staffType: payload.staffType,
+    classes: payload.classes,
+    status: payload.status,
+    createdAt: current.createdAt || now,
+    updatedAt: now,
+  });
+}
+
+async function importEduTrackTeacherCsvRow(row, index) {
+  const payload = eduTrackTeacherPayloadFromCsvRow(row, index);
+  const validationErrors = validateEduTrackTeacherImportPayload(payload);
+  if (validationErrors.length) {
+    throw new Error(validationErrors.join("; "));
+  }
+
+  const existing = await findEduTrackTeacherImportTarget(payload);
+  if (!existing.user && !payload.password) {
+    throw new Error("password is required for a new teacher account");
+  }
+  if (existing.user?.role && existing.user.role !== ROLES.teacher) {
+    throw new Error("email or user_id belongs to a non-teacher account");
+  }
+
+  const result = await runLocalEduTrackSync(db, payload, { markSync: false });
+  await writeEduTrackTeacherUserDocument(result.userId, payload);
+  return {
+    action: existing.user || existing.teacher ? "updated" : "created",
+    userId: result.userId,
+    teacherId: result.teacherId,
+    storageTeacherId: result.storageTeacherId,
+  };
+}
+
+async function linkExistingEduTrackTeacherDocument(docId, data) {
+  const role = String(data?.role || "").trim().toLowerCase();
+  const teacherId = firstEduTrackValue(
+    data?.teacherId,
+    data?.teacher_id,
+    data?.staffId,
+    data?.staff_id,
+    data?.external_staff_id,
+  );
+  if ((role && role !== "teacher") || !teacherId) return;
+
+  const [[user]] = await db.query(
+    "SELECT id, external_staff_id, name, email, role, status FROM users WHERE id = ? LIMIT 1",
+    [docId],
+  );
+  if (!user || user.role !== ROLES.teacher) return;
+
+  const classIds = splitEduTrackCsvList(data.classIds || data.classId || data.classes).map((item) =>
+    item.toUpperCase(),
+  );
+  const grades = Array.isArray(data.grades)
+    ? data.grades
+        .map((grade) => Number(grade))
+        .filter((grade) => Number.isInteger(grade) && grade >= 1 && grade <= 13)
+    : parseEduTrackCsvGrades(data.grade || "");
+  const effectiveGrades = grades.length ? [...new Set(grades)].sort((a, b) => a - b) : [];
+  await upsertLocalEduTrackTeacher(
+    db,
+    {
+      userId: user.id,
+      staffId: teacherId,
+      teacherId,
+      name: compactText(data.name || user.name, 150),
+      email: normalizeEmail(data.email || user.email),
+      status: data.status || user.status || "Active",
+      subject: compactText(data.subject, 100),
+      classes: compactText(classIds.join(", "), 100),
+      position: compactText(data.position, 150),
+      department: compactText(data.department, 100),
+      staffType: compactText(data.staffType || data.staff_type || "Academic Staff", 100),
+      classIds,
+      classId: classIds[0] || "",
+      grades: effectiveGrades,
+      grade: effectiveGrades[0] || "",
+      level: effectiveGrades.length
+        ? eduTrackLevelFromGrade(effectiveGrades[effectiveGrades.length - 1])
+        : data.level || "",
+    },
+    { markSync: false },
+  );
+}
+
 app.get("/api/edutrack/session", teacherOrAdmin, async (req, res) => {
   try {
     const [users] = await db.query(
@@ -9288,6 +9631,59 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
     res
       .status(201)
       .json({ success: true, user: { id, name, email, role: "teacher", status: "Active" } });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/edutrack/teachers/import-csv", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const csv = String(req.body?.csv || req.body?.content || "");
+    const fileName = compactText(req.body?.fileName || req.body?.filename || "", 255);
+
+    if (fileName && !fileName.toLowerCase().endsWith(".csv")) {
+      return res.status(400).json({ error: "Only .csv files can be imported." });
+    }
+    if (Buffer.byteLength(csv, "utf8") > EDUTRACK_TEACHER_CSV_MAX_BYTES) {
+      return res.status(400).json({ error: "CSV file is too large. Limit is 2 MB." });
+    }
+
+    const rows = parseEduTrackTeacherCsv(csv);
+    if (!rows.length) return res.status(400).json({ error: "CSV file has no importable rows." });
+
+    const results = {
+      success: true,
+      rows: rows.length,
+      created: 0,
+      updated: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    for (let index = 0; index < rows.length; index += 1) {
+      try {
+        const imported = await importEduTrackTeacherCsvRow(rows[index], index);
+        if (imported.action === "created") results.created += 1;
+        else results.updated += 1;
+      } catch (error) {
+        results.skipped += 1;
+        results.errors.push({
+          row: index + 2,
+          error: error.message || String(error),
+        });
+      }
+    }
+
+    if (!results.created && !results.updated && results.errors.length) {
+      return res.status(400).json({
+        ...results,
+        success: false,
+        error: "No teachers were imported. Fix the CSV errors and try again.",
+      });
+    }
+
+    res.json(results);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -9348,7 +9744,11 @@ app.put("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, res)
     await ensureContentTables();
     const collectionName = safePathSegment(req.params.collection).replace(/\//g, "-");
     const docId = String(req.params.id);
-    await writeEduTrackDoc(collectionName, docId, { ...(req.body || {}), id: docId });
+    const payload = { ...(req.body || {}), id: docId };
+    await writeEduTrackDoc(collectionName, docId, payload);
+    if (collectionName === "users" && EDUZYNC_ADMIN_ROLES.includes(req.user?.role)) {
+      await linkExistingEduTrackTeacherDocument(docId, payload);
+    }
     res.json({ success: true, id: docId });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -9361,7 +9761,11 @@ app.patch("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, re
     const collectionName = safePathSegment(req.params.collection).replace(/\//g, "-");
     const docId = String(req.params.id);
     const current = (await readEduTrackDoc(collectionName, docId)) || {};
-    await writeEduTrackDoc(collectionName, docId, { ...current, ...(req.body || {}), id: docId });
+    const payload = { ...current, ...(req.body || {}), id: docId };
+    await writeEduTrackDoc(collectionName, docId, payload);
+    if (collectionName === "users" && EDUZYNC_ADMIN_ROLES.includes(req.user?.role)) {
+      await linkExistingEduTrackTeacherDocument(docId, payload);
+    }
     res.json({ success: true, id: docId });
   } catch (error) {
     res.status(500).json({ error: error.message });

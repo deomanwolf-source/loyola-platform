@@ -5643,6 +5643,19 @@
               <p>Manage teacher accounts</p>
             </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="downloadTeacherCsvTemplate()">
+                <i data-lucide="file-down" style="width: 14px; height: 14px"></i> CSV Template
+              </button>
+              <button class="btn secondary sm" onclick="openTeacherCsvImport()">
+                <i data-lucide="upload" style="width: 14px; height: 14px"></i> Import CSV
+              </button>
+              <input
+                id="teacher-csv-input"
+                type="file"
+                accept=".csv,text/csv"
+                style="display: none"
+                onchange="importTeachersCsv(this)"
+              />
               <button class="btn secondary sm" onclick="exportTeachersExcel()">
                 <i data-lucide="download" style="width: 14px; height: 14px"></i> Export Excel
               </button>
@@ -9883,6 +9896,87 @@
         document.getElementById("t-level-display").value = levels.length
           ? levels.map(lvlLabel).join(" + ")
           : "";
+      };
+      function teacherCsvCell(value) {
+        const text = String(value ?? "");
+        return /[",\n]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+      }
+      function teacherCsvErrorText(errors) {
+        const list = Array.isArray(errors) ? errors : [];
+        if (!list.length) return "";
+        const lines = list
+          .slice(0, 10)
+          .map((item) => "Row " + item.row + ": " + (item.error || "Invalid row"));
+        if (list.length > lines.length) lines.push("And " + (list.length - lines.length) + " more.");
+        return lines.join("\n");
+      }
+      window.downloadTeacherCsvTemplate = function () {
+        const rows = [
+          ["name", "email", "password", "teacher_id", "grades", "class_ids", "subject", "position", "status"],
+          [
+            "Mrs Example Teacher",
+            "teacher@example.lk",
+            "TempPass123",
+            "T001",
+            "6,7",
+            "GRADE-6-A,GRADE-7-B",
+            "Science",
+            "Subject Teacher",
+            "Active",
+          ],
+        ];
+        const csv = rows.map((row) => row.map(teacherCsvCell).join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "edutrack-teachers-template.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
+      window.openTeacherCsvImport = function () {
+        const input = document.getElementById("teacher-csv-input");
+        if (!input) return;
+        input.value = "";
+        input.click();
+      };
+      window.importTeachersCsv = async function (input) {
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+          showToast("Please select a .csv file.", "err");
+          input.value = "";
+          return;
+        }
+        try {
+          showToast("Importing teacher CSV...", "");
+          const csv = await file.text();
+          const result = await apiFetch("/api/edutrack/teachers/import-csv", {
+            method: "POST",
+            body: JSON.stringify({ csv, fileName: file.name }),
+          });
+          await loadData();
+          const message =
+            "CSV import finished: " +
+            Number(result.created || 0) +
+            " created, " +
+            Number(result.updated || 0) +
+            " updated" +
+            (result.skipped ? ", " + Number(result.skipped || 0) + " skipped" : "") +
+            ".";
+          showToast(message, result.skipped ? "" : "success");
+          if (result.errors && result.errors.length) {
+            window.alert("Some teacher rows were skipped:\n\n" + teacherCsvErrorText(result.errors));
+          }
+        } catch (error) {
+          const details = teacherCsvErrorText(error && error.data && error.data.errors);
+          showToast((error && error.message) || "CSV import failed.", "err");
+          if (details) window.alert("Teacher CSV import errors:\n\n" + details);
+        } finally {
+          input.value = "";
+        }
       };
       function resetTeacherForm() {
         editingTeacherId = null;
