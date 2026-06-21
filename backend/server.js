@@ -2953,6 +2953,13 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}) {
 }
 
 function externalEduTrackSyncConfig() {
+  const enabled = String(process.env.ENABLE_CROSS_SYSTEM_TEACHER_SYNC || "")
+    .trim()
+    .toLowerCase();
+  if (!["1", "true", "yes", "on"].includes(enabled)) {
+    return { base: "", secret: "", available: false };
+  }
+
   const base = String(
     process.env.EDUTRACK_INTERNAL_BASE_URL ||
       process.env.EDUTRACK_PUBLIC_URL ||
@@ -2964,7 +2971,14 @@ function externalEduTrackSyncConfig() {
 }
 
 function requiresExternalEduTrackSync() {
-  return process.env.APP_NAME !== "edutrack" && process.env.NODE_ENV === "production";
+  const enabled = String(process.env.ENABLE_CROSS_SYSTEM_TEACHER_SYNC || "")
+    .trim()
+    .toLowerCase();
+  return (
+    ["1", "true", "yes", "on"].includes(enabled) &&
+    process.env.APP_NAME !== "edutrack" &&
+    process.env.NODE_ENV === "production"
+  );
 }
 
 async function postExternalEduTrackSync(payload) {
@@ -3022,6 +3036,9 @@ async function syncTeacherAccountToEduTrack(runnerOrPayload, maybePayload) {
     runnerOrPayload && typeof runnerOrPayload.query === "function" ? maybePayload : runnerOrPayload;
 
   if (!payload) return { ok: false, queued: false, warning: "EduTrack sync payload missing" };
+  if (!externalEduTrackSyncConfig().available) {
+    return { ok: true, skipped: true, reason: "cross-system-teacher-sync-disabled" };
+  }
 
   await ensureContentTables();
   await ensureStaffSyncSchema();
@@ -4574,6 +4591,11 @@ app.delete("/api/staff-accounts/:id", eduzyncAdminOnly, async (req, res) => {
 });
 
 app.post("/api/internal/sync-teacher-account", async (req, res) => {
+  if (!externalEduTrackSyncConfig().available) {
+    return res.status(404).json({
+      error: "Teacher sync is disabled in this standalone EduTrack deployment",
+    });
+  }
   const configuredSecret = process.env.EDUTRACK_SYNC_SECRET;
   const requestSecret = req.headers["x-edutrack-sync-secret"];
   if (!configuredSecret || requestSecret !== configuredSecret) {
@@ -9857,10 +9879,6 @@ async function findOrCreateEduTrackSsoUser(payload) {
   let requestedId = compactText(payload.id, 50);
   const email = normalizeEmail(payload.email);
   const name = compactText(payload.name || email.split("@")[0], 150);
-  const externalStaffId = compactText(
-    payload.externalStaffId || payload.external_staff_id,
-    80,
-  );
 
   if (!requestedId || !email || !name || !EDUTRACK_SSO_ROLES.has(payload.role)) {
     throw new Error("Invalid EduTrack SSO user");
@@ -9880,33 +9898,52 @@ async function findOrCreateEduTrackSsoUser(payload) {
     );
     return user || null;
   };
-  const linkTeacher = async (user) => {
-    if (payload.role !== ROLES.teacher || user?.role !== ROLES.teacher || !externalStaffId) {
+  const attachExistingTeacherAccount = async (user) => {
+    if (payload.role !== ROLES.teacher || user?.role !== ROLES.teacher) {
       return user;
     }
-    await upsertLocalEduTrackTeacher(db, {
-      staffId: externalStaffId,
-      teacherId: externalStaffId,
-      userId: user.id,
-      name,
-      email,
-      status: "Active",
-    });
-    const [[linkedUser]] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
-      [user.id],
-    );
-    return linkedUser || user;
+
+    try {
+      const [teacherRows] = await db.query(
+        `
+          SELECT id
+          FROM teachers
+          WHERE account_user_id = ? OR account_email = ? OR email = ?
+          ORDER BY (account_user_id = ?) DESC, (account_email = ?) DESC, id
+          LIMIT 1
+        `,
+        [user.id, email, email, user.id, email],
+      );
+
+      if (!teacherRows.length) return user;
+
+      await db.query(
+        `
+          UPDATE teachers
+          SET account_user_id = ?, account_email = COALESCE(NULLIF(account_email, ''), ?)
+          WHERE id = ?
+        `,
+        [user.id, email, teacherRows[0].id],
+      );
+
+      const [[linkedUser]] = await db.query(
+        "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
+        [user.id],
+      );
+      return linkedUser || user;
+    } catch {
+      return user;
+    }
   };
 
   let user = await findUserByEmail();
-  if (user) return linkTeacher(user);
+  if (user) return attachExistingTeacherAccount(user);
 
   const idOwner = await findUserById();
   if (idOwner) {
     requestedId = `SSO-${crypto.createHash("sha256").update(email).digest("hex").slice(0, 40)}`;
     user = await findUserById();
-    if (user) return user;
+    if (user) return attachExistingTeacherAccount(user);
   }
 
   const passwordHash = await bcrypt.hash(crypto.randomBytes(48).toString("hex"), 12);
@@ -9914,9 +9951,9 @@ async function findOrCreateEduTrackSsoUser(payload) {
     await db.query(
       `
         INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash)
-        VALUES (?, ?, ?, ?, ?, 'Active', ?)
+        VALUES (?, NULL, ?, ?, ?, 'Active', ?)
       `,
-      [requestedId, externalStaffId || null, name, email, payload.role, passwordHash],
+      [requestedId, name, email, payload.role, passwordHash],
     );
   } catch (error) {
     if (error?.code !== "ER_DUP_ENTRY") throw error;
@@ -9924,7 +9961,7 @@ async function findOrCreateEduTrackSsoUser(payload) {
 
   user = (await findUserByEmail()) || (await findUserById());
   if (!user) throw new Error("Could not create the EduTrack SSO account");
-  return linkTeacher(user);
+  return attachExistingTeacherAccount(user);
 }
 
 app.get("/api/edutrack/sso/complete", async (req, res) => {
@@ -10198,7 +10235,7 @@ async function maintenancePageGate(req, res, next) {
   }
 }
 
-const frontendRoot = path.join(__dirname, "..", "public");
+const frontendRoot = path.resolve(process.env.FRONTEND_ROOT || path.join(__dirname, "..", "public"));
 const frontendIndex = path.join(frontendRoot, "index.html");
 const frontendAssets = path.join(frontendRoot, "assets");
 
@@ -10261,7 +10298,7 @@ if (fs.existsSync(frontendIndex)) {
       "/login",
       "/portal",
       "/admin",
-      "/portal/edutrack",
+      ...(process.env.APP_NAME === "edutrack" ? ["/portal/edutrack"] : []),
       "/portal/eduzync",
       "/portal/elms",
       "/portal/reports",
@@ -10269,9 +10306,11 @@ if (fs.existsSync(frontendIndex)) {
     sendFrontendApp,
   );
 
-  app.get(["/edutrack", "/edutrack/"], (req, res) => {
-    res.sendFile(path.join(frontendRoot, "edutrack", "index.html"));
-  });
+  if (process.env.APP_NAME === "edutrack") {
+    app.get(["/edutrack", "/edutrack/"], (req, res) => {
+      res.sendFile(path.join(frontendRoot, "edutrack", "index.html"));
+    });
+  }
 
   app.get(["/staff", "/staff/"], (req, res) => {
     res.sendFile(path.join(frontendRoot, "staff", "index.html"));
@@ -10303,6 +10342,18 @@ if (fs.existsSync(frontendIndex)) {
 
   app.use((req, res, next) => {
     if (req.method !== "GET" || req.path.startsWith("/api/")) return next();
+    if (
+      process.env.APP_NAME !== "edutrack" &&
+      (req.path === "/edutrack" ||
+        req.path.startsWith("/edutrack/") ||
+        req.path === "/portal/edutrack" ||
+        req.path === "/portal/edutrack/")
+    ) {
+      return res
+        .status(404)
+        .type("text/plain")
+        .send("EduTrack runs as a separate application. Set EDUTRACK_PUBLIC_URL on the website backend.");
+    }
     if (req.path.startsWith("/assets/") || path.extname(req.path)) {
       return res.status(404).type("text/plain").send("Static file not found");
     }

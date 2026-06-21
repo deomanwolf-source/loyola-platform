@@ -7,8 +7,20 @@ This version is cleaned for a professional Node.js + MySQL deployment. Firebase/
 1. Start XAMPP: Apache and MySQL.
 2. Import/create the MySQL database `loyola_platform`.
 3. Copy `backend/.env.example` to `backend/.env` and set database values.
-4. Copy `.env.example` to `.env.local` and set `VITE_API_URL=http://localhost:5000`.
-5. Start backend:
+4. Copy `.env.example` to `.env.local` and set:
+
+```env
+VITE_API_URL=http://localhost:5000
+VITE_EDUTRACK_PUBLIC_URL=http://localhost:5002
+```
+
+5. Start the main website backend, frontend, and the separate EduTrack app:
+
+```bat
+start-local.bat
+```
+
+If you prefer three separate terminals, start them manually:
 
 ```bash
 cd backend
@@ -23,11 +35,16 @@ npm install
 npm run dev:frontend
 ```
 
+```bash
+npm run edutrack:start
+```
+
 ## Test URLs
 
 - Frontend: http://127.0.0.1:8080
 - Login: http://127.0.0.1:8080/login
 - Backend health: http://localhost:5000/api/health
+- EduTrack: http://localhost:5002/portal/edutrack
 
 ## Production notes for Hostinger
 
@@ -63,18 +80,17 @@ VITE_API_URL=https://api.your-domain.lk
 - upload size checks
 - no private `.env` included in the clean release package
 
-## EduTrack Integration
+## EduTrack Separation
 
-EduTrack is now bundled into the main platform at:
+EduTrack runs as a separate app and keeps its own teacher data in the EduTrack database.
 
-- `/portal/edutrack` — protected platform route for teachers/admins
-- `/edutrack/` — embedded EduTrack runtime served from the same website
+- `/portal/edutrack` on the website can launch the standalone EduTrack app.
+- `/edutrack/` is the EduTrack runtime when it is served from the same host.
+- Teacher records come from your separate CSV import or direct EduTrack admin entry, not from the
+  Loyola website database.
+- The website and EduTrack stay separate even when they share the same login handoff.
 
-It uses the same login token created by `/api/login`. Teachers do not need a second Firebase login.
-EduTrack data is stored in MySQL through the backend compatibility table `edutrack_documents` and APIs:
-
-- `GET/POST/PUT/PATCH/DELETE /api/edutrack/compat/:collection/:id?`
-- `POST /api/edutrack/create-user`
-- `GET /api/edutrack/session`
+The website may still hand off login to EduTrack, but it should not sync teacher rows or other
+school data into the EduTrack database.
 
 Keep the backend running at `http://localhost:5000` for local testing.

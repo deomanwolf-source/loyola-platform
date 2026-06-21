@@ -76,6 +76,12 @@ import {
   type MaintenanceStatus,
 } from "@/lib/api";
 import {
+  EDUTRACK_LAUNCH_URL,
+  EDUTRACK_LOCAL_URL,
+  EDUTRACK_PUBLIC_URL,
+  edutrackHref,
+} from "@/lib/edutrack-url";
+import {
   VISUAL_BUILDER_STATIC_CSS,
   normalizeVisualBuilderHtml,
   sanitizeVisualCss,
@@ -7082,7 +7088,7 @@ function CentralPortal() {
     },
     {
       title: "EduTrack",
-      href: "/portal/edutrack",
+      href: EDUTRACK_LAUNCH_URL,
       icon: BookOpen,
       roles: EDUTRACK_ROLES,
       meta: "Full syllabus tracking workspace",
@@ -7116,7 +7122,7 @@ function CentralPortal() {
   const visibleModules =
     auth.user.role === "teacher"
       ? modules.filter(
-          (module) => module.href === "/portal/edutrack" || module.href === REPORT_CARDS_SYSTEM_URL,
+          (module) => module.title === "EduTrack" || module.href === REPORT_CARDS_SYSTEM_URL,
         )
       : modules;
 
@@ -7463,7 +7469,7 @@ function EduTrackIntegratedPage() {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <a href="/portal/edutrack" className={secondaryButtonClass}>
+            <a href={EDUTRACK_LAUNCH_URL} className={secondaryButtonClass}>
               Full workspace
               <ArrowRight className="h-4 w-4" />
             </a>
@@ -7929,7 +7935,7 @@ function EduTrackIntegratedPage() {
               {activeTab === "warnings" && (
                 <div className="mt-5 grid gap-3">
                   <ReadOnlyPanel title="Warnings show subjects below the term threshold." />
-                  <a href="/portal/edutrack" className={secondaryButtonClass}>
+                  <a href={EDUTRACK_LAUNCH_URL} className={secondaryButtonClass}>
                     Open reports
                     <ArrowRight className="h-4 w-4" />
                   </a>
@@ -8080,10 +8086,17 @@ function ReadOnlyPanel({ title }: { title: string }) {
 
 function EduTrackRuntimePage() {
   const auth = useAuth();
+  const launchUrl = EDUTRACK_PUBLIC_URL ? EDUTRACK_LAUNCH_URL : EDUTRACK_LOCAL_URL;
 
   useEffect(() => {
     if (!auth.loading && !auth.user) window.location.href = "/login";
   }, [auth.loading, auth.user]);
+
+  useEffect(() => {
+    if (!auth.loading && auth.user && EDUTRACK_ROLES.includes(auth.user.role)) {
+      window.location.replace(launchUrl);
+    }
+  }, [auth.loading, auth.user, launchUrl]);
 
   if (auth.loading || !auth.user) {
     return <BrandedLoader title="Opening EduTrack" subtitle="Checking your session" />;
@@ -8095,18 +8108,22 @@ function EduTrackRuntimePage() {
     );
   }
 
-  if (auth.user.role === "viewadmin") {
-    return <EduTrackIntegratedPage />;
-  }
-
   return (
-    <main className="h-screen min-h-[100dvh] w-full overflow-hidden bg-[#081324]">
-      <iframe
-        title="EduTrack"
-        src="/edutrack/"
-        className="h-full w-full border-0"
-        allow="clipboard-read; clipboard-write"
-      />
+    <main className="grid min-h-screen place-items-center bg-[#081324] px-6 text-white">
+      <section className="max-w-lg rounded-lg border border-white/10 bg-white/5 p-8 text-center shadow-2xl">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-gold">EduTrack</p>
+        <h1 className="mt-3 font-serif text-4xl font-bold">Opening separate app</h1>
+        <p className="mt-3 text-sm leading-6 text-white/70">
+          EduTrack now runs outside the public website. You will be redirected to the separate
+          EduTrack system.
+        </p>
+        <a
+          href={launchUrl}
+          className="mt-6 inline-flex rounded-lg bg-gold px-5 py-3 text-sm font-black text-navy"
+        >
+          Open EduTrack
+        </a>
+      </section>
     </main>
   );
 }
@@ -8150,10 +8167,10 @@ function ModulePage({ moduleId }: { moduleId: string }) {
       icon: BookOpen,
       roles: EDUTRACK_ROLES,
       actions: [
-        { label: "Terms", href: "/portal/edutrack?tab=terms" },
-        { label: "Syllabus", href: "/portal/edutrack?tab=syllabus" },
-        { label: "Progress", href: "/portal/edutrack?tab=progress" },
-        { label: "Warnings", href: "/portal/edutrack?tab=warnings" },
+        { label: "Terms", href: edutrackHref("?tab=terms") },
+        { label: "Syllabus", href: edutrackHref("?tab=syllabus") },
+        { label: "Progress", href: edutrackHref("?tab=progress") },
+        { label: "Warnings", href: edutrackHref("?tab=warnings") },
       ],
     },
     elms: {

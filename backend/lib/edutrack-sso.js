@@ -43,7 +43,6 @@ function createEduTrackSsoToken(user, secret, returnPath) {
         .toLowerCase(),
       name: String(user.name || "").trim(),
       role: String(user.role || ""),
-      externalStaffId: String(user.external_staff_id || user.externalStaffId || "").trim(),
       purpose: EDUTRACK_SSO_PURPOSE,
       returnPath: sanitizeEduTrackReturnPath(returnPath),
     },

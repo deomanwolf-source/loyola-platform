@@ -15,6 +15,8 @@
     "format": "prettier --write .",
     "dev:frontend": "vite dev --host 127.0.0.1 --port 8080",
     "dev:backend": "cd backend && npm run dev",
+    "edutrack:start": "node edutrack/server.js",
+    "edutrack:check": "node --check edutrack/server.js",
     "build:hostinger": "vite build"
   },
   "engines": {

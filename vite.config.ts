@@ -26,60 +26,11 @@ function openEditorPlugin(): Plugin {
   };
 }
 
-const eduTrackPortalHtml = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>EduTrack</title>
-    <style>
-      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #081324; }
-      iframe { display: block; width: 100%; height: 100%; border: 0; }
-    </style>
-  </head>
-  <body>
-    <iframe title="EduTrack" src="/edutrack/index.html" allow="clipboard-read; clipboard-write"></iframe>
-  </body>
-</html>`;
-
-function eduTrackPortalPlugin(): Plugin {
-  const serveEduTrackPortal = (
-    req: { url?: string; headers: { host?: string } },
-    res: {
-      statusCode: number;
-      setHeader(name: string, value: string): void;
-      end(body?: string): void;
-    },
-    next: () => void,
-  ) => {
-    const url = new URL(req.url || "/", `http://${req.headers.host || "127.0.0.1"}`);
-    if (url.pathname === "/portal/edutrack" || url.pathname === "/portal/edutrack/") {
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      res.setHeader("Cache-Control", "no-store");
-      res.end(eduTrackPortalHtml);
-      return;
-    }
-    next();
-  };
-
-  return {
-    name: "loyola-edutrack-portal-route",
-    configureServer(server) {
-      server.middlewares.use(serveEduTrackPortal);
-    },
-    configurePreviewServer(server) {
-      server.middlewares.use(serveEduTrackPortal);
-    },
-  };
-}
-
 export default defineConfig({
   publicDir: false,
   plugins: [
     tailwindcss(),
     tsConfigPaths({ projects: ["./tsconfig.json"] }),
-    eduTrackPortalPlugin(),
     react(),
     openEditorPlugin(),
   ],

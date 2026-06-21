@@ -73,6 +73,7 @@ import {
   updateMaintenanceMode,
   type MaintenanceStatus,
 } from "@/lib/api";
+import { EDUTRACK_LAUNCH_URL } from "@/lib/edutrack-url";
 import { createPublishRequest } from "@/lib/publish-requests";
 import { MediaUploadStatus } from "./MediaUploadStatus";
 import {
@@ -446,7 +447,7 @@ function DashboardPanel({
       },
       {
         title: "EduTrack",
-        href: "/portal/edutrack",
+        href: EDUTRACK_LAUNCH_URL,
         icon: GraduationCap,
         meta: "Academic terms, syllabus coverage, progress, warnings, and reports.",
       },
