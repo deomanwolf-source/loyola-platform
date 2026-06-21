@@ -2857,6 +2857,8 @@ type ManagedUser = {
   email: string;
   role: Role;
   status: string;
+  source?: string;
+  accountMissing?: boolean;
   created_at?: string | null;
 };
 
@@ -2866,6 +2868,7 @@ type UserFormState = {
   password: string;
   role: Role;
   status: "Active" | "Disabled";
+  externalStaffId: string;
 };
 
 const userRoleOptions: Role[] = [
@@ -2899,6 +2902,7 @@ function emptyUserForm(): UserFormState {
     password: "",
     role: "website_admin",
     status: "Active",
+    externalStaffId: "",
   };
 }
 
@@ -2914,6 +2918,8 @@ function normalizeManagedUser(row: Partial<ManagedUser> & Record<string, unknown
     email: String(row.email || ""),
     role,
     status: String(row.status || "Active"),
+    source: typeof row.source === "string" ? row.source : "users",
+    accountMissing: Boolean(row.accountMissing),
     created_at: typeof row.created_at === "string" ? row.created_at : null,
   };
 }
@@ -2924,6 +2930,7 @@ async function readUserApiError(response: Response) {
 }
 
 function userStatusTone(status: string) {
+  if (String(status).toLowerCase() === "not created") return "bg-red-50 text-red-700";
   return String(status).toLowerCase() === "active"
     ? "bg-emerald-100 text-emerald-800"
     : "bg-slate-100 text-slate-600";
@@ -2978,9 +2985,10 @@ function UsersPanel({ db }: { db: DB }) {
       email: user.email,
       password: "",
       role: user.role,
-      status: user.status === "Active" ? "Active" : "Disabled",
+      status: user.status === "Disabled" ? "Disabled" : "Active",
+      externalStaffId: user.external_staff_id || "",
     });
-    setEditingId(user.id);
+    setEditingId(user.accountMissing ? null : user.id);
   };
 
   const submitUser = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -3011,6 +3019,7 @@ function UsersPanel({ db }: { db: DB }) {
         role: form.role,
         status: form.status,
       };
+      if (form.externalStaffId) payload.external_staff_id = form.externalStaffId;
       if (form.password) payload.password = form.password;
 
       const response = await fetch(
@@ -3031,7 +3040,17 @@ function UsersPanel({ db }: { db: DB }) {
       setUsers((current) =>
         editingId
           ? current.map((user) => (user.id === editingId ? savedUser : user))
-          : [savedUser, ...current],
+          : [
+              savedUser,
+              ...current.filter(
+                (user) =>
+                  !(
+                    user.accountMissing &&
+                    user.external_staff_id &&
+                    user.external_staff_id === form.externalStaffId
+                  ),
+              ),
+            ],
       );
       audit(
         `${editingId ? "Updated" : "Created"} user account: ${trimmedEmail}`,
@@ -3060,6 +3079,7 @@ function UsersPanel({ db }: { db: DB }) {
           email: user.email,
           role: user.role,
           status,
+          external_staff_id: user.external_staff_id || "",
         }),
       });
       if (!response.ok) throw new Error(await readUserApiError(response));
@@ -3078,9 +3098,14 @@ function UsersPanel({ db }: { db: DB }) {
     }
   };
 
-  const disableUser = async (user: ManagedUser) => {
+  const deleteUser = async (user: ManagedUser) => {
     if (!canManageUsers) return;
-    if (!confirm(`Disable ${user.email}?`)) return;
+    if (user.accountMissing) {
+      setError("This staff profile has no login account to delete.");
+      return;
+    }
+    if (!confirm(`Delete login account ${user.email} from the database? Staff profile data stays.`))
+      return;
     setSaving(true);
     setError("");
     try {
@@ -3090,13 +3115,11 @@ function UsersPanel({ db }: { db: DB }) {
         headers: authHeaders(),
       });
       if (!response.ok) throw new Error(await readUserApiError(response));
-      setUsers((current) =>
-        current.map((item) => (item.id === user.id ? { ...item, status: "Disabled" } : item)),
-      );
-      audit(`Disabled user account: ${user.email}`, auth.user?.email || "Admin");
+      setUsers((current) => current.filter((item) => item.id !== user.id));
+      audit(`Deleted user account: ${user.email}`, auth.user?.email || "Admin");
       void loadUsers();
     } catch (deleteError) {
-      setError(deleteError instanceof Error ? deleteError.message : "Could not disable user.");
+      setError(deleteError instanceof Error ? deleteError.message : "Could not delete user.");
     } finally {
       setSaving(false);
     }
@@ -3138,10 +3161,10 @@ function UsersPanel({ db }: { db: DB }) {
 
       <div className="grid gap-6 xl:grid-cols-[420px_1fr]">
         <PanelShell
-          title={editingId ? "Edit account" : "Create account"}
+          title={editingId ? "Edit account" : form.externalStaffId ? "Create teacher login" : "Create account"}
           kicker="Users & Roles"
           action={
-            editingId ? (
+            editingId || form.externalStaffId ? (
               <button
                 type="button"
                 onClick={resetForm}
@@ -3174,6 +3197,12 @@ function UsersPanel({ db }: { db: DB }) {
                 setForm((current) => ({ ...current, password: event.target.value }))
               }
             />
+            {form.externalStaffId && (
+              <p className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-900">
+                Staff ID: {form.externalStaffId}. Saving will create or update this staff member's
+                login account.
+              </p>
+            )}
             <select
               value={form.role}
               onChange={(event) =>
@@ -3211,7 +3240,13 @@ function UsersPanel({ db }: { db: DB }) {
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gold px-4 py-3 text-sm font-black text-navy disabled:opacity-60"
             >
               {editingId ? <Save className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {saving ? "Saving" : editingId ? "Save Account" : "Create Account"}
+              {saving
+                ? "Saving"
+                : editingId
+                  ? "Save Account"
+                  : form.externalStaffId
+                    ? "Create Teacher Login"
+                    : "Create Account"}
             </button>
           </form>
         </PanelShell>
@@ -3277,25 +3312,26 @@ function UsersPanel({ db }: { db: DB }) {
                       onClick={() => editUser(user)}
                       className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-black text-navy"
                     >
-                      Edit
+                      {user.accountMissing ? "Create Login" : "Edit"}
                     </button>
                     <button
                       type="button"
                       onClick={() =>
                         void setUserStatus(user, user.status === "Active" ? "Disabled" : "Active")
                       }
-                      disabled={saving || auth.user?.id === user.id}
+                      disabled={saving || user.accountMissing || auth.user?.id === user.id}
                       className="rounded-lg border border-border bg-white px-3 py-2 text-xs font-black text-navy disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {user.status === "Active" ? "Disable" : "Activate"}
                     </button>
                     <button
                       type="button"
-                      onClick={() => void disableUser(user)}
-                      disabled={saving || user.status !== "Active" || auth.user?.id === user.id}
-                      className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-crimson disabled:cursor-not-allowed disabled:opacity-50"
+                      onClick={() => void deleteUser(user)}
+                      disabled={saving || user.accountMissing || auth.user?.id === user.id}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-crimson disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
+                      Delete
                     </button>
                   </div>
                 </div>

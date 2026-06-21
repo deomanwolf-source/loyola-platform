@@ -448,6 +448,14 @@
       .replace(/^-+|-+$/g, "");
   }
 
+  function nextPositionDisplayOrder() {
+    const maxOrder = state.positionMaster.reduce(
+      (max, item) => Math.max(max, Number(item.display_order || item.displayOrder || 0)),
+      0,
+    );
+    return maxOrder + 1;
+  }
+
   function normalizePositionCodes(input) {
     const rawItems = Array.isArray(input)
       ? input.flatMap((item) => String(item || "").split(/[,;\n]/))
@@ -984,7 +992,6 @@
               <th>Email</th>
               <th>Website Position</th>
               <th>Status</th>
-              <th>Login Account</th>
               <th></th>
             </tr>
           </thead>
@@ -1009,7 +1016,6 @@
                           </td>
                           <td data-label="Website Position">${websitePositionHtml(person)}</td>
                           <td data-label="Status"><span class="status ${esc(statusClass(person.status))}">${esc(person.status || "Active")}</span></td>
-                          <td data-label="Login Account">${loginAccountHtml(person)}</td>
                           <td class="right">
                             ${
                               isReadOnly()
@@ -1024,7 +1030,7 @@
                       `,
                     )
                     .join("")
-                : `<tr><td colspan="6"><div class="empty">No staff match your filters.</div></td></tr>`
+                : `<tr><td colspan="5"><div class="empty">No staff match your filters.</div></td></tr>`
             }
           </tbody>
         </table>
@@ -1073,6 +1079,8 @@
     return state.positionMaster.filter((position) => {
       const haystack = [
         position.position_title,
+        position.position_code,
+        position.positionCode,
         position.category,
         position.department,
         position.website_place,
@@ -1114,6 +1122,11 @@
       filters.department,
     );
     const filterPlaces = uniqueOptions(["All", ...positionWebsitePlaces], filters.websitePlace);
+    const positionCode =
+      editing?.position_code ||
+      editing?.positionCode ||
+      normalizePositionCode(editing?.position_title || "");
+    const displayOrder = editing?.display_order ?? editing?.displayOrder ?? nextPositionDisplayOrder();
 
     return `
       <div class="module-toolbar position-toolbar">
@@ -1159,6 +1172,11 @@
                       <input name="position_title" value="${esc(editing?.position_title || "")}" required placeholder="Example: Discipline Coordinator" />
                     </label>
                     <label class="field">
+                      <span>Position Code</span>
+                      <input name="position_code" value="${esc(positionCode)}" placeholder="auto-generated-from-title" />
+                      <small>Auto generated from the title. Edit only if you need a custom code.</small>
+                    </label>
+                    <label class="field">
                       <span>Category</span>
                       <input name="category" list="position-category-options" value="${esc(editing?.category || "Subject Teachers")}" required />
                       <datalist id="position-category-options">
@@ -1179,7 +1197,8 @@
                     </label>
                     <label class="field">
                       <span>Display Order</span>
-                      <input name="display_order" type="number" step="1" value="${esc(editing?.display_order ?? state.positionMaster.length + 1)}" />
+                      <input name="display_order" type="number" step="1" min="1" value="${esc(displayOrder)}" />
+                      <small>Auto set to the next available order for new positions.</small>
                     </label>
                     <label class="field">
                       <span>Status</span>
@@ -1209,6 +1228,7 @@
               <thead>
                 <tr>
                   <th>Position</th>
+                  <th>Code</th>
                   <th>Category</th>
                   <th>Department</th>
                   <th>Website Place</th>
@@ -1227,6 +1247,7 @@
                           (position) => `
                             <tr>
                               <td data-label="Position"><strong>${esc(position.position_title)}</strong><small>${esc(position.description || "")}</small></td>
+                              <td data-label="Code"><code>${esc(position.position_code || position.positionCode || normalizePositionCode(position.position_title))}</code></td>
                               <td data-label="Category">${esc(position.category || "-")}</td>
                               <td data-label="Department">${esc(position.department || "-")}</td>
                               <td data-label="Website Place">${esc(position.website_place || "-")}</td>
@@ -1248,7 +1269,7 @@
                           `,
                         )
                         .join("")
-                    : `<tr><td colspan="9"><div class="empty">No positions match your filters.</div></td></tr>`
+                    : `<tr><td colspan="10"><div class="empty">No positions match your filters.</div></td></tr>`
                 }
               </tbody>
             </table>
@@ -2035,7 +2056,10 @@
       );
     }
     const positionMasterForm = document.getElementById("position-master-form");
-    if (positionMasterForm) positionMasterForm.addEventListener("submit", submitPositionMasterForm);
+    if (positionMasterForm) {
+      bindPositionMasterAutoFields(positionMasterForm);
+      positionMasterForm.addEventListener("submit", submitPositionMasterForm);
+    }
     const positionMasterPlace = positionMasterForm?.querySelector("[name='website_place']");
     if (positionMasterPlace) {
       positionMasterPlace.addEventListener("change", () => {
@@ -2204,6 +2228,39 @@
 
     syncSlug();
     syncSortOrder();
+  }
+
+  function bindPositionMasterAutoFields(form) {
+    const titleInput = form.querySelector("[name='position_title']");
+    const codeInput = form.querySelector("[name='position_code']");
+    const orderInput = form.querySelector("[name='display_order']");
+    if (!titleInput || !codeInput) return;
+
+    const initialCode = String(codeInput.value || "").trim();
+    codeInput.dataset.manual =
+      initialCode && initialCode !== normalizePositionCode(titleInput.value) ? "true" : "false";
+
+    const syncCode = () => {
+      if (codeInput.dataset.manual === "true" && codeInput.value.trim()) return;
+      codeInput.value = normalizePositionCode(titleInput.value);
+      codeInput.dataset.manual = "false";
+    };
+
+    titleInput.addEventListener("input", syncCode);
+    codeInput.addEventListener("input", () => {
+      const value = codeInput.value.trim();
+      if (!value) {
+        codeInput.dataset.manual = "false";
+        syncCode();
+        return;
+      }
+      codeInput.value = normalizePositionCode(value);
+      codeInput.dataset.manual =
+        codeInput.value === normalizePositionCode(titleInput.value) ? "false" : "true";
+    });
+
+    if (orderInput && !orderInput.value) orderInput.value = String(nextPositionDisplayOrder());
+    syncCode();
   }
 
   function staffSortOrderIsManual(form) {
