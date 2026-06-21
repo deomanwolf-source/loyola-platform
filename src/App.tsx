@@ -77,6 +77,12 @@ import {
   type MaintenanceStatus,
 } from "@/lib/api";
 import {
+  EDUTRACK_LAUNCH_URL,
+  EDUTRACK_LOCAL_URL,
+  EDUTRACK_PUBLIC_URL,
+  edutrackHref,
+} from "@/lib/edutrack-url";
+import {
   VISUAL_BUILDER_STATIC_CSS,
   normalizeVisualBuilderHtml,
   sanitizeVisualCss,
@@ -133,17 +139,6 @@ const MAINTENANCE_BYPASS_ROLES: Role[] = [
   "viewadmin",
 ];
 const REPORT_CARDS_SYSTEM_URL = "https://intranet.loyolacollege.lk/login";
-const EDUTRACK_PUBLIC_URL = String(import.meta.env.VITE_EDUTRACK_PUBLIC_URL || "").replace(
-  /\/+$/,
-  "",
-);
-const EDUTRACK_LOCAL_URL = "http://localhost:5002/portal/edutrack";
-const EDUTRACK_LAUNCH_URL = EDUTRACK_PUBLIC_URL
-  ? `${EDUTRACK_PUBLIC_URL}/portal/edutrack`
-  : "/portal/edutrack";
-function edutrackHref(suffix = "") {
-  return `${EDUTRACK_LAUNCH_URL}${suffix}`;
-}
 const LCEA_PAGE_ID = "academics/loyolian-cambridge-english-academy";
 const FACILITIES_PAGE_ID = "the-college/facilities-services";
 const COLLEGE_DEPARTMENT_BASE_ID = "the-college/departments";

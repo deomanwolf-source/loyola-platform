@@ -68,7 +68,13 @@ SMTP_PORT=587
 SMTP_USER=your_brevo_smtp_login
 SMTP_PASSWORD=your_new_brevo_smtp_key
 SMTP_FROM=Loyola College Portal <no-reply@loyolacollege.lk>
-EDUTRACK_PUBLIC_URL=https://edutrack.loyolacollege.lk/
+EDUTRACK_PUBLIC_URL=https://edutrack.loyolacollege.lk
+```
+
+The website frontend build also needs:
+
+```env
+VITE_EDUTRACK_PUBLIC_URL=https://edutrack.loyolacollege.lk
 ```
 
 ## 4. EduTrack Backend Environment
@@ -165,7 +171,43 @@ Invoke-RestMethod -Uri "https://loyolacollege.lk/api/setup-admin" `
 
 Use a new password after deployment. Do not keep shared passwords in screenshots, code, or chat logs.
 
-## 7. Push Updates To GitHub
+## 7. Recover EduTrack Master Admin Login
+
+The EduTrack import may already include a master admin row. If direct login at
+`https://edutrack.loyolacollege.lk/portal/edutrack` fails, first check the row in the EduTrack
+database only:
+
+```sql
+SELECT id, name, email, role, status, two_factor_enabled
+FROM users
+WHERE role IN ('masteradmin', 'superadmin', 'master_edutrack_admin');
+```
+
+If the master admin exists but the password is unknown, generate a new bcrypt hash locally:
+
+```powershell
+node -e "const bcrypt=require('bcryptjs'); bcrypt.hash(process.argv[1],12).then(console.log)" "your_new_password_here"
+```
+
+Then update only the EduTrack database in Hostinger phpMyAdmin:
+
+```sql
+UPDATE users
+SET password_hash = 'paste_generated_bcrypt_hash_here',
+    status = 'Active',
+    two_factor_enabled = 0,
+    two_factor_secret = NULL,
+    two_factor_pending_secret = NULL,
+    two_factor_confirmed_at = NULL,
+    two_factor_last_used_step = NULL
+WHERE email = 'deomanwolf@gmail.com'
+  AND role = 'masteradmin';
+```
+
+Restart the EduTrack Node.js app after the update. This changes only the EduTrack database and does
+not touch the Loyola website database.
+
+## 8. Push Updates To GitHub
 
 From the project folder:
 
@@ -176,7 +218,7 @@ git commit -m "Add Hostinger two database imports"
 git push origin main
 ```
 
-## 8. Update Hostinger From GitHub
+## 9. Update Hostinger From GitHub
 
 In Hostinger:
 

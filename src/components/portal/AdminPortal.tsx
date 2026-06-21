@@ -73,6 +73,7 @@ import {
   updateMaintenanceMode,
   type MaintenanceStatus,
 } from "@/lib/api";
+import { EDUTRACK_LAUNCH_URL } from "@/lib/edutrack-url";
 import { createPublishRequest } from "@/lib/publish-requests";
 import { MediaUploadStatus } from "./MediaUploadStatus";
 
@@ -81,13 +82,6 @@ const IMAGE_TYPES = ["image/jpeg", "image/png"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
-const EDUTRACK_PUBLIC_URL = String(import.meta.env.VITE_EDUTRACK_PUBLIC_URL || "").replace(
-  /\/+$/,
-  "",
-);
-const EDUTRACK_LAUNCH_URL = EDUTRACK_PUBLIC_URL
-  ? `${EDUTRACK_PUBLIC_URL}/portal/edutrack`
-  : "/portal/edutrack";
 const MAX_SHORT_VIDEO_SECONDS = 120;
 
 function rememberDeletedContentId(
