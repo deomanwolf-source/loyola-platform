@@ -6723,10 +6723,10 @@
         localStorage.setItem(PLATFORM_USER_KEY, JSON.stringify(data.user));
         return { user: makeUserShape(data.user) };
       }
-      async function createUserWithEmailAndPassword(_auth, email, password) {
+      async function createUserWithEmailAndPassword(_auth, email, password, profile = {}) {
         const data = await apiFetch("/api/edutrack/create-user", {
           method: "POST",
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, ...(profile || {}) }),
         });
         return { user: { uid: data.user.id, email: data.user.email, displayName: data.user.name } };
       }
@@ -6753,8 +6753,11 @@
         setTimeout(async () => callback(makeUserShape(await refreshPlatformSession())), 0);
         window.addEventListener("storage", () => callback(makeUserShape(platformUser())));
       }
-      async function sendPasswordResetEmail() {
-        alert("Password reset is managed from Loyola Digital Platform admin panel.");
+      async function sendPasswordResetEmail(_auth, email, password, id = "") {
+        return apiFetch("/api/edutrack/reset-user-password", {
+          method: "POST",
+          body: JSON.stringify({ id, email, password }),
+        });
       }
       function collection(_db, name) {
         return { kind: "collection", name, filters: [] };
@@ -7917,7 +7920,13 @@
         try {
           const sec = initializeApp({ ...FIREBASE_CONFIG }, "sec-" + Date.now());
           const secAuth = getAuth(sec);
-          const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
+          const cred = await createUserWithEmailAndPassword(secAuth, email, pass, {
+            name,
+            role: "teacher",
+            grades,
+            grade: grades[0] || "",
+            level,
+          });
           await setDoc(doc(db, "users", cred.user.uid), {
             name,
             email,
@@ -10085,7 +10094,6 @@
         try {
           const sec = initializeApp({ ...FIREBASE_CONFIG }, "sec-" + Date.now());
           const secAuth = getAuth(sec);
-          const cred = await createUserWithEmailAndPassword(secAuth, email, pass);
           const newTeacher = {
             name,
             email,
@@ -10098,6 +10106,7 @@
             level,
             createdAt: new Date().toISOString(),
           };
+          const cred = await createUserWithEmailAndPassword(secAuth, email, pass, newTeacher);
           await setDoc(doc(db, "users", cred.user.uid), newTeacher);
           await signOut(secAuth);
           allUsers.push({ id: cred.user.uid, ...newTeacher });
@@ -11060,6 +11069,8 @@
               "</span></td>" +
               '<td><div class="accounts-actions">' +
               '<button class="account-action reset" onclick="sendAccountReset(\'' +
+              escapeInlineJsString(user.id) +
+              "','" +
               escapedEmail +
               "','" +
               escapedName +
@@ -11080,7 +11091,7 @@
           })
           .join("");
       }
-      window.sendAccountReset = async function (email, name) {
+      window.sendAccountReset = async function (id, email, name) {
         if (!(cud && cud.role === "admin")) {
           showToast("Admin access required.", "err");
           return;
@@ -11089,14 +11100,20 @@
           showToast("No email found for " + name + ".", "err");
           return;
         }
+        const password = prompt("Enter a new temporary password for " + name + " (minimum 6 characters):");
+        if (!password) return;
+        if (password.length < 6) {
+          showToast("Password must be at least 6 characters.", "err");
+          return;
+        }
         try {
-          await sendPasswordResetEmail(auth, email);
-          showToast("Password reset email sent to " + email + ".", "success");
+          await sendPasswordResetEmail(auth, email, password, id);
+          showToast("Password updated for " + email + ".", "success");
         } catch (e) {
           const code = e && e.code ? e.code : "";
           if (code === "auth/user-not-found")
             showToast("No auth user found for this email.", "err");
-          else showToast("Failed to send reset email.", "err");
+          else showToast(e.message || "Failed to update password.", "err");
         }
       };
       window.deleteAccount = async function (id, name) {

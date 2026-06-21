@@ -116,6 +116,7 @@ EDUTRACK_SYNC_SECRET=use_the_same_long_secret_as_website
 EDUTRACK_SSO_SECRET=use_the_same_long_secret_as_website
 ALLOWED_ORIGINS=https://loyolacollege.lk,https://www.loyolacollege.lk,https://edutrack.loyolacollege.lk
 PUBLIC_API_URL=https://edutrack.loyolacollege.lk
+LOYOLA_PORTAL_PUBLIC_URL=https://loyolacollege.lk
 ```
 
 Configure the SMTP values on the website app. The sender in `SMTP_FROM` must be verified in Brevo.
@@ -123,14 +124,17 @@ Because the SMTP key was visible in a screenshot, revoke it in Brevo and create 
 deployment. Never commit the real key to Git.
 
 Use the same `EDUTRACK_SYNC_SECRET` and `EDUTRACK_SSO_SECRET` values on both apps. The website uses
-those secrets to launch EduTrack with SSO and to mirror only portal account records from **Users &
-Roles** into the EduTrack database. This does not copy teacher profile data from the Loyola website.
-Teacher records, grades, and class IDs still stay inside EduTrack and must come from your separate
-CSV import or direct EduTrack admin entry.
+those secrets to launch EduTrack with SSO and to mirror portal account records from **Users &
+Roles** into the EduTrack database. EduTrack also uses `LOYOLA_PORTAL_PUBLIC_URL` plus the same sync
+secret to mirror EduTrack-created login accounts back into the website portal. This does not copy
+teacher profile data from the Loyola website. Teacher records, grades, and class IDs still stay
+inside EduTrack and must come from your separate CSV import or direct EduTrack admin entry.
 
 When you add or edit an EduTrack-capable role in **Users & Roles** (`Master Admin`, `Super Admin`,
 `EduTrack Admin`, `View Admin`, or `Teacher`), the website app sends that account to the EduTrack
 app. If you enter a new password while editing the account, the EduTrack password is updated too.
+When you add or reset a teacher login in EduTrack, EduTrack sends that account to the website portal
+so the same email and password can sign in at `/login` and be managed in **Users & Roles**.
 
 ## 5. Test Backend Connections
 
