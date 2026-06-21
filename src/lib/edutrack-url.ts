@@ -18,9 +18,11 @@ export function resolveEduTrackPublicUrl(configuredUrl = import.meta.env.VITE_ED
 
 export const EDUTRACK_PUBLIC_URL = resolveEduTrackPublicUrl();
 
-export const EDUTRACK_LAUNCH_URL = EDUTRACK_PUBLIC_URL
+export const EDUTRACK_DIRECT_URL = EDUTRACK_PUBLIC_URL
   ? `${EDUTRACK_PUBLIC_URL}/portal/edutrack`
   : "/portal/edutrack";
+
+export const EDUTRACK_LAUNCH_URL = "/portal/edutrack";
 
 export function edutrackHref(suffix = "") {
   return `${EDUTRACK_LAUNCH_URL}${suffix}`;

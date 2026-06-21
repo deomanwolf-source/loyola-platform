@@ -69,6 +69,8 @@ SMTP_USER=your_brevo_smtp_login
 SMTP_PASSWORD=your_new_brevo_smtp_key
 SMTP_FROM=Loyola College Portal <no-reply@loyolacollege.lk>
 EDUTRACK_PUBLIC_URL=https://edutrack.loyolacollege.lk
+EDUTRACK_SYNC_SECRET=use_the_same_long_secret_as_edutrack
+EDUTRACK_SSO_SECRET=use_the_same_long_secret_as_edutrack
 ```
 
 The website frontend build also needs:
@@ -110,6 +112,8 @@ DB_USER=u414000991_edutrack
 DB_PASSWORD=your_edutrack_database_password
 DB_NAME=u414000991_edutrack
 JWT_SECRET=use_the_same_long_secret_as_website
+EDUTRACK_SYNC_SECRET=use_the_same_long_secret_as_website
+EDUTRACK_SSO_SECRET=use_the_same_long_secret_as_website
 ALLOWED_ORIGINS=https://loyolacollege.lk,https://www.loyolacollege.lk,https://edutrack.loyolacollege.lk
 PUBLIC_API_URL=https://edutrack.loyolacollege.lk
 ```
@@ -118,11 +122,15 @@ Configure the SMTP values on the website app. The sender in `SMTP_FROM` must be 
 Because the SMTP key was visible in a screenshot, revoke it in Brevo and create a new key before
 deployment. Never commit the real key to Git.
 
-The `JWT_SECRET` can match in both apps if the website launches EduTrack through SSO. That handoff
-does not copy teacher data. `EDUTRACK_PUBLIC_URL` on the website app must point to the EduTrack
-application. Existing EduTrack users may be matched by email during login, but teacher records stay
-inside the EduTrack database and must come from your separate CSV import or direct EduTrack admin
-entry.
+Use the same `EDUTRACK_SYNC_SECRET` and `EDUTRACK_SSO_SECRET` values on both apps. The website uses
+those secrets to launch EduTrack with SSO and to mirror only portal account records from **Users &
+Roles** into the EduTrack database. This does not copy teacher profile data from the Loyola website.
+Teacher records, grades, and class IDs still stay inside EduTrack and must come from your separate
+CSV import or direct EduTrack admin entry.
+
+When you add or edit an EduTrack-capable role in **Users & Roles** (`Master Admin`, `Super Admin`,
+`EduTrack Admin`, `View Admin`, or `Teacher`), the website app sends that account to the EduTrack
+app. If you enter a new password while editing the account, the EduTrack password is updated too.
 
 ## 5. Test Backend Connections
 

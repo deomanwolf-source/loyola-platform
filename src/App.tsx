@@ -76,6 +76,7 @@ import {
   type MaintenanceStatus,
 } from "@/lib/api";
 import {
+  EDUTRACK_DIRECT_URL,
   EDUTRACK_LAUNCH_URL,
   EDUTRACK_LOCAL_URL,
   EDUTRACK_PUBLIC_URL,
@@ -8086,7 +8087,7 @@ function ReadOnlyPanel({ title }: { title: string }) {
 
 function EduTrackRuntimePage() {
   const auth = useAuth();
-  const launchUrl = EDUTRACK_PUBLIC_URL ? EDUTRACK_LAUNCH_URL : EDUTRACK_LOCAL_URL;
+  const launchUrl = EDUTRACK_PUBLIC_URL ? EDUTRACK_DIRECT_URL : EDUTRACK_LOCAL_URL;
 
   useEffect(() => {
     if (!auth.loading && !auth.user) window.location.href = "/login";
