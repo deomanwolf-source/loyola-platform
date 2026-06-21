@@ -10,6 +10,9 @@ The EduTrack database remains the authoritative store for all EduTrack records. 
 application, so both entry URLs use the existing EduTrack database without copying, resetting, or
 deleting data.
 
+EduTrack teacher records are not synchronized from the Loyola website. Import your separate
+teacher CSV directly into the EduTrack database and keep the two databases independent.
+
 ## 1. Import Main Website Database
 
 In Hostinger phpMyAdmin:
@@ -66,9 +69,6 @@ SMTP_USER=your_brevo_smtp_login
 SMTP_PASSWORD=your_new_brevo_smtp_key
 SMTP_FROM=Loyola College Portal <no-reply@loyolacollege.lk>
 EDUTRACK_PUBLIC_URL=https://edutrack.loyolacollege.lk/
-EDUTRACK_INTERNAL_BASE_URL=https://edutrack.loyolacollege.lk
-EDUTRACK_SYNC_SECRET=use_the_same_sync_secret_as_edutrack
-EDUTRACK_SYNC_TIMEOUT_MS=5000
 ```
 
 ## 4. EduTrack Backend Environment
@@ -104,7 +104,6 @@ DB_USER=u414000991_edutrack
 DB_PASSWORD=your_edutrack_database_password
 DB_NAME=u414000991_edutrack
 JWT_SECRET=use_the_same_long_secret_as_website
-EDUTRACK_SYNC_SECRET=use_the_same_sync_secret_as_website
 ALLOWED_ORIGINS=https://loyolacollege.lk,https://www.loyolacollege.lk,https://edutrack.loyolacollege.lk
 PUBLIC_API_URL=https://edutrack.loyolacollege.lk
 ```
@@ -113,10 +112,11 @@ Configure the SMTP values on the website app. The sender in `SMTP_FROM` must be 
 Because the SMTP key was visible in a screenshot, revoke it in Brevo and create a new key before
 deployment. Never commit the real key to Git.
 
-The `JWT_SECRET` must match in both apps if users log in from the main website and then open EduTrack.
-`EDUTRACK_PUBLIC_URL` on the website app must point to the EduTrack application. Existing EduTrack
-users are matched by ID or email during SSO and are never overwritten. A new EduTrack login record is
-added only when an authorized website user has no existing EduTrack account.
+The `JWT_SECRET` can match in both apps if the website launches EduTrack through SSO. That handoff
+does not copy teacher data. `EDUTRACK_PUBLIC_URL` on the website app must point to the EduTrack
+application. Existing EduTrack users may be matched by email during login, but teacher records stay
+inside the EduTrack database and must come from your separate CSV import or direct EduTrack admin
+entry.
 
 ## 5. Test Backend Connections
 

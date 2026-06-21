@@ -15,7 +15,6 @@ function registerStaffRoutes(app, context) {
     ensureContentTables,
     upsertTeacherUserAccount,
     removeTeacherFromSiteDatabaseContent,
-    syncTeacherAccountToEduTrack,
     handleSingleUpload,
     uploadSizeLimit,
     unlinkQuiet,
@@ -3625,46 +3624,6 @@ function registerStaffRoutes(app, context) {
     }
   }
 
-  function buildEduTrackTeacherSyncPayload(profile, positions, options = {}) {
-    const userId = clean(options.userId, 50);
-    const email = clean(options.accountEmail || profile.email, 190).toLowerCase();
-    if (!userId || !email) return null;
-
-    const primary = positions.find((position) => position.isPrimary) || positions[0] || {};
-    const payload = {
-      staffId: profile.id,
-      teacherId: profile.teacherId || profile.id,
-      userId,
-      name: profile.fullName,
-      email,
-      status: profile.status === "Active" ? "Active" : "Disabled",
-      subject: primary.subject || profile.subject || "",
-      classes: primary.classes || profile.classes || "",
-      position: primary.position || profile.position || "",
-      department: primary.department || profile.department || "",
-      staffType: profile.staffType || "Academic Staff",
-      photoUrl: profile.photoUrl || profile.profileImage || "",
-      websitePlace: primary.websitePlace || profile.category || "",
-      positions,
-    };
-
-    if (profile.accountPassword) payload.password = profile.accountPassword;
-    return payload;
-  }
-
-  async function syncSavedProfileToEduTrack(payload) {
-    if (typeof syncTeacherAccountToEduTrack !== "function") return null;
-    try {
-      return await syncTeacherAccountToEduTrack(db, payload);
-    } catch (error) {
-      return {
-        ok: false,
-        queued: false,
-        warning: `EduTrack teacher sync failed after staff save: ${error.message}`,
-      };
-    }
-  }
-
   async function saveProfile(req, payload, { isUpdate = false } = {}) {
     await ensureStaffTables();
     let id = payload.id || (await nextStaffId());
@@ -3833,23 +3792,7 @@ function registerStaffRoutes(app, context) {
       ]);
 
       await connection.commit();
-      const eduTrackPayload = buildEduTrackTeacherSyncPayload(
-        {
-          ...payload,
-          id,
-          userId,
-          accountEmail,
-          accountPassword: payload.accountPassword,
-          teacherId,
-          photoUrl: payload.photoUrl || payload.profileImage,
-          removePhoto: payload.removePhoto,
-        },
-        savedPositions,
-        { userId, accountEmail },
-      );
-      const eduTrackSync = eduTrackPayload
-        ? await syncSavedProfileToEduTrack(eduTrackPayload)
-        : null;
+      const eduTrackSync = null;
       await logStaffAction(
         req,
         isUpdate || wasExisting ? "staff.updated" : "staff.created",

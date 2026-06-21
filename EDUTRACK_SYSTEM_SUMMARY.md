@@ -1,6 +1,6 @@
 # EduTrack System Summary
 
-EduTrack is the academic tracking module inside the Loyola College digital platform. It connects teachers, EduTrack administrators, staff profiles, subjects, classes, year plans, daily syllabus progress, relief assignments, report cards, and reporting into one school workflow.
+EduTrack is the academic tracking module inside the Loyola College digital platform. It connects teachers, EduTrack administrators, subjects, classes, year plans, daily syllabus progress, relief assignments, report cards, and reporting into one school workflow.
 
 The system is built as a static web application served by the Node/Express backend. The main frontend is `public/edutrack/index.html`, with backend APIs in `backend/server.js` and single-sign-on helper logic in `backend/lib/edutrack-sso.js`.
 
@@ -15,7 +15,7 @@ EduTrack is used to:
 - Produce admin progress reports and CSV exports.
 - Manage relief assignment PDFs with controlled download, audit, unlock, and delete approval rules.
 - Create and manage EduTrack user accounts.
-- Sync website staff profiles into EduTrack teacher records.
+- Import teacher records from a separate CSV into the EduTrack database.
 - Connect teacher-facing academic work with report cards and staff attendance data.
 
 ## Where The System Lives
@@ -25,7 +25,7 @@ Important files and folders:
 - `public/edutrack/index.html` - main EduTrack browser app.
 - `backend/public/edutrack/index.html` - backend-served copy of the EduTrack app.
 - `public/portal/edutrack/index.html` - portal entry copy.
-- `backend/server.js` - API routes, database schema setup, sync logic, permissions, uploads, reporting, and audit behavior.
+- `backend/server.js` - API routes, database schema setup, permissions, uploads, reporting, and audit behavior.
 - `backend/lib/edutrack-sso.js` - EduTrack SSO token creation and verification.
 - `database/schema.sql` - database schema reference.
 - `database/hostinger-schema.sql` - Hostinger schema reference.
@@ -36,7 +36,8 @@ Important files and folders:
 
 ## Login And Access Flow
 
-EduTrack uses the same platform authentication model as the main Loyola system.
+EduTrack uses the same platform authentication model as the main Loyola system for login handoff,
+but it does not copy teacher records from the website.
 
 1. A user signs in through the Loyola platform.
 2. If the user opens EduTrack, the backend checks whether the role is allowed.
@@ -375,40 +376,21 @@ These compatibility routes are important because the frontend has older local/do
 
 ## Staff Profile Sync
 
-EduTrack is linked with the staff management system.
+EduTrack teacher records are maintained inside the EduTrack database.
 
-When a staff profile is created or updated, the system can create or update a matching EduTrack teacher record and user account.
+The standalone deployment path does not copy teacher records from the Loyola website. Instead, the
+teacher list is imported from a separate CSV or entered directly through EduTrack admin tools.
 
-Important sync functions in `backend/server.js`:
+Important teacher functions in `backend/server.js`:
 
-- `buildEduTrackSyncPayloadFromStaffProfile`
-- `syncTeacherAccountToEduTrack`
 - `upsertLocalEduTrackTeacher`
-- `postExternalEduTrackSync`
-- `runLocalEduTrackSync`
-- `syncStaffProfilesToExternalEduTrack`
-- `replayStaffEduTrackSyncOutbox`
 - `deleteEduTrackTeacherAccount`
+- `lookupEduTrackTeacher`
 - `platformUsersForEduTrack`
 
-The sync system tracks:
-
-- Staff profile ID
-- EduTrack teacher ID
-- User account ID
-- Email
-- Name
-- Position codes
-- Sync status
-- Sync errors
-
-Staff sync status fields are stored on `staff_profiles`:
-
-- `edutrack_sync_status`
-- `edutrack_sync_error`
-- `edutrack_teacher_id`
-
-Failed external syncs can be queued in `staff_sync_outbox` and retried later.
+Teacher records keep their own IDs, account links, and status fields inside EduTrack. The website
+may still launch EduTrack through SSO, but that handoff only authenticates the user and does not
+seed teacher data.
 
 ## Teacher Identity Matching
 
@@ -416,7 +398,6 @@ EduTrack has to match teachers across different records. A teacher may appear in
 
 - `users`
 - `teachers`
-- `staff_profiles`
 - `edutrack_documents`
 - teacher assignment rows
 - year plan rows
@@ -455,8 +436,6 @@ Core platform tables used by EduTrack:
 - `classes`
 - `subjects`
 - `enrollments`
-- `staff_profiles`
-- `staff_sync_outbox`
 
 EduTrack academic tables:
 
@@ -527,12 +506,11 @@ Report card tables:
 - Audit logging records upload, download, print, unlock, delete request, approval, rejection, and deletion events.
 - File serving returns the stored relief PDF only through protected routes.
 
-### Staff Sync Functions
+### Teacher Import Functions
 
 - `upsertLocalEduTrackTeacher` creates or updates local EduTrack teacher and user records.
-- `postExternalEduTrackSync` sends teacher sync data to an external EduTrack service when configured.
-- `replayStaffEduTrackSyncOutbox` retries failed external sync jobs.
 - `deleteEduTrackTeacherAccount` removes or unlinks EduTrack teacher account references in a controlled way.
+- `lookupEduTrackTeacher` resolves teacher identity from imported records and linked accounts.
 
 ## Security And Audit Rules
 
@@ -614,11 +592,11 @@ Important warning:
 | Relief Assignments | Uploads, locks, downloads, audits relief PDFs | Admins, master admins |
 | Staff Attendance | Marks daily staff attendance from EduTrack | Admins |
 | User Accounts | Creates EduTrack access accounts | Admins |
-| Staff Sync | Creates/updates EduTrack teacher records from staff profiles | System/admins |
+| Teacher Import | Loads EduTrack teacher records from a separate CSV | System/admins |
 | Report Cards | Stores student report card data | Teachers, admins, students, parents |
 
 ## In Short
 
-EduTrack is not just a syllabus page. It is a full academic operations system for teacher assignment, teaching plan creation, daily progress tracking, reporting, staff sync, relief document control, and academic account management.
+EduTrack is not just a syllabus page. It is a full academic operations system for teacher assignment, teaching plan creation, daily progress tracking, reporting, separate teacher import, relief document control, and academic account management.
 
 The most important rule for future development is to preserve existing production data. Normal updates should add or update code and schema safely, not reset tables or delete records.

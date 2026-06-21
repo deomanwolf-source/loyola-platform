@@ -63,18 +63,16 @@ VITE_API_URL=https://api.your-domain.lk
 - upload size checks
 - no private `.env` included in the clean release package
 
-## EduTrack Integration
+## EduTrack Separation
 
-EduTrack is now bundled into the main platform at:
+EduTrack runs as a separate app and keeps its own teacher data in the EduTrack database.
 
-- `/portal/edutrack` — protected platform route for teachers/admins
-- `/edutrack/` — embedded EduTrack runtime served from the same website
+- `/portal/edutrack` on the website can launch the standalone EduTrack app.
+- `/edutrack/` is the EduTrack runtime when it is served from the same host.
+- Teacher records come from your separate CSV import or direct EduTrack admin entry, not from the
+  Loyola website database.
 
-It uses the same login token created by `/api/login`. Teachers do not need a second Firebase login.
-EduTrack data is stored in MySQL through the backend compatibility table `edutrack_documents` and APIs:
-
-- `GET/POST/PUT/PATCH/DELETE /api/edutrack/compat/:collection/:id?`
-- `POST /api/edutrack/create-user`
-- `GET /api/edutrack/session`
+The website may still hand off login to EduTrack, but it should not sync teacher rows or other
+school data into the EduTrack database.
 
 Keep the backend running at `http://localhost:5000` for local testing.

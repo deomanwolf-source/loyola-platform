@@ -33,7 +33,8 @@ The public website should set:
 
 ```env
 EDUTRACK_PUBLIC_URL=https://edutrack.loyolacollege.lk
-EDUTRACK_INTERNAL_BASE_URL=https://edutrack.loyolacollege.lk
 ```
 
 That keeps `/portal/edutrack` on the website as an SSO handoff only. EduTrack itself runs here.
+Teacher records are loaded separately from your own CSV import or direct EduTrack admin entry, not
+from the Loyola website database.
