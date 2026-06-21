@@ -2971,6 +2971,103 @@ function externalEduTrackSyncConfig() {
   return { base, secret, available: Boolean(base && secret) };
 }
 
+function eduTrackSsoSecret() {
+  return (
+    process.env.EDUTRACK_SSO_SECRET ||
+    process.env.EDUTRACK_SYNC_SECRET ||
+    process.env.JWT_SECRET
+  );
+}
+
+function portalEduTrackAccountSyncConfig() {
+  if (process.env.APP_NAME === "edutrack") {
+    return { base: "", secret: "", available: false };
+  }
+
+  const base = String(
+    process.env.EDUTRACK_INTERNAL_BASE_URL ||
+      process.env.EDUTRACK_PUBLIC_URL ||
+      resolveEduTrackPublicUrl() ||
+      "",
+  ).replace(/\/+$/g, "");
+  const secret = process.env.EDUTRACK_SYNC_SECRET || process.env.EDUTRACK_SSO_SECRET;
+  return { base, secret, available: Boolean(base && secret) };
+}
+
+function shouldMirrorPortalUserToEduTrack(role) {
+  return EDUTRACK_SSO_ROLES.has(String(role || ""));
+}
+
+function portalUserEduTrackSyncPayload(user, password = "", statusOverride = "") {
+  const role = normalizePortalRole(user?.role);
+  return {
+    id: compactText(user?.id, 50),
+    externalStaffId: compactText(user?.external_staff_id || user?.externalStaffId, 80),
+    name: compactText(user?.name, 150),
+    email: normalizeEmail(user?.email),
+    role,
+    status: statusOverride || normalizeAccountStatus(user?.status),
+    password: typeof password === "string" ? password : "",
+  };
+}
+
+async function postPortalUserToExternalEduTrack(payload) {
+  const { base, secret } = portalEduTrackAccountSyncConfig();
+  if (!base || !secret) {
+    return { skipped: true, reason: "edutrack-account-sync-not-configured" };
+  }
+
+  const timeoutMs = Math.max(Number(process.env.EDUTRACK_SYNC_TIMEOUT_MS || 8000), 1000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(`${base}/api/internal/sync-portal-user`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-edutrack-sync-secret": secret,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || `EduTrack user sync failed with status ${response.status}`);
+  }
+  return data;
+}
+
+async function syncPortalUserAccountToEduTrack(user, options = {}) {
+  const previousRole = options.previousRole || "";
+  const shouldSync =
+    shouldMirrorPortalUserToEduTrack(user?.role) ||
+    shouldMirrorPortalUserToEduTrack(previousRole) ||
+    options.force === true;
+  if (!shouldSync) return { skipped: true, reason: "role-not-edutrack-enabled" };
+
+  const statusOverride = shouldMirrorPortalUserToEduTrack(user?.role)
+    ? options.statusOverride || ""
+    : "Disabled";
+  const payload = portalUserEduTrackSyncPayload(user, options.password || "", statusOverride);
+  if (!payload.id || !payload.email || !payload.name) {
+    return { skipped: true, reason: "missing-required-account-fields" };
+  }
+
+  try {
+    return await postPortalUserToExternalEduTrack(payload);
+  } catch (error) {
+    return {
+      ok: false,
+      warning: error.message || String(error),
+    };
+  }
+}
+
 function requiresExternalEduTrackSync() {
   const enabled = String(process.env.ENABLE_CROSS_SYSTEM_TEACHER_SYNC || "")
     .trim()
@@ -4419,17 +4516,22 @@ app.post("/api/users", masterAdminOnly, async (req, res) => {
       role,
       status,
     });
+    const savedUser = {
+      id: accountId,
+      name: accountName,
+      email: accountEmail,
+      role: normalizePortalRole(role),
+      status: normalizeAccountStatus(status),
+      twoFactorEnabled: false,
+    };
+    const eduTrackSync = await syncPortalUserAccountToEduTrack(savedUser, {
+      password: accountPassword,
+    });
 
     res.status(201).json({
       success: true,
-      user: {
-        id: accountId,
-        name: accountName,
-        email: accountEmail,
-        role: normalizePortalRole(role),
-        status: normalizeAccountStatus(status),
-        twoFactorEnabled: false,
-      },
+      user: savedUser,
+      eduTrackSync,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -4485,17 +4587,24 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
         userId,
       ]);
     }
+    const savedUser = {
+      id: userId,
+      external_staff_id: existing.external_staff_id || "",
+      name: nextName,
+      email: nextEmail,
+      role: nextRole,
+      status: nextStatus,
+      twoFactorEnabled: twoFactorEnabledForUser(existing),
+    };
+    const eduTrackSync = await syncPortalUserAccountToEduTrack(savedUser, {
+      password: nextPassword,
+      previousRole: existing.role,
+    });
 
     res.json({
       success: true,
-      user: {
-        id: userId,
-        name: nextName,
-        email: nextEmail,
-        role: nextRole,
-        status: nextStatus,
-        twoFactorEnabled: twoFactorEnabledForUser(existing),
-      },
+      user: savedUser,
+      eduTrackSync,
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -4510,8 +4619,18 @@ app.delete("/api/users/:id", masterAdminOnly, async (req, res) => {
       return res.status(400).json({ error: "You cannot disable your own account" });
     }
 
+    const [[existing]] = await db.query(
+      "SELECT id, external_staff_id, name, email, role, status FROM users WHERE id = ? LIMIT 1",
+      [userId],
+    );
     const [result] = await db.query("UPDATE users SET status = 'Disabled' WHERE id = ?", [userId]);
-    res.json({ success: true, disabled: result.affectedRows > 0 });
+    const eduTrackSync = existing
+      ? await syncPortalUserAccountToEduTrack(
+          { ...existing, status: "Disabled" },
+          { previousRole: existing.role, statusOverride: "Disabled" },
+        )
+      : { skipped: true, reason: "user-not-found" };
+    res.json({ success: true, disabled: result.affectedRows > 0, eduTrackSync });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -4619,6 +4738,156 @@ app.post("/api/internal/sync-teacher-account", async (req, res) => {
     res.status(400).json({ error: error.message });
   } finally {
     connection.release();
+  }
+});
+
+async function upsertPortalUserForEduTrack(payload = {}) {
+  await ensureAccessTables();
+  await ensureContentTables();
+
+  const requestedId = compactText(payload.id || payload.userId || payload.user_id, 50);
+  const externalStaffId = compactText(
+    payload.externalStaffId || payload.external_staff_id || payload.staffId || payload.staff_id,
+    80,
+  );
+  const email = normalizeEmail(payload.email);
+  const name = compactText(payload.name || email.split("@")[0] || "User", 150);
+  const role = normalizePortalRole(payload.role);
+  const status = shouldMirrorPortalUserToEduTrack(role)
+    ? normalizeAccountStatus(payload.status)
+    : "Disabled";
+  const password = typeof payload.password === "string" ? payload.password : "";
+
+  if (!requestedId || !name || !isValidEmail(email)) {
+    const error = new Error("id, name, and a valid email are required");
+    error.status = 400;
+    throw error;
+  }
+  if (password && password.length < 8) {
+    const error = new Error("Password must be at least 8 characters");
+    error.status = 400;
+    throw error;
+  }
+
+  const [matches] = await db.query(
+    `
+      SELECT id, role
+      FROM users
+      WHERE id = ? OR email = ?
+      ORDER BY (id = ?) DESC, id
+      LIMIT 1
+    `,
+    [requestedId, email, requestedId],
+  );
+  const userId = matches[0]?.id || requestedId;
+
+  if (matches.length) {
+    if (password) {
+      const passwordHash = await bcrypt.hash(password, 12);
+      await db.query(
+        `
+          UPDATE users
+          SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              name = ?,
+              email = ?,
+              role = ?,
+              status = ?,
+              password_hash = ?
+          WHERE id = ?
+        `,
+        [externalStaffId, name, email, role, status, passwordHash, userId],
+      );
+    } else {
+      await db.query(
+        `
+          UPDATE users
+          SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              name = ?,
+              email = ?,
+              role = ?,
+              status = ?
+          WHERE id = ?
+        `,
+        [externalStaffId, name, email, role, status, userId],
+      );
+    }
+  } else {
+    const passwordHash = await bcrypt.hash(password || crypto.randomBytes(48).toString("hex"), 12);
+    await db.query(
+      `
+        INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash)
+        VALUES (?, NULLIF(?, ''), ?, ?, ?, ?, ?)
+      `,
+      [userId, externalStaffId, name, email, role, status, passwordHash],
+    );
+  }
+
+  const now = new Date().toISOString();
+  const currentDoc = (await readEduTrackDoc("users", userId)) || {};
+  const teacherId = externalStaffId || userId;
+  await writeEduTrackDoc("users", userId, {
+    ...currentDoc,
+    id: userId,
+    userId,
+    name,
+    email,
+    role: eduTrackRole(role),
+    platformRole: role,
+    status,
+    source: "portal-users",
+    updatedAt: now,
+    createdAt: currentDoc.createdAt || now,
+    ...(role === ROLES.teacher
+      ? {
+          teacherId,
+          teacher_id: teacherId,
+          staffId: teacherId,
+          staff_id: teacherId,
+        }
+      : {}),
+  });
+
+  if (role === ROLES.teacher && status === "Active") {
+    await upsertLocalEduTrackTeacher(
+      db,
+      {
+        userId,
+        staffId: teacherId,
+        teacherId,
+        name,
+        email,
+        status,
+        staffType: "Portal User",
+      },
+      { markSync: false },
+    );
+  }
+
+  return {
+    id: userId,
+    name,
+    email,
+    role,
+    status,
+  };
+}
+
+app.post("/api/internal/sync-portal-user", async (req, res) => {
+  if (process.env.APP_NAME !== "edutrack") {
+    return res.status(404).json({ error: "EduTrack portal user sync is not available here" });
+  }
+
+  const configuredSecret = process.env.EDUTRACK_SYNC_SECRET || process.env.EDUTRACK_SSO_SECRET;
+  const requestSecret = req.headers["x-edutrack-sync-secret"];
+  if (!configuredSecret || requestSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Invalid sync secret" });
+  }
+
+  try {
+    const user = await upsertPortalUserForEduTrack(req.body || {});
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(error.status || 400).json({ error: error.message });
   }
 });
 
@@ -10300,6 +10569,18 @@ async function findOrCreateEduTrackSsoUser(payload) {
     );
     return user || null;
   };
+  const refreshSsoUser = async (user) => {
+    if (!user) return null;
+    await db.query(
+      "UPDATE users SET name = ?, email = ?, role = ?, status = 'Active' WHERE id = ?",
+      [name, email, payload.role, user.id],
+    );
+    const [[freshUser]] = await db.query(
+      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
+      [user.id],
+    );
+    return freshUser || user;
+  };
   const attachExistingTeacherAccount = async (user) => {
     if (payload.role !== ROLES.teacher || user?.role !== ROLES.teacher) {
       return user;
@@ -10339,13 +10620,13 @@ async function findOrCreateEduTrackSsoUser(payload) {
   };
 
   let user = await findUserByEmail();
-  if (user) return attachExistingTeacherAccount(user);
+  if (user) return attachExistingTeacherAccount(await refreshSsoUser(user));
 
   const idOwner = await findUserById();
   if (idOwner) {
     requestedId = `SSO-${crypto.createHash("sha256").update(email).digest("hex").slice(0, 40)}`;
     user = await findUserById();
-    if (user) return attachExistingTeacherAccount(user);
+    if (user) return attachExistingTeacherAccount(await refreshSsoUser(user));
   }
 
   const passwordHash = await bcrypt.hash(crypto.randomBytes(48).toString("hex"), 12);
@@ -10375,7 +10656,7 @@ app.get("/api/edutrack/sso/complete", async (req, res) => {
   }
 
   try {
-    const payload = verifyEduTrackSsoToken(String(req.query.token || ""), process.env.JWT_SECRET);
+    const payload = verifyEduTrackSsoToken(String(req.query.token || ""), eduTrackSsoSecret());
     const user = await findOrCreateEduTrackSsoUser(payload);
 
     if (String(user.status || "").toLowerCase() !== "active") {
@@ -10697,7 +10978,7 @@ if (fs.existsSync(frontendIndex)) {
         }
         if (!EDUTRACK_SSO_ROLES.has(user.role)) return next();
 
-        const token = createEduTrackSsoToken(user, process.env.JWT_SECRET, req.originalUrl);
+        const token = createEduTrackSsoToken(user, eduTrackSsoSecret(), req.originalUrl);
         const target = new URL("/api/edutrack/sso/complete", `${eduTrackPublicUrl}/`);
         target.searchParams.set("token", token);
         res.setHeader("Cache-Control", "no-store");
