@@ -3194,6 +3194,72 @@ async function deleteEduTrackUserAccountFromPortal(user) {
   }
 }
 
+async function verifyEduTrackLoginFromPortal(email, password) {
+  if (process.env.APP_NAME === "edutrack") return null;
+  const accountEmail = normalizeEmail(email);
+  const accountPassword = String(password || "");
+  if (!accountEmail || !accountPassword) return null;
+
+  const { base, secret } = portalEduTrackAccountSyncConfig();
+  if (!base || !secret) return null;
+
+  const timeoutMs = Math.max(Number(process.env.EDUTRACK_SYNC_TIMEOUT_MS || 8000), 1000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(`${base}/api/internal/verify-edutrack-login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-edutrack-sync-secret": secret,
+      },
+      body: JSON.stringify({ email: accountEmail, password: accountPassword }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    console.warn(`[login] EduTrack fallback verification failed: ${error.message}`);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (response.status === 401 || response.status === 403 || response.status === 404) return null;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.warn(
+      `[login] EduTrack fallback verification failed with status ${response.status}: ${
+        data?.error || "unknown error"
+      }`,
+    );
+    return null;
+  }
+  return data?.user || null;
+}
+
+async function portalLoginUserFromEduTrack(email, password, localUser = null) {
+  if (localUser) {
+    if (String(localUser.status || "").toLowerCase() !== "active") return null;
+    if (!EDUTRACK_SSO_ROLES.has(String(localUser.role || ""))) return null;
+  }
+
+  const verifiedUser = await verifyEduTrackLoginFromPortal(email, password);
+  if (!verifiedUser) return null;
+
+  try {
+    const syncedUser = await upsertWebsiteUserFromEduTrack({
+      ...verifiedUser,
+      email: verifiedUser.email || email,
+      password,
+    });
+    const [[user]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [syncedUser.id]);
+    return user || null;
+  } catch (error) {
+    console.warn(`[login] EduTrack fallback account sync failed: ${error.message}`);
+    return null;
+  }
+}
+
 async function storedEduTrackUserForPortalSync(userId, extra = {}, fallback = {}) {
   const id = compactText(userId || extra.id || fallback.id, 50);
   let stored = {};
@@ -5396,6 +5462,49 @@ app.post("/api/internal/sync-portal-user", async (req, res) => {
     res.json({ success: true, user });
   } catch (error) {
     res.status(error.status || 400).json({ error: error.message });
+  }
+});
+
+app.post("/api/internal/verify-edutrack-login", async (req, res) => {
+  if (process.env.APP_NAME !== "edutrack") {
+    return res.status(404).json({ error: "EduTrack login verification is not available here" });
+  }
+
+  const configuredSecret = process.env.EDUTRACK_SYNC_SECRET || process.env.EDUTRACK_SSO_SECRET;
+  const requestSecret = req.headers["x-edutrack-sync-secret"];
+  if (!configuredSecret || requestSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Invalid sync secret" });
+  }
+
+  try {
+    await ensureContentTables();
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+    if (!isValidEmail(email) || !password) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const [users] = await db.query(
+      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE email = ? LIMIT 1",
+      [email],
+    );
+    const user = users[0];
+    if (!user || String(user.status || "").toLowerCase() !== "active") {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash || "");
+    if (!validPassword) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const extra = (await readEduTrackDoc("users", user.id)) || {};
+    const payload = await storedEduTrackUserForPortalSync(user.id, extra, user);
+    delete payload.passwordHash;
+    delete payload.password_hash;
+    res.json({ success: true, user: payload });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -11095,28 +11204,35 @@ app.post(
   async (req, res) => {
     try {
       await ensureAccessTables();
-      const { email, password } = req.body;
+      const { email, password } = req.body || {};
+      const accountEmail = normalizeEmail(email);
+      const accountPassword = String(password || "");
 
-      const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+      const [users] = await db.query("SELECT * FROM users WHERE email = ?", [accountEmail]);
+      let user = users[0] || null;
 
-      if (users.length === 0) {
-        return res.status(401).json({
-          error: "Invalid email or password",
-        });
-      }
-
-      const user = users[0];
-
-      if (String(user.status || "").toLowerCase() !== "active") {
+      if (user && String(user.status || "").toLowerCase() !== "active") {
         return res.status(403).json({ error: "This account is not active." });
       }
 
-      const validPassword = await bcrypt.compare(password, user.password_hash);
+      let validPassword = user
+        ? await bcrypt.compare(accountPassword, user.password_hash || "")
+        : false;
 
       if (!validPassword) {
-        return res.status(401).json({
-          error: "Invalid email or password",
-        });
+        const eduTrackUser = await portalLoginUserFromEduTrack(accountEmail, accountPassword, user);
+        if (eduTrackUser) {
+          user = eduTrackUser;
+          validPassword = true;
+        }
+      }
+
+      if (!user || !validPassword) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      if (String(user.status || "").toLowerCase() !== "active") {
+        return res.status(403).json({ error: "This account is not active." });
       }
 
       if (twoFactorEnabledForUser(user)) {

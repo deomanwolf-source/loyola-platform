@@ -5971,7 +5971,22 @@
               <h2>Subject Assignments</h2>
               <p>Assign subjects to teachers and classes. Teachers enter daily progress separately.</p>
             </div>
-            <button class="btn sm" onclick="openAddSubjectModal()">+ Add Subject</button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end">
+              <button class="btn secondary sm" onclick="downloadSubjectAssignmentsTemplate()">
+                <i data-lucide="file-down" style="width: 14px; height: 14px"></i> CSV Template
+              </button>
+              <button class="btn secondary sm" onclick="openSubjectAssignmentsCsvImport()">
+                <i data-lucide="upload" style="width: 14px; height: 14px"></i> Import CSV
+              </button>
+              <input
+                id="subject-assignments-csv-input"
+                type="file"
+                accept=".csv,text/csv"
+                style="display: none"
+                onchange="importSubjectAssignmentsCsv(this)"
+              />
+              <button class="btn sm" onclick="openAddSubjectModal()">+ Add Subject</button>
+            </div>
           </div>
           <div class="page-tools">
             <div class="quick-finder-head">
@@ -8392,6 +8407,259 @@
         }
         return "";
       }
+      function subjectAssignmentCsvCell(value) {
+        const text = String(value ?? "");
+        return /[",\n\r]/.test(text) ? '"' + text.replace(/"/g, '""') + '"' : text;
+      }
+      window.downloadSubjectAssignmentsTemplate = function () {
+        const rows = [
+          ["subject", "grade", "term", "teacher", "class_id", "topics"],
+          ["Mathematics", "1", "1", "LCS-0007", "GRADE-1-A", "Numbers|Addition|Subtraction"],
+          ["Science", "6", "2", "teacher@example.com", "GRADE-6-D", "Plants|Light|Electricity"],
+        ];
+        const csv = rows.map((row) => row.map(subjectAssignmentCsvCell).join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "edutrack-subject-assignments-template.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
+      window.openSubjectAssignmentsCsvImport = function () {
+        const input = document.getElementById("subject-assignments-csv-input");
+        if (!input) return;
+        input.value = "";
+        input.click();
+      };
+      function parseSubjectCsvRows(text) {
+        const rows = [];
+        let row = [];
+        let cell = "";
+        let quoted = false;
+        const source = String(text || "")
+          .replace(/\r\n/g, "\n")
+          .replace(/\r/g, "\n");
+        for (let index = 0; index < source.length; index += 1) {
+          const char = source[index];
+          const next = source[index + 1];
+          if (quoted) {
+            if (char === '"' && next === '"') {
+              cell += '"';
+              index += 1;
+            } else if (char === '"') {
+              quoted = false;
+            } else {
+              cell += char;
+            }
+            continue;
+          }
+          if (char === '"') {
+            quoted = true;
+            continue;
+          }
+          if (char === ",") {
+            row.push(cell);
+            cell = "";
+            continue;
+          }
+          if (char === "\n") {
+            row.push(cell);
+            rows.push(row);
+            row = [];
+            cell = "";
+            continue;
+          }
+          cell += char;
+        }
+        row.push(cell);
+        if (row.some((value) => String(value || "").trim())) rows.push(row);
+        if (!rows.length) return [];
+        const headers = rows
+          .shift()
+          .map((header) =>
+            String(header || "")
+              .replace(/^\uFEFF/, "")
+              .trim()
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, "_")
+              .replace(/(^_|_$)/g, ""),
+          );
+        return rows
+          .filter((items) => items.some((value) => String(value || "").trim()))
+          .map((items) => {
+            const record = {};
+            headers.forEach((header, index) => {
+              if (!header) return;
+              record[header] = items[index] == null ? "" : String(items[index]).trim();
+            });
+            return record;
+          });
+      }
+      function subjectCsvField(row, ...keys) {
+        for (const key of keys) {
+          const normalized = String(key || "")
+            .trim()
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "_")
+            .replace(/(^_|_$)/g, "");
+          if (Object.prototype.hasOwnProperty.call(row, normalized) && row[normalized]) {
+            return row[normalized];
+          }
+        }
+        return "";
+      }
+      function normalizeCsvTerm(value) {
+        const text = String(value || "").trim();
+        if (!text) return "";
+        const match = text.match(/[1-3]/);
+        return match ? match[0] : "";
+      }
+      function subjectCsvTopics(value) {
+        return String(value || "")
+          .split(/[|\n;]+/g)
+          .map((item) => normalizeTopicLabel(item))
+          .filter(Boolean)
+          .map((name) => ({ name, done: false, doneAt: null, subtopics: [] }));
+      }
+      function subjectAssignmentKey(subject) {
+        const normalized = normalizeSubject(subject);
+        return [
+          String(normalized.name || "").trim().toLowerCase(),
+          String(normalized.grade || ""),
+          String(normalized.term || ""),
+          String(normalized.teacherId || ""),
+          String(normalized.classId || ""),
+        ].join("|");
+      }
+      window.importSubjectAssignmentsCsv = async function (input) {
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+          showToast("Please select a .csv file.", "err");
+          input.value = "";
+          return;
+        }
+        try {
+          showToast("Importing subject assignments CSV...", "");
+          const csv = await file.text();
+          const rows = parseSubjectCsvRows(csv);
+          if (!rows.length) {
+            showToast("CSV file has no importable rows.", "err");
+            return;
+          }
+
+          const existingKeys = new Set(allSubjects.map(subjectAssignmentKey));
+          const payloads = [];
+          const errors = [];
+          let skipped = 0;
+          rows.forEach((row, index) => {
+            const rowNumber = index + 2;
+            const name = subjectCsvField(row, "subject", "subject_name", "name");
+            const grade = Number(subjectCsvField(row, "grade", "syllabus_grade"));
+            const termRaw = subjectCsvField(row, "term", "term_no", "term_number");
+            const term = normalizeCsvTerm(termRaw);
+            const teacherToken = subjectCsvField(
+              row,
+              "teacher",
+              "teacher_id",
+              "teacher_email",
+              "email",
+              "teacher_name",
+            );
+            const assignmentLines = subjectCsvField(row, "assignments", "assignment_lines");
+            const classId = normalizeAssignmentClassToken(
+              subjectCsvField(row, "class_id", "class", "class_name", "section"),
+            );
+            if (!name) {
+              errors.push("Row " + rowNumber + ": subject is required");
+              return;
+            }
+            if (!Number.isInteger(grade) || grade < 1 || grade > 13) {
+              errors.push("Row " + rowNumber + ": grade must be 1-13");
+              return;
+            }
+            if (termRaw && !term) {
+              errors.push("Row " + rowNumber + ": term must be 1, 2, or 3");
+              return;
+            }
+            const parsedAssignments = assignmentLines
+              ? parseSubjectAssignments(assignmentLines)
+              : parseSubjectAssignments("", teacherToken || "unassigned", classId);
+            if (parsedAssignments.errors.length) {
+              errors.push("Row " + rowNumber + ": " + parsedAssignments.errors[0]);
+              return;
+            }
+            if (!parsedAssignments.assignments.length) {
+              errors.push("Row " + rowNumber + ": add at least one teacher assignment");
+              return;
+            }
+            const assignmentError = validateSubjectAssignments(parsedAssignments.assignments, grade);
+            if (assignmentError) {
+              errors.push("Row " + rowNumber + ": " + assignmentError);
+              return;
+            }
+            const topics = subjectCsvTopics(subjectCsvField(row, "topics", "syllabus", "units"));
+            parsedAssignments.assignments.forEach((assignment) => {
+              const payload = normalizeSubject({
+                name,
+                grade,
+                level: gradeToLevel(grade),
+                term,
+                teacherId: assignment.teacherId || "",
+                classIds: assignment.classId ? [assignment.classId] : [],
+                classId: assignment.classId || "",
+                topics: JSON.parse(JSON.stringify(topics)),
+                createdAt: new Date().toISOString(),
+              });
+              const key = subjectAssignmentKey(payload);
+              if (existingKeys.has(key)) {
+                skipped += 1;
+                return;
+              }
+              existingKeys.add(key);
+              payloads.push(payload);
+            });
+          });
+
+          if (!payloads.length) {
+            showToast(
+              "No new subject assignments imported" + (skipped ? "; duplicates skipped." : "."),
+              errors.length ? "err" : "",
+            );
+            if (errors.length) window.alert("Subject CSV import errors:\n\n" + errors.join("\n"));
+            return;
+          }
+
+          const refs = await Promise.all(
+            payloads.map((payload) => addDoc(collection(db, "subjects"), payload)),
+          );
+          refs.forEach((ref, index) =>
+            allSubjects.push(normalizeSubject({ id: ref.id, ...payloads[index] })),
+          );
+          renderSubjects();
+          renderDashboard();
+          renderTeachers();
+          renderProgress();
+          showToast(
+            "Imported " +
+              payloads.length +
+              " subject assignment" +
+              (payloads.length !== 1 ? "s" : "") +
+              (skipped ? "; " + skipped + " duplicate" + (skipped !== 1 ? "s" : "") + " skipped" : "") +
+              ".",
+            errors.length ? "" : "success",
+          );
+          if (errors.length) window.alert("Some subject rows were skipped:\n\n" + errors.join("\n"));
+        } catch (error) {
+          console.error("Subject CSV import failed:", error);
+          showToast((error && error.message) || "Subject CSV import failed.", "err");
+        } finally {
+          input.value = "";
+        }
+      };
       window.addSubject = async function () {
         const name = document.getElementById("s-name").value.trim();
         const grade = Number(document.getElementById("s-grade").value);
