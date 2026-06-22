@@ -3069,6 +3069,437 @@ async function syncPortalUserAccountToEduTrack(user, options = {}) {
   }
 }
 
+function eduTrackPortalAccountSyncConfig() {
+  if (process.env.APP_NAME !== "edutrack") {
+    return { base: "", secret: "", available: false };
+  }
+
+  const configuredBase =
+    process.env.LOYOLA_PORTAL_INTERNAL_BASE_URL ||
+    process.env.LOYOLA_PORTAL_PUBLIC_URL ||
+    process.env.MAIN_PORTAL_INTERNAL_BASE_URL ||
+    process.env.MAIN_PORTAL_PUBLIC_URL ||
+    process.env.PORTAL_INTERNAL_BASE_URL ||
+    process.env.PORTAL_PUBLIC_URL ||
+    (process.env.NODE_ENV === "production" ? "https://loyolacollege.lk" : "");
+  const base = String(configuredBase || "").replace(/\/+$/g, "");
+  const secret = process.env.EDUTRACK_SYNC_SECRET || process.env.EDUTRACK_SSO_SECRET;
+  const pointsToSelf = /(^https?:\/\/)?edutrack\.loyolacollege\.lk/i.test(base);
+  return { base: pointsToSelf ? "" : base, secret, available: Boolean(base && secret && !pointsToSelf) };
+}
+
+function portalRoleFromEduTrackRole(value) {
+  const role = String(value || "").trim();
+  if (!role || role === "teacher") return ROLES.teacher;
+  if (role === "admin" || role === "coordinator" || role === "edutrack_admin") {
+    return ROLES.eduzync;
+  }
+  if (role === "student") return ROLES.student;
+  if (role === "parent") return ROLES.parent;
+  return normalizePortalRole(role);
+}
+
+function looksLikeBcryptHash(value) {
+  return /^\$2[aby]\$\d{2}\$[./A-Za-z0-9]{53}$/.test(String(value || "").trim());
+}
+
+function eduTrackUserPortalSyncPayload(user = {}, options = {}) {
+  const email = normalizeEmail(user.email);
+  const externalStaffId = compactText(
+    user.externalStaffId ||
+      user.external_staff_id ||
+      user.staffId ||
+      user.staff_id ||
+      user.teacherId ||
+      user.teacher_id,
+    80,
+  );
+  const id = compactText(user.id || user.userId || user.user_id || externalStaffId, 50);
+  return {
+    id,
+    externalStaffId,
+    name: compactText(user.name || user.displayName || email.split("@")[0] || "Teacher", 150),
+    email,
+    role: portalRoleFromEduTrackRole(user.platformRole || user.role),
+    status: normalizeAccountStatus(user.status),
+    password: typeof options.password === "string" ? options.password : "",
+    passwordHash: compactText(
+      options.passwordHash || user.passwordHash || user.password_hash,
+      120,
+    ),
+  };
+}
+
+async function postEduTrackUserToPortal(pathname, payload) {
+  const { base, secret } = eduTrackPortalAccountSyncConfig();
+  if (!base || !secret) {
+    return { skipped: true, reason: "portal-account-sync-not-configured" };
+  }
+
+  const timeoutMs = Math.max(Number(process.env.EDUTRACK_SYNC_TIMEOUT_MS || 8000), 1000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(`${base}${pathname}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-edutrack-sync-secret": secret,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || `Portal user sync failed with status ${response.status}`);
+  }
+  return data;
+}
+
+async function syncEduTrackUserAccountToPortal(user, options = {}) {
+  if (process.env.APP_NAME !== "edutrack") {
+    return { skipped: true, reason: "not-edutrack-app" };
+  }
+
+  const payload = eduTrackUserPortalSyncPayload(user, options);
+  if (!payload.id || !payload.email || !payload.name) {
+    return { skipped: true, reason: "missing-required-account-fields" };
+  }
+
+  try {
+    return await postEduTrackUserToPortal("/api/internal/sync-edutrack-user", payload);
+  } catch (error) {
+    return { ok: false, warning: error.message || String(error) };
+  }
+}
+
+async function deleteEduTrackUserAccountFromPortal(user) {
+  if (process.env.APP_NAME !== "edutrack") {
+    return { skipped: true, reason: "not-edutrack-app" };
+  }
+
+  const payload = eduTrackUserPortalSyncPayload(user);
+  if (!payload.id && !payload.email) {
+    return { skipped: true, reason: "missing-account-identity" };
+  }
+
+  try {
+    return await postEduTrackUserToPortal("/api/internal/delete-edutrack-user", payload);
+  } catch (error) {
+    return { ok: false, warning: error.message || String(error) };
+  }
+}
+
+async function verifyEduTrackLoginFromPortal(email, password) {
+  if (process.env.APP_NAME === "edutrack") return null;
+  const accountEmail = normalizeEmail(email);
+  const accountPassword = String(password || "");
+  if (!accountEmail || !accountPassword) return null;
+
+  const { base, secret } = portalEduTrackAccountSyncConfig();
+  if (!base || !secret) return null;
+
+  const timeoutMs = Math.max(Number(process.env.EDUTRACK_SYNC_TIMEOUT_MS || 8000), 1000);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  let response;
+  try {
+    response = await fetch(`${base}/api/internal/verify-edutrack-login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-edutrack-sync-secret": secret,
+      },
+      body: JSON.stringify({ email: accountEmail, password: accountPassword }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    console.warn(`[login] EduTrack fallback verification failed: ${error.message}`);
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  if (response.status === 401 || response.status === 403 || response.status === 404) return null;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    console.warn(
+      `[login] EduTrack fallback verification failed with status ${response.status}: ${
+        data?.error || "unknown error"
+      }`,
+    );
+    return null;
+  }
+  return data?.user || null;
+}
+
+async function portalLoginUserFromEduTrack(email, password, localUser = null) {
+  if (localUser) {
+    if (String(localUser.status || "").toLowerCase() !== "active") return null;
+    if (!EDUTRACK_SSO_ROLES.has(String(localUser.role || ""))) return null;
+  }
+
+  const verifiedUser = await verifyEduTrackLoginFromPortal(email, password);
+  if (!verifiedUser) return null;
+
+  try {
+    const syncedUser = await upsertWebsiteUserFromEduTrack({
+      ...verifiedUser,
+      email: verifiedUser.email || email,
+      password,
+    });
+    const [[user]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [syncedUser.id]);
+    return user || null;
+  } catch (error) {
+    console.warn(`[login] EduTrack fallback account sync failed: ${error.message}`);
+    return null;
+  }
+}
+
+async function storedEduTrackUserForPortalSync(userId, extra = {}, fallback = {}) {
+  const id = compactText(userId || extra.id || fallback.id, 50);
+  let stored = {};
+  if (id) {
+    const [rows] = await db.query(
+      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
+      [id],
+    );
+    stored = rows[0] || {};
+  }
+  return {
+    ...stored,
+    ...fallback,
+    ...extra,
+    id: id || stored.id || fallback.id || extra.id,
+    email: extra.email || fallback.email || stored.email,
+    name: extra.name || fallback.name || stored.name,
+    role: extra.role || fallback.role || stored.role,
+    status: extra.status || fallback.status || stored.status,
+    external_staff_id:
+      extra.external_staff_id ||
+      extra.externalStaffId ||
+      fallback.external_staff_id ||
+      fallback.externalStaffId ||
+      stored.external_staff_id,
+    passwordHash: stored.password_hash || fallback.passwordHash || extra.passwordHash,
+  };
+}
+
+async function upsertWebsiteUserFromEduTrack(payload = {}) {
+  if (process.env.APP_NAME === "edutrack") {
+    const error = new Error("EduTrack-to-portal sync is not available on the EduTrack app");
+    error.status = 404;
+    throw error;
+  }
+
+  await ensureAccessTables();
+
+  const requestedId = compactText(payload.id || payload.userId || payload.user_id, 50);
+  const externalStaffId = compactText(
+    payload.externalStaffId || payload.external_staff_id || payload.staffId || payload.staff_id,
+    80,
+  );
+  const email = normalizeEmail(payload.email);
+  const name = compactText(payload.name || email.split("@")[0] || "Teacher", 150);
+  const role = portalRoleFromEduTrackRole(payload.role || payload.platformRole);
+  const status = normalizeAccountStatus(payload.status);
+  const password = typeof payload.password === "string" ? payload.password : "";
+  const passwordHash = String(payload.passwordHash || payload.password_hash || "").trim();
+
+  if (!email || !isValidEmail(email) || !name) {
+    const error = new Error("name and a valid email are required");
+    error.status = 400;
+    throw error;
+  }
+  if (password && password.length < 6) {
+    const error = new Error("Password must be at least 6 characters");
+    error.status = 400;
+    throw error;
+  }
+  if (passwordHash && !looksLikeBcryptHash(passwordHash)) {
+    const error = new Error("Invalid password hash");
+    error.status = 400;
+    throw error;
+  }
+
+  const [matches] = await db.query(
+    `
+      SELECT id, role
+      FROM users
+      WHERE ${requestedId ? "id = ? OR" : ""} email = ?
+      ORDER BY ${requestedId ? "(id = ?) DESC," : ""} id
+      LIMIT 1
+    `,
+    requestedId ? [requestedId, email, requestedId] : [email],
+  );
+  const userId = matches[0]?.id || requestedId || syncAccountId("EDU");
+  const nextPasswordHash = password
+    ? await bcrypt.hash(password, 12)
+    : passwordHash || "";
+
+  if (matches.length && SYSTEM_OWNER_ROLES.includes(matches[0].role) && !SYSTEM_OWNER_ROLES.includes(role)) {
+    const error = new Error("Refusing to downgrade a system owner account from EduTrack sync");
+    error.status = 403;
+    throw error;
+  }
+
+  if (matches.length) {
+    if (nextPasswordHash) {
+      await db.query(
+        `
+          UPDATE users
+          SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              name = ?,
+              email = ?,
+              role = ?,
+              status = ?,
+              password_hash = ?
+          WHERE id = ?
+        `,
+        [externalStaffId, name, email, role, status, nextPasswordHash, userId],
+      );
+    } else {
+      await db.query(
+        `
+          UPDATE users
+          SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              name = ?,
+              email = ?,
+              role = ?,
+              status = ?
+          WHERE id = ?
+        `,
+        [externalStaffId, name, email, role, status, userId],
+      );
+    }
+  } else {
+    const insertPasswordHash =
+      nextPasswordHash || (await bcrypt.hash(syncSetupPassword(), 12));
+    await db.query(
+      `
+        INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash)
+        VALUES (?, NULLIF(?, ''), ?, ?, ?, ?, ?)
+      `,
+      [userId, externalStaffId, name, email, role, status, insertPasswordHash],
+    );
+  }
+
+  if (role === ROLES.teacher || externalStaffId) {
+    await linkPortalUserToStaffRecords(db, userId, externalStaffId, email);
+  }
+
+  return { id: userId, external_staff_id: externalStaffId, name, email, role, status };
+}
+
+async function deleteWebsiteUserFromEduTrack(payload = {}) {
+  if (process.env.APP_NAME === "edutrack") {
+    const error = new Error("EduTrack-to-portal delete is not available on the EduTrack app");
+    error.status = 404;
+    throw error;
+  }
+
+  await ensureAccessTables();
+  const userId = compactText(payload.id || payload.userId || payload.user_id, 50);
+  const email = normalizeEmail(payload.email);
+  if (!userId && !email) return { deleted: false, reason: "missing-account-identity" };
+
+  const [rows] = await db.query(
+    `
+      SELECT id, role
+      FROM users
+      WHERE ${userId ? "id = ? OR" : ""} ${email ? "email = ?" : "1 = 0"}
+      ORDER BY ${userId ? "(id = ?) DESC," : ""} id
+      LIMIT 1
+    `,
+    userId && email ? [userId, email, userId] : userId ? [userId, userId] : [email],
+  );
+  const user = rows[0];
+  if (!user) return { deleted: false };
+  if (SYSTEM_OWNER_ROLES.includes(user.role)) {
+    const error = new Error("Refusing to delete a system owner account from EduTrack sync");
+    error.status = 403;
+    throw error;
+  }
+
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    await unlinkPortalUserFromStaffRecords(connection, user.id);
+    const [result] = await connection.query("DELETE FROM users WHERE id = ?", [user.id]);
+    await connection.commit();
+    return { deleted: Number(result.affectedRows || 0) > 0 };
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+async function syncExistingEduTrackUsersToPortal() {
+  if (process.env.APP_NAME !== "edutrack") {
+    return { skipped: true, reason: "not-edutrack-app" };
+  }
+  if (!eduTrackPortalAccountSyncConfig().available) {
+    return { skipped: true, reason: "portal-account-sync-not-configured" };
+  }
+
+  await ensureContentTables();
+  const [users] = await db.query(
+    `
+      SELECT id, external_staff_id, name, email, role, status, password_hash
+      FROM users
+      WHERE NULLIF(email, '') IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 2000
+    `,
+  );
+  const docs = await listEduTrackDocs("users");
+  const docById = new Map(docs.map((doc) => [String(doc.id), doc.data || {}]));
+  const result = { checked: users.length, synced: 0, failed: 0, warnings: [] };
+
+  for (const user of users) {
+    const doc = docById.get(String(user.id)) || {};
+    const payload = await storedEduTrackUserForPortalSync(user.id, doc, user);
+    const syncResult = await syncEduTrackUserAccountToPortal(payload, {
+      passwordHash: user.password_hash,
+    });
+    if (syncResult?.success || syncResult?.user) {
+      result.synced += 1;
+    } else if (syncResult?.skipped) {
+      result.warnings.push(`${user.email}: ${syncResult.reason}`);
+    } else {
+      result.failed += 1;
+      result.warnings.push(`${user.email}: ${syncResult?.warning || "sync failed"}`);
+    }
+  }
+
+  return result;
+}
+
+let eduTrackPortalAccountSyncScheduled = false;
+function scheduleEduTrackPortalAccountSyncMaintenance(delayMs = 6000) {
+  if (eduTrackPortalAccountSyncScheduled || process.env.APP_NAME !== "edutrack") return;
+  eduTrackPortalAccountSyncScheduled = true;
+  setTimeout(async () => {
+    try {
+      const result = await syncExistingEduTrackUsersToPortal();
+      if (!result.skipped) {
+        console.log(
+          `EduTrack portal account sync checked ${result.checked} users; synced ${result.synced}, failed ${result.failed}.`,
+        );
+      }
+    } catch (error) {
+      console.error("EduTrack portal account sync failed:", error.message);
+    }
+  }, delayMs);
+}
+
 function requiresExternalEduTrackSync() {
   const enabled = String(process.env.ENABLE_CROSS_SYSTEM_TEACHER_SYNC || "")
     .trim()
@@ -5031,6 +5462,87 @@ app.post("/api/internal/sync-portal-user", async (req, res) => {
   try {
     const user = await upsertPortalUserForEduTrack(req.body || {});
     res.json({ success: true, user });
+  } catch (error) {
+    res.status(error.status || 400).json({ error: error.message });
+  }
+});
+
+app.post("/api/internal/verify-edutrack-login", async (req, res) => {
+  if (process.env.APP_NAME !== "edutrack") {
+    return res.status(404).json({ error: "EduTrack login verification is not available here" });
+  }
+
+  const configuredSecret = process.env.EDUTRACK_SYNC_SECRET || process.env.EDUTRACK_SSO_SECRET;
+  const requestSecret = req.headers["x-edutrack-sync-secret"];
+  if (!configuredSecret || requestSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Invalid sync secret" });
+  }
+
+  try {
+    await ensureContentTables();
+    const email = normalizeEmail(req.body?.email);
+    const password = String(req.body?.password || "");
+    if (!isValidEmail(email) || !password) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const [users] = await db.query(
+      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE email = ? LIMIT 1",
+      [email],
+    );
+    const user = users[0];
+    if (!user || String(user.status || "").toLowerCase() !== "active") {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const validPassword = await bcrypt.compare(password, user.password_hash || "");
+    if (!validPassword) {
+      return res.status(401).json({ error: "Invalid email or password" });
+    }
+
+    const extra = (await readEduTrackDoc("users", user.id)) || {};
+    const payload = await storedEduTrackUserForPortalSync(user.id, extra, user);
+    delete payload.passwordHash;
+    delete payload.password_hash;
+    res.json({ success: true, user: payload });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/internal/sync-edutrack-user", async (req, res) => {
+  if (process.env.APP_NAME === "edutrack") {
+    return res.status(404).json({ error: "Website portal user sync is not available here" });
+  }
+
+  const configuredSecret = process.env.EDUTRACK_SYNC_SECRET || process.env.EDUTRACK_SSO_SECRET;
+  const requestSecret = req.headers["x-edutrack-sync-secret"];
+  if (!configuredSecret || requestSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Invalid sync secret" });
+  }
+
+  try {
+    const user = await upsertWebsiteUserFromEduTrack(req.body || {});
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(error.status || 400).json({ error: error.message });
+  }
+});
+
+app.post("/api/internal/delete-edutrack-user", async (req, res) => {
+  if (process.env.APP_NAME === "edutrack") {
+    return res.status(404).json({ error: "Website portal user delete is not available here" });
+  }
+
+  const configuredSecret = process.env.EDUTRACK_SYNC_SECRET || process.env.EDUTRACK_SSO_SECRET;
+  const requestSecret = req.headers["x-edutrack-sync-secret"];
+  if (!configuredSecret || requestSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Invalid sync secret" });
+  }
+
+  try {
+    const result = await deleteWebsiteUserFromEduTrack(req.body || {});
+    res.json({ success: true, ...result });
   } catch (error) {
     res.status(error.status || 400).json({ error: error.message });
   }
@@ -10592,28 +11104,35 @@ app.post(
   async (req, res) => {
     try {
       await ensureAccessTables();
-      const { email, password } = req.body;
+      const { email, password } = req.body || {};
+      const accountEmail = normalizeEmail(email);
+      const accountPassword = String(password || "");
 
-      const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+      const [users] = await db.query("SELECT * FROM users WHERE email = ?", [accountEmail]);
+      let user = users[0] || null;
 
-      if (users.length === 0) {
-        return res.status(401).json({
-          error: "Invalid email or password",
-        });
-      }
-
-      const user = users[0];
-
-      if (String(user.status || "").toLowerCase() !== "active") {
+      if (user && String(user.status || "").toLowerCase() !== "active") {
         return res.status(403).json({ error: "This account is not active." });
       }
 
-      const validPassword = await bcrypt.compare(password, user.password_hash);
+      let validPassword = user
+        ? await bcrypt.compare(accountPassword, user.password_hash || "")
+        : false;
 
       if (!validPassword) {
-        return res.status(401).json({
-          error: "Invalid email or password",
-        });
+        const eduTrackUser = await portalLoginUserFromEduTrack(accountEmail, accountPassword, user);
+        if (eduTrackUser) {
+          user = eduTrackUser;
+          validPassword = true;
+        }
+      }
+
+      if (!user || !validPassword) {
+        return res.status(401).json({ error: "Invalid email or password" });
+      }
+
+      if (String(user.status || "").toLowerCase() !== "active") {
+        return res.status(403).json({ error: "This account is not active." });
       }
 
       if (twoFactorEnabledForUser(user)) {
