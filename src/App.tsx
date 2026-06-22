@@ -7,6 +7,7 @@ import {
   Briefcase,
   Calendar,
   Camera,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -2573,68 +2574,113 @@ function HomeVisionMissionIdentity() {
   const db = useDb();
   const home = db.homeSections;
   const content = db.websiteContent;
-  const missionPoints = [
-    "To aim at integral education of body, mind and spirit through service and leadership.",
-    "To strive to form citizens of upright character who pursue excellence in every sphere.",
-    "To promote character formation based on human and religious values.",
-  ];
+  const heroImage = db.media.campusImage || content.heroImage || DEFAULT_HERO_IMAGE;
+  const logoImage = content.logoImage || "/loyola-crest.jpg";
   const stats = (home.stats || []).slice(0, 4);
   const statTones: HomePhotoTone[] = ["gold", "crimson", "blue", "emerald"];
+
+  const vmCards = [
+    {
+      key: "vision",
+      icon: Eye,
+      title: "Our Vision",
+      body: "To announce God's Kingdom through Christian values, nurturing every student to reach their fullest human and spiritual potential.",
+      image: heroImage,
+      accentBar: "from-gold to-[#f3ce78]",
+      accentText: "text-gold",
+      overlay: "bg-[linear-gradient(180deg,rgba(7,18,36,0)_28%,rgba(10,22,40,0.78)_100%)]",
+      iconBg: "bg-gold/20",
+    },
+    {
+      key: "mission",
+      icon: CheckCircle2,
+      title: "Our Mission",
+      body: "To aim at integral education of body, mind, and spirit through service and leadership — forming citizens of upright character who pursue excellence.",
+      image: db.gallery[0]?.image || HOME_LEGACY_PANELS[3]?.src || heroImage,
+      accentBar: "from-crimson to-[#f49cab]",
+      accentText: "text-crimson",
+      overlay: "bg-[linear-gradient(180deg,rgba(7,18,36,0)_28%,rgba(10,22,40,0.78)_100%)]",
+      iconBg: "bg-crimson/20",
+    },
+    {
+      key: "motto",
+      icon: Trophy,
+      title: "Our Motto",
+      body: "Veritate ad Lumen et Vitam — In Truth to Light and Life. This guiding motto has shaped Loyola's spirit across 75 years.",
+      image: logoImage,
+      accentBar: "from-sky-500 to-[#60a5fa]",
+      accentText: "text-sky-600",
+      overlay: "bg-[linear-gradient(180deg,rgba(7,18,36,0.2)_0%,rgba(7,18,36,0.55)_100%)]",
+      iconBg: "bg-sky-500/20",
+    },
+  ];
 
   return (
     <section
       data-home-reveal
-      className="reveal-on-scroll relative overflow-hidden border-y border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,214,102,0.22),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(183,15,27,0.18),transparent_30%),linear-gradient(135deg,#0a1628_0%,#12315f_52%,#851521_100%)] py-16 text-white md:py-24"
+      className="reveal-on-scroll bg-[radial-gradient(circle_at_top_left,rgba(212,160,23,0.07),transparent_40%),linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] py-20 md:py-28"
     >
-      <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(135deg,transparent_0,transparent_24px,#fff_25px,transparent_26px),linear-gradient(45deg,transparent_0,transparent_28px,#fff_29px,transparent_30px)] [background-size:120px_120px]" />
-      <div className="absolute -left-24 top-10 h-56 w-56 rounded-full bg-gold/20 blur-3xl animate-float" />
-      <div className="absolute right-0 top-24 h-72 w-72 rounded-full bg-crimson/20 blur-3xl animate-float animation-delay-2" />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-5 sm:px-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
-        <div className="max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.26em] text-gold-light">
-            Loyola identity
+      <div className="mx-auto max-w-7xl px-5 sm:px-6">
+        {/* Section header */}
+        <div className="mb-16 text-center">
+          <p className="text-xs font-black uppercase tracking-[0.30em] text-crimson">
+            Loyola Identity
           </p>
-          <h2 className="mt-4 text-balance font-serif text-4xl font-bold leading-tight md:text-6xl">
+          <h2 className="mt-5 font-serif text-4xl font-bold text-navy md:text-5xl">
             {home.aboutHeading || "About Our College"}
           </h2>
-          <p className="mt-5 max-w-2xl text-base leading-8 text-white/78">
+          <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-slate-500">
             {home.aboutBody ||
               "Loyola College has a proud story of faith, learning, discipline, and service, shaped by generations of teachers, students, and leaders."}
           </p>
+        </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <article className="rounded-[28px] bg-[linear-gradient(135deg,#fff8e7_0%,#ffffff_58%,#f8efd9_100%)] p-5 text-navy shadow-[0_18px_48px_-32px_rgba(0,0,0,0.45)]">
-              <Eye className="h-5 w-5 text-gold" />
-              <h3 className="mt-4 font-serif text-2xl font-bold">Our Vision</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-600">
-                To announce God&apos;s Kingdom through Christian values.
-              </p>
-            </article>
-            <article className="rounded-[28px] bg-[linear-gradient(135deg,#fff2f4_0%,#ffffff_58%,#fbe1e5_100%)] p-5 text-navy shadow-[0_18px_48px_-32px_rgba(0,0,0,0.45)]">
-              <CheckCircle2 className="h-5 w-5 text-crimson" />
-              <h3 className="mt-4 font-serif text-2xl font-bold">Our Mission</h3>
-              <div className="mt-3 space-y-2">
-                {missionPoints.map((point) => (
-                  <p key={point} className="flex gap-2 text-sm leading-6 text-slate-600">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-crimson" />
-                    <span>{point}</span>
-                  </p>
-                ))}
-              </div>
-            </article>
-            <article className="rounded-[28px] bg-[linear-gradient(135deg,#eef6ff_0%,#ffffff_58%,#deebff_100%)] p-5 text-navy shadow-[0_18px_48px_-32px_rgba(0,0,0,0.45)]">
-              <Trophy className="h-5 w-5 text-sky-700" />
-              <h3 className="mt-4 font-serif text-2xl font-bold">Motto</h3>
-              <p className="mt-3 font-serif text-xl font-bold text-navy">
-                Veritate ad Lumen et Vitam
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-500">
-                In Truth to Light and Life
-              </p>
-            </article>
-          </div>
+        {/* 3 photo cards */}
+        <div className="grid gap-8 md:grid-cols-3">
+          {vmCards.map((card) => {
+            const Icon = card.icon;
+            return (
+              <article
+                key={card.key}
+                className="group flex flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-[0_8px_48px_-18px_rgba(10,22,40,0.18)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_28px_64px_-20px_rgba(10,22,40,0.28)]"
+              >
+                {/* Photo */}
+                <div className="relative h-60 overflow-hidden">
+                  <img
+                    src={card.image}
+                    alt={card.title}
+                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                  />
+                  <div className={`absolute inset-0 ${card.overlay}`} />
+                  {/* Icon badge */}
+                  <div
+                    className={`absolute bottom-4 left-5 flex h-11 w-11 items-center justify-center rounded-2xl ${card.iconBg} backdrop-blur-sm`}
+                  >
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                  {/* Accent top bar */}
+                  <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accentBar}`} />
+                </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {/* Content */}
+                <div className="flex flex-1 flex-col px-7 py-6">
+                  <h3 className="font-serif text-2xl font-bold text-navy">{card.title}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-7 text-slate-500">{card.body}</p>
+                  <a
+                    href="/about"
+                    className={`mt-6 inline-flex items-center gap-1.5 text-sm font-bold ${card.accentText}`}
+                  >
+                    Learn more <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+
+        {/* Stats row */}
+        {stats.length > 0 && (
+          <div className="mt-14 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {stats.map((stat, index) => (
               <HomeMetricCard
                 key={stat.id}
@@ -2644,79 +2690,25 @@ function HomeVisionMissionIdentity() {
               />
             ))}
           </div>
+        )}
 
-          <div className="mt-8 flex flex-wrap gap-3">
-            <a
-              href={home.aboutButtonHref || "/about"}
-              className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-bold text-navy shadow-gold transition-smooth hover:-translate-y-0.5"
-            >
-              {home.aboutButtonLabel || "More Details"}
-              <ArrowRight className="h-4 w-4" />
-            </a>
-            <a
-              href="/gallery/photo-gallery"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur transition-smooth hover:-translate-y-0.5 hover:bg-white/15"
-            >
-              View Gallery
-              <Images className="h-4 w-4" />
-            </a>
-            <a
-              href="/contact"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-5 py-3 text-sm font-bold text-white transition-smooth hover:-translate-y-0.5 hover:bg-white/10"
-            >
-              Contact Us
-              <Mail className="h-4 w-4" />
-            </a>
-          </div>
+        {/* CTA buttons */}
+        <div className="mt-10 flex flex-wrap justify-center gap-4">
+          <a
+            href={home.aboutButtonHref || "/about"}
+            className="inline-flex items-center gap-2 rounded-full bg-navy px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(10,22,40,0.35)] transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+          >
+            {home.aboutButtonLabel || "More About Loyola"}
+            <ArrowRight className="h-4 w-4" />
+          </a>
+          <a
+            href="/gallery/photo-gallery"
+            className="inline-flex items-center gap-2 rounded-full border border-navy/20 bg-transparent px-7 py-3.5 text-sm font-bold text-navy transition-smooth hover:-translate-y-0.5 hover:bg-navy/5"
+          >
+            View Gallery
+            <Images className="h-4 w-4" />
+          </a>
         </div>
-
-        <aside className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            {HOME_LEGACY_PANELS.slice(0, 4).map((panel, index) => (
-              <HomePhotoTile
-                key={panel.title}
-                src={panel.src}
-                alt={panel.alt}
-                title={panel.title}
-                caption={panel.caption}
-                tone={panel.tone}
-                className={`${index === 0 ? "sm:col-span-2 h-72" : "h-56"} ${index === 3 ? "animate-float animation-delay-2" : ""}`}
-              />
-            ))}
-          </div>
-          <div className="rounded-[30px] border border-white/14 bg-white/10 p-5 shadow-elegant backdrop-blur-xl">
-            <p className="text-xs font-black uppercase tracking-[0.24em] text-gold-light">
-              Heritage and renewal
-            </p>
-            <p className="mt-3 font-serif text-2xl font-bold leading-tight text-white">
-              A campus story told through people, places, and transformation.
-            </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="font-serif text-3xl font-bold text-white">1949</p>
-                <p className="mt-2 text-sm leading-6 text-white/70">The year Loyola began.</p>
-              </div>
-              <div className="rounded-2xl bg-white/10 p-4">
-                <p className="font-serif text-3xl font-bold text-white">
-                  {stats[0]?.value || "2,662"}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-white/70">
-                  Students learning today.
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {["Faith", "Learning", "Discipline", "Service"].map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-white/14 bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/72"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-          </div>
-        </aside>
       </div>
     </section>
   );
@@ -2867,28 +2859,10 @@ function HomePage() {
   const content = db.websiteContent;
   const page = db.pages.home || {};
   const home = db.homeSections;
-  const heroTitle = content.heroTitle?.trim() || content.schoolName || "Loyola College Negombo";
-  const heroText = home.aboutBody?.trim() || "A Catholic school community formed by faith, learning, discipline, and service.";
-  const heroMotto = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
+  const heroMotto = content.heroText?.trim() || content.tagline?.trim() || "Veritate ad Lumen et Vitam";
   const heroImage = page.image || content.heroImage || db.media.campusImage || DEFAULT_HERO_IMAGE;
   const logoImage = content.logoImage || "/loyola-crest.jpg";
-  const heroStats = (home.stats || []).slice(0, 4);
-  const heroStatTones: HomePhotoTone[] = ["gold", "crimson", "blue", "emerald"];
-
-  // Hero carousel: cycles through campus image + gallery images
-  const heroCarouselImages = [
-    heroImage,
-    ...(db.gallery || []).slice(0, 4).map((g) => g.image).filter(Boolean),
-  ].filter(Boolean);
-  const [heroSlide, setHeroSlide] = useState(0);
   const parallaxRef = useRef<HTMLDivElement>(null);
-
-  // Auto-cycle hero image
-  useEffect(() => {
-    if (heroCarouselImages.length <= 1) return;
-    const t = setInterval(() => setHeroSlide((i) => (i + 1) % heroCarouselImages.length), 4500);
-    return () => clearInterval(t);
-  }, [heroCarouselImages.length]);
 
   // Scroll-triggered reveals for all data-home-reveal sections
   useEffect(() => {
@@ -2907,16 +2881,14 @@ function HomePage() {
     return () => io.disconnect();
   }, []);
 
-  // Parallax effect on hero background blobs
+  // Parallax on hero blobs
   useEffect(() => {
-    const blobWrap = parallaxRef.current;
-    if (!blobWrap) return;
     let raf = 0;
     const onScroll = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         if (parallaxRef.current) {
-          parallaxRef.current.style.transform = `translateY(${window.scrollY * 0.16}px)`;
+          parallaxRef.current.style.transform = `translateY(${window.scrollY * 0.14}px)`;
         }
       });
     };
@@ -2927,165 +2899,113 @@ function HomePage() {
     };
   }, []);
 
-  const activeHeroImage = heroCarouselImages[heroSlide] || heroImage;
-  const heroPanels = [
-    {
-      src: activeHeroImage,
-      alt: `${content.schoolName || "Loyola College Negombo"} campus`,
-      title: "Campus today",
-      caption: "A living place for learning and belonging",
-      tone: "gold" as const,
-      className: "sm:col-span-2 h-72 md:h-80",
-    },
-    ...HOME_HERO_PANELS.map((panel, index) => ({
-      ...panel,
-      className:
-        index === 0
-          ? "h-56 animate-fade-in-up animation-delay-2"
-          : index === 1
-            ? "h-56 animate-fade-in-up"
-            : index === 2
-              ? "h-60 animate-fade-in-up animation-delay-2"
-              : "h-60 animate-float animation-delay-2",
-    })),
-  ];
-
   return (
     <PublicLayout>
+      {/* ── FULL-SCREEN CINEMATIC HERO ── */}
       <section
         data-website-section="Hero"
-        data-home-reveal
-        className="reveal-on-scroll relative isolate overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(255,214,102,0.28),transparent_28%),radial-gradient(circle_at_top_right,rgba(183,15,27,0.22),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.18),transparent_28%),linear-gradient(135deg,#071224_0%,#12315f_48%,#8f111d_100%)] text-white"
+        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden text-white"
       >
-        <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(135deg,transparent_0,transparent_24px,#fff_25px,transparent_26px),linear-gradient(45deg,transparent_0,transparent_28px,#fff_29px,transparent_30px)] [background-size:120px_120px]" />
-        <div ref={parallaxRef} className="hero-blobs-parallax absolute inset-0">
-          <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-gold/20 blur-3xl animate-float" />
-          <div className="absolute right-0 top-20 h-80 w-80 rounded-full bg-crimson/20 blur-3xl animate-float animation-delay-2" />
-          <div className="absolute bottom-0 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
+        {/* Background video / image */}
+        <HeroBackgroundLayer
+          fallbackImage={heroImage}
+          fallbackOpacity={0.55}
+          mediaUrl={content.backgroundMediaUrl || undefined}
+          mediaType={(content.backgroundMediaType as "image" | "video" | "") || undefined}
+          mediaOpacity={content.backgroundMediaOpacity}
+          gradientClassName="bg-[linear-gradient(180deg,rgba(7,18,36,0.48)_0%,rgba(7,18,36,0.28)_38%,rgba(7,18,36,0.62)_100%)]"
+          gridOpacityClassName="opacity-[0.04]"
+        />
+
+        {/* Parallax ambient blobs */}
+        <div ref={parallaxRef} className="hero-blobs-parallax absolute inset-0 pointer-events-none">
+          <div className="absolute -left-32 top-16 h-80 w-80 rounded-full bg-gold/18 blur-[80px] animate-float" />
+          <div className="absolute right-0 top-24 h-96 w-96 rounded-full bg-crimson/15 blur-[80px] animate-float animation-delay-2" />
+          <div className="absolute bottom-20 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-navy/30 blur-[60px]" />
         </div>
-        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-14 sm:px-6 md:py-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center lg:py-24">
-          <div className="max-w-3xl">
-            <div className="inline-flex items-center gap-4 rounded-full border border-white/12 bg-white/10 px-4 py-3 shadow-elegant backdrop-blur-xl animate-fade-in-up">
+
+        {/* Centred brand content */}
+        <div className="relative z-10 flex flex-col items-center px-5 py-24 text-center sm:px-8">
+          {/* Glowing crest */}
+          <div className="relative animate-fade-in-up">
+            <div className="absolute inset-0 scale-150 rounded-full bg-gold/25 blur-3xl" />
+            <div className="relative rounded-full border-4 border-gold/55 bg-white/10 p-2 shadow-[0_0_72px_rgba(212,160,23,0.45)] backdrop-blur-sm">
               <img
                 src={logoImage}
                 alt="Loyola College crest"
-                className="h-12 w-12 rounded-full border border-gold/40 bg-white object-contain p-1.5"
+                className="h-28 w-28 rounded-full bg-white object-contain p-2 sm:h-36 sm:w-36"
               />
-              <div className="text-left">
-                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-gold-light">
-                  {content.schoolName}
-                </p>
-                <p className="mt-1 text-xs font-medium text-white/68">{heroMotto}</p>
-              </div>
-            </div>
-
-            <p className="mt-6 text-xs font-black uppercase tracking-[0.32em] text-gold-light/90 animate-fade-in-up animation-delay-2">
-              Since 1949
-            </p>
-            <h1 className="mt-4 text-balance font-serif text-5xl font-bold leading-[1.02] sm:text-6xl md:text-7xl lg:text-8xl animate-fade-in-up animation-delay-2">
-              {heroTitle}
-            </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 sm:text-xl animate-fade-in-up animation-delay-2">
-              {heroText}
-            </p>
-
-            <div className="stagger-fast mt-8 flex flex-wrap gap-3 animate-fade-in-up animation-delay-2">
-              <a
-                href={home.aboutButtonHref || "/about"}
-                className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-bold text-navy shadow-gold transition-smooth hover:-translate-y-0.5"
-              >
-                {home.aboutButtonLabel || "Explore College"}
-                <ArrowRight className="h-4 w-4" />
-              </a>
-              <a
-                href="/gallery/photo-gallery"
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur transition-smooth hover:-translate-y-0.5 hover:bg-white/15"
-              >
-                View Gallery
-                <Images className="h-4 w-4" />
-              </a>
-              <a
-                href="/news"
-                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-5 py-3 text-sm font-bold text-white transition-smooth hover:-translate-y-0.5 hover:bg-white/10"
-              >
-                News & Notices
-                <Bell className="h-4 w-4" />
-              </a>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/72">
-              {["Faith", "Learning", "Discipline", "Service"].map((item) => (
-                <span
-                  key={item}
-                  className="rounded-full border border-white/14 bg-white/10 px-3 py-1"
-                >
-                  {item}
-                </span>
-              ))}
-            </div>
-
-            <div className="stagger-fast mt-10 grid gap-4 sm:grid-cols-2">
-              {heroStats.map((stat, index) => (
-                <HomeMetricCard
-                  key={stat.id}
-                  label={stat.label}
-                  value={stat.value}
-                  tone={heroStatTones[index % heroStatTones.length]}
-                />
-              ))}
             </div>
           </div>
 
-          <aside className="relative">
-            <div className="absolute -inset-8 rounded-[40px] bg-white/5 blur-2xl" />
-            <div className="relative grid gap-4 sm:grid-cols-2">
-              {heroPanels.map((panel, index) => (
-                <HomePhotoTile
-                  key={panel.title}
-                  src={panel.src}
-                  alt={panel.alt}
-                  title={panel.title}
-                  caption={panel.caption}
-                  tone={panel.tone}
-                  className={`${panel.className} ${index === 0 ? "shadow-[0_30px_80px_-42px_rgba(0,0,0,0.78)]" : ""}`}
-                />
-              ))}
-            </div>
-            {heroCarouselImages.length > 1 && (
-              <div className="mt-3 flex justify-center gap-2">
-                {heroCarouselImages.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setHeroSlide(i)}
-                    className={`h-1.5 rounded-full transition-all duration-300 ${i === heroSlide ? "w-6 bg-gold" : "w-1.5 bg-white/40 hover:bg-white/60"}`}
-                    aria-label={`Go to slide ${i + 1}`}
-                  />
-                ))}
-              </div>
-            )}
+          {/* Eyebrow */}
+          <p className="mt-8 text-[11px] font-black uppercase tracking-[0.42em] text-gold-light/85 animate-fade-in-up animation-delay-2">
+            Est. 1949 · Negombo, Sri Lanka
+          </p>
 
-            <div className="mt-4 rounded-[30px] border border-white/14 bg-white/10 p-5 shadow-elegant backdrop-blur-xl animate-fade-in-up animation-delay-2">
-              <p className="text-xs font-black uppercase tracking-[0.24em] text-gold-light">
-                A campus in motion
-              </p>
-              <p className="mt-3 font-serif text-2xl font-bold leading-tight text-white">
-                Every corner of Loyola carries a story of renewal and purpose.
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {["Academics", "Sports", "Arts", "Faith"].map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-white/14 bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/78"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </aside>
+          {/* School name */}
+          <h1 className="mt-5 max-w-4xl text-balance font-serif text-5xl font-bold leading-[1.04] drop-shadow-[0_4px_24px_rgba(0,0,0,0.55)] sm:text-6xl md:text-7xl lg:text-[5.5rem] animate-fade-in-up animation-delay-2">
+            {content.schoolName || "Loyola College Negombo"}
+          </h1>
+
+          {/* Motto with gold rule lines */}
+          <div className="mt-7 flex items-center gap-5 animate-fade-in-up animation-delay-2">
+            <span className="h-px w-14 bg-gradient-to-r from-transparent to-gold/60" />
+            <p className="font-display text-lg font-medium italic text-gold-light sm:text-xl">
+              {heroMotto}
+            </p>
+            <span className="h-px w-14 bg-gradient-to-l from-transparent to-gold/60" />
+          </div>
+
+          {/* CTA row */}
+          <div className="mt-10 flex flex-wrap justify-center gap-4 animate-fade-in-up animation-delay-2">
+            <a
+              href={home.aboutButtonHref || "/about"}
+              className="inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3.5 text-sm font-bold text-navy shadow-[0_12px_32px_rgba(212,160,23,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(212,160,23,0.55)]"
+            >
+              {home.aboutButtonLabel || "Explore College"}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="/gallery/photo-gallery"
+              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-8 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition-smooth hover:-translate-y-1 hover:bg-white/18"
+            >
+              Gallery
+              <Images className="h-4 w-4" />
+            </a>
+            <a
+              href="/news"
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-8 py-3.5 text-sm font-bold text-white transition-smooth hover:-translate-y-1 hover:bg-white/10"
+            >
+              News & Notices
+              <Bell className="h-4 w-4" />
+            </a>
+          </div>
+
+          {/* Pillars row */}
+          <div className="mt-8 flex flex-wrap justify-center gap-2.5 animate-fade-in-up animation-delay-2">
+            {["Faith", "Learning", "Discipline", "Service"].map((item) => (
+              <span
+                key={item}
+                className="rounded-full border border-white/18 bg-white/8 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-white/62 backdrop-blur-sm"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
+
+        {/* Scroll-down nudge */}
+        <a
+          href="#below-hero"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 text-white/40 transition-smooth hover:text-white/70 animate-bounce"
+        >
+          <span className="text-[9px] font-black uppercase tracking-[0.26em]">Scroll</span>
+          <ChevronDown className="h-5 w-5" />
+        </a>
       </section>
 
+      <div id="below-hero" />
       <HomeVisionMissionIdentity />
       <HomeCampusMosaic />
       <HomeRequiredSections />
