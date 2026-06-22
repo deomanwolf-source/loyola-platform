@@ -201,38 +201,49 @@ export function PortalShell({
     return <BrandedLoader title="Redirecting to login" subtitle="Your session was not found" />;
   }
 
+  const logoImage = db.websiteContent.logoImage || "/loyola-crest.jpg";
+
   return (
-    <div data-admin-panel className="flex h-screen overflow-hidden bg-[#eef3ff] text-[#172033]">
+    <div data-admin-panel className="flex h-screen overflow-hidden bg-[#edf2fb] text-[#172033]">
+
+      {/* ── Sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-64 flex-col bg-[#08286f] py-8 text-white shadow-xl transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${openMobile ? "translate-x-0 animate-slide-in-left" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col bg-[#07215a] text-white shadow-[4px_0_32px_-8px_rgba(7,33,90,0.55)] transition-transform duration-300 ease-out lg:static lg:translate-x-0 ${openMobile ? "translate-x-0 animate-slide-in-left" : "-translate-x-full"}`}
       >
-        <div className="mb-8 flex items-center justify-between px-6">
-          <a href="/" className="flex items-center gap-4">
-            <span className="grid h-10 w-10 place-items-center rounded bg-[#ffe06d] text-[#08286f]">
-              <ShieldCheck className="h-5 w-5" />
-            </span>
-            <span>
-              <span className="block font-serif text-2xl font-bold leading-none text-[#ffe06d]">
+        {/* Brand header */}
+        <div className="flex items-center justify-between border-b border-white/8 px-5 py-5">
+          <a href="/" className="group flex items-center gap-3 min-w-0">
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 rounded-full bg-[#ffe06d]/30 blur-md transition-smooth group-hover:bg-[#ffe06d]/50" />
+              <img
+                src={logoImage}
+                alt="Loyola"
+                className="relative h-9 w-9 rounded-full border-2 border-[#ffe06d]/70 bg-white object-contain p-0.5 transition-smooth group-hover:border-[#ffe06d]"
+              />
+            </div>
+            <div className="min-w-0">
+              <span className="block truncate font-serif text-[17px] font-bold leading-none text-[#ffe06d]">
                 Loyola Studio
               </span>
-              <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.18em] text-[#9eb4ef]">
-                Admin Panel
+              <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.2em] text-[#7ca3d8]/70">
+                {title}
               </span>
-            </span>
+            </div>
           </a>
           <button
             type="button"
             onClick={() => setOpenMobile(false)}
-            className="text-white/70 lg:hidden"
+            className="shrink-0 rounded p-1 text-white/50 hover:text-white lg:hidden"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto space-y-1 px-2">
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 scrollbar-thin">
           {groups.map((g) => (
-            <div key={g.label} className="py-1">
-              <p className="px-4 py-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[#9eb4ef]/55">
+            <div key={g.label} className="mb-1">
+              <p className="mb-1 mt-3 px-3 text-[9.5px] font-black uppercase tracking-[0.22em] text-[#7ca3d8]/45 first:mt-0">
                 {g.label}
               </p>
               <ul className="space-y-0.5">
@@ -243,15 +254,23 @@ export function PortalShell({
                       <button
                         type="button"
                         onClick={() => activateNav(i.id)}
-                        className={`group relative mx-0 flex w-full items-center gap-4 overflow-hidden rounded-lg px-4 py-3 text-sm font-semibold transition-smooth ${isActive ? "translate-x-1 bg-[#806900] text-white shadow-[0_14px_28px_-20px_rgb(0_0_0_/0.65)]" : "text-[#9eb4ef] hover:translate-x-1 hover:bg-[#123b8f] hover:text-white"}`}
+                        className={`group relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-semibold transition-smooth ${
+                          isActive
+                            ? "bg-[#ffe06d]/15 text-[#ffe06d]"
+                            : "text-[#7ca3d8] hover:bg-white/6 hover:text-white"
+                        }`}
                       >
-                        {isActive ? (
+                        {/* Active left accent */}
+                        {isActive && (
                           <span className="portal-nav-active-bar" />
-                        ) : (
-                          <span className="absolute left-0 top-1/2 h-0 w-[3px] -translate-y-1/2 rounded-r bg-[#ffe06d]/0 transition-all duration-200 group-hover:h-1/2 group-hover:bg-[#ffe06d]/70" />
                         )}
-                        <i.icon className="relative z-10 h-4 w-4 transition-transform duration-200 group-hover:scale-110" />
-                        <span className="relative z-10">{i.label}</span>
+                        <i.icon
+                          className={`relative z-10 h-4 w-4 shrink-0 transition-smooth ${isActive ? "text-[#ffe06d]" : "group-hover:text-white"}`}
+                        />
+                        <span className="relative z-10 truncate">{i.label}</span>
+                        {isActive && (
+                          <span className="ml-auto h-1.5 w-1.5 shrink-0 rounded-full bg-[#ffe06d]" />
+                        )}
                       </button>
                     </li>
                   );
@@ -261,23 +280,20 @@ export function PortalShell({
           ))}
         </nav>
 
-        <div className="mt-auto space-y-2 border-t border-[#9eb4ef]/15 px-2 pt-4">
-          <button
-            type="button"
-            onClick={createBackup}
-            className="mx-2 flex h-11 w-[calc(100%-1rem)] items-center justify-center gap-2 rounded-lg bg-[#ffe06d] px-3 text-xs font-bold text-[#241a00] shadow-[0_12px_28px_-20px_rgb(0_0_0_/0.7)]"
-          >
-            <ShieldCheck className="h-3.5 w-3.5" /> Create Backup
-          </button>
+        {/* Sidebar footer */}
+        <div className="border-t border-white/8 px-3 pb-5 pt-4 space-y-1">
           <button
             type="button"
             onClick={openHelp}
-            className="flex w-full items-center gap-4 rounded-lg px-4 py-3 text-sm font-semibold text-[#9eb4ef] hover:bg-[#123b8f] hover:text-white"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium text-[#7ca3d8] transition-smooth hover:bg-white/6 hover:text-white"
           >
-            <HelpCircle className="h-4 w-4" /> Help Center
+            <HelpCircle className="h-4 w-4 shrink-0" />
+            Help & Support
           </button>
-          <div className="mx-2 flex items-center gap-3 rounded-lg bg-[#123b8f] px-3 py-2.5">
-            <div className="grid h-9 w-9 place-items-center rounded-full bg-[#ffe06d] font-serif text-sm text-[#241a00]">
+
+          {/* User card */}
+          <div className="mt-1 flex items-center gap-3 rounded-xl bg-white/6 px-3 py-3">
+            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#ffe06d] font-serif text-sm font-bold text-[#241a00]">
               {auth.user.name
                 .split(" ")
                 .map((p) => p[0])
@@ -285,8 +301,10 @@ export function PortalShell({
                 .join("")}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">{auth.user.name}</p>
-              <p className="truncate text-[10px] uppercase tracking-[0.15em] text-[#9eb4ef]">
+              <p className="truncate text-[13px] font-semibold text-white leading-tight">
+                {auth.user.name}
+              </p>
+              <p className="mt-0.5 truncate text-[10px] font-bold uppercase tracking-[0.14em] text-[#7ca3d8]/70">
                 {auth.user.role}
               </p>
             </div>
@@ -294,7 +312,7 @@ export function PortalShell({
               type="button"
               onClick={logout}
               title="Sign out"
-              className="text-white/60 hover:text-gold"
+              className="shrink-0 rounded p-1.5 text-[#7ca3d8] transition-smooth hover:bg-white/8 hover:text-white"
             >
               <LogOut className="h-4 w-4" />
             </button>
@@ -302,54 +320,54 @@ export function PortalShell({
         </div>
       </aside>
 
+      {/* ── Main content ── */}
       <div className="flex min-w-0 flex-1 flex-col">
+
+        {/* Top bar */}
         <header
-          className={`flex h-16 items-center justify-between border-b bg-[#eef3ff]/88 px-6 backdrop-blur-xl transition-all duration-300 ${
+          className={`flex h-[60px] shrink-0 items-center justify-between gap-3 border-b px-5 transition-all duration-200 lg:px-6 ${
             headerScrolled
-              ? "border-[#aebfe8] shadow-[0_16px_40px_-32px_rgba(8,40,111,.55)]"
-              : "border-[#c8d5f4] shadow-sm"
+              ? "border-[#b8ccf0] bg-[#edf2fb]/95 shadow-[0_8px_32px_-16px_rgba(7,33,90,0.25)] backdrop-blur-xl"
+              : "border-[#d0dcf5] bg-[#edf2fb]"
           }`}
         >
-          <div className="flex min-w-0 flex-1 items-center gap-4">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            {/* Mobile menu toggle */}
             <button
               type="button"
               onClick={() => setOpenMobile(true)}
-              className="text-[#08286f] lg:hidden"
+              className="shrink-0 rounded-lg p-2 text-[#3a5898] hover:bg-white lg:hidden"
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div className="relative hidden w-full max-w-xl md:block">
-              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-[#536690]" />
+
+            {/* Search */}
+            <div className="relative hidden w-full max-w-sm md:block lg:max-w-md">
+              <Search className="absolute top-1/2 left-3 h-3.5 w-3.5 -translate-y-1/2 text-[#6b87c0]" />
               <input
                 id="portal-search"
                 name="portalSearch"
-                placeholder="Search pages, posts, or assets..."
+                placeholder="Search panels…"
                 value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key !== "Enter") return;
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Enter") return;
                   const first = filteredItems[0];
-                  if (first) {
-                    activateNav(first.id);
-                    setQuery("");
-                  }
+                  if (first) { activateNav(first.id); setQuery(""); }
                 }}
-                className="w-full rounded-lg border border-[#c8d5f4] bg-white py-2 pr-4 pl-10 text-sm outline-none focus:border-[#806900] focus:ring-1 focus:ring-[#806900]"
+                className="w-full rounded-lg border border-[#c8d8f5] bg-white/80 py-2 pr-3 pl-9 text-[13px] text-[#172033] placeholder-[#8ba5d4] outline-none transition-smooth focus:border-[#806900] focus:bg-white focus:ring-2 focus:ring-[#806900]/20"
               />
               {filteredItems.length > 0 && (
-                <div className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-50 overflow-hidden rounded-lg border border-[#c8d5f4] bg-white shadow-xl">
+                <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-50 overflow-hidden rounded-xl border border-[#c8d8f5] bg-white shadow-[0_16px_48px_-16px_rgba(7,33,90,0.3)]">
                   {filteredItems.map((item) => (
                     <button
                       key={`${item.group}-${item.id}`}
                       type="button"
-                      onClick={() => {
-                        activateNav(item.id);
-                        setQuery("");
-                      }}
-                      className="flex w-full items-center justify-between px-4 py-3 text-left text-sm text-[#08286f] hover:bg-[#eef3ff]"
+                      onClick={() => { activateNav(item.id); setQuery(""); }}
+                      className="flex w-full items-center justify-between px-4 py-2.5 text-left text-[13px] font-medium text-[#07215a] transition-smooth hover:bg-[#edf2fb]"
                     >
                       <span>{item.label}</span>
-                      <span className="text-[10px] uppercase tracking-[0.14em] text-[#5f72a3]">
+                      <span className="text-[10px] uppercase tracking-[0.14em] text-[#6b87c0]">
                         {item.group}
                       </span>
                     </button>
@@ -359,95 +377,98 @@ export function PortalShell({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* Right controls */}
+          <div className="flex shrink-0 items-center gap-2">
             <button
               type="button"
               onClick={openPreview}
-              className="hidden rounded-full p-2 text-[#536690] transition-smooth hover:bg-white md:grid"
               title="Open public website"
+              className="hidden h-8 w-8 place-items-center rounded-lg text-[#3a5898] transition-smooth hover:bg-white hover:text-[#07215a] md:grid"
             >
               <Eye className="h-4 w-4" />
             </button>
+
+            {(["website_admin", "eduzync_admin", "superadmin", "masteradmin"] as Role[]).includes(role) && (
+              <button
+                type="button"
+                onClick={() => { if (confirm("Reset local portal data?")) resetDb(); }}
+                title="Reset local data"
+                className="hidden h-8 items-center gap-1.5 rounded-lg border border-[#c8d8f5] bg-white px-3 text-[12px] text-[#6b87c0] transition-smooth hover:text-[#07215a] md:flex"
+              >
+                <RotateCcw className="h-3 w-3" /> Reset
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => void saveDraft()}
               disabled={syncing !== "idle"}
-              className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-[#08286f] transition-smooth hover:bg-white disabled:opacity-60 lg:inline-flex"
+              className="hidden h-8 items-center gap-1.5 rounded-lg border border-[#c8d8f5] bg-white px-3 text-[12px] font-semibold text-[#07215a] transition-smooth hover:border-[#07215a]/30 hover:shadow-sm disabled:opacity-50 lg:flex"
             >
-              <Save className="mr-2 h-4 w-4" /> {syncing === "saving" ? "Saving" : "Save Draft"}
+              <Save className="h-3.5 w-3.5" />
+              {syncing === "saving" ? "Saving…" : "Save"}
             </button>
-            {(["website_admin", "eduzync_admin", "superadmin", "masteradmin"] as Role[]).includes(
-              role,
-            ) && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (confirm("Reset local portal data?")) resetDb();
-                }}
-                title="Reset local portal data"
-                className="hidden h-9 items-center gap-2 rounded-lg border border-[#c8d5f4] px-3 text-xs text-[#536690] hover:text-[#08286f] md:flex"
-              >
-                <RotateCcw className="h-3.5 w-3.5" /> Reset data
-              </button>
-            )}
+
             {canDirectPublish && (
               <button
                 type="button"
                 onClick={() => void publishChanges()}
                 disabled={syncing !== "idle"}
-                className="rounded-lg bg-[#806900] px-5 py-2 text-sm font-bold text-white shadow-sm transition-smooth hover:bg-[#6f5b00] hover:shadow-md disabled:opacity-60"
+                className="h-8 items-center gap-1.5 rounded-lg bg-[#806900] px-4 text-[12px] font-bold text-white shadow-[0_4px_16px_-4px_rgba(128,105,0,0.6)] transition-smooth hover:bg-[#6f5b00] hover:shadow-md disabled:opacity-50 flex"
               >
-                {syncing === "publishing" ? "Publishing" : "Publish"}
+                {syncing === "publishing" ? "Publishing…" : "Publish"}
               </button>
             )}
+
+            {/* Sync status */}
             <span
-              className={`hidden max-w-[18rem] truncate rounded-lg border px-3 py-2 text-xs font-bold lg:inline-flex ${
+              className={`hidden max-w-[160px] truncate rounded-lg border px-2.5 py-1.5 text-[11px] font-medium xl:inline-flex ${
                 syncTone === "error"
-                  ? "border-red-200 bg-red-50 text-red-800"
-                  : "border-[#c8d5f4] bg-white text-[#536690]"
+                  ? "border-red-200 bg-red-50 text-red-700"
+                  : "border-[#c8d8f5] bg-white text-[#6b87c0]"
               }`}
               title={syncMessage}
             >
               {syncMessage}
             </span>
+
+            {/* Notifications */}
             <button
               type="button"
               onClick={openNotifications}
-              className="portal-notification-button relative grid h-9 w-9 place-items-center rounded-full text-[#536690] transition-smooth hover:bg-white hover:text-[#08286f]"
-              title="Open messages"
+              className="portal-notification-button relative grid h-8 w-8 place-items-center rounded-lg text-[#3a5898] transition-smooth hover:bg-white hover:text-[#07215a]"
+              title="Messages"
             >
               <Bell className="portal-notification-icon h-4 w-4" />
-              <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-[#ffe06d] shadow-[0_0_0_3px_rgba(255,224,109,.22)] animate-pulse-badge" />
+              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-[#ffe06d] ring-2 ring-[#edf2fb]" />
             </button>
-            <div className="hidden items-center gap-3 border-l border-[#c8d5f4] pl-4 xl:flex">
-              <div className="text-right">
-                <p className="text-sm font-bold leading-none">{auth.user.name}</p>
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[#536690]">
-                  {title}
-                </p>
+
+            {/* User chip */}
+            <div className="hidden items-center gap-2.5 border-l border-[#d0dcf5] pl-3 xl:flex">
+              <div className="grid h-8 w-8 place-items-center rounded-full bg-[#07215a] font-serif text-[12px] font-bold text-[#ffe06d]">
+                {auth.user.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
               </div>
-              <div className="grid h-10 w-10 place-items-center rounded-full border-2 border-[#08286f]/10 bg-white font-serif text-sm text-[#08286f]">
-                {auth.user.name
-                  .split(" ")
-                  .map((p) => p[0])
-                  .slice(0, 2)
-                  .join("")}
+              <div className="text-right">
+                <p className="text-[13px] font-semibold leading-none text-[#172033]">{auth.user.name}</p>
+                <p className="mt-0.5 text-[10px] uppercase tracking-[0.1em] text-[#6b87c0]">{title}</p>
               </div>
             </div>
           </div>
         </header>
 
+        {/* Page content */}
         <main
           onScroll={handleMainScroll}
-          className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#e7eefc] p-6 md:p-8 xl:p-10"
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden bg-[#e8f0fe] p-5 md:p-7 xl:p-8"
         >
           {children}
         </main>
       </div>
 
+      {/* Mobile overlay */}
       {openMobile && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"
           onClick={() => setOpenMobile(false)}
         />
       )}

@@ -43,10 +43,13 @@ function cleanExternalUrl(value?: string) {
 export const SiteHeader = memo(function SiteHeader() {
   const db = useDb();
   const [open, setOpen] = useState(false);
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const path = typeof window === "undefined" ? "/" : window.location.pathname;
+
   const pageIsLive = (id: string) =>
     Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   const hrefIsLive = (href: string) => pageIsLive(pageIdFromHref(href));
+
   const nav = [...db.navigation]
     .filter(
       (item) =>
@@ -56,6 +59,7 @@ export const SiteHeader = memo(function SiteHeader() {
         Boolean(db.pages[item.id]),
     )
     .sort((a, b) => a.order - b.order);
+
   const childNav = [...db.navigation]
     .filter(
       (item) =>
@@ -66,45 +70,50 @@ export const SiteHeader = memo(function SiteHeader() {
         pageIsLive(item.parentId),
     )
     .sort((a, b) => a.order - b.order);
+
   const childrenFor = (id: string) =>
     childNav
       .filter((child) => child.parentId === id)
       .map((child) => [child.label, hrefFor(child.id)] as [string, string]);
 
+  const isActive = (href: string) =>
+    path === href || (href !== "/" && path.startsWith(href));
+
   return (
     <header
       data-website-section="Header"
-      className="sticky top-0 z-50 border-b border-border/80 bg-white/95 shadow-[0_18px_45px_-34px_rgb(10_22_40_/0.55)] backdrop-blur-xl transition-smooth"
+      className="sticky top-0 z-50 bg-white shadow-[0_1px_0_0_#dde4ed,0_4px_24px_-8px_rgb(10_22_40_/0.10)] transition-smooth"
     >
-      <div className="hidden border-b border-white/10 bg-navy text-white xl:block">
-        <div className="mx-auto flex h-9 max-w-[110rem] items-center justify-between px-4 text-[11px] font-semibold sm:px-6">
-          <div className="flex min-w-0 items-center gap-5 text-white/72">
-            <span className="inline-flex min-w-0 items-center gap-2">
-              <MapPin className="h-3.5 w-3.5 shrink-0 text-gold" />
-              <span className="truncate">{db.websiteContent.address}</span>
+      {/* Top bar — contact + quick links */}
+      <div className="hidden border-b border-navy/8 bg-navy text-white lg:block">
+        <div className="mx-auto flex h-9 max-w-[90rem] items-center justify-between px-6 text-[11px]">
+          <div className="flex items-center gap-6 text-white/65">
+            <span className="inline-flex items-center gap-1.5">
+              <MapPin className="h-3 w-3 text-gold" />
+              {db.websiteContent.address}
             </span>
-            <span className="inline-flex items-center gap-2">
-              <Phone className="h-3.5 w-3.5 text-gold" />
+            <span className="inline-flex items-center gap-1.5">
+              <Phone className="h-3 w-3 text-gold" />
               {db.websiteContent.phone}
             </span>
-            <span className="inline-flex items-center gap-2">
-              <Mail className="h-3.5 w-3.5 text-gold" />
+            <span className="inline-flex items-center gap-1.5">
+              <Mail className="h-3 w-3 text-gold" />
               {db.websiteContent.email}
             </span>
           </div>
-          <div className="flex shrink-0 items-center gap-5">
+          <div className="flex items-center gap-5 font-medium">
             {hrefIsLive("/news") && (
-              <a href="/news" className="text-white/78 transition-smooth hover:text-white">
+              <a href="/news" className="text-white/60 transition-smooth hover:text-gold">
                 Notices
               </a>
             )}
             {hrefIsLive("/admissions") && (
-              <a href="/admissions" className="text-white/78 transition-smooth hover:text-white">
+              <a href="/admissions" className="text-white/60 transition-smooth hover:text-gold">
                 Admissions
               </a>
             )}
             {hrefIsLive("/contact") && (
-              <a href="/contact" className="text-white/78 transition-smooth hover:text-white">
+              <a href="/contact" className="text-white/60 transition-smooth hover:text-gold">
                 Contact
               </a>
             )}
@@ -112,12 +121,16 @@ export const SiteHeader = memo(function SiteHeader() {
         </div>
       </div>
 
-      <div className="mx-auto flex h-[76px] max-w-[110rem] items-center justify-between gap-3 px-4 pr-16 sm:px-6 sm:pr-20 xl:h-[82px] xl:pr-6">
+      {/* Main header */}
+      <div className="mx-auto flex h-[72px] max-w-[90rem] items-center justify-between gap-4 px-4 sm:px-6 xl:h-[80px]">
+
+        {/* Logo */}
         <a
           href="/"
-          className="group flex min-w-0 flex-1 items-center gap-2 overflow-hidden sm:gap-3 2xl:w-[365px] 2xl:flex-none"
+          className="group flex shrink-0 items-center gap-3"
+          aria-label={db.websiteContent.schoolName}
         >
-          <span className="grid h-[52px] w-[52px] shrink-0 place-items-center overflow-hidden rounded-full border-[3px] border-gold bg-navy p-1.5 font-serif text-lg font-bold text-gold shadow-[0_16px_32px_-22px_rgb(10_22_40_/0.9)] ring-4 ring-navy/5 xl:h-[58px] xl:w-[58px]">
+          <span className="grid h-[50px] w-[50px] shrink-0 place-items-center overflow-hidden rounded-full border-2 border-gold/80 bg-navy p-1 shadow-[0_4px_16px_-4px_rgb(10_22_40_/0.4)] transition-smooth group-hover:border-gold xl:h-[56px] xl:w-[56px]">
             {db.websiteContent.logoImage ? (
               <img
                 src={db.websiteContent.logoImage}
@@ -125,116 +138,173 @@ export const SiteHeader = memo(function SiteHeader() {
                 className="h-full w-full rounded-full object-contain"
               />
             ) : (
-              db.websiteContent.logoText
+              <span className="font-serif text-base font-bold text-gold">
+                {db.websiteContent.logoText}
+              </span>
             )}
           </span>
-          <span className="min-w-0 max-w-[52vw] leading-tight sm:max-w-[260px] xl:max-w-[250px] 2xl:max-w-[295px]">
-            <span className="block truncate font-serif text-[18px] font-bold text-navy 2xl:text-[21px]">
+          <span className="hidden min-w-0 sm:block">
+            <span className="block truncate font-serif text-[17px] font-bold leading-tight text-navy transition-smooth group-hover:text-navy/80 xl:text-[19px]">
               {db.websiteContent.schoolName}
             </span>
-            <span className="mt-1 block truncate text-[9px] font-bold uppercase tracking-[0.18em] text-crimson 2xl:tracking-[0.22em]">
+            <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.2em] text-crimson xl:tracking-[0.24em]">
               {db.websiteContent.tagline}
             </span>
           </span>
         </a>
 
-        <nav className="hidden min-w-0 flex-1 items-center justify-center gap-0.5 2xl:flex">
-          {nav.map((item) => {
-            const href = hrefFor(item.id);
-            const children = childrenFor(item.id);
-            const active = path === href || (href !== "/" && path.startsWith(href));
-            return (
-              <div key={item.id} className="group relative">
-                <a
-                  href={href}
-                  className={`relative inline-flex h-11 items-center gap-1 whitespace-nowrap rounded-full px-2 text-[12px] font-bold transition-smooth 2xl:gap-1.5 2xl:px-2.5 2xl:text-[13px] ${
-                    active
-                      ? "bg-gold/15 text-navy"
-                      : "text-slate-700 hover:bg-secondary hover:text-navy"
-                  }`}
+        {/* Desktop navigation */}
+        <nav className="hidden xl:flex h-full flex-1 items-center justify-center">
+          <ul className="flex h-full items-stretch gap-0">
+            {nav.map((item) => {
+              const href = hrefFor(item.id);
+              const children = childrenFor(item.id);
+              const active = isActive(href);
+              const hasDropdown = children.length > 0;
+
+              return (
+                <li
+                  key={item.id}
+                  className="relative flex items-stretch"
+                  onMouseEnter={() => hasDropdown && setActiveDropdown(item.id)}
+                  onMouseLeave={() => setActiveDropdown(null)}
                 >
-                  {formatDisplayHeading(item.label)}
-                  {children.length > 0 && <ChevronDown className="h-3.5 w-3.5 shrink-0" />}
-                </a>
-                {children.length > 0 && (
-                  <div className="invisible absolute left-0 top-full z-50 min-w-64 translate-y-2 rounded-xl border border-border bg-white p-2 opacity-0 shadow-elegant transition-smooth group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                    {children.map(([label, childHref]) => (
-                      <a
-                        key={childHref}
-                        href={childHref}
-                        className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-600 transition-smooth hover:bg-secondary hover:text-navy"
-                      >
-                        {formatDisplayHeading(label)}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+                  <a
+                    href={href}
+                    className={`relative flex items-center gap-1 px-3.5 text-[13px] font-semibold tracking-wide transition-smooth after:absolute after:bottom-0 after:left-3.5 after:right-3.5 after:h-[2px] after:rounded-full after:bg-gold after:transition-smooth xl:text-[13.5px] ${
+                      active
+                        ? "text-navy after:scale-x-100"
+                        : "text-slate-600 after:scale-x-0 hover:text-navy hover:after:scale-x-100"
+                    }`}
+                    style={{ transformOrigin: "left" }}
+                  >
+                    {formatDisplayHeading(item.label)}
+                    {hasDropdown && (
+                      <ChevronDown
+                        className={`h-3.5 w-3.5 shrink-0 transition-smooth ${activeDropdown === item.id ? "rotate-180" : ""}`}
+                      />
+                    )}
+                  </a>
+
+                  {/* Dropdown */}
+                  {hasDropdown && (
+                    <div
+                      className={`absolute left-0 top-full z-50 min-w-56 origin-top-left rounded-xl border border-border bg-white py-2 shadow-elegant transition-smooth ${
+                        activeDropdown === item.id
+                          ? "visible scale-100 opacity-100"
+                          : "invisible scale-95 opacity-0"
+                      }`}
+                    >
+                      {children.map(([label, childHref]) => (
+                        <a
+                          key={childHref}
+                          href={childHref}
+                          className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-medium text-slate-600 transition-smooth hover:bg-secondary hover:text-navy"
+                        >
+                          <span className="h-1 w-1 shrink-0 rounded-full bg-gold/60" />
+                          {formatDisplayHeading(label)}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </nav>
 
-        <div className="hidden shrink-0 items-center 2xl:flex">
+        {/* Right side — CTA + login */}
+        <div className="hidden xl:flex shrink-0 items-center gap-3">
+          {hrefIsLive("/admissions") && (
+            <a
+              href="/admissions"
+              className="inline-flex h-10 items-center gap-1.5 rounded-lg border border-gold/60 bg-gold/8 px-4 text-[13px] font-semibold text-navy transition-smooth hover:border-gold hover:bg-gold/15"
+            >
+              {db.websiteContent.headerApplyLabel || "Admissions"}
+            </a>
+          )}
           <a
             href="/login"
-            className="inline-flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-crimson px-3 text-[13px] font-bold text-white shadow-crimson transition-smooth hover:-translate-y-0.5 hover:bg-crimson-dark"
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-navy px-4 text-[13px] font-semibold text-white shadow-[0_4px_16px_-4px_rgb(10_22_40_/0.5)] transition-smooth hover:bg-navy-mid hover:-translate-y-px"
           >
-            <Lock className="h-4 w-4 shrink-0" />{" "}
+            <Lock className="h-3.5 w-3.5 shrink-0" />
             {db.websiteContent.headerSignInLabel || "Portal Login"}
           </a>
         </div>
 
+        {/* Mobile hamburger */}
         <button
           onClick={() => setOpen((o) => !o)}
-          className="fixed right-4 top-[38px] z-[60] grid h-11 w-11 -translate-y-1/2 place-items-center rounded-md border border-border bg-white text-navy shadow-soft 2xl:hidden"
-          aria-label="Menu"
+          className="grid h-10 w-10 place-items-center rounded-lg border border-border bg-white text-navy shadow-soft transition-smooth hover:bg-secondary xl:hidden"
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
         >
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
 
+      {/* Mobile menu */}
       {open && (
         <div className="animate-fade-in border-t border-border bg-white shadow-elegant xl:hidden">
-          <div className="flex flex-col gap-2 px-6 py-5">
-            {nav.map((item) => (
-              <div key={item.id}>
-                <a
-                  href={hrefFor(item.id)}
-                  onClick={() => setOpen(false)}
-                  className="block rounded-lg px-4 py-3 text-sm font-semibold text-navy hover:bg-secondary"
-                >
-                  {formatDisplayHeading(item.label)}
-                </a>
-                {[
-                  ...childNav
-                    .filter((child) => child.parentId === item.id)
-                    .map((child) => [child.label, hrefFor(child.id)] as [string, string]),
-                ].length > 0 && (
-                  <div className="ml-4 border-l border-border pl-3">
-                    {[
-                      ...childNav
-                        .filter((child) => child.parentId === item.id)
-                        .map((child) => [child.label, hrefFor(child.id)] as [string, string]),
-                    ].map(([label, href]) => (
-                      <a
-                        key={href}
-                        href={href}
-                        onClick={() => setOpen(false)}
-                        className="block px-4 py-2 text-sm text-muted-foreground"
-                      >
-                        {formatDisplayHeading(label)}
-                      </a>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            <div className="mt-3 grid grid-cols-2 gap-3">
+          <div className="mx-auto max-w-[90rem] px-4 py-4 sm:px-6">
+            {/* Contact info on mobile */}
+            <div className="mb-4 flex flex-wrap gap-3 border-b border-border pb-4 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <Phone className="h-3 w-3 text-gold" />
+                {db.websiteContent.phone}
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <Mail className="h-3 w-3 text-gold" />
+                {db.websiteContent.email}
+              </span>
+            </div>
+
+            {/* Nav links */}
+            <ul className="space-y-0.5">
+              {nav.map((item) => {
+                const children = childrenFor(item.id);
+                const active = isActive(hrefFor(item.id));
+                return (
+                  <li key={item.id}>
+                    <a
+                      href={hrefFor(item.id)}
+                      onClick={() => setOpen(false)}
+                      className={`flex items-center rounded-lg px-3 py-2.5 text-[14px] font-semibold transition-smooth ${
+                        active
+                          ? "bg-gold/10 text-navy"
+                          : "text-slate-700 hover:bg-secondary hover:text-navy"
+                      }`}
+                    >
+                      {active && <span className="mr-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />}
+                      {formatDisplayHeading(item.label)}
+                    </a>
+                    {children.length > 0 && (
+                      <ul className="ml-5 mt-0.5 space-y-0.5 border-l-2 border-gold/20 pl-3">
+                        {children.map(([label, href]) => (
+                          <li key={href}>
+                            <a
+                              href={href}
+                              onClick={() => setOpen(false)}
+                              className="flex items-center rounded px-3 py-2 text-[13px] text-slate-500 transition-smooth hover:text-navy"
+                            >
+                              {formatDisplayHeading(label)}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Mobile CTA buttons */}
+            <div className="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4">
               {hrefIsLive("/admissions") && (
                 <a
                   href="/admissions"
                   onClick={() => setOpen(false)}
-                  className="rounded-lg border border-gold/50 px-4 py-3 text-center text-sm font-bold text-navy"
+                  className="flex items-center justify-center rounded-lg border border-gold/50 bg-gold/8 px-4 py-2.5 text-center text-[13px] font-semibold text-navy"
                 >
                   {db.websiteContent.headerApplyLabel || "Admissions"}
                 </a>
@@ -242,8 +312,9 @@ export const SiteHeader = memo(function SiteHeader() {
               <a
                 href="/login"
                 onClick={() => setOpen(false)}
-                className="rounded-lg bg-navy px-4 py-3 text-center text-sm font-bold text-white"
+                className="flex items-center justify-center gap-1.5 rounded-lg bg-navy px-4 py-2.5 text-center text-[13px] font-semibold text-white"
               >
+                <Lock className="h-3.5 w-3.5" />
                 {db.websiteContent.headerSignInLabel || "Portal Login"}
               </a>
             </div>
@@ -261,142 +332,180 @@ export const SiteFooter = memo(function SiteFooter() {
     db.websiteContent.footerCopyrightLine || DEFAULT_FOOTER_COPYRIGHT_LINE;
   const developerCredit = db.websiteContent.developerCredit || DEFAULT_DEVELOPER_CREDIT;
   const footerLegalLine = db.websiteContent.footerLegalLine?.trim();
+
   const nav = [...db.navigation]
     .filter(
       (n) =>
         n.visible !== false && !n.parentId && n.id !== "student-portal" && Boolean(db.pages[n.id]),
     )
     .sort((a, b) => a.order - b.order);
+
   const hrefIsLive = (href: string) => {
     const id = pageIdFromHref(href);
     return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   };
+
   const socialLinks = [
-    {
-      label: "Facebook",
-      href: cleanExternalUrl(socials.facebook),
-      icon: <Facebook className="h-4 w-4" />,
-    },
-    {
-      label: "Instagram",
-      href: cleanExternalUrl(socials.instagram),
-      icon: <Instagram className="h-4 w-4" />,
-    },
-    {
-      label: "YouTube",
-      href: cleanExternalUrl(socials.youtube),
-      icon: <Youtube className="h-4 w-4" />,
-    },
-    {
-      label: "LinkedIn",
-      href: cleanExternalUrl(socials.linkedin),
-      icon: <Linkedin className="h-4 w-4" />,
-    },
-    {
-      label: "WhatsApp channel",
-      href: cleanExternalUrl(socials.whatsapp),
-      icon: <MessageCircle className="h-4 w-4" />,
-    },
+    { label: "Facebook", href: cleanExternalUrl(socials.facebook), icon: <Facebook className="h-4 w-4" /> },
+    { label: "Instagram", href: cleanExternalUrl(socials.instagram), icon: <Instagram className="h-4 w-4" /> },
+    { label: "YouTube", href: cleanExternalUrl(socials.youtube), icon: <Youtube className="h-4 w-4" /> },
+    { label: "LinkedIn", href: cleanExternalUrl(socials.linkedin), icon: <Linkedin className="h-4 w-4" /> },
+    { label: "WhatsApp", href: cleanExternalUrl(socials.whatsapp), icon: <MessageCircle className="h-4 w-4" /> },
   ].filter((item) => item.href);
 
   return (
     <footer data-website-section="Footer" className="bg-navy text-white">
-      <div className="mx-auto grid max-w-7xl gap-10 px-6 py-16 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
-        <div>
-          <div className="flex items-center gap-3">
-            <span className="grid h-14 w-14 place-items-center overflow-hidden rounded-full border-2 border-gold bg-white p-1.5 font-serif text-lg font-bold text-navy">
-              {db.websiteContent.logoImage ? (
-                <img
-                  src={db.websiteContent.logoImage}
-                  alt=""
-                  className="h-full w-full rounded-full object-contain"
-                />
-              ) : (
-                db.websiteContent.logoText
+      {/* Gold top accent line */}
+      <div className="h-[3px] bg-gradient-to-r from-transparent via-gold to-transparent opacity-60" />
+
+      <div className="mx-auto max-w-[90rem] px-6 py-14 lg:py-16">
+        <div className="grid gap-10 lg:grid-cols-[1.8fr_1fr_1fr_1.1fr]">
+
+          {/* Brand column */}
+          <div>
+            <a href="/" className="group inline-flex items-center gap-3">
+              <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-gold/60 bg-white/8 p-1.5 transition-smooth group-hover:border-gold">
+                {db.websiteContent.logoImage ? (
+                  <img
+                    src={db.websiteContent.logoImage}
+                    alt=""
+                    className="h-full w-full rounded-full object-contain"
+                  />
+                ) : (
+                  <span className="font-serif text-lg font-bold text-gold">
+                    {db.websiteContent.logoText}
+                  </span>
+                )}
+              </span>
+              <div>
+                <p className="font-serif text-xl font-bold leading-snug text-white transition-smooth group-hover:text-gold/90">
+                  {db.websiteContent.schoolName}
+                </p>
+                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-gold/80">
+                  {db.websiteContent.tagline}
+                </p>
+              </div>
+            </a>
+
+            <p className="mt-6 max-w-xs text-[13.5px] leading-relaxed text-white/55">
+              {db.websiteContent.footerText}
+            </p>
+
+            {socialLinks.length > 0 && (
+              <div className="mt-6 flex flex-wrap gap-2">
+                {socialLinks.map((item) => (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={item.label}
+                    className="grid h-9 w-9 place-items-center rounded-lg border border-white/12 text-white/55 transition-smooth hover:border-gold/60 hover:bg-gold/12 hover:text-gold"
+                  >
+                    {item.icon}
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Contact */}
+          <div>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+              Contact Us
+            </h3>
+            <div className="mt-4 space-y-3">
+              {db.websiteContent.address && (
+                <p className="flex items-start gap-2 text-[13.5px] text-white/60">
+                  <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold/70" />
+                  {db.websiteContent.address}
+                </p>
               )}
-            </span>
-            <div>
-              <p className="font-serif text-2xl font-bold">{db.websiteContent.schoolName}</p>
-              <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">
-                {db.websiteContent.tagline}
-              </p>
+              {db.websiteContent.phone && (
+                <p className="flex items-center gap-2 text-[13.5px] text-white/60">
+                  <Phone className="h-3.5 w-3.5 shrink-0 text-gold/70" />
+                  {db.websiteContent.phone}
+                </p>
+              )}
+              {db.websiteContent.email && (
+                <p className="flex items-center gap-2 text-[13.5px] text-white/60">
+                  <Mail className="h-3.5 w-3.5 shrink-0 text-gold/70" />
+                  {db.websiteContent.email}
+                </p>
+              )}
             </div>
           </div>
-          <p className="mt-6 max-w-md text-sm leading-relaxed text-white/65">
-            {db.websiteContent.footerText}
-          </p>
-          {socialLinks.length > 0 && (
-            <div className="mt-6 flex flex-wrap gap-3 text-white/70">
-              {socialLinks.map((item) => (
-                <a
-                  key={item.label}
-                  href={item.href}
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label={item.label}
-                  className="grid h-9 w-9 place-items-center rounded-full border border-white/15 transition-smooth hover:border-gold hover:bg-gold hover:text-navy"
-                >
-                  {item.icon}
-                </a>
+
+          {/* Explore */}
+          <div>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+              Explore
+            </h3>
+            <ul className="mt-4 space-y-2">
+              {nav.slice(0, 7).map((item) => (
+                <li key={item.id}>
+                  <a
+                    href={hrefFor(item.id)}
+                    className="group flex items-center gap-2 text-[13.5px] text-white/60 transition-smooth hover:text-gold"
+                  >
+                    <ArrowRight className="h-3 w-3 shrink-0 opacity-0 -translate-x-1 transition-smooth group-hover:opacity-100 group-hover:translate-x-0" />
+                    {formatDisplayHeading(item.label)}
+                  </a>
+                </li>
               ))}
-            </div>
-          )}
-        </div>
-
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">Visit</p>
-          <div className="mt-4 space-y-3 text-sm leading-relaxed text-white/72">
-            <p>{db.websiteContent.address}</p>
-            <p>{db.websiteContent.phone}</p>
-            <p>{db.websiteContent.email}</p>
+            </ul>
           </div>
-        </div>
 
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">Explore</p>
-          <ul className="mt-4 space-y-2 text-sm text-white/72">
-            {nav.slice(0, 6).map((item) => (
-              <li key={item.id}>
-                <a href={hrefFor(item.id)} className="transition-smooth hover:text-gold">
-                  {formatDisplayHeading(item.label)}
+          {/* Quick links */}
+          <div>
+            <h3 className="text-[10px] font-bold uppercase tracking-[0.2em] text-gold">
+              Quick Access
+            </h3>
+            <div className="mt-4 space-y-2.5">
+              <a
+                href="/login"
+                className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-[13px] font-medium text-white/75 transition-smooth hover:border-gold/40 hover:bg-white/8 hover:text-white"
+              >
+                <span className="flex items-center gap-2">
+                  <Lock className="h-3.5 w-3.5 text-gold/70" />
+                  Portal Login
+                </span>
+                <ArrowRight className="h-3.5 w-3.5 opacity-50" />
+              </a>
+              {hrefIsLive("/admissions") && (
+                <a
+                  href="/admissions"
+                  className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-[13px] font-medium text-white/75 transition-smooth hover:border-gold/40 hover:bg-white/8 hover:text-white"
+                >
+                  <span>Admissions</span>
+                  <ArrowRight className="h-3.5 w-3.5 opacity-50" />
                 </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold">Quick Actions</p>
-          <div className="mt-4 space-y-3">
-            {hrefIsLive("/admissions") && (
-              <a
-                href="/admissions"
-                className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition-smooth hover:bg-white/10"
-              >
-                Admissions <ArrowRight className="h-4 w-4" />
-              </a>
-            )}
-            {hrefIsLive("/contact") && (
-              <a
-                href="/contact"
-                className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80 transition-smooth hover:bg-white/10"
-              >
-                Contact Office <ArrowRight className="h-4 w-4" />
-              </a>
-            )}
+              )}
+              {hrefIsLive("/contact") && (
+                <a
+                  href="/contact"
+                  className="flex items-center justify-between rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-[13px] font-medium text-white/75 transition-smooth hover:border-gold/40 hover:bg-white/8 hover:text-white"
+                >
+                  <span>Contact Office</span>
+                  <ArrowRight className="h-3.5 w-3.5 opacity-50" />
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>
-      <div className="border-t border-white/12">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-6 py-5 text-center text-xs text-white/50 md:flex-row md:text-left">
-          <div className="space-y-1">
+
+      {/* Bottom bar */}
+      <div className="border-t border-white/8">
+        <div className="mx-auto flex max-w-[90rem] flex-col items-center justify-between gap-3 px-6 py-5 text-[11.5px] text-white/40 md:flex-row">
+          <div className="space-y-1 text-center md:text-left">
             <p>{footerCopyrightLine}</p>
             {developerCredit && (
-              <p className="text-[11px] leading-relaxed text-white/40">{developerCredit}</p>
+              <p className="text-[10.5px] text-white/28">{developerCredit}</p>
             )}
           </div>
           {footerLegalLine && (
-            <p className="max-w-md text-white/45 md:text-right">{footerLegalLine}</p>
+            <p className="max-w-sm text-center text-white/35 md:text-right">{footerLegalLine}</p>
           )}
         </div>
       </div>
@@ -496,16 +605,16 @@ export function PageHeader({
         mediaType={page?.backgroundMediaType}
         mediaOpacity={page?.backgroundMediaOpacity}
       />
-      <div className="relative mx-auto max-w-7xl px-6 py-20 md:py-28 animate-fade-in-up">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-gold-light">
+      <div className="relative mx-auto max-w-[90rem] px-6 py-20 md:py-28 animate-fade-in-up">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold/80">
           {formatDisplayHeading(kicker)}
         </p>
         <span className="gold-divider mt-4" />
-        <h1 className="max-w-4xl break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-6xl">
+        <h1 className="max-w-4xl break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-5xl lg:text-6xl">
           {formatDisplayHeading(title)}
         </h1>
         {subtitle && (
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/75 md:text-lg">
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/72 md:text-lg">
             {subtitle}
           </p>
         )}

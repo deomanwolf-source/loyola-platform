@@ -1546,23 +1546,7 @@
   transform: translateY(-2px) scale(1.06);
 }
 
-.public-site nav a::after {
-  position: absolute;
-  right: 1rem;
-  bottom: 0.42rem;
-  left: 1rem;
-  height: 2px;
-  content: "";
-  background: var(--gold);
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.public-site nav a:hover::after,
-.public-site nav a:focus-visible::after {
-  transform: scaleX(1);
-}
+/* Nav underline handled via Tailwind after: utilities in PublicLayout.tsx */
 
 .public-site img {
   transition:
@@ -2006,6 +1990,80 @@ img {
 .visual-builder .gjs-toolbar-item:active {
   transform: scale(0.9);
   transition: transform 80ms ease;
+}
+
+/* ── Admin Panel Refinements ───────────────────────────────── */
+
+/* Scrollable sidebar nav with thin scrollbar */
+[data-admin-panel] aside nav::-webkit-scrollbar {
+  width: 4px;
+}
+[data-admin-panel] aside nav::-webkit-scrollbar-thumb {
+  background: rgba(124, 163, 216, 0.25);
+  border-radius: 4px;
+}
+[data-admin-panel] aside nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Portal stat cards with improved shadow */
+[data-admin-panel] .stat-card {
+  transition:
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+[data-admin-panel] .stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 50px -20px rgba(7, 33, 90, 0.35);
+}
+
+/* Improved form inputs inside admin panel */
+[data-admin-panel] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([class*="rounded"]),
+[data-admin-panel] textarea:not([class*="rounded"]),
+[data-admin-panel] select:not([class*="rounded"]) {
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+[data-admin-panel] input:focus,
+[data-admin-panel] textarea:focus,
+[data-admin-panel] select:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(255, 224, 109, 0.2);
+}
+
+/* ── Trinity-style Public Site Nav ─────────────────────────── */
+
+/* Smooth nav link transition — used by the header nav */
+.public-site header nav a {
+  position: relative;
+}
+
+/* Make active nav indicator animate in cleanly */
+.public-site header nav a .nav-active-dot {
+  animation: scaleIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ── Homepage section improvements ─────────────────────────── */
+
+/* Vision/Mission card photo zoom on hover */
+.vm-card-img {
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.vm-card-img:hover,
+article:hover .vm-card-img {
+  transform: scale(1.05);
+}
+
+/* ── Footer improvements ──────────────────────────────────── */
+
+footer [data-website-section="Footer"] .social-link {
+  transition:
+    background-color 200ms ease,
+    border-color 200ms ease,
+    color 200ms ease,
+    transform 200ms ease;
+}
+footer .social-link:hover {
+  transform: translateY(-2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
