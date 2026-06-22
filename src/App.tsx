@@ -2962,6 +2962,186 @@ function HomeCampusMosaic() {
   );
 }
 
+function HomeNewsTicker() {
+  const db = useDb();
+  const items = db.news.slice(0, 8);
+  if (items.length === 0) return null;
+  const doubled = [...items, ...items];
+  return (
+    <div className="relative overflow-hidden border-b border-navy/15 bg-navy">
+      <div className="flex items-stretch">
+        <div className="z-10 flex flex-shrink-0 items-center gap-2.5 border-r border-white/15 bg-crimson px-5 py-3">
+          <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
+          <span className="whitespace-nowrap text-[10px] font-black uppercase tracking-[0.28em] text-white">
+            Latest
+          </span>
+        </div>
+        <div className="news-ticker-overflow flex-1">
+          <div className="news-ticker-track">
+            {doubled.map((item, i) => (
+              <a
+                key={i}
+                href="/news"
+                className="inline-flex items-center gap-3 px-8 py-3 text-sm text-white/75 transition-colors hover:text-gold-light"
+              >
+                <span className="text-gold/50">◆</span>
+                {item.title}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HomeRectorsMessage() {
+  const db = useDb();
+  const home = db.homeSections;
+  const rectorImage =
+    home.rectorImage || db.media.principalImage || "/loyola-crest.jpg";
+  const rectorName = home.rectorName || "Rev. Dr. D.M.J. Kennedy Perera";
+  const rectorDesig = home.rectorDesignation || "Rector / Principal";
+  const rectorBody =
+    home.rectorBody ||
+    "Loyola College stands as a beacon of faith, learning, discipline, and service — an institution that has shaped generations of young minds over 75 years. We are committed to excellence in every dimension of school life, nurturing students to become upright citizens who serve God and country.";
+  const previewBody =
+    rectorBody.length > 240 ? rectorBody.substring(0, 240).trim() + "…" : rectorBody;
+
+  return (
+    <section
+      data-home-reveal
+      className="reveal-on-scroll bg-[radial-gradient(ellipse_at_top_left,rgba(212,160,23,0.10),transparent_44%),linear-gradient(180deg,#fdfaf4_0%,#fffef9_50%,#f8f4e8_100%)] py-20 md:py-28"
+    >
+      <div className="mx-auto max-w-7xl px-5 sm:px-6">
+        <div className="grid gap-14 lg:grid-cols-[400px_1fr] lg:items-center">
+          {/* Photo */}
+          <div className="relative mx-auto max-w-sm lg:mx-0">
+            <div className="absolute -inset-6 rounded-[44px] bg-gradient-to-br from-gold/20 to-transparent" />
+            <div className="relative overflow-hidden rounded-[32px] border-4 border-white shadow-[0_32px_80px_-24px_rgba(10,22,40,0.30)]">
+              <img
+                src={rectorImage}
+                alt={rectorName}
+                className="aspect-[3/4] w-full object-cover"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,transparent_0%,rgba(10,22,40,0.88)_100%)] px-6 py-5">
+                <p className="font-serif text-lg font-bold text-white">{rectorName}</p>
+                <p className="mt-0.5 text-[10px] font-black uppercase tracking-[0.20em] text-gold-light">
+                  {rectorDesig}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Content */}
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.30em] text-crimson">
+              Rector's Welcome
+            </p>
+            <h2 className="mt-5 font-serif text-4xl font-bold text-navy md:text-5xl">
+              {home.rectorHeading || "A Message from Our Rector"}
+            </h2>
+            <div className="mt-6 h-0.5 w-16 bg-gradient-to-r from-gold to-gold/20" />
+            <div className="relative mt-7 border-l-4 border-gold/60 pl-8">
+              <span className="absolute -top-4 -left-1 font-serif text-6xl leading-none text-gold/25 font-bold select-none">
+                "
+              </span>
+              <p className="font-display text-xl italic leading-8 text-navy/78">{previewBody}</p>
+            </div>
+            <div className="mt-8 flex items-center gap-4">
+              <div className="h-px w-12 bg-gold/40" />
+              <span className="font-serif text-base font-bold text-navy">{rectorName}</span>
+            </div>
+            <p className="mt-1.5 text-[11px] font-black uppercase tracking-[0.20em] text-crimson ml-16">
+              {rectorDesig}
+            </p>
+            <div className="mt-8">
+              <a
+                href="/about"
+                className="inline-flex items-center gap-2 rounded-full bg-navy px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(10,22,40,0.30)] transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+              >
+                Read Full Message
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HomeAdmissionsCTA() {
+  const db = useDb();
+  const home = db.homeSections;
+  const pageIsLive = (href: string) => {
+    const id = href.replace(/^\/+/, "") || "home";
+    return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
+  };
+
+  return (
+    <section
+      data-home-reveal
+      className="reveal-on-scroll relative overflow-hidden bg-[linear-gradient(135deg,#071224_0%,#0d1e3d_42%,#8a0a13_100%)] py-20 md:py-28"
+    >
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-gold/20 blur-[72px]" />
+        <div className="absolute -left-16 bottom-0 h-72 w-72 rounded-full bg-crimson/25 blur-[60px]" />
+        <div className="absolute top-1/2 left-1/2 h-64 w-[40rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white/4 blur-[48px]" />
+      </div>
+      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/70 to-transparent" />
+
+      <div className="relative mx-auto max-w-5xl px-5 text-center sm:px-6">
+        <p className="text-[11px] font-black uppercase tracking-[0.36em] text-gold-light">
+          {home.admissionsCtaKicker || "Admissions Open"}
+        </p>
+        <h2 className="mt-5 font-serif text-4xl font-bold leading-tight text-white md:text-6xl">
+          {home.admissionsCtaTitle || "Join the Loyola Family"}
+        </h2>
+        <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-white/65">
+          Be part of a 75-year legacy of faith, learning, discipline, and service. Applications are
+          now open for the new academic year.
+        </p>
+        <div className="mt-10 flex flex-wrap justify-center gap-4">
+          {pageIsLive("/admissions") && (
+            <a
+              href="/admissions"
+              className="inline-flex items-center gap-2 rounded-full bg-gold px-9 py-4 text-sm font-bold text-navy shadow-[0_14px_40px_rgba(212,160,23,0.55)] transition-smooth hover:-translate-y-1 hover:shadow-[0_22px_54px_rgba(212,160,23,0.65)]"
+            >
+              {home.admissionsCtaButton || "Apply Now"}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+          )}
+          {pageIsLive("/contact") && (
+            <a
+              href="/contact"
+              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-9 py-4 text-sm font-bold text-white backdrop-blur-sm transition-smooth hover:-translate-y-1 hover:bg-white/18"
+            >
+              Contact Admissions
+              <Mail className="h-4 w-4" />
+            </a>
+          )}
+        </div>
+
+        <div className="mt-16 grid grid-cols-3 divide-x divide-white/15 border-t border-white/15 pt-12">
+          {[
+            { value: "75+", label: "Years of Excellence" },
+            { value: "2,688", label: "Students Enrolled" },
+            { value: "150+", label: "Qualified Teachers" },
+          ].map((s) => (
+            <div key={s.label} className="px-6">
+              <p className="font-serif text-3xl font-bold text-gold md:text-4xl">{s.value}</p>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
+                {s.label}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function HomePage() {
   const db = useDb();
   const content = db.websiteContent;
@@ -3114,9 +3294,12 @@ function HomePage() {
       </section>
 
       <div id="below-hero" />
+      <HomeNewsTicker />
       <HomeVisionMissionIdentity />
       <HomeCampusMosaic />
+      <HomeRectorsMessage />
       <HomeRequiredSections />
+      <HomeAdmissionsCTA />
       <SubpagesSection parentId="home" />
     </PublicLayout>
   );
