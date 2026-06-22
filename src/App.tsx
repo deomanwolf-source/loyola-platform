@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Award,
@@ -38,9 +38,7 @@ import { CollegeStaffPage } from "@/components/site/CollegeStaffPage";
 import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrationPage";
 import {
   EXTRA_CURRICULAR_GROUPS,
-  EXTRA_CURRICULAR_HOME_FEATURED_IDS,
   extraCurricularActivitiesByGroup,
-  extraCurricularActivityById,
   type ExtraCurricularActivity,
 } from "@/lib/extracurricular-activities";
 import { normalizePositionCode } from "@/lib/staff-position-codes";
@@ -1928,6 +1926,227 @@ function SubpagesSection({ parentId }: { parentId: string }) {
   );
 }
 
+type HomePhotoTone = "gold" | "crimson" | "blue" | "emerald";
+
+const HOME_PHOTO_TONE_STYLES: Record<
+  HomePhotoTone,
+  { accent: string; overlay: string; border: string }
+> = {
+  gold: {
+    accent: "text-gold-light",
+    overlay:
+      "bg-[linear-gradient(180deg,rgba(7,18,36,0)_18%,rgba(7,18,36,0.58)_74%,rgba(212,160,23,0.24)_100%)]",
+    border: "from-gold/60 via-white/12 to-transparent",
+  },
+  crimson: {
+    accent: "text-[#ffd2db]",
+    overlay:
+      "bg-[linear-gradient(180deg,rgba(7,18,36,0)_18%,rgba(7,18,36,0.56)_74%,rgba(183,15,27,0.24)_100%)]",
+    border: "from-crimson/60 via-white/12 to-transparent",
+  },
+  blue: {
+    accent: "text-[#d7e9ff]",
+    overlay:
+      "bg-[linear-gradient(180deg,rgba(7,18,36,0)_18%,rgba(7,18,36,0.56)_74%,rgba(37,99,235,0.24)_100%)]",
+    border: "from-sky-500/60 via-white/12 to-transparent",
+  },
+  emerald: {
+    accent: "text-[#dbfde9]",
+    overlay:
+      "bg-[linear-gradient(180deg,rgba(7,18,36,0)_18%,rgba(7,18,36,0.56)_74%,rgba(16,185,129,0.24)_100%)]",
+    border: "from-emerald-500/60 via-white/12 to-transparent",
+  },
+};
+
+const HOME_HERO_PANELS = [
+  {
+    src: "/flag1.png",
+    alt: "Loyola College flag",
+    title: "Identity",
+    caption: "Veritate ad Lumen et Vitam",
+    tone: "gold" as const,
+  },
+  {
+    src: "/assets/past-rectors/sv-sir.jpeg",
+    alt: "S. V. Fonseka",
+    title: "Founding spirit",
+    caption: "1949 - 1987",
+    tone: "crimson" as const,
+  },
+  {
+    src: "/assets/past-rectors/fr-leo.jpeg",
+    alt: "Rev. Fr. Leo Perera",
+    title: "Re-establishment",
+    caption: "1994 - 1999",
+    tone: "blue" as const,
+  },
+  {
+    src: "/assets/past-rectors/fr-trevor.jpeg",
+    alt: "Rev. Fr. Trevor Martin",
+    title: "Growth years",
+    caption: "2000 - 2014",
+    tone: "emerald" as const,
+  },
+];
+
+const HOME_LEGACY_PANELS = [
+  {
+    src: "/assets/past-rectors/sv-sir.jpeg",
+    alt: "S. V. Fonseka",
+    title: "S. V. Fonseka",
+    caption: "The founding principal",
+    tone: "gold" as const,
+  },
+  {
+    src: "/assets/past-rectors/fr-leo.jpeg",
+    alt: "Rev. Fr. Leo Perera",
+    title: "Rev. Fr. Leo Perera",
+    caption: "Re-established the college",
+    tone: "crimson" as const,
+  },
+  {
+    src: "/assets/past-rectors/fr-ranjith.jpeg",
+    alt: "Rev. Fr. Ranjith Andradi",
+    title: "Rev. Fr. Ranjith Andradi",
+    caption: "Transition and direction",
+    tone: "blue" as const,
+  },
+  {
+    src: "/assets/past-rectors/fr-trevor.jpeg",
+    alt: "Rev. Fr. Trevor Martin",
+    title: "Rev. Fr. Trevor Martin",
+    caption: "Expanded the campus",
+    tone: "emerald" as const,
+  },
+  {
+    src: "/assets/past-rectors/fr-sudath.jpeg",
+    alt: "Rev. Fr. Sudath Gunetileke",
+    title: "Rev. Fr. Sudath Gunetileke",
+    caption: "Renewal and modern spaces",
+    tone: "gold" as const,
+  },
+];
+
+function HomePhotoTile({
+  src,
+  alt,
+  title,
+  caption,
+  tone,
+  className = "",
+}: {
+  src: string;
+  alt: string;
+  title: string;
+  caption?: string;
+  tone: HomePhotoTone;
+  className?: string;
+}) {
+  const toneStyles = HOME_PHOTO_TONE_STYLES[tone];
+
+  return (
+    <article
+      className={`group relative overflow-hidden rounded-[28px] border border-white/15 bg-gradient-to-br ${toneStyles.border} p-[1px] shadow-[0_24px_70px_-40px_rgba(10,22,40,0.72)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${className}`}
+    >
+      <div className="relative h-full overflow-hidden rounded-[27px] bg-navy">
+        <img
+          src={src}
+          alt={alt}
+          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+        />
+        <div className={`absolute inset-0 ${toneStyles.overlay}`} />
+        <div className="absolute inset-x-0 bottom-0 p-4">
+          {caption && (
+            <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${toneStyles.accent}`}>
+              {caption}
+            </p>
+          )}
+          <h3 className="mt-2 text-lg font-bold leading-snug text-white">{title}</h3>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+function parseStatNumber(value: string): { prefix: string; target: number; suffix: string } | null {
+  const match = /^([^0-9]*)(\d[\d,]*)(.*)$/.exec(value.trim());
+  if (!match) return null;
+  const target = parseInt(match[2].replace(/,/g, ""), 10);
+  if (isNaN(target) || target === 0) return null;
+  return { prefix: match[1], target, suffix: match[3] };
+}
+
+function HomeMetricCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: HomePhotoTone;
+}) {
+  const toneClasses: Record<HomePhotoTone, string> = {
+    gold: "from-[#10223f] via-[#0e1a30] to-[#7d5c0d]",
+    crimson: "from-[#10223f] via-[#21122c] to-[#82131f]",
+    blue: "from-[#112746] via-[#0f1d35] to-[#1d4ed8]",
+    emerald: "from-[#0d2d2a] via-[#0f1d35] to-[#047857]",
+  };
+  const labelClasses: Record<HomePhotoTone, string> = {
+    gold: "text-gold-light",
+    crimson: "text-[#ffd2db]",
+    blue: "text-[#d7e9ff]",
+    emerald: "text-[#d5fae6]",
+  };
+
+  const ref = useRef<HTMLDivElement>(null);
+  const animated = useRef(false);
+  const [display, setDisplay] = useState("0");
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const parsed = parseStatNumber(value);
+    if (!parsed) {
+      setDisplay(value);
+      return;
+    }
+    const { prefix, target, suffix } = parsed;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || animated.current) return;
+        animated.current = true;
+        const duration = 1600;
+        const startTime = performance.now();
+        const tick = (now: number) => {
+          const progress = Math.min((now - startTime) / duration, 1);
+          const eased = 1 - (1 - progress) ** 3;
+          const count = Math.round(eased * target);
+          setDisplay(prefix + count.toLocaleString() + suffix);
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.5 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [value]);
+
+  return (
+    <div
+      ref={ref}
+      className={`rounded-[24px] border border-white/14 bg-gradient-to-br ${toneClasses[tone]} p-4 shadow-[0_18px_48px_-32px_rgba(0,0,0,0.55)] backdrop-blur-xl`}
+    >
+      <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${labelClasses[tone]}`}>
+        {label}
+      </p>
+      <p className="mt-3 font-serif text-3xl font-bold leading-none text-white tabular-nums">
+        {display}
+      </p>
+    </div>
+  );
+}
+
 function HomeRequiredSections() {
   const db = useDb();
   const home = db.homeSections;
@@ -1935,32 +2154,37 @@ function HomeRequiredSections() {
   const quickActions = [
     {
       title: "Explore College",
-      body: "Discover our campus and facilities.",
+      body: "Discover campus spaces, sections, and student services.",
       href: "/the-college/facilities-services",
       icon: Landmark,
     },
     {
-      title: "View Upcoming Events",
-      body: "Stay updated on college activities.",
-      href: "/events",
-      icon: Calendar,
+      title: "View Gallery",
+      body: "Step into Loyola through photos and video highlights.",
+      href: "/gallery/photo-gallery",
+      icon: Images,
     },
     {
-      title: "News",
-      body: "Latest announcements and updates.",
+      title: "News & Notices",
+      body: "Latest announcements, circulars, and updates.",
       href: "/news",
       icon: FileText,
     },
+    {
+      title: "Events & Calendar",
+      body: "Important dates, celebrations, and the school schedule.",
+      href: "/calendar",
+      icon: Calendar,
+    },
   ];
-  const missionPoints = [
-    "To aim at integral education of body, mind and spirit through service and leadership.",
-    "To strive to form a citizen of upright character to achieve excellence in social, religious, academic and industrial spheres.",
-    "To promote character formation based on human and religious values.",
+  const clubs = [
+    { title: "Media Unit", icon: Camera },
+    { title: "Science Society", icon: Award },
+    { title: "ICT Society", icon: Film },
+    { title: "Prefects Board", icon: ShieldCheck },
+    { title: "English Literary Association", icon: GraduationCap },
+    { title: "Religious Society", icon: Landmark },
   ];
-  const clubs = EXTRA_CURRICULAR_HOME_FEATURED_IDS.flatMap((id) => {
-    const activity = extraCurricularActivityById(id);
-    return activity ? [activity] : [];
-  });
   const academicPreviews = [
     {
       title: "Primary Section",
@@ -1993,92 +2217,148 @@ function HomeRequiredSections() {
     const id = href.replace(/^\/+/, "") || "home";
     return Boolean(db.pages[id]) && (db.navigation.find((item) => item.id === id)?.visible ?? true);
   };
-  const clubIcon = (activity: ExtraCurricularActivity) => {
-    return extraCurricularActivityIcon(activity);
-  };
-  const clubSummary = (activity: ExtraCurricularActivity) => {
-    if (activity.teachers.length >= 3) return `${activity.teachers.length} teachers in charge`;
-    if (activity.teachers.length === 2)
-      return `${activity.teachers[0]} and ${activity.teachers[1]}`;
-    if (activity.teachers.length === 1) return activity.teachers[0];
-    return activity.note || "Student activity and enrichment programme";
-  };
+  const quickActionStyles = [
+    {
+      card: "bg-[linear-gradient(135deg,#fff8e7_0%,#ffffff_52%,#f5efe1_100%)]",
+      icon: "bg-gold/15 text-gold",
+      bar: "from-gold via-[#f3ce78] to-[#b7791f]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#fff2f4_0%,#ffffff_52%,#ffe5ea_100%)]",
+      icon: "bg-crimson/10 text-crimson",
+      bar: "from-crimson via-[#f49cab] to-[#8f1220]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#eef6ff_0%,#ffffff_52%,#e2f0ff_100%)]",
+      icon: "bg-sky-100 text-sky-700",
+      bar: "from-sky-500 via-[#60a5fa] to-[#1d4ed8]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#ecfbf5_0%,#ffffff_52%,#daf7e8_100%)]",
+      icon: "bg-emerald-100 text-emerald-700",
+      bar: "from-emerald-500 via-[#34d399] to-[#047857]",
+    },
+  ] as const;
+  const clubStyles = [
+    {
+      card: "bg-[linear-gradient(135deg,#fff8e7_0%,#ffffff_54%,#f5efe1_100%)]",
+      icon: "bg-gold/15 text-gold",
+      bar: "from-gold via-[#f3ce78] to-[#b7791f]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#fff2f4_0%,#ffffff_54%,#ffe5ea_100%)]",
+      icon: "bg-crimson/10 text-crimson",
+      bar: "from-crimson via-[#f49cab] to-[#8f1220]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#eef6ff_0%,#ffffff_54%,#e2f0ff_100%)]",
+      icon: "bg-sky-100 text-sky-700",
+      bar: "from-sky-500 via-[#60a5fa] to-[#1d4ed8]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#ecfbf5_0%,#ffffff_54%,#daf7e8_100%)]",
+      icon: "bg-emerald-100 text-emerald-700",
+      bar: "from-emerald-500 via-[#34d399] to-[#047857]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#f1f5ff_0%,#ffffff_54%,#e3e9ff_100%)]",
+      icon: "bg-indigo-100 text-indigo-700",
+      bar: "from-indigo-500 via-[#818cf8] to-[#4338ca]",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#fff6f5_0%,#ffffff_54%,#ffe4e1_100%)]",
+      icon: "bg-rose-100 text-rose-700",
+      bar: "from-rose-500 via-[#fb7185] to-[#be123c]",
+    },
+  ] as const;
+  const academicStyles = [
+    {
+      card: "bg-[linear-gradient(135deg,#fffdf4_0%,#ffffff_58%,#f8efd9_100%)]",
+      icon: "bg-gold/15 text-gold",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#fff7f8_0%,#ffffff_58%,#fbe1e5_100%)]",
+      icon: "bg-crimson/10 text-crimson",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#eef6ff_0%,#ffffff_58%,#deebff_100%)]",
+      icon: "bg-sky-100 text-sky-700",
+    },
+    {
+      card: "bg-[linear-gradient(135deg,#ecfbf5_0%,#ffffff_58%,#d4f7e5_100%)]",
+      icon: "bg-emerald-100 text-emerald-700",
+    },
+  ] as const;
+  const facilityStyles = [
+    "bg-gold/15 text-gold",
+    "bg-crimson/10 text-crimson",
+    "bg-sky-100 text-sky-700",
+    "bg-emerald-100 text-emerald-700",
+    "bg-indigo-100 text-indigo-700",
+    "bg-rose-100 text-rose-700",
+  ] as const;
 
   return (
     <>
-      <section className="bg-[#f6f7f9] py-10 md:py-14">
+      <section
+        data-home-reveal
+        className="reveal-on-scroll bg-[radial-gradient(circle_at_top_right,rgba(212,160,23,0.12),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(183,15,27,0.08),transparent_38%),linear-gradient(180deg,#f0f6ff_0%,#e8f0fe_100%)] py-10 md:py-14"
+      >
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
-          <div className="grid gap-4 md:grid-cols-3">
-            {quickActions.map((item) => {
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {quickActions.map((item, index) => {
               const Icon = item.icon;
+              const style = quickActionStyles[index % quickActionStyles.length];
               return (
                 <a
                   key={item.title}
                   href={item.href}
-                  className="rounded-lg border border-[#e6e9ef] bg-white px-6 py-8 text-center shadow-[0_12px_36px_-30px_rgba(10,22,40,0.55)] transition hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-soft"
+                  className={`group relative overflow-hidden rounded-[28px] border border-white/70 px-6 py-7 shadow-[0_18px_48px_-34px_rgba(10,22,40,0.48)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
                 >
-                  <Icon className="mx-auto h-6 w-6 text-gold" />
-                  <h2 className="mt-4 font-serif text-lg font-bold text-navy">{item.title}</h2>
-                  <p className="mt-2 text-xs font-medium text-slate-500">{item.body}</p>
+                  <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${style.bar}`} />
+                  <span className={`grid h-12 w-12 place-items-center rounded-2xl ${style.icon}`}>
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <h2 className="mt-5 font-serif text-2xl font-bold text-navy">{item.title}</h2>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{item.body}</p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-crimson">
+                    Open <ArrowRight className="h-4 w-4" />
+                  </span>
                 </a>
               );
             })}
           </div>
 
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
-            <article className="grid min-h-[210px] place-items-center rounded-lg border border-[#e6e9ef] bg-white p-8 text-center shadow-sm">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-navy">Our Vision</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  To announce God&apos;s Kingdom through Christian values.
-                </p>
-              </div>
-            </article>
-            <article className="rounded-lg border border-[#e6e9ef] bg-white p-8 shadow-sm">
-              <h2 className="text-center font-serif text-3xl font-bold text-navy">Our Mission</h2>
-              <div className="mt-5 space-y-3">
-                {missionPoints.map((point) => (
-                  <p key={point} className="flex gap-2 text-sm leading-6 text-slate-600">
-                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gold" />
-                    <span>{point}</span>
-                  </p>
-                ))}
-              </div>
-            </article>
-            <article className="grid min-h-[210px] place-items-center rounded-lg border border-[#e6e9ef] bg-white p-8 text-center shadow-sm">
-              <div>
-                <h2 className="font-serif text-2xl font-bold text-navy">Motto</h2>
-                <p className="mt-3 font-serif text-xl font-bold text-navy">
-                  Veritate ad Lumen et Vitam
-                </p>
-                <p className="mt-2 text-sm font-semibold text-slate-500">
-                  In Truth to Light and Life
-                </p>
-              </div>
-            </article>
+          <div className="mt-14 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Student life
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Extra Curriculars</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Teacher-in-charge highlights from the current college activity list.
+              </p>
+            </div>
           </div>
-
-          <div className="mt-14 text-center">
-            <h2 className="font-serif text-3xl font-bold text-navy">
-              Extra & Co-Curricular Activities
-            </h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Teacher-in-charge highlights from the current college activity list.
-            </p>
-          </div>
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {clubs.map((club) => {
-              const Icon = clubIcon(club);
+          <div className="stagger-fast mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {clubs.map((club, index) => {
+              const Icon = club.icon;
+              const style = clubStyles[index % clubStyles.length];
               return (
                 <a
-                  key={club.id}
-                  href={extraCurricularActivityHref(club.id)}
-                  className="rounded border border-[#e6e9ef] bg-white px-5 py-5 text-center shadow-sm transition hover:-translate-y-0.5 hover:border-gold/60"
+                  key={club.title}
+                  href="/sports-clubs"
+                  className={`group relative overflow-hidden rounded-[28px] border border-white/70 p-5 text-left shadow-[0_18px_48px_-34px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
                 >
-                  <Icon className="mx-auto h-5 w-5 text-gold" />
-                  <p className="mt-3 text-sm font-black text-navy">{club.title}</p>
-                  <p className="mt-2 text-xs font-medium text-slate-500">
-                    {club.note || clubSummary(club)}
+                  <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${style.bar}`} />
+                  <span className={`grid h-12 w-12 place-items-center rounded-2xl ${style.icon}`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-slate-500">
+                    {club.title}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    A creative and active space for Loyola students.
                   </p>
                 </a>
               );
@@ -2087,11 +2367,19 @@ function HomeRequiredSections() {
         </div>
       </section>
 
-      <section className="bg-white py-12 md:py-16">
+      <section
+        data-home-reveal
+        className="reveal-on-scroll bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.08),transparent_40%),radial-gradient(circle_at_bottom_right,rgba(16,185,129,0.07),transparent_38%),linear-gradient(180deg,#fafcff_0%,#f2f7ff_100%)] py-12 md:py-16"
+      >
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h2 className="font-serif text-3xl font-bold text-navy">Academic Composition</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Academic journey
+              </p>
+              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+                Academic Composition
+              </h2>
               <p className="mt-2 text-sm text-slate-500">
                 Guiding students from foundation to advanced studies.
               </p>
@@ -2105,15 +2393,16 @@ function HomeRequiredSections() {
               </a>
             )}
           </div>
-          <div className="mt-8 grid gap-5 md:grid-cols-4">
-            {academicPreviews.map((item) => {
+          <div className="stagger-fast mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+            {academicPreviews.map((item, index) => {
               const Icon = item.icon;
+              const style = academicStyles[index % academicStyles.length];
               return (
                 <article
                   key={item.title}
-                  className="rounded-lg border border-[#e6e9ef] bg-white p-6 shadow-sm"
+                  className={`group card-glow rounded-[28px] border border-white/70 p-6 shadow-[0_18px_48px_-34px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
                 >
-                  <span className="grid h-10 w-10 place-items-center rounded-lg bg-slate-100 text-gold">
+                  <span className={`grid h-11 w-11 place-items-center rounded-2xl ${style.icon}`}>
                     <Icon className="h-5 w-5" />
                   </span>
                   <h3 className="mt-5 font-serif text-xl font-bold text-navy">{item.title}</h3>
@@ -2123,26 +2412,34 @@ function HomeRequiredSections() {
             })}
           </div>
 
-          <div className="mt-14 rounded-xl border border-[#e6e9ef] bg-[#fafbfc] px-5 py-10 shadow-[0_24px_70px_-60px_rgba(10,22,40,0.65)] md:px-12 md:py-14">
-            <h2 className="text-center font-serif text-4xl font-bold text-navy md:text-5xl">
-              Office Structure & Facilities
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-sm leading-6 text-slate-500">
-              Each office and facility has a clear role in daily school life, public information,
-              and internal system work.
-            </p>
-            <div className="mx-auto mt-10 grid max-w-6xl gap-5 sm:grid-cols-2 xl:grid-cols-3">
-              {facilities.map((item) => {
+          <div className="mt-14 rounded-[32px] border border-white/12 bg-[linear-gradient(135deg,#071224_0%,#0b1d34_42%,#102a4f_68%,#1d4ed8_100%)] px-5 py-8 text-white shadow-[0_28px_80px_-42px_rgba(7,18,36,0.95)] md:px-8 md:py-10">
+            <div className="flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.22em] text-gold-light">
+                  Office structure
+                </p>
+                <h2 className="mt-3 font-serif text-4xl font-bold md:text-5xl">
+                  Facilities and student services
+                </h2>
+                <p className="mt-3 max-w-2xl text-sm leading-6 text-white/72">
+                  Each office and facility has a clear role in daily school life, public
+                  information, and internal system work.
+                </p>
+              </div>
+            </div>
+            <div className="mx-auto mt-8 grid max-w-6xl gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              {facilities.map((item, index) => {
                 const Icon = item.icon;
+                const style = facilityStyles[index % facilityStyles.length];
                 return (
                   <a
                     key={item.title}
                     href={item.href}
-                    className="group relative overflow-hidden rounded-lg border border-[#dfe5ee] bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-[0_22px_50px_-36px_rgba(10,22,40,0.75)]"
+                    className="group relative overflow-hidden rounded-[26px] border border-white/12 bg-white/95 p-5 text-navy shadow-[0_22px_50px_-36px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant"
                   >
                     <span className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gold via-crimson to-navy opacity-0 transition group-hover:opacity-100" />
-                    <span className="grid grid-cols-[48px_1fr_auto] items-center gap-4">
-                      <span className="grid h-12 w-12 place-items-center rounded-lg bg-slate-100 text-gold ring-1 ring-slate-200 transition group-hover:bg-gold group-hover:text-navy">
+                    <span className="grid grid-cols-[48px_1fr_auto] items-start gap-4">
+                      <span className={`grid h-12 w-12 place-items-center rounded-2xl ${style}`}>
                         <Icon className="h-5 w-5" />
                       </span>
                       <span className="min-w-0">
@@ -2163,9 +2460,12 @@ function HomeRequiredSections() {
         </div>
       </section>
 
-      <section className="bg-[#f6f7f9] py-12 md:py-16">
+      <section
+        data-home-reveal
+        className="reveal-on-scroll bg-[radial-gradient(circle_at_top_left,rgba(255,214,102,0.12),transparent_26%),linear-gradient(135deg,#071224_0%,#102a4f_52%,#8f111d_100%)] py-12 md:py-16"
+      >
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
-          <div className="relative overflow-hidden rounded-lg bg-[#071224] p-5 text-white shadow-[0_28px_80px_-42px_rgba(7,18,36,0.95)] ring-1 ring-white/10 md:p-8 lg:p-9">
+          <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-white/8 p-5 text-white shadow-[0_28px_80px_-42px_rgba(7,18,36,0.95)] ring-1 ring-white/10 md:p-8 lg:p-9">
             <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0)_42%)]" />
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gold/60" />
 
@@ -2193,7 +2493,7 @@ function HomeRequiredSections() {
               </div>
 
               <div className="mx-auto mt-8 max-w-5xl">
-                <div className="overflow-hidden rounded-lg bg-white shadow-[0_24px_70px_-38px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
+                <div className="overflow-hidden rounded-[28px] bg-white shadow-[0_24px_70px_-38px_rgba(0,0,0,0.9)] ring-1 ring-white/10">
                   <div className="flex flex-col gap-2 border-b border-slate-200 bg-white px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                       <p className="text-xs font-black uppercase text-crimson">Google Calendar</p>
@@ -2220,19 +2520,26 @@ function HomeRequiredSections() {
         </div>
       </section>
 
-      <section data-website-section="Leadership" className="bg-[#f6f7f9] py-14 md:py-20">
+      <section
+        data-home-reveal
+        data-website-section="Leadership"
+        className="reveal-on-scroll bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] py-14 md:py-20"
+      >
         <div className="mx-auto max-w-7xl px-5 text-center sm:px-6">
-          <h2 className="font-serif text-4xl font-bold text-navy md:text-5xl">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+            Administration board
+          </p>
+          <h2 className="mt-3 font-serif text-4xl font-bold text-navy md:text-5xl">
             {home.leadershipTitle || "Leadership guiding Loyola College"}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-500">
             {home.leadershipBody ||
               "The dedicated administration board steering our institution towards academic and spiritual excellence."}
           </p>
-          <div className="mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="stagger-fast mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-4">
             {leadershipCards.map((card) => (
               <article key={card.id} className="text-center">
-                <div className="overflow-hidden rounded-lg bg-[#909090] shadow-soft">
+                <div className="overflow-hidden rounded-[28px] bg-[#909090] shadow-soft">
                   {card.image ? (
                     <img
                       src={card.image}
@@ -2263,60 +2570,293 @@ function HomeRequiredSections() {
 }
 
 function HomeVisionMissionIdentity() {
+  const db = useDb();
+  const home = db.homeSections;
+  const content = db.websiteContent;
   const missionPoints = [
     "To aim at integral education of body, mind and spirit through service and leadership.",
     "To strive to form citizens of upright character who pursue excellence in every sphere.",
     "To promote character formation based on human and religious values.",
   ];
+  const stats = (home.stats || []).slice(0, 4);
+  const statTones: HomePhotoTone[] = ["gold", "crimson", "blue", "emerald"];
 
   return (
-    <section className="relative overflow-hidden bg-[#082766] py-20 text-white">
+    <section
+      data-home-reveal
+      className="reveal-on-scroll relative overflow-hidden border-y border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(255,214,102,0.22),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(183,15,27,0.18),transparent_30%),linear-gradient(135deg,#0a1628_0%,#12315f_52%,#851521_100%)] py-16 text-white md:py-24"
+    >
       <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(135deg,transparent_0,transparent_24px,#fff_25px,transparent_26px),linear-gradient(45deg,transparent_0,transparent_28px,#fff_29px,transparent_30px)] [background-size:120px_120px]" />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-12 px-6 lg:grid-cols-[minmax(0,1fr)_560px]">
+      <div className="absolute -left-24 top-10 h-56 w-56 rounded-full bg-gold/20 blur-3xl animate-float" />
+      <div className="absolute right-0 top-24 h-72 w-72 rounded-full bg-crimson/20 blur-3xl animate-float animation-delay-2" />
+      <div className="relative mx-auto grid max-w-7xl items-center gap-10 px-5 sm:px-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(0,0.92fr)]">
         <div className="max-w-3xl">
-          <p className="text-xs font-bold uppercase tracking-[0.24em] text-gold-light">
-            Loyola Identity
+          <p className="text-xs font-bold uppercase tracking-[0.26em] text-gold-light">
+            Loyola identity
           </p>
           <h2 className="mt-4 text-balance font-serif text-4xl font-bold leading-tight md:text-6xl">
-            Welcome to Loyola College, Negombo
+            {home.aboutHeading || "About Our College"}
           </h2>
+          <p className="mt-5 max-w-2xl text-base leading-8 text-white/78">
+            {home.aboutBody ||
+              "Loyola College has a proud story of faith, learning, discipline, and service, shaped by generations of teachers, students, and leaders."}
+          </p>
 
-          <div className="stagger-children mt-10 grid gap-6">
-            <div>
-              <h3 className="text-2xl font-black">Our Vision</h3>
-              <p className="mt-3 max-w-2xl leading-relaxed text-white/74">
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            <article className="rounded-[28px] bg-[linear-gradient(135deg,#fff8e7_0%,#ffffff_58%,#f8efd9_100%)] p-5 text-navy shadow-[0_18px_48px_-32px_rgba(0,0,0,0.45)]">
+              <Eye className="h-5 w-5 text-gold" />
+              <h3 className="mt-4 font-serif text-2xl font-bold">Our Vision</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
                 To announce God&apos;s Kingdom through Christian values.
               </p>
-            </div>
-            <div>
-              <h3 className="text-2xl font-black">Mission Statement</h3>
-              <div className="mt-4 space-y-4">
+            </article>
+            <article className="rounded-[28px] bg-[linear-gradient(135deg,#fff2f4_0%,#ffffff_58%,#fbe1e5_100%)] p-5 text-navy shadow-[0_18px_48px_-32px_rgba(0,0,0,0.45)]">
+              <CheckCircle2 className="h-5 w-5 text-crimson" />
+              <h3 className="mt-4 font-serif text-2xl font-bold">Our Mission</h3>
+              <div className="mt-3 space-y-2">
                 {missionPoints.map((point) => (
-                  <p key={point} className="flex gap-3 leading-relaxed text-white/74">
-                    <CheckCircle2 className="mt-1 h-5 w-5 shrink-0 text-gold-light" />
+                  <p key={point} className="flex gap-2 text-sm leading-6 text-slate-600">
+                    <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-crimson" />
                     <span>{point}</span>
                   </p>
                 ))}
               </div>
-            </div>
+            </article>
+            <article className="rounded-[28px] bg-[linear-gradient(135deg,#eef6ff_0%,#ffffff_58%,#deebff_100%)] p-5 text-navy shadow-[0_18px_48px_-32px_rgba(0,0,0,0.45)]">
+              <Trophy className="h-5 w-5 text-sky-700" />
+              <h3 className="mt-4 font-serif text-2xl font-bold">Motto</h3>
+              <p className="mt-3 font-serif text-xl font-bold text-navy">
+                Veritate ad Lumen et Vitam
+              </p>
+              <p className="mt-2 text-sm font-semibold text-slate-500">
+                In Truth to Light and Life
+              </p>
+            </article>
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {stats.map((stat, index) => (
+              <HomeMetricCard
+                key={stat.id}
+                label={stat.label}
+                value={stat.value}
+                tone={statTones[index % statTones.length]}
+              />
+            ))}
+          </div>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a
+              href={home.aboutButtonHref || "/about"}
+              className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-bold text-navy shadow-gold transition-smooth hover:-translate-y-0.5"
+            >
+              {home.aboutButtonLabel || "More Details"}
+              <ArrowRight className="h-4 w-4" />
+            </a>
+            <a
+              href="/gallery/photo-gallery"
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur transition-smooth hover:-translate-y-0.5 hover:bg-white/15"
+            >
+              View Gallery
+              <Images className="h-4 w-4" />
+            </a>
+            <a
+              href="/contact"
+              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-5 py-3 text-sm font-bold text-white transition-smooth hover:-translate-y-0.5 hover:bg-white/10"
+            >
+              Contact Us
+              <Mail className="h-4 w-4" />
+            </a>
           </div>
         </div>
 
-        <aside className="overflow-hidden rounded-lg border border-white/14 bg-white shadow-elegant">
-          <div className="aspect-[16/10] bg-black">
-            <img
-              src={DEFAULT_HERO_IMAGE}
-              alt="Loyola College flag"
-              className="h-full w-full object-contain"
-            />
+        <aside className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            {HOME_LEGACY_PANELS.slice(0, 4).map((panel, index) => (
+              <HomePhotoTile
+                key={panel.title}
+                src={panel.src}
+                alt={panel.alt}
+                title={panel.title}
+                caption={panel.caption}
+                tone={panel.tone}
+                className={`${index === 0 ? "sm:col-span-2 h-72" : "h-56"} ${index === 3 ? "animate-float animation-delay-2" : ""}`}
+              />
+            ))}
           </div>
-          <div className="border-t border-border bg-white p-6 text-center">
-            <p className="font-serif text-2xl font-bold text-navy">Veritate Ad Lumen Et Vitam</p>
-            <p className="mt-2 text-sm font-semibold text-muted-foreground">
-              In Truth to Light and Life
+          <div className="rounded-[30px] border border-white/14 bg-white/10 p-5 shadow-elegant backdrop-blur-xl">
+            <p className="text-xs font-black uppercase tracking-[0.24em] text-gold-light">
+              Heritage and renewal
             </p>
+            <p className="mt-3 font-serif text-2xl font-bold leading-tight text-white">
+              A campus story told through people, places, and transformation.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-white/10 p-4">
+                <p className="font-serif text-3xl font-bold text-white">1949</p>
+                <p className="mt-2 text-sm leading-6 text-white/70">The year Loyola began.</p>
+              </div>
+              <div className="rounded-2xl bg-white/10 p-4">
+                <p className="font-serif text-3xl font-bold text-white">
+                  {stats[0]?.value || "2,662"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-white/70">
+                  Students learning today.
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {["Faith", "Learning", "Discipline", "Service"].map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-white/14 bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/72"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
           </div>
         </aside>
+      </div>
+    </section>
+  );
+}
+
+const MOSAIC_FALLBACK_IMGS = [
+  { src: "/assets/past-rectors/fr-trevor.jpeg", label: "Sports & Activities" },
+  { src: "/assets/past-rectors/fr-sudath.jpeg", label: "Arts & Culture" },
+  { src: "/flag1.png", label: "Faith & Values" },
+  { src: "/assets/past-rectors/sv-sir.jpeg", label: "Heritage" },
+  { src: "/assets/past-rectors/fr-leo.jpeg", label: "Community" },
+];
+
+const MOSAIC_TONES: HomePhotoTone[] = ["crimson", "blue", "emerald", "gold", "crimson"];
+
+function HomeCampusMosaic() {
+  const db = useDb();
+  const heroImage = db.media.campusImage || db.websiteContent.heroImage || DEFAULT_HERO_IMAGE;
+  const galleryImages = (db.gallery || [])
+    .filter((g) => g.visible !== false && g.image)
+    .slice(0, 5)
+    .map((g, i) => ({ src: g.image, label: g.label || MOSAIC_FALLBACK_IMGS[i]?.label || "Campus Life" }));
+
+  const smallTiles = MOSAIC_FALLBACK_IMGS.map((fallback, i) => ({
+    src: galleryImages[i]?.src || fallback.src,
+    label: galleryImages[i]?.label || fallback.label,
+    tone: MOSAIC_TONES[i],
+  }));
+
+  return (
+    <section
+      data-home-reveal
+      className="reveal-on-scroll bg-[radial-gradient(circle_at_top_right,rgba(183,15,27,0.22),transparent_38%),radial-gradient(circle_at_bottom_left,rgba(255,214,102,0.18),transparent_36%),linear-gradient(160deg,#071020_0%,#0d1f3c_55%,#0a1628_100%)] py-16 md:py-24"
+    >
+      <div className="mx-auto max-w-7xl px-5 sm:px-6">
+        <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-black uppercase tracking-[0.28em] text-gold-light">
+              Campus Life
+            </p>
+            <h2 className="mt-4 font-serif text-4xl font-bold text-white md:text-5xl">
+              Life at Loyola
+            </h2>
+            <p className="mt-3 max-w-xl text-sm leading-7 text-white/68">
+              A campus alive with learning, faith, sport, and discovery — every single day.
+            </p>
+          </div>
+          <a
+            href="/gallery/photo-gallery"
+            className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-2.5 text-sm font-bold text-white backdrop-blur transition-smooth hover:-translate-y-0.5 hover:bg-white/15"
+          >
+            Full Gallery
+            <Images className="h-4 w-4" />
+          </a>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Large main tile */}
+          <article className="mosaic-tile group relative overflow-hidden rounded-[28px] border border-white/15 shadow-[0_24px_70px_-38px_rgba(10,22,40,0.9)] lg:col-span-2 lg:row-span-2">
+            <div className="relative h-72 lg:h-full lg:min-h-[28rem] overflow-hidden bg-navy">
+              <img
+                src={heroImage}
+                alt="Loyola College campus"
+                className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(7,18,36,0)_22%,rgba(7,18,36,0.72)_100%)]" />
+              <div className="absolute inset-x-0 bottom-0 p-6">
+                <span className="inline-block rounded-full bg-gold/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.26em] text-gold-light backdrop-blur">
+                  Our Campus
+                </span>
+                <h3 className="mt-3 font-serif text-2xl font-bold text-white md:text-3xl">
+                  Where Every Story Begins
+                </h3>
+                <p className="mt-2 text-sm leading-6 text-white/72">
+                  75+ years of faith, learning, and transformation.
+                </p>
+              </div>
+            </div>
+          </article>
+
+          {/* Small tiles */}
+          {smallTiles.slice(0, 4).map((tile) => (
+            <article
+              key={tile.label}
+              className="mosaic-tile group relative overflow-hidden rounded-[28px] border border-white/15 shadow-[0_18px_50px_-32px_rgba(10,22,40,0.75)]"
+            >
+              <div className="relative h-48 overflow-hidden bg-navy">
+                <img
+                  src={tile.src}
+                  alt={tile.label}
+                  className="h-full w-full object-cover transition duration-700 group-hover:scale-108"
+                />
+                <div
+                  className={`absolute inset-0 ${
+                    tile.tone === "gold"
+                      ? "bg-[linear-gradient(180deg,rgba(7,18,36,0)_20%,rgba(7,18,36,0.65)_78%,rgba(212,160,23,0.22)_100%)]"
+                      : tile.tone === "crimson"
+                        ? "bg-[linear-gradient(180deg,rgba(7,18,36,0)_20%,rgba(7,18,36,0.65)_78%,rgba(183,15,27,0.22)_100%)]"
+                        : tile.tone === "blue"
+                          ? "bg-[linear-gradient(180deg,rgba(7,18,36,0)_20%,rgba(7,18,36,0.65)_78%,rgba(37,99,235,0.22)_100%)]"
+                          : "bg-[linear-gradient(180deg,rgba(7,18,36,0)_20%,rgba(7,18,36,0.65)_78%,rgba(16,185,129,0.22)_100%)]"
+                  }`}
+                />
+                <div className="absolute inset-x-0 bottom-0 p-4">
+                  <p
+                    className={`text-[10px] font-black uppercase tracking-[0.26em] ${
+                      tile.tone === "gold"
+                        ? "text-gold-light"
+                        : tile.tone === "crimson"
+                          ? "text-[#ffd2db]"
+                          : tile.tone === "blue"
+                            ? "text-[#d7e9ff]"
+                            : "text-[#d5fae6]"
+                    }`}
+                  >
+                    {tile.label}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        {/* Bottom colour-strip stats row */}
+        <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {[
+            { value: "75+", label: "Years of Excellence", color: "from-gold/30 to-gold/10 border-gold/30" },
+            { value: "2,688", label: "Students Enrolled", color: "from-crimson/30 to-crimson/10 border-crimson/30" },
+            { value: "150+", label: "Teaching Staff", color: "from-sky-500/30 to-sky-500/10 border-sky-400/30" },
+            { value: "30+", label: "Active Clubs", color: "from-emerald-500/30 to-emerald-500/10 border-emerald-400/30" },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className={`rounded-[20px] border bg-gradient-to-br ${s.color} p-4 text-center backdrop-blur`}
+            >
+              <p className="font-serif text-2xl font-bold text-white">{s.value}</p>
+              <p className="mt-1 text-[11px] font-semibold text-white/65">{s.label}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -2326,50 +2866,228 @@ function HomePage() {
   const db = useDb();
   const content = db.websiteContent;
   const page = db.pages.home || {};
-  const heroTitle =
-    content.heroTitle?.trim() || "A Tradition of Excellence, A Future of Innovation";
-  const heroText = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
+  const home = db.homeSections;
+  const heroTitle = content.heroTitle?.trim() || content.schoolName || "Loyola College Negombo";
+  const heroText = home.aboutBody?.trim() || "A Catholic school community formed by faith, learning, discipline, and service.";
+  const heroMotto = content.heroText?.trim() || "Veritate ad Lumen et Vitam";
   const heroImage = page.image || content.heroImage || db.media.campusImage || DEFAULT_HERO_IMAGE;
   const logoImage = content.logoImage || "/loyola-crest.jpg";
+  const heroStats = (home.stats || []).slice(0, 4);
+  const heroStatTones: HomePhotoTone[] = ["gold", "crimson", "blue", "emerald"];
+
+  // Hero carousel: cycles through campus image + gallery images
+  const heroCarouselImages = [
+    heroImage,
+    ...(db.gallery || []).slice(0, 4).map((g) => g.image).filter(Boolean),
+  ].filter(Boolean);
+  const [heroSlide, setHeroSlide] = useState(0);
+  const parallaxRef = useRef<HTMLDivElement>(null);
+
+  // Auto-cycle hero image
+  useEffect(() => {
+    if (heroCarouselImages.length <= 1) return;
+    const t = setInterval(() => setHeroSlide((i) => (i + 1) % heroCarouselImages.length), 4500);
+    return () => clearInterval(t);
+  }, [heroCarouselImages.length]);
+
+  // Scroll-triggered reveals for all data-home-reveal sections
+  useEffect(() => {
+    const els = document.querySelectorAll<HTMLElement>("[data-home-reveal]");
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-visible");
+            io.unobserve(e.target);
+          }
+        }),
+      { threshold: 0.07 },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
+  // Parallax effect on hero background blobs
+  useEffect(() => {
+    const blobWrap = parallaxRef.current;
+    if (!blobWrap) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        if (parallaxRef.current) {
+          parallaxRef.current.style.transform = `translateY(${window.scrollY * 0.16}px)`;
+        }
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  const activeHeroImage = heroCarouselImages[heroSlide] || heroImage;
+  const heroPanels = [
+    {
+      src: activeHeroImage,
+      alt: `${content.schoolName || "Loyola College Negombo"} campus`,
+      title: "Campus today",
+      caption: "A living place for learning and belonging",
+      tone: "gold" as const,
+      className: "sm:col-span-2 h-72 md:h-80",
+    },
+    ...HOME_HERO_PANELS.map((panel, index) => ({
+      ...panel,
+      className:
+        index === 0
+          ? "h-56 animate-fade-in-up animation-delay-2"
+          : index === 1
+            ? "h-56 animate-fade-in-up"
+            : index === 2
+              ? "h-60 animate-fade-in-up animation-delay-2"
+              : "h-60 animate-float animation-delay-2",
+    })),
+  ];
 
   return (
     <PublicLayout>
       <section
         data-website-section="Hero"
-        className="relative isolate overflow-hidden bg-navy text-white"
+        data-home-reveal
+        className="reveal-on-scroll relative isolate overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(255,214,102,0.28),transparent_28%),radial-gradient(circle_at_top_right,rgba(183,15,27,0.22),transparent_26%),radial-gradient(circle_at_bottom_left,rgba(37,99,235,0.18),transparent_28%),linear-gradient(135deg,#071224_0%,#12315f_48%,#8f111d_100%)] text-white"
       >
-        <HeroBackgroundLayer
-          fallbackImage={heroImage}
-          fallbackOpacity={0.38}
-          mediaUrl={page.backgroundMediaUrl}
-          mediaType={page.backgroundMediaType}
-          mediaOpacity={page.backgroundMediaOpacity}
-          gradientClassName="bg-[linear-gradient(180deg,rgb(7_18_36_/0.96),rgb(10_22_40_/0.86)),linear-gradient(105deg,rgb(10_22_40_/0.92),rgb(10_22_40_/0.7))]"
-          gridOpacityClassName="opacity-20"
-        />
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gold/85" />
-        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_center,rgb(255_255_255_/0.08),transparent_44%),linear-gradient(180deg,rgb(10_22_40_/0),rgb(10_22_40_/0.32))]" />
-        <div className="relative mx-auto grid min-h-[520px] max-w-7xl place-items-center px-5 py-16 text-center sm:px-6 md:min-h-[620px] md:py-24 lg:py-32">
-          <div className="home-hero-content home-hero-classic mx-auto max-w-5xl">
-            <img
-              src={logoImage}
-              alt="Loyola College crest"
-              className="home-hero-crest mx-auto h-24 w-24 rounded-full border-[3px] border-gold/80 bg-white object-contain p-2 shadow-[0_22px_60px_-34px_rgba(247,217,107,0.85)] md:h-28 md:w-28"
-            />
-            <span className="gold-divider mx-auto mb-5 mt-7" />
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-gold-light">
-              {content.schoolName}
+        <div className="absolute inset-0 opacity-[0.08] [background-image:linear-gradient(135deg,transparent_0,transparent_24px,#fff_25px,transparent_26px),linear-gradient(45deg,transparent_0,transparent_28px,#fff_29px,transparent_30px)] [background-size:120px_120px]" />
+        <div ref={parallaxRef} className="hero-blobs-parallax absolute inset-0">
+          <div className="absolute -left-24 top-8 h-72 w-72 rounded-full bg-gold/20 blur-3xl animate-float" />
+          <div className="absolute right-0 top-20 h-80 w-80 rounded-full bg-crimson/20 blur-3xl animate-float animation-delay-2" />
+          <div className="absolute bottom-0 left-1/2 h-72 w-[42rem] -translate-x-1/2 rounded-full bg-white/10 blur-3xl" />
+        </div>
+        <div className="relative mx-auto grid max-w-7xl gap-12 px-5 py-14 sm:px-6 md:py-20 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:items-center lg:py-24">
+          <div className="max-w-3xl">
+            <div className="inline-flex items-center gap-4 rounded-full border border-white/12 bg-white/10 px-4 py-3 shadow-elegant backdrop-blur-xl animate-fade-in-up">
+              <img
+                src={logoImage}
+                alt="Loyola College crest"
+                className="h-12 w-12 rounded-full border border-gold/40 bg-white object-contain p-1.5"
+              />
+              <div className="text-left">
+                <p className="text-[10px] font-black uppercase tracking-[0.28em] text-gold-light">
+                  {content.schoolName}
+                </p>
+                <p className="mt-1 text-xs font-medium text-white/68">{heroMotto}</p>
+              </div>
+            </div>
+
+            <p className="mt-6 text-xs font-black uppercase tracking-[0.32em] text-gold-light/90 animate-fade-in-up animation-delay-2">
+              Since 1949
             </p>
-            <h1 className="home-hero-title mx-auto mt-5 max-w-5xl text-balance font-serif text-5xl font-bold leading-[1.03] sm:text-6xl md:text-7xl lg:mt-7 lg:text-8xl">
+            <h1 className="mt-4 text-balance font-serif text-5xl font-bold leading-[1.02] sm:text-6xl md:text-7xl lg:text-8xl animate-fade-in-up animation-delay-2">
               {heroTitle}
             </h1>
-            <p className="home-hero-motto mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/82 sm:text-lg md:text-xl lg:mt-7">
+            <p className="mt-6 max-w-2xl text-lg leading-8 text-white/82 sm:text-xl animate-fade-in-up animation-delay-2">
               {heroText}
             </p>
+
+            <div className="stagger-fast mt-8 flex flex-wrap gap-3 animate-fade-in-up animation-delay-2">
+              <a
+                href={home.aboutButtonHref || "/about"}
+                className="inline-flex items-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-bold text-navy shadow-gold transition-smooth hover:-translate-y-0.5"
+              >
+                {home.aboutButtonLabel || "Explore College"}
+                <ArrowRight className="h-4 w-4" />
+              </a>
+              <a
+                href="/gallery/photo-gallery"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-5 py-3 text-sm font-bold text-white backdrop-blur transition-smooth hover:-translate-y-0.5 hover:bg-white/15"
+              >
+                View Gallery
+                <Images className="h-4 w-4" />
+              </a>
+              <a
+                href="/news"
+                className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-5 py-3 text-sm font-bold text-white transition-smooth hover:-translate-y-0.5 hover:bg-white/10"
+              >
+                News & Notices
+                <Bell className="h-4 w-4" />
+              </a>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/72">
+              {["Faith", "Learning", "Discipline", "Service"].map((item) => (
+                <span
+                  key={item}
+                  className="rounded-full border border-white/14 bg-white/10 px-3 py-1"
+                >
+                  {item}
+                </span>
+              ))}
+            </div>
+
+            <div className="stagger-fast mt-10 grid gap-4 sm:grid-cols-2">
+              {heroStats.map((stat, index) => (
+                <HomeMetricCard
+                  key={stat.id}
+                  label={stat.label}
+                  value={stat.value}
+                  tone={heroStatTones[index % heroStatTones.length]}
+                />
+              ))}
+            </div>
           </div>
+
+          <aside className="relative">
+            <div className="absolute -inset-8 rounded-[40px] bg-white/5 blur-2xl" />
+            <div className="relative grid gap-4 sm:grid-cols-2">
+              {heroPanels.map((panel, index) => (
+                <HomePhotoTile
+                  key={panel.title}
+                  src={panel.src}
+                  alt={panel.alt}
+                  title={panel.title}
+                  caption={panel.caption}
+                  tone={panel.tone}
+                  className={`${panel.className} ${index === 0 ? "shadow-[0_30px_80px_-42px_rgba(0,0,0,0.78)]" : ""}`}
+                />
+              ))}
+            </div>
+            {heroCarouselImages.length > 1 && (
+              <div className="mt-3 flex justify-center gap-2">
+                {heroCarouselImages.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setHeroSlide(i)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${i === heroSlide ? "w-6 bg-gold" : "w-1.5 bg-white/40 hover:bg-white/60"}`}
+                    aria-label={`Go to slide ${i + 1}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            <div className="mt-4 rounded-[30px] border border-white/14 bg-white/10 p-5 shadow-elegant backdrop-blur-xl animate-fade-in-up animation-delay-2">
+              <p className="text-xs font-black uppercase tracking-[0.24em] text-gold-light">
+                A campus in motion
+              </p>
+              <p className="mt-3 font-serif text-2xl font-bold leading-tight text-white">
+                Every corner of Loyola carries a story of renewal and purpose.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {["Academics", "Sports", "Arts", "Faith"].map((item) => (
+                  <span
+                    key={item}
+                    className="rounded-full border border-white/14 bg-white/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/78"
+                  >
+                    {item}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
 
+      <HomeVisionMissionIdentity />
+      <HomeCampusMosaic />
       <HomeRequiredSections />
       <SubpagesSection parentId="home" />
     </PublicLayout>
