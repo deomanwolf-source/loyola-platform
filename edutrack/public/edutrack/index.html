@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -7,49 +7,53 @@
     <link rel="icon" type="image/png" href="Loyala Badge.png" />
     <link rel="apple-touch-icon" href="Loyala Badge.png" />
     <link
-      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
       rel="stylesheet"
     />
     <style>
-      /* ╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═
-   EduTrack – Professional UI v2
-   Font: Plus Jakarta Sans + DM Mono
-╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═ */
+      /* â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•
+   EduTrack â€“ Loyola College Negombo v3
+   Font: Inter + JetBrains Mono
+â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â• */
       :root {
-        /* Palette */
-        --bg: #07111f;
-        --surface: #0d1d30;
-        --surface2: #132438;
-        --surface3: #1a2e44;
-        --border: rgba(100, 150, 210, 0.18);
-        --border-med: rgba(100, 150, 210, 0.28);
+        /* Palette â€” Loyola Navy */
+        --bg: #050c18;
+        --surface: #091624;
+        --surface2: #0d1e32;
+        --surface3: #122440;
+        --border: rgba(124, 163, 216, 0.15);
+        --border-med: rgba(124, 163, 216, 0.26);
 
-        /* Brand */
-        --accent: #3b82f6;
-        --accent-bright: #60a5fa;
-        --accent-glow: rgba(59, 130, 246, 0.22);
-        --accent2: #10d9a0;
-        --accent2-glow: rgba(16, 217, 160, 0.18);
+        /* Brand â€” Loyola Navy Blue (primary actions) */
+        --accent: #4a7fcb;
+        --accent-bright: #7ca3d8;
+        --accent-glow: rgba(74, 127, 203, 0.22);
+
+        /* Brand â€” Loyola Gold (secondary highlights) */
+        --accent2: #ffe06d;
+        --accent2-glow: rgba(255, 224, 109, 0.18);
+
+        /* Status */
         --danger: #f87171;
         --danger-glow: rgba(248, 113, 113, 0.18);
         --warn: #fbbf24;
 
         /* Text */
-        --text: #e8f1ff;
+        --text: #edf4ff;
         --text-2: #c8d8f0;
         --muted: #7a96b8;
         --muted2: #526480;
 
         /* Level colours */
         --ps: #10d9a0;
-        --ms: #3b82f6;
+        --ms: #4a7fcb;
         --us: #c084fc;
         --al: #fbbf24;
 
         /* Shadows */
         --shadow: 0 4px 24px rgba(0, 8, 24, 0.45);
         --shadow-lg: 0 12px 40px rgba(0, 8, 24, 0.5);
-        --ring: 0 0 0 3px rgba(59, 130, 246, 0.3);
+        --ring: 0 0 0 3px rgba(74, 127, 203, 0.3);
 
         /* Misc */
         --radius: 14px;
@@ -57,7 +61,7 @@
         --radius-xs: 7px;
       }
 
-      /* ── Reset & Base ── */
+      /* â”€â”€ Reset & Base â”€â”€ */
       * {
         margin: 0;
         padding: 0;
@@ -67,7 +71,7 @@
         scroll-behavior: smooth;
       }
       body {
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         background: var(--bg);
         color: var(--text);
         min-height: 100vh;
@@ -85,24 +89,24 @@
         background:
           radial-gradient(
             ellipse 900px 600px at 8% -5%,
-            rgba(59, 130, 246, 0.14) 0%,
+            rgba(74, 127, 203, 0.14) 0%,
             transparent 65%
           ),
           radial-gradient(
             ellipse 700px 500px at 95% 100%,
-            rgba(16, 217, 160, 0.1) 0%,
+            rgba(255, 224, 109, 0.1) 0%,
             transparent 65%
           ),
           radial-gradient(
             ellipse 500px 400px at 50% 50%,
-            rgba(59, 130, 246, 0.04) 0%,
+            rgba(74, 127, 203, 0.04) 0%,
             transparent 70%
           );
         pointer-events: none;
         z-index: -1;
       }
 
-      /* ── AUTH SCREEN ── */
+      /* â”€â”€ AUTH SCREEN â”€â”€ */
       #auth-screen {
         display: flex;
         align-items: center;
@@ -142,7 +146,7 @@
         width: 280px;
         height: 280px;
         border-radius: 50%;
-        background: radial-gradient(circle, rgba(59, 130, 246, 0.15), transparent 70%);
+        background: radial-gradient(circle, rgba(74, 127, 203, 0.15), transparent 70%);
         pointer-events: none;
       }
       .auth-logo {
@@ -162,7 +166,7 @@
         line-height: 1.05;
       }
       .auth-logo span {
-        background: linear-gradient(135deg, #3b82f6, #10d9a0);
+        background: linear-gradient(135deg, #4a7fcb, #ffe06d);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -276,7 +280,7 @@
         border-radius: var(--radius-sm);
         font-size: 15px;
         color: var(--text);
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         outline: none;
         transition:
           border-color 0.2s,
@@ -288,29 +292,29 @@
       }
       .auth-box .field input:focus {
         border-color: var(--accent);
-        background: rgba(59, 130, 246, 0.05);
+        background: rgba(74, 127, 203, 0.05);
         box-shadow: var(--ring);
       }
       .auth-submit {
         margin-top: 16px;
         width: 100%;
         padding: 14px 22px;
-        background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+        background: linear-gradient(135deg, #4a7fcb 0%, #07215a 100%);
         border: none;
         border-radius: var(--radius-sm);
         color: #fff;
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 15px;
         font-weight: 700;
         cursor: pointer;
         transition: all 0.2s;
-        box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
+        box-shadow: 0 8px 20px rgba(7, 33, 90, 0.35);
         letter-spacing: 0.1px;
       }
       .auth-submit:hover {
-        background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+        background: linear-gradient(135deg, #7ca3d8 0%, #4a7fcb 100%);
         transform: translateY(-1px);
-        box-shadow: 0 12px 28px rgba(37, 99, 235, 0.4);
+        box-shadow: 0 12px 28px rgba(7, 33, 90, 0.4);
       }
       .auth-submit:active {
         transform: translateY(0);
@@ -333,7 +337,7 @@
         display: block;
       }
 
-      /* ── FORM ELEMENTS (global) ── */
+      /* â”€â”€ FORM ELEMENTS (global) â”€â”€ */
       .field {
         margin-bottom: 18px;
       }
@@ -354,7 +358,7 @@
         border: 1px solid var(--border-med);
         border-radius: var(--radius-xs);
         color: var(--text);
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 14px;
         outline: none;
         transition:
@@ -366,7 +370,7 @@
       .field select:focus,
       .field textarea:focus {
         border-color: var(--accent);
-        background: rgba(59, 130, 246, 0.04);
+        background: rgba(74, 127, 203, 0.04);
         box-shadow: var(--ring);
       }
       .field input[disabled] {
@@ -411,26 +415,26 @@
         display: block;
       }
 
-      /* ── BUTTONS ── */
+      /* â”€â”€ BUTTONS â”€â”€ */
       .btn {
         width: 100%;
         padding: 12px 20px;
         border: none;
         border-radius: var(--radius-sm);
-        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        background: linear-gradient(135deg, #4a7fcb, #07215a);
         color: #fff;
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 14px;
         font-weight: 700;
         cursor: pointer;
         transition: all 0.18s;
-        box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+        box-shadow: 0 6px 18px rgba(7, 33, 90, 0.3);
         letter-spacing: 0.1px;
       }
       .btn:hover {
-        background: linear-gradient(135deg, #60a5fa, #3b82f6);
+        background: linear-gradient(135deg, #7ca3d8, #4a7fcb);
         transform: translateY(-1px);
-        box-shadow: 0 10px 24px rgba(37, 99, 235, 0.35);
+        box-shadow: 0 10px 24px rgba(7, 33, 90, 0.35);
       }
       .btn:active {
         transform: scale(0.98);
@@ -456,7 +460,7 @@
         box-shadow: 0 6px 18px rgba(239, 68, 68, 0.3);
       }
 
-      /* ── SIDEBAR ── */
+      /* â”€â”€ SIDEBAR â”€â”€ */
       .sidebar {
         width: 256px;
         background: linear-gradient(180deg, rgba(13, 26, 45, 0.97), rgba(9, 19, 33, 0.98));
@@ -484,13 +488,13 @@
         width: 36px;
         height: 36px;
         border-radius: 10px;
-        background: linear-gradient(135deg, #3b82f6, #10d9a0);
+        background: linear-gradient(135deg, #4a7fcb, #ffe06d);
         display: flex;
         align-items: center;
         justify-content: center;
         font-size: 16px;
         flex-shrink: 0;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+        box-shadow: 0 4px 12px rgba(74, 127, 203, 0.35);
       }
       .sidebar-logo h1 {
         font-size: 17px;
@@ -498,7 +502,7 @@
         letter-spacing: -0.3px;
       }
       .sidebar-logo span {
-        background: linear-gradient(135deg, #3b82f6, #10d9a0);
+        background: linear-gradient(135deg, #4a7fcb, #ffe06d);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -536,9 +540,9 @@
         border-color: var(--border);
       }
       .nav-item.active {
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.08));
+        background: linear-gradient(135deg, rgba(74, 127, 203, 0.18), rgba(74, 127, 203, 0.08));
         color: var(--accent-bright);
-        border-color: rgba(59, 130, 246, 0.3);
+        border-color: rgba(74, 127, 203, 0.3);
       }
       .nav-item.warn-item {
         color: var(--danger);
@@ -613,7 +617,7 @@
       .user-chip .urole {
         font-size: 10px;
         color: var(--muted);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         margin-top: 1px;
       }
       .logout-text-btn {
@@ -627,7 +631,7 @@
         white-space: nowrap;
       }
 
-      /* ── MAIN LAYOUT ── */
+      /* â”€â”€ MAIN LAYOUT â”€â”€ */
       .main {
         margin-left: 256px;
         margin-top: 52px;
@@ -659,7 +663,7 @@
         }
       }
 
-      /* ── PAGE HEADER ── */
+      /* â”€â”€ PAGE HEADER â”€â”€ */
       .page-header {
         margin-bottom: 28px;
       }
@@ -682,12 +686,12 @@
         flex-wrap: wrap;
       }
 
-      /* ── TOPBAR ── */
+      /* â”€â”€ TOPBAR â”€â”€ */
       .topbar {
         display: flex;
       }
 
-      /* ── STATS GRID ── */
+      /* â”€â”€ STATS GRID â”€â”€ */
       .stats-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -743,7 +747,7 @@
       .stat-meta {
         font-size: 11px;
         color: var(--muted2);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         text-align: right;
       }
       .stat-card-body {
@@ -773,7 +777,7 @@
       .stat-val {
         font-size: 30px;
         font-weight: 800;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         line-height: 1;
         letter-spacing: -0.5px;
         color: var(--stat-color);
@@ -784,7 +788,7 @@
         margin-top: 2px;
       }
 
-      /* ── CARDS ── */
+      /* â”€â”€ CARDS â”€â”€ */
       .card {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--border);
@@ -815,7 +819,7 @@
         color: var(--muted);
       }
 
-      /* ── TEACHER DASHBOARD CARDS ── */
+      /* â”€â”€ TEACHER DASHBOARD CARDS â”€â”€ */
       .dash-teacher-card {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border);
@@ -866,13 +870,13 @@
         display: block;
         font-size: 26px;
         font-weight: 800;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         line-height: 1;
       }
       .dash-teacher-score span {
         font-size: 11px;
         color: var(--muted);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
       }
       .dash-teacher-breakdown {
         display: flex;
@@ -908,13 +912,13 @@
       }
       .dash-subject-pct {
         font-size: 11px;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         color: var(--muted);
         width: 38px;
         text-align: right;
       }
 
-      /* ── TABLE ── */
+      /* â”€â”€ TABLE â”€â”€ */
       .table-wrap {
         overflow-x: auto;
       }
@@ -946,7 +950,7 @@
         background: rgba(255, 255, 255, 0.03);
       }
 
-      /* ── PROGRESS BARS ── */
+      /* â”€â”€ PROGRESS BARS â”€â”€ */
       .pbar-wrap {
         background: rgba(255, 255, 255, 0.08);
         border-radius: 99px;
@@ -958,7 +962,7 @@
         transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      /* ── BADGES ── */
+      /* â”€â”€ BADGES â”€â”€ */
       .badge {
         display: inline-flex;
         align-items: center;
@@ -966,15 +970,15 @@
         border-radius: 20px;
         font-size: 11px;
         font-weight: 700;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         letter-spacing: 0.3px;
       }
       .badge.ps {
-        background: rgba(16, 217, 160, 0.15);
+        background: rgba(255, 224, 109, 0.15);
         color: var(--ps);
       }
       .badge.ms {
-        background: rgba(59, 130, 246, 0.15);
+        background: rgba(74, 127, 203, 0.15);
         color: var(--ms);
       }
       .badge.us {
@@ -986,7 +990,7 @@
         color: var(--al);
       }
       .badge.multi {
-        background: rgba(59, 130, 246, 0.15);
+        background: rgba(74, 127, 203, 0.15);
         color: var(--accent-bright);
       }
       .term-badge {
@@ -996,13 +1000,13 @@
         border-radius: 8px;
         font-size: 11px;
         font-weight: 700;
-        font-family: "DM Mono", monospace;
-        background: rgba(59, 130, 246, 0.1);
+        font-family: "JetBrains Mono", monospace;
+        background: rgba(74, 127, 203, 0.1);
         color: var(--accent-bright);
-        border: 1px solid rgba(59, 130, 246, 0.2);
+        border: 1px solid rgba(74, 127, 203, 0.2);
       }
 
-      /* ── TABS ── */
+      /* â”€â”€ TABS â”€â”€ */
       .tabs {
         display: flex;
         gap: 4px;
@@ -1024,16 +1028,16 @@
         transition: all 0.18s;
       }
       .tab.active {
-        background: rgba(59, 130, 246, 0.18);
+        background: rgba(74, 127, 203, 0.18);
         color: var(--accent-bright);
-        border: 1px solid rgba(59, 130, 246, 0.28);
+        border: 1px solid rgba(74, 127, 203, 0.28);
       }
       .tab:hover:not(.active) {
         background: rgba(255, 255, 255, 0.05);
         color: var(--text-2);
       }
 
-      /* ── PAGE TOOLS (filter bar) ── */
+      /* â”€â”€ PAGE TOOLS (filter bar) â”€â”€ */
       .page-tools {
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border);
@@ -1084,7 +1088,7 @@
         border: 1px solid var(--border-med);
         border-radius: var(--radius-xs);
         color: var(--text);
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 13px;
         outline: none;
         transition:
@@ -1102,7 +1106,7 @@
       .quick-select:focus,
       .finput:focus {
         border-color: var(--accent);
-        background: rgba(59, 130, 246, 0.04);
+        background: rgba(74, 127, 203, 0.04);
         box-shadow: var(--ring);
       }
       .quick-input::placeholder {
@@ -1111,11 +1115,11 @@
       .page-meta-line {
         font-size: 11.5px;
         color: var(--muted2);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         min-height: 16px;
       }
 
-      /* ── SUBJECT CARDS ── */
+      /* â”€â”€ SUBJECT CARDS â”€â”€ */
       .subject-card {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--border);
@@ -1159,17 +1163,17 @@
         white-space: nowrap;
         line-height: 1;
         border-radius: 6px;
-        background: rgba(59, 130, 246, 0.12);
-        border: 1px solid rgba(59, 130, 246, 0.22);
+        background: rgba(74, 127, 203, 0.12);
+        border: 1px solid rgba(74, 127, 203, 0.22);
         color: var(--accent-bright);
         cursor: pointer;
         transition: all 0.15s;
       }
       .subject-toggle-btn:hover {
-        background: rgba(59, 130, 246, 0.2);
+        background: rgba(74, 127, 203, 0.2);
       }
 
-      /* ── TERM CARDS ── */
+      /* â”€â”€ TERM CARDS â”€â”€ */
       .terms-grid {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -1234,7 +1238,7 @@
         border: 1px solid var(--border-med);
         border-radius: var(--radius-xs);
         color: var(--text);
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 14px;
         outline: none;
         color-scheme: dark;
@@ -1272,14 +1276,14 @@
         display: inline-block;
       }
       .term-status.active {
-        background: rgba(16, 217, 160, 0.12);
+        background: rgba(255, 224, 109, 0.12);
         color: var(--accent2);
       }
       .term-status.active::before {
         background: var(--accent2);
       }
       .term-status.upcoming {
-        background: rgba(59, 130, 246, 0.12);
+        background: rgba(74, 127, 203, 0.12);
         color: var(--accent-bright);
       }
       .term-status.upcoming::before {
@@ -1293,8 +1297,8 @@
         background: var(--muted2);
       }
       .active-term-banner {
-        background: rgba(16, 217, 160, 0.08);
-        border: 1px solid rgba(16, 217, 160, 0.22);
+        background: rgba(255, 224, 109, 0.08);
+        border: 1px solid rgba(255, 224, 109, 0.22);
         border-radius: 8px;
         padding: 10px 16px;
         font-size: 13px;
@@ -1305,11 +1309,11 @@
         gap: 8px;
       }
       .active-term-banner::before {
-        content: "◉";
+        content: "â—‰";
         font-size: 10px;
       }
 
-      /* ── YEARLY RESET ── */
+      /* â”€â”€ YEARLY RESET â”€â”€ */
       .yearly-reset-warning {
         background: rgba(248, 113, 113, 0.08);
         border: 1px solid rgba(248, 113, 113, 0.25);
@@ -1341,7 +1345,7 @@
       .yearly-reset-stat-value {
         font-size: 28px;
         font-weight: 800;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         line-height: 1;
         color: var(--text);
       }
@@ -1358,7 +1362,7 @@
         transform: none;
       }
 
-      /* ── ACCOUNTS TABLE ── */
+      /* â”€â”€ ACCOUNTS TABLE â”€â”€ */
       .accounts-shell {
         display: flex;
         flex-direction: column;
@@ -1374,7 +1378,7 @@
       .accounts-meta {
         font-size: 13px;
         color: var(--us);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         margin-top: 4px;
       }
       .accounts-table-card {
@@ -1419,7 +1423,7 @@
         font-size: 13px;
       }
       .account-class {
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         color: var(--muted);
         font-size: 12px;
       }
@@ -1436,11 +1440,11 @@
         color: #fca5a5;
       }
       .role-pill.teacher {
-        background: rgba(59, 130, 246, 0.15);
+        background: rgba(74, 127, 203, 0.15);
         color: #93c5fd;
       }
       .role-pill.student {
-        background: rgba(16, 217, 160, 0.14);
+        background: rgba(255, 224, 109, 0.14);
         color: #6ee7b7;
       }
       .role-pill.coordinator {
@@ -1472,18 +1476,18 @@
         transition:
           opacity 0.15s,
           transform 0.1s;
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
       }
       .account-action:active {
         transform: scale(0.97);
       }
       .account-action.reset {
-        background: rgba(59, 130, 246, 0.2);
+        background: rgba(74, 127, 203, 0.2);
         color: #93c5fd;
-        border: 1px solid rgba(59, 130, 246, 0.3);
+        border: 1px solid rgba(74, 127, 203, 0.3);
       }
       .account-action.reset:hover {
-        background: rgba(59, 130, 246, 0.3);
+        background: rgba(74, 127, 203, 0.3);
       }
       .account-action.delete {
         background: rgba(248, 113, 113, 0.18);
@@ -1498,7 +1502,7 @@
         cursor: not-allowed;
       }
 
-      /* ── ICON BUTTONS ── */
+      /* â”€â”€ ICON BUTTONS â”€â”€ */
       .icon-btn {
         width: 32px;
         height: 32px;
@@ -1528,7 +1532,7 @@
         gap: 6px;
       }
 
-      /* ── MODALS ── */
+      /* â”€â”€ MODALS â”€â”€ */
       .modal-overlay {
         position: fixed;
         inset: 0;
@@ -1586,7 +1590,7 @@
         margin-top: 24px;
       }
 
-      /* ── TEACHER PROFILE MODAL ── */
+      /* â”€â”€ TEACHER PROFILE MODAL â”€â”€ */
       .teacher-profile-modal-card {
         width: 860px;
       }
@@ -1672,7 +1676,7 @@
       .teacher-profile-progress-value {
         font-size: 30px;
         font-weight: 800;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         line-height: 1;
       }
       .teacher-profile-progress-meta {
@@ -1721,12 +1725,12 @@
         align-items: center;
         padding: 5px 10px;
         border-radius: 999px;
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.2);
+        background: rgba(74, 127, 203, 0.1);
+        border: 1px solid rgba(74, 127, 203, 0.2);
         font-size: 12px;
         font-weight: 600;
         color: var(--text-2);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
       }
       .teacher-profile-empty-inline {
         font-size: 12px;
@@ -1799,7 +1803,7 @@
         display: block;
         font-size: 28px;
         font-weight: 800;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         line-height: 1;
       }
       .teacher-profile-class-progress span {
@@ -1848,7 +1852,7 @@
       .teacher-profile-subject-progress {
         font-size: 22px;
         font-weight: 800;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         line-height: 1;
         flex-shrink: 0;
       }
@@ -1862,8 +1866,8 @@
         margin-top: 10px;
         padding: 10px;
         border-radius: 10px;
-        border: 1px solid rgba(16, 217, 160, 0.22);
-        background: rgba(16, 217, 160, 0.08);
+        border: 1px solid rgba(255, 224, 109, 0.22);
+        background: rgba(255, 224, 109, 0.08);
       }
       .teacher-profile-completed-title {
         font-size: 11px;
@@ -1889,7 +1893,7 @@
       .teacher-profile-completed-date {
         font-size: 11px;
         color: var(--muted);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         flex-shrink: 0;
       }
       .teacher-profile-topic-row {
@@ -1937,11 +1941,11 @@
         flex-shrink: 0;
       }
       .teacher-profile-topic-status.done {
-        background: rgba(16, 217, 160, 0.14);
+        background: rgba(255, 224, 109, 0.14);
         color: var(--accent2);
       }
       .teacher-profile-topic-status.progress {
-        background: rgba(59, 130, 246, 0.16);
+        background: rgba(74, 127, 203, 0.16);
         color: var(--accent-bright);
       }
       .teacher-profile-topic-status.pending {
@@ -1949,7 +1953,7 @@
         color: var(--muted);
       }
 
-      /* ── SUBJECT PROFILE / TOPIC VIEW ── */
+      /* â”€â”€ SUBJECT PROFILE / TOPIC VIEW â”€â”€ */
       .subject-syllabus-stats {
         display: flex;
         align-items: center;
@@ -2001,11 +2005,11 @@
         flex-shrink: 0;
       }
       .subject-topic-status.done {
-        background: rgba(16, 217, 160, 0.12);
+        background: rgba(255, 224, 109, 0.12);
         color: var(--accent2);
       }
       .subject-topic-status.progress {
-        background: rgba(59, 130, 246, 0.12);
+        background: rgba(74, 127, 203, 0.12);
         color: var(--accent-bright);
       }
       .subject-topic-status.pending {
@@ -2037,7 +2041,7 @@
         border-color: var(--border);
       }
       .subject-subtopic-item.done {
-        background: rgba(16, 217, 160, 0.04);
+        background: rgba(255, 224, 109, 0.04);
       }
       .subject-subtopic-text {
         display: flex;
@@ -2055,7 +2059,7 @@
       }
       .subject-subtopic-item.done .subject-subtopic-dot {
         background: var(--accent2);
-        box-shadow: 0 0 0 3px rgba(16, 217, 160, 0.12);
+        box-shadow: 0 0 0 3px rgba(255, 224, 109, 0.12);
       }
       .subject-subtopic-name {
         min-width: 0;
@@ -2078,7 +2082,7 @@
         color: var(--accent2);
       }
 
-      /* ── MY SUBJECTS (Teacher View) ── */
+      /* â”€â”€ MY SUBJECTS (Teacher View) â”€â”€ */
       .main-topic-block {
         margin-bottom: 10px;
       }
@@ -2094,7 +2098,7 @@
       .main-topic-progress {
         font-size: 12px;
         color: var(--muted);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         margin-left: auto;
         white-space: nowrap;
       }
@@ -2213,7 +2217,7 @@
       }
       .year-plan-unit {
         color: var(--accent2);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         font-weight: 800;
         white-space: nowrap;
       }
@@ -2229,7 +2233,7 @@
       }
       .year-plan-date {
         color: var(--muted);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         font-size: 12px;
         white-space: nowrap;
       }
@@ -2250,8 +2254,8 @@
         white-space: nowrap;
       }
       .year-plan-status-btn.done {
-        border-color: rgba(16, 217, 160, 0.36);
-        background: rgba(16, 217, 160, 0.12);
+        border-color: rgba(255, 224, 109, 0.36);
+        background: rgba(255, 224, 109, 0.12);
         color: var(--accent2);
       }
       .year-plan-status-btn.pending {
@@ -2352,7 +2356,7 @@
         padding: 5px 0 5px 28px;
       }
 
-      /* ── BUILDER ── */
+      /* â”€â”€ BUILDER â”€â”€ */
       .builder-main-row {
         background: rgba(255, 255, 255, 0.04);
         border: 1px solid var(--border);
@@ -2367,7 +2371,7 @@
         padding: 6px 0 6px 24px;
       }
 
-      /* ── EMPTY STATES ── */
+      /* â”€â”€ EMPTY STATES â”€â”€ */
       .empty-state {
         text-align: center;
         padding: 60px 20px;
@@ -2390,7 +2394,7 @@
         line-height: 1.6;
       }
 
-      /* ── SPINNER ── */
+      /* â”€â”€ SPINNER â”€â”€ */
       .spinner {
         width: 18px;
         height: 18px;
@@ -2407,7 +2411,7 @@
         }
       }
 
-      /* ── TOAST ── */
+      /* â”€â”€ TOAST â”€â”€ */
       .toast {
         position: fixed;
         bottom: 24px;
@@ -2431,15 +2435,15 @@
         opacity: 1;
       }
       .toast.success {
-        border-color: rgba(16, 217, 160, 0.35);
-        background: rgba(16, 217, 160, 0.08);
+        border-color: rgba(255, 224, 109, 0.35);
+        background: rgba(255, 224, 109, 0.08);
       }
       .toast.err {
         border-color: rgba(248, 113, 113, 0.35);
         background: rgba(248, 113, 113, 0.08);
       }
 
-      /* ── ICONS (Lucide) ── */
+      /* â”€â”€ ICONS (Lucide) â”€â”€ */
       .nav-icon i,
       .nav-icon svg {
         width: 17px;
@@ -2487,12 +2491,12 @@
         stroke: var(--danger);
       }
 
-      /* ── MOBILE BOTTOM NAV ── */
+      /* â”€â”€ MOBILE BOTTOM NAV â”€â”€ */
       .mobile-bottom-nav {
         display: none;
       }
 
-      /* ── MOBILE TOPBAR ── */
+      /* â”€â”€ MOBILE TOPBAR â”€â”€ */
       @media (max-width: 768px) {
         .sidebar {
           transform: translateX(-100%);
@@ -2589,7 +2593,7 @@
           gap: 4px;
           cursor: pointer;
           transition: color 0.15s;
-          font-family: "Plus Jakarta Sans", sans-serif;
+          font-family: "Inter", sans-serif;
         }
         .mobile-bottom-nav .mnav-item i,
         .mobile-bottom-nav .mnav-item svg {
@@ -2597,7 +2601,7 @@
           height: 16px;
         }
         .mobile-bottom-nav .mnav-item.active {
-          background: rgba(59, 130, 246, 0.15);
+          background: rgba(74, 127, 203, 0.15);
           color: var(--accent-bright);
         }
         .mobile-bottom-nav .mnav-item:not(:last-child) {
@@ -2721,9 +2725,9 @@
         background: rgba(255, 255, 255, 0.2);
       }
 
-      /* ╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═
-   ADD SUBJECT MODAL – Stepped Design
-╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═ */
+      /* â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•
+   ADD SUBJECT MODAL â€“ Stepped Design
+â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â• */
       .asmodal {
         width: min(640px, 95vw);
         padding: 0;
@@ -2759,8 +2763,8 @@
         height: 42px;
         border-radius: 12px;
         flex-shrink: 0;
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(16, 217, 160, 0.15));
-        border: 1px solid rgba(59, 130, 246, 0.3);
+        background: linear-gradient(135deg, rgba(74, 127, 203, 0.25), rgba(255, 224, 109, 0.15));
+        border: 1px solid rgba(74, 127, 203, 0.3);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2819,7 +2823,7 @@
         border-radius: 8px;
         transition: all 0.2s;
         color: var(--muted2);
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 13px;
         font-weight: 600;
       }
@@ -2844,13 +2848,13 @@
         background: rgba(255, 255, 255, 0.06);
         border: 1.5px solid var(--border-med);
         transition: all 0.25s;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
       }
       .asmodal-tab.active .astab-num {
         background: var(--accent);
         border-color: var(--accent);
         color: #fff;
-        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        box-shadow: 0 4px 12px rgba(74, 127, 203, 0.4);
       }
       .asmodal-tab.done .astab-num {
         background: var(--accent2);
@@ -2900,7 +2904,7 @@
       .term-pill {
         padding: 8px 18px;
         border-radius: 99px;
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
@@ -2915,10 +2919,10 @@
         background: rgba(255, 255, 255, 0.07);
       }
       .term-pill.active {
-        background: rgba(59, 130, 246, 0.15);
-        border-color: rgba(59, 130, 246, 0.4);
+        background: rgba(74, 127, 203, 0.15);
+        border-color: rgba(74, 127, 203, 0.4);
         color: var(--accent-bright);
-        box-shadow: 0 2px 10px rgba(59, 130, 246, 0.15);
+        box-shadow: 0 2px 10px rgba(74, 127, 203, 0.15);
       }
       .term-pill.active.t1 {
         background: rgba(167, 139, 250, 0.15);
@@ -2948,8 +2952,8 @@
         font-size: 10px;
         font-weight: 700;
         color: var(--accent2);
-        background: rgba(16, 217, 160, 0.1);
-        border: 1px solid rgba(16, 217, 160, 0.2);
+        background: rgba(255, 224, 109, 0.1);
+        border: 1px solid rgba(255, 224, 109, 0.2);
         border-radius: 4px;
         padding: 2px 6px;
         display: flex;
@@ -2980,11 +2984,11 @@
 
       /* Code inline */
       .ascode {
-        background: rgba(59, 130, 246, 0.1);
-        border: 1px solid rgba(59, 130, 246, 0.2);
+        background: rgba(74, 127, 203, 0.1);
+        border: 1px solid rgba(74, 127, 203, 0.2);
         border-radius: 4px;
         padding: 1px 6px;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         font-size: 11px;
         color: var(--accent-bright);
       }
@@ -3023,7 +3027,7 @@
         border-radius: 8px;
         border: none;
         background: none;
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
@@ -3034,10 +3038,10 @@
         color: var(--text-2);
       }
       .asmodal-subtab.active {
-        background: rgba(59, 130, 246, 0.16);
+        background: rgba(74, 127, 203, 0.16);
         color: var(--accent-bright);
-        border: 1px solid rgba(59, 130, 246, 0.28);
-        box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+        border: 1px solid rgba(74, 127, 203, 0.28);
+        box-shadow: 0 2px 8px rgba(74, 127, 203, 0.12);
       }
       .asmodal-subtab i,
       .asmodal-subtab svg {
@@ -3047,10 +3051,10 @@
       /* Add topic button */
       .asmodal-add-topic-btn {
         width: 100%;
-        border: 1.5px dashed rgba(59, 130, 246, 0.3) !important;
+        border: 1.5px dashed rgba(74, 127, 203, 0.3) !important;
         border-radius: 10px !important;
         color: var(--accent-bright) !important;
-        background: rgba(59, 130, 246, 0.04) !important;
+        background: rgba(74, 127, 203, 0.04) !important;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -3060,8 +3064,8 @@
         transition: all 0.18s !important;
       }
       .asmodal-add-topic-btn:hover {
-        background: rgba(59, 130, 246, 0.1) !important;
-        border-color: rgba(59, 130, 246, 0.5) !important;
+        background: rgba(74, 127, 203, 0.1) !important;
+        border-color: rgba(74, 127, 203, 0.5) !important;
         transform: none !important;
         box-shadow: none !important;
       }
@@ -3071,8 +3075,8 @@
         display: flex;
         gap: 9px;
         align-items: flex-start;
-        background: rgba(59, 130, 246, 0.06);
-        border: 1px solid rgba(59, 130, 246, 0.16);
+        background: rgba(74, 127, 203, 0.06);
+        border: 1px solid rgba(74, 127, 203, 0.16);
         border-radius: 10px;
         padding: 11px 14px;
         font-size: 12.5px;
@@ -3089,7 +3093,7 @@
       .asmodal-import-textarea {
         width: 100%;
         min-height: 140px;
-        font-family: "DM Mono", monospace !important;
+        font-family: "JetBrains Mono", monospace !important;
         font-size: 12.5px !important;
         line-height: 1.8 !important;
         resize: vertical;
@@ -3114,7 +3118,7 @@
         flex-wrap: wrap;
       }
 
-      /* Builder topic rows – upgraded */
+      /* Builder topic rows â€“ upgraded */
       .main-topic-row {
         background: rgba(255, 255, 255, 0.04) !important;
         border: 1px solid var(--border) !important;
@@ -3144,7 +3148,7 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        box-shadow: 0 3px 8px rgba(59, 130, 246, 0.3);
+        box-shadow: 0 3px 8px rgba(74, 127, 203, 0.3);
       }
       .sub-row {
         display: flex;
@@ -3172,7 +3176,7 @@
         border-top: 1px solid var(--border);
       }
 
-      /* ── GLOBAL MODAL ENHANCEMENTS ── */
+      /* â”€â”€ GLOBAL MODAL ENHANCEMENTS â”€â”€ */
       .modal-overlay {
         transition: opacity 0.2s;
       }
@@ -3203,7 +3207,7 @@
         background: var(--border);
       }
 
-      /* ── GLOBAL ANIMATION POLISH ── */
+      /* â”€â”€ GLOBAL ANIMATION POLISH â”€â”€ */
       /* Smooth checkbox */
       .chkbox {
         transition:
@@ -3215,7 +3219,7 @@
         transform: scale(0.88) !important;
       }
       .chkbox.done {
-        box-shadow: 0 2px 8px rgba(16, 217, 160, 0.3) !important;
+        box-shadow: 0 2px 8px rgba(255, 224, 109, 0.3) !important;
       }
 
       /* Subtopic rows hover */
@@ -3319,11 +3323,11 @@
         }
       }
 
-      /* ╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═
-   UPGRADE PACK – EduTrack v4.2.1
-╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═ */
+      /* â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•
+   UPGRADE PACK â€“ EduTrack v4.2.1
+â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â• */
 
-      /* ── LIGHT MODE ── */
+      /* â”€â”€ LIGHT MODE â”€â”€ */
       body.light-mode {
         --bg: #f0f4fb;
         --surface: #ffffff;
@@ -3335,10 +3339,10 @@
         --text-2: #243657;
         --muted: #5a6e90;
         --muted2: #8496b4;
-        --accent: #2563eb;
-        --accent-bright: #1d4ed8;
-        --accent-glow: rgba(37, 99, 235, 0.15);
-        --accent2: #059669;
+        --accent: #4a7fcb;
+        --accent-bright: #2563a8;
+        --accent-glow: rgba(74, 127, 203, 0.15);
+        --accent2: #d4a017;
         --danger: #dc2626;
         --warn: #d97706;
         --shadow: 0 4px 24px rgba(0, 20, 80, 0.1);
@@ -3352,12 +3356,12 @@
         background:
           radial-gradient(
             ellipse 900px 600px at 8% -5%,
-            rgba(59, 130, 246, 0.07) 0%,
+            rgba(74, 127, 203, 0.07) 0%,
             transparent 65%
           ),
           radial-gradient(
             ellipse 700px 500px at 95% 100%,
-            rgba(16, 217, 160, 0.05) 0%,
+            rgba(255, 224, 109, 0.05) 0%,
             transparent 65%
           );
       }
@@ -3380,13 +3384,13 @@
         color: var(--muted);
       }
       body.light-mode .nav-item:hover {
-        background: rgba(37, 99, 235, 0.07);
+        background: rgba(7, 33, 90, 0.07);
         color: var(--text);
       }
       body.light-mode .nav-item.active {
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(37, 99, 235, 0.06));
+        background: linear-gradient(135deg, rgba(7, 33, 90, 0.12), rgba(7, 33, 90, 0.06));
         color: var(--accent);
-        border-color: rgba(37, 99, 235, 0.25);
+        border-color: rgba(7, 33, 90, 0.25);
       }
       body.light-mode .nav-item.warn-item {
         color: var(--danger);
@@ -3411,8 +3415,8 @@
         box-shadow: 0 1px 12px rgba(0, 20, 80, 0.06);
       }
       body.light-mode .topbar-version {
-        background: linear-gradient(135deg, rgba(37, 99, 235, 0.08), rgba(5, 150, 105, 0.06));
-        border-color: rgba(37, 99, 235, 0.24);
+        background: linear-gradient(135deg, rgba(7, 33, 90, 0.08), rgba(5, 150, 105, 0.06));
+        border-color: rgba(7, 33, 90, 0.24);
       }
       body.light-mode .topbar-version .label {
         color: var(--muted2);
@@ -3524,7 +3528,7 @@
         color: #b91c1c;
       }
       body.light-mode .role-pill.teacher {
-        background: rgba(37, 99, 235, 0.1);
+        background: rgba(7, 33, 90, 0.1);
         color: #1d4ed8;
       }
       body.light-mode .role-pill.student {
@@ -3543,9 +3547,9 @@
         background: transparent;
       }
       body.light-mode .tab.active {
-        background: rgba(37, 99, 235, 0.1);
+        background: rgba(7, 33, 90, 0.1);
         color: var(--accent);
-        border-color: rgba(37, 99, 235, 0.3);
+        border-color: rgba(7, 33, 90, 0.3);
       }
       body.light-mode .main-topic-label {
         background: #f0f4fb;
@@ -3577,8 +3581,8 @@
         border-color: var(--border) !important;
       }
       body.light-mode .teacher-profile-chip {
-        background: rgba(37, 99, 235, 0.08);
-        border-color: rgba(37, 99, 235, 0.15);
+        background: rgba(7, 33, 90, 0.08);
+        border-color: rgba(7, 33, 90, 0.15);
       }
       body.light-mode .pbar-wrap {
         background: rgba(0, 0, 0, 0.07);
@@ -3608,12 +3612,12 @@
         color: var(--muted);
       }
       body.light-mode .asmodal-subtab.active {
-        background: rgba(37, 99, 235, 0.1);
+        background: rgba(7, 33, 90, 0.1);
         color: var(--accent);
       }
       body.light-mode .asmodal-import-hint {
-        background: rgba(37, 99, 235, 0.05);
-        border-color: rgba(37, 99, 235, 0.12);
+        background: rgba(7, 33, 90, 0.05);
+        border-color: rgba(7, 33, 90, 0.12);
       }
       body.light-mode .term-status.active {
         background: rgba(5, 150, 105, 0.1);
@@ -3633,12 +3637,12 @@
         background: rgba(0, 0, 0, 0.02);
       }
       body.light-mode .stat-card.ps {
-        border-color: rgba(16, 217, 160, 0.25);
-        background: rgba(16, 217, 160, 0.04);
+        border-color: rgba(255, 224, 109, 0.25);
+        background: rgba(255, 224, 109, 0.04);
       }
       body.light-mode .stat-card.ms {
-        border-color: rgba(59, 130, 246, 0.25);
-        background: rgba(59, 130, 246, 0.04);
+        border-color: rgba(74, 127, 203, 0.25);
+        background: rgba(74, 127, 203, 0.04);
       }
       body.light-mode .stat-card.us {
         border-color: rgba(192, 132, 252, 0.25);
@@ -3649,7 +3653,7 @@
         background: rgba(251, 191, 36, 0.04);
       }
 
-      /* ── THEME TOGGLE BUTTON ── */
+      /* â”€â”€ THEME TOGGLE BUTTON â”€â”€ */
       .theme-toggle {
         position: fixed;
         bottom: 24px;
@@ -3674,7 +3678,7 @@
         background: var(--surface3);
       }
 
-      /* ── COLLAPSIBLE SIDEBAR ── */
+      /* â”€â”€ COLLAPSIBLE SIDEBAR â”€â”€ */
       .sidebar-collapse-btn {
         width: 100%;
         display: flex;
@@ -3794,7 +3798,7 @@
           margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       }
 
-      /* ── NOTIFICATION BELL ── */
+      /* â”€â”€ NOTIFICATION BELL â”€â”€ */
       .notif-btn {
         position: relative;
         width: 36px;
@@ -3864,7 +3868,7 @@
         background: none;
         border: none;
         color: var(--accent-bright);
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
       }
       .notif-panel-clear:hover {
         text-decoration: underline;
@@ -3903,7 +3907,7 @@
         color: var(--warn);
       }
       .notif-icon.info {
-        background: rgba(59, 130, 246, 0.15);
+        background: rgba(74, 127, 203, 0.15);
         color: var(--accent-bright);
       }
       .notif-icon.danger {
@@ -3929,7 +3933,7 @@
         font-size: 13px;
       }
 
-      /* ── SKELETON LOADERS ── */
+      /* â”€â”€ SKELETON LOADERS â”€â”€ */
       .skeleton {
         background: linear-gradient(
           90deg,
@@ -3970,7 +3974,7 @@
         border-radius: var(--radius);
       }
 
-      /* ── EXPORT BUTTON ── */
+      /* â”€â”€ EXPORT BUTTON â”€â”€ */
       .export-btn {
         display: flex;
         align-items: center;
@@ -3983,7 +3987,7 @@
         font-size: 13px;
         font-weight: 600;
         cursor: pointer;
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         transition: all 0.15s;
       }
       .export-btn:hover {
@@ -3999,7 +4003,7 @@
         background: #edf2ff;
       }
 
-      /* ── DEADLINE BADGE ── */
+      /* â”€â”€ DEADLINE BADGE â”€â”€ */
       .deadline-badge {
         display: inline-flex;
         align-items: center;
@@ -4021,12 +4025,12 @@
         border: 1px solid rgba(251, 191, 36, 0.22);
       }
       .deadline-badge.ok {
-        background: rgba(16, 217, 160, 0.1);
+        background: rgba(255, 224, 109, 0.1);
         color: var(--accent2);
-        border: 1px solid rgba(16, 217, 160, 0.2);
+        border: 1px solid rgba(255, 224, 109, 0.2);
       }
 
-      /* ── PASSWORD STRENGTH ── */
+      /* â”€â”€ PASSWORD STRENGTH â”€â”€ */
       .pw-strength-bar {
         display: flex;
         gap: 3px;
@@ -4061,29 +4065,29 @@
         transition: color 0.25s;
       }
 
-      /* ── DUPLICATE SUBJECT BUTTON ── */
+      /* â”€â”€ DUPLICATE SUBJECT BUTTON â”€â”€ */
       .dup-btn {
         display: inline-flex;
         align-items: center;
         gap: 5px;
         padding: 5px 11px;
         border-radius: 7px;
-        border: 1px solid rgba(59, 130, 246, 0.25);
-        background: rgba(59, 130, 246, 0.08);
+        border: 1px solid rgba(74, 127, 203, 0.25);
+        background: rgba(74, 127, 203, 0.08);
         color: var(--accent-bright);
         font-size: 12px;
         font-weight: 700;
         cursor: pointer;
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         transition: all 0.15s;
         white-space: nowrap;
       }
       .dup-btn:hover {
-        background: rgba(59, 130, 246, 0.16);
-        border-color: rgba(59, 130, 246, 0.4);
+        background: rgba(74, 127, 203, 0.16);
+        border-color: rgba(74, 127, 203, 0.4);
       }
 
-      /* ── GLOBAL SEARCH ── */
+      /* â”€â”€ GLOBAL SEARCH â”€â”€ */
       .global-search-wrap {
         position: relative;
         flex: 1;
@@ -4096,7 +4100,7 @@
         border: 1px solid var(--border);
         border-radius: 10px;
         color: var(--text);
-        font-family: "Plus Jakarta Sans", sans-serif;
+        font-family: "Inter", sans-serif;
         font-size: 13px;
         outline: none;
         transition:
@@ -4105,7 +4109,7 @@
       }
       .global-search-input:focus {
         border-color: var(--accent);
-        background: rgba(59, 130, 246, 0.05);
+        background: rgba(74, 127, 203, 0.05);
       }
       body.light-mode .global-search-input {
         background: #f5f8ff;
@@ -4169,11 +4173,11 @@
         font-size: 12px;
       }
       .gsr-icon.teacher {
-        background: rgba(59, 130, 246, 0.15);
+        background: rgba(74, 127, 203, 0.15);
         color: var(--accent-bright);
       }
       .gsr-icon.subject {
-        background: rgba(16, 217, 160, 0.12);
+        background: rgba(255, 224, 109, 0.12);
         color: var(--accent2);
       }
       .gsr-label {
@@ -4207,7 +4211,7 @@
         background: rgba(0, 0, 0, 0.03);
       }
 
-      /* ── TOPBAR ENHANCEMENTS ── */
+      /* â”€â”€ TOPBAR ENHANCEMENTS â”€â”€ */
       .sidebar-toggle-topbar-btn {
         width: 36px;
         height: 36px;
@@ -4264,7 +4268,7 @@
         padding: 6px 10px;
         border-radius: 999px;
         border: 1px solid var(--border-med);
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.14), rgba(16, 217, 160, 0.08));
+        background: linear-gradient(135deg, rgba(74, 127, 203, 0.14), rgba(255, 224, 109, 0.08));
         white-space: nowrap;
       }
       .topbar-version .label {
@@ -4277,7 +4281,7 @@
       .topbar-version .value {
         font-size: 12px;
         font-weight: 800;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         color: var(--accent2);
         letter-spacing: 0.2px;
       }
@@ -4337,7 +4341,7 @@
         }
       }
 
-      /* ── PROGRESS RING (dashboard) ── */
+      /* â”€â”€ PROGRESS RING (dashboard) â”€â”€ */
       .stat-ring {
         width: 52px;
         height: 52px;
@@ -4376,7 +4380,7 @@
         --ring-color: var(--al);
       }
 
-      /* ── NOTE / COMMENT ON TOPIC ── */
+      /* â”€â”€ NOTE / COMMENT ON TOPIC â”€â”€ */
       .topic-note {
         font-size: 12px;
         color: var(--muted);
@@ -4392,7 +4396,7 @@
         background: rgba(0, 0, 0, 0.03);
       }
 
-      /* ── MOBILE RESPONSIVE ── */
+      /* â”€â”€ MOBILE RESPONSIVE â”€â”€ */
       @media (max-width: 768px) {
         .main {
           margin-left: 0 !important;
@@ -4469,7 +4473,7 @@
         display: block;
         margin-top: 4px;
         color: var(--accent2);
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         font-size: 24px;
       }
       .relief-card-row {
@@ -4504,12 +4508,12 @@
         justify-content: center;
         border-radius: 999px;
         padding: 5px 9px;
-        font-family: "DM Mono", monospace;
+        font-family: "JetBrains Mono", monospace;
         font-size: 11px;
         font-weight: 800;
-        border: 1px solid rgba(59, 130, 246, 0.24);
+        border: 1px solid rgba(74, 127, 203, 0.24);
         color: #93c5fd;
-        background: rgba(59, 130, 246, 0.12);
+        background: rgba(74, 127, 203, 0.12);
       }
       .relief-lock.locked {
         border-color: rgba(248, 113, 113, 0.28);
@@ -4541,7 +4545,7 @@
         --text-2: #c9d7ea;
         --muted: #91a8c7;
         --muted2: #657b99;
-        --accent: #3b82f6;
+        --accent: #4a7fcb;
         --accent-bright: #67b4ff;
         --accent2: #20d8a0;
         --warn: #f6c453;
@@ -4657,7 +4661,7 @@
 
       .btn.secondary:hover,
       .export-btn:hover {
-        background: rgba(59, 130, 246, 0.12);
+        background: rgba(74, 127, 203, 0.12);
         border-color: rgba(103, 180, 255, 0.38);
       }
 
@@ -4683,7 +4687,7 @@
       .field input:focus,
       .field select:focus,
       .field textarea:focus {
-        background: rgba(59, 130, 246, 0.08);
+        background: rgba(74, 127, 203, 0.08);
       }
 
       .accounts-table-card,
@@ -4709,7 +4713,7 @@
       }
 
       .nav-item.active {
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(16, 217, 160, 0.08));
+        background: linear-gradient(135deg, rgba(74, 127, 203, 0.22), rgba(255, 224, 109, 0.08));
         border-color: rgba(103, 180, 255, 0.34);
         box-shadow: inset 3px 0 0 rgba(103, 180, 255, 0.9);
       }
@@ -4821,7 +4825,7 @@
           <div id="login-error" class="error-msg"></div>
           <button class="btn auth-submit" onclick="doLogin()" id="login-btn">Sign in</button>
           <div class="auth-footnote">
-            Forgot password? Contact your administrator &nbsp;·&nbsp; Press
+            Forgot password? Contact your administrator &nbsp;Â·&nbsp; Press
             <kbd
               style="
                 background: rgba(255, 255, 255, 0.07);
@@ -4851,7 +4855,7 @@
         <div style="font-weight: 800; font-size: 16px; letter-spacing: -0.3px; flex-shrink: 0">
           Edu<span
             style="
-              background: linear-gradient(135deg, #3b82f6, #10d9a0);
+              background: linear-gradient(135deg, #4a7fcb, #ffe06d);
               -webkit-background-clip: text;
               -webkit-text-fill-color: transparent;
               background-clip: text;
@@ -4875,7 +4879,7 @@
             type="search"
             class="global-search-input"
             id="global-search-input"
-            placeholder="Search teachers, subjects…"
+            placeholder="Search teachers, subjectsâ€¦"
             oninput="globalSearch(this.value)"
             onblur="setTimeout(() => closeGlobalSearch(), 180)"
             onfocus="globalSearch(this.value)"
@@ -5018,7 +5022,7 @@
                       border-radius: 50%;
                       background: var(--accent2);
                       display: inline-block;
-                      box-shadow: 0 0 0 3px rgba(16, 217, 160, 0.2);
+                      box-shadow: 0 0 0 3px rgba(255, 224, 109, 0.2);
                     "
                   ></span>
                   Dashboard
@@ -5042,13 +5046,13 @@
                   style="
                     font-size: 32px;
                     font-weight: 800;
-                    font-family: &quot;DM Mono&quot;, monospace;
+                    font-family: &quot;JetBrains Mono&quot;, monospace;
                     line-height: 1;
                     color: var(--accent-bright);
                   "
                   id="dash-overall-val"
                 >
-                  –
+                  â€“
                 </div>
               </div>
             </div>
@@ -5495,7 +5499,7 @@
                   id="my-syllabus-search"
                   class="quick-input"
                   style="padding-left: 36px"
-                  placeholder="Search subject, topic, or keyword…"
+                  placeholder="Search subject, topic, or keywordâ€¦"
                   oninput="setMySyllabusSearch(this.value)"
                 />
               </div>
@@ -5690,7 +5694,7 @@
                   id="teachers-search-input"
                   class="quick-input"
                   style="padding-left: 36px"
-                  placeholder="Search by name, email, teacher ID, grade, or class…"
+                  placeholder="Search by name, email, teacher ID, grade, or classâ€¦"
                   oninput="setTeacherSearch(this.value)"
                 />
               </div>
@@ -5730,7 +5734,7 @@
             >
               <div>
                 <h2>Academic Terms</h2>
-                <p>Each school level has its own 3-term calendar – terms run independently</p>
+                <p>Each school level has its own 3-term calendar â€“ terms run independently</p>
               </div>
               <button
                 class="btn sm"
@@ -5776,7 +5780,7 @@
             <span
               style="
                 font-size: 11px;
-                font-family: &quot;DM Mono&quot;, monospace;
+                font-family: &quot;JetBrains Mono&quot;, monospace;
                 color: var(--warn);
               "
               id="auto-warning-next-check"
@@ -5784,10 +5788,10 @@
           </div>
           <!-- Per-level tabs -->
           <div class="tabs" id="terms-level-tabs" style="margin-bottom: 20px">
-            <div class="tab active" onclick="setTermsLevelTab('primary', this)">🟢 Primary</div>
-            <div class="tab" onclick="setTermsLevelTab('middle', this)">🔵 Middle</div>
-            <div class="tab" onclick="setTermsLevelTab('upper', this)">🟣 Upper</div>
-            <div class="tab" onclick="setTermsLevelTab('advanced', this)">🟡 Advanced</div>
+            <div class="tab active" onclick="setTermsLevelTab('primary', this)">ðŸŸ¢ Primary</div>
+            <div class="tab" onclick="setTermsLevelTab('middle', this)">ðŸ”µ Middle</div>
+            <div class="tab" onclick="setTermsLevelTab('upper', this)">ðŸŸ£ Upper</div>
+            <div class="tab" onclick="setTermsLevelTab('advanced', this)">ðŸŸ¡ Advanced</div>
           </div>
           <div
             id="terms-level-label"
@@ -5795,7 +5799,7 @@
               font-size: 12px;
               color: var(--muted);
               margin-bottom: 16px;
-              font-family: &quot;DM Mono&quot;, monospace;
+              font-family: &quot;JetBrains Mono&quot;, monospace;
             "
           ></div>
           <div class="terms-grid" id="terms-cards"></div>
@@ -6128,7 +6132,7 @@
               placeholder="e.g. 8, 10"
               oninput="syncTeacherGrade()"
             />
-            <div class="hint">One or more grades (1–13) separated by commas.</div>
+            <div class="hint">One or more grades (1â€“13) separated by commas.</div>
           </div>
           <div class="field">
             <label>School Level</label
@@ -6149,14 +6153,14 @@
           id="t-email-note"
           style="
             display: none;
-            background: rgba(59, 130, 246, 0.08);
-            border: 1px solid rgba(59, 130, 246, 0.2);
+            background: rgba(74, 127, 203, 0.08);
+            border: 1px solid rgba(74, 127, 203, 0.2);
             border-radius: 8px;
             padding: 8px 12px;
             color: var(--text-2);
           "
         >
-          ⚠ Email login cannot be changed from this edit form. Contact admin to change login email.
+          âš  Email login cannot be changed from this edit form. Contact admin to change login email.
         </div>
         <div class="field" id="t-password-field">
           <label>Temporary Password</label
@@ -6219,7 +6223,7 @@
             <input
               type="text"
               id="s-name"
-              placeholder="e.g. Mathematics, Science, History…"
+              placeholder="e.g. Mathematics, Science, Historyâ€¦"
               autocomplete="off"
             />
           </div>
@@ -6320,10 +6324,10 @@
             <textarea
               id="s-assignment-lines"
               placeholder="T001 | GRADE-10-A&#10;T002 | GRADE-10-B&#10;T003 | GRADE-10-C"
-              style="min-height: 90px; font-family: &quot;DM Mono&quot;, monospace; font-size: 13px"
+              style="min-height: 90px; font-family: &quot;JetBrains Mono&quot;, monospace; font-size: 13px"
             ></textarea>
             <div class="hint">
-              One assignment per line – format: <code class="ascode">TeacherID | ClassID</code>. A
+              One assignment per line â€“ format: <code class="ascode">TeacherID | ClassID</code>. A
               separate syllabus copy is created for each line.
             </div>
           </div>
@@ -6435,10 +6439,10 @@
             style="
               background: linear-gradient(
                 135deg,
-                rgba(16, 217, 160, 0.2),
-                rgba(59, 130, 246, 0.15)
+                rgba(255, 224, 109, 0.2),
+                rgba(74, 127, 203, 0.15)
               );
-              border-color: rgba(16, 217, 160, 0.3);
+              border-color: rgba(255, 224, 109, 0.3);
             "
           >
             <i data-lucide="book-open-check" style="stroke: var(--accent2)"></i>
@@ -6501,10 +6505,10 @@
             <textarea
               id="vsm-assignment-lines"
               placeholder="T001 | GRADE-10-A&#10;T002 | GRADE-10-B"
-              style="min-height: 70px; font-family: &quot;DM Mono&quot;, monospace; font-size: 13px"
+              style="min-height: 70px; font-family: &quot;JetBrains Mono&quot;, monospace; font-size: 13px"
             ></textarea>
             <div class="hint">
-              One per line – format: <code class="ascode">TeacherID | ClassID</code>. Current
+              One per line â€“ format: <code class="ascode">TeacherID | ClassID</code>. Current
               assignments are pre-filled above.
             </div>
           </div>
@@ -6543,7 +6547,7 @@
           <div
             style="
               background: rgba(255, 255, 255, 0.03);
-              border: 1px dashed rgba(59, 130, 246, 0.3);
+              border: 1px dashed rgba(74, 127, 203, 0.3);
               border-radius: 12px;
               padding: 14px;
               margin-bottom: 24px;
@@ -6589,10 +6593,10 @@
             style="
               background: linear-gradient(
                 135deg,
-                rgba(59, 130, 246, 0.2),
+                rgba(74, 127, 203, 0.2),
                 rgba(167, 139, 250, 0.15)
               );
-              border-color: rgba(59, 130, 246, 0.3);
+              border-color: rgba(74, 127, 203, 0.3);
             "
           >
             <i data-lucide="user-round" style="stroke: var(--accent-bright)"></i>
@@ -6621,7 +6625,7 @@
               background: linear-gradient(
                 135deg,
                 rgba(251, 191, 36, 0.15),
-                rgba(16, 217, 160, 0.1)
+                rgba(255, 224, 109, 0.1)
               );
               border-color: rgba(251, 191, 36, 0.3);
             "
@@ -6649,7 +6653,7 @@
       onclick="toggleTheme()"
       title="Toggle light/dark mode"
     >
-      🌙
+      ðŸŒ™
     </button>
 
     <script type="module">
@@ -7776,7 +7780,7 @@
               tInfo +
               "</div></div>";
             html +=
-              "<div style=\"font-size:24px;font-weight:800;font-family:'DM Mono',monospace;color:" +
+              "<div style=\"font-size:24px;font-weight:800;font-family:'JetBrains Mono',monospace;color:" +
               color +
               ';">' +
               stats.pct +
@@ -8245,7 +8249,7 @@
               total +
               " items | " +
               pct +
-              '% done</div></div><div style="display:flex;align-items:center;gap:8px;"><div style="font-size:22px;font-weight:800;font-family:\'DM Mono\',monospace;color:' +
+              '% done</div></div><div style="display:flex;align-items:center;gap:8px;"><div style="font-size:22px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:' +
               c +
               ';">' +
               pct +
@@ -9128,7 +9132,7 @@
             const subRows = (mt.subtopics || [])
               .map(
                 (st, si) =>
-                  '<div class="sub-row"><div class="sub-dot"></div><span style="font-size:11px;color:var(--muted);font-family:\'DM Mono\',monospace;min-width:40px;">' +
+                  '<div class="sub-row"><div class="sub-dot"></div><span style="font-size:11px;color:var(--muted);font-family:\'JetBrains Mono\',monospace;min-width:40px;">' +
                   (mi + 1) +
                   "." +
                   (si + 1) +
@@ -9412,7 +9416,7 @@
               lvlShort(t.level) +
               '">' +
               lvlLabel(t.level) +
-              '</span></div></div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;color:' +
+              '</span></div></div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:' +
               c +
               ';">' +
               pct +
@@ -9440,7 +9444,7 @@
                 sp +
                 "%;background:" +
                 lvlColorVar(s.level) +
-                ';"></div></div></div><span style="width:55px;text-align:right;font-size:12px;color:var(--muted);font-family:\'DM Mono\',monospace;">' +
+                ';"></div></div></div><span style="width:55px;text-align:right;font-size:12px;color:var(--muted);font-family:\'JetBrains Mono\',monospace;">' +
                 sd +
                 "/" +
                 st +
@@ -9849,7 +9853,7 @@
               "/" +
               totalItems +
               " syllabus items</div></div>" +
-              '<div style="text-align:right;"><div style="font-size:24px;font-weight:800;font-family:\'DM Mono\',monospace;color:var(--accent);">' +
+              '<div style="text-align:right;"><div style="font-size:24px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:var(--accent);">' +
               pct +
               '%</div><div style="font-size:12px;color:var(--muted);">progress</div></div>' +
               "</div>" +
@@ -9885,7 +9889,7 @@
                         st.total +
                         " syllabus items completed</div>" +
                         "</div>" +
-                        "<div style=\"font-size:20px;font-weight:800;font-family:'DM Mono',monospace;color:" +
+                        "<div style=\"font-size:20px;font-weight:800;font-family:'JetBrains Mono',monospace;color:" +
                         lvlColorVar(subject.level) +
                         ';">' +
                         st.pct +
@@ -10452,7 +10456,7 @@
           "</span>" +
           "</div>" +
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px;">' +
-          '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Teacher ID</div><div style="font-family:\'DM Mono\',monospace;">' +
+          '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Teacher ID</div><div style="font-family:\'JetBrains Mono\',monospace;">' +
           escapeHtml(teacher.teacherId || "-") +
           "</div></div>" +
           '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Grades</div><div>' +
@@ -10496,7 +10500,7 @@
                     st.total +
                     " syllabus items completed</div>" +
                     "</div>" +
-                    "<div style=\"font-size:22px;font-weight:800;font-family:'DM Mono',monospace;color:" +
+                    "<div style=\"font-size:22px;font-weight:800;font-family:'JetBrains Mono',monospace;color:" +
                     lvlColorVar(s.level) +
                     ';">' +
                     st.pct +
@@ -10558,7 +10562,7 @@
           "</span>" +
           "</div>" +
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px;">' +
-          '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Teacher ID</div><div style="font-family:\'DM Mono\',monospace;">' +
+          '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Teacher ID</div><div style="font-family:\'JetBrains Mono\',monospace;">' +
           escapeHtml(teacher.teacherId || "-") +
           "</div></div>" +
           '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Grade</div><div>' +
@@ -10613,11 +10617,11 @@
               escapeHtml(t.name) +
               '</span></div></td><td style="color:var(--muted);font-size:13px;">' +
               escapeHtml(t.email) +
-              "</td><td style=\"font-family:'DM Mono',monospace;\">" +
+              "</td><td style=\"font-family:'JetBrains Mono',monospace;\">" +
               escapeHtml(displayId) +
               "</td><td>" +
               escapeHtml(gradesLabel(t)) +
-              "</td><td style=\"font-family:'DM Mono',monospace;\">" +
+              "</td><td style=\"font-family:'JetBrains Mono',monospace;\">" +
               escapeHtml(classIdsLabel(t)) +
               '</td><td><span class="badge ' +
               levelBadge +
@@ -10701,7 +10705,7 @@
               levelBadge +
               '">' +
               levelText +
-              '</span></div></div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;color:' +
+              '</span></div></div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:' +
               c +
               ';">' +
               pct +
@@ -10729,7 +10733,7 @@
                 st.pct +
                 "%;background:" +
                 lvlColorVar(s.level) +
-                ';"></div></div></div><span style="width:55px;text-align:right;font-size:12px;color:var(--muted);font-family:\'DM Mono\',monospace;">' +
+                ';"></div></div></div><span style="width:55px;text-align:right;font-size:12px;color:var(--muted);font-family:\'JetBrains Mono\',monospace;">' +
                 st.done +
                 "/" +
                 st.total +
@@ -10788,7 +10792,7 @@
           "</span>" +
           "</div>" +
           '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:16px;">' +
-          '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Teacher ID</div><div style="font-family:\'DM Mono\',monospace;">' +
+          '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Teacher ID</div><div style="font-family:\'JetBrains Mono\',monospace;">' +
           escapeHtml(teacher.teacherId || "-") +
           "</div></div>" +
           '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:12px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;">Grades</div><div>' +
@@ -11070,7 +11074,7 @@
           "</div>" +
           "</div>" +
           '<div class="teacher-profile-stat-grid">' +
-          '<div class="teacher-profile-stat"><div class="teacher-profile-stat-label">Teacher ID</div><div class="teacher-profile-stat-value" style="font-family:\'DM Mono\',monospace;">' +
+          '<div class="teacher-profile-stat"><div class="teacher-profile-stat-label">Teacher ID</div><div class="teacher-profile-stat-value" style="font-family:\'JetBrains Mono\',monospace;">' +
           escapeHtml(teacher.teacherId || "-") +
           '</div><div class="teacher-profile-stat-copy">Use this ID for teacher records and class assignments.</div></div>' +
           '<div class="teacher-profile-stat"><div class="teacher-profile-stat-label">Grades</div><div class="teacher-profile-chip-list">' +
@@ -11152,11 +11156,11 @@
               escapeHtml(t.name) +
               '</span></div></td><td style="color:var(--muted);font-size:13px;">' +
               escapeHtml(t.email) +
-              "</td><td style=\"font-family:'DM Mono',monospace;\">" +
+              "</td><td style=\"font-family:'JetBrains Mono',monospace;\">" +
               escapeHtml(t.teacherId || "-") +
               "</td><td>" +
               escapeHtml(gradesLabel(t)) +
-              "</td><td style=\"font-family:'DM Mono',monospace;\">" +
+              "</td><td style=\"font-family:'JetBrains Mono',monospace;\">" +
               escapeHtml(classIdsLabel(t)) +
               '</td><td><span class="badge ' +
               levelBadge +
@@ -12050,7 +12054,7 @@
               safeProfileKey +
               '\')" title="Open subject profile">Profile</button><button class="icon-btn del" onclick="deleteSubjectProfile(\'' +
               safeProfileKey +
-              '\')" title="Delete subject profile"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;"></i></button><div style="font-size:22px;font-weight:800;font-family:\'DM Mono\',monospace;color:' +
+              '\')" title="Delete subject profile"><i data-lucide="trash-2" style="width:14px;height:14px;display:inline-block;"></i></button><div style="font-size:22px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:' +
               accent +
               ';">' +
               profile.stats.pct +
@@ -12109,7 +12113,7 @@
               levelBadge +
               '">' +
               levelText +
-              '</span></div></div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;color:' +
+              '</span></div></div></div><div style="text-align:right;"><div style="font-size:28px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:' +
               accentVar +
               ';">' +
               pct +
@@ -12137,7 +12141,7 @@
                 st.pct +
                 "%;background:" +
                 lvlColorVar(s.level) +
-                ';"></div></div></div><span style="width:55px;text-align:right;font-size:12px;color:var(--muted);font-family:\'DM Mono\',monospace;">' +
+                ';"></div></div></div><span style="width:55px;text-align:right;font-size:12px;color:var(--muted);font-family:\'JetBrains Mono\',monospace;">' +
                 st.done +
                 "/" +
                 st.total +
@@ -12253,7 +12257,7 @@
         window._tt = setTimeout(() => t.classList.remove("show"), 3000);
       };
 
-      // ── Add Subject Modal – Step Switcher ──
+      // â”€â”€ Add Subject Modal â€“ Step Switcher â”€â”€
       window.switchASTab = function (idx) {
         const tabs = document.querySelectorAll(".asmodal-tab");
         idx = Math.max(0, Math.min(Number(idx) || 0, Math.max(0, tabs.length - 1)));
@@ -12310,9 +12314,9 @@
       window.toggleSidebar = () => document.getElementById("sidebar").classList.toggle("open");
       window.closeSidebar = () => document.getElementById("sidebar").classList.remove("open");
 
-      // ╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═
-      // UPGRADE PACK – EduTrack v4.2.1 JavaScript
-      // ╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═
+      // â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•
+      // UPGRADE PACK â€“ EduTrack v4.2.1 JavaScript
+      // â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•
 
       // Safe helpers (fallback if module hasn't exposed them yet)
       function _esc(str) {
@@ -12339,7 +12343,7 @@
         return { total: t, done: d, pct: t ? Math.round((d / t) * 100) : 0 };
       }
 
-      // ── COLLAPSIBLE SIDEBAR ──
+      // â”€â”€ COLLAPSIBLE SIDEBAR â”€â”€
       window.smartToggleSidebar = function () {
         if (window.innerWidth <= 768) {
           // Mobile: slide drawer in/out
@@ -12386,12 +12390,12 @@
         }
       })();
 
-      // ── LIGHT / DARK THEME TOGGLE ──
+      // â”€â”€ LIGHT / DARK THEME TOGGLE â”€â”€
       window.toggleTheme = function () {
         const body = document.body;
         const btn = document.getElementById("theme-toggle");
         const isLight = body.classList.toggle("light-mode");
-        if (btn) btn.textContent = isLight ? "🌙" : "☀️";
+        if (btn) btn.textContent = isLight ? "ðŸŒ™" : "â˜€ï¸";
         localStorage.setItem("edu_theme", isLight ? "light" : "dark");
       };
 
@@ -12401,11 +12405,11 @@
         if (saved === "light") {
           document.body.classList.add("light-mode");
           const btn = document.getElementById("theme-toggle");
-          if (btn) btn.textContent = "🌙";
+          if (btn) btn.textContent = "ðŸŒ™";
         }
       })();
 
-      // ── GLOBAL SEARCH ──
+      // â”€â”€ GLOBAL SEARCH â”€â”€
       window.globalSearch = function (query) {
         const dropdown = document.getElementById("global-results-dropdown");
         if (!dropdown) return;
@@ -12456,7 +12460,7 @@
                 _esc(t.name || "") +
                 '</div><div class="gsr-sub">' +
                 _esc(t.email || "") +
-                (lvl ? " · " + lvl : "") +
+                (lvl ? " Â· " + lvl : "") +
                 '</div></div><span class="gsr-type">Teacher</span></div>'
               );
             })
@@ -12475,7 +12479,7 @@
                 _esc(s.name || "") +
                 '</div><div class="gsr-sub">' +
                 _esc(grade) +
-                (tName ? " · " + _esc(tName.name) : "") +
+                (tName ? " Â· " + _esc(tName.name) : "") +
                 '</div></div><span class="gsr-type">Subject</span></div>'
               );
             })
@@ -12491,7 +12495,7 @@
         if (dropdown) dropdown.classList.remove("open");
       };
 
-      // ── NOTIFICATION SYSTEM ──
+      // â”€â”€ NOTIFICATION SYSTEM â”€â”€
       let _notifAlerts = [];
       let _notifRead = false;
 
@@ -12597,7 +12601,7 @@
         const dot = document.getElementById("notif-dot");
         if (!list) return;
         if (!_notifAlerts.length) {
-          list.innerHTML = '<div class="notif-empty">✅ All clear – no alerts right now.</div>';
+          list.innerHTML = '<div class="notif-empty">âœ… All clear â€“ no alerts right now.</div>';
           if (dot) dot.classList.remove("has-alerts");
           return;
         }
@@ -12681,7 +12685,7 @@
         renderNotifPanel();
       };
 
-      // ── EXPORT CSV ──
+      // â”€â”€ EXPORT CSV â”€â”€
       window.exportProgressCSV = function () {
         const teachers = window.allTeachers || [];
         const subjects = window.allSubjects || [];
@@ -12756,7 +12760,7 @@
         showToast("Progress exported to CSV!", "success");
       };
 
-      // ── DUPLICATE SUBJECT ──
+      // â”€â”€ DUPLICATE SUBJECT â”€â”€
       window.duplicateSubjectProfile = async function (profileKey) {
         const profile = window.subjectProfileByKey(profileKey);
         if (!profile || !profile.subjects.length) return;
@@ -12808,7 +12812,7 @@
         }
       };
 
-      // ── PASSWORD STRENGTH METER ──
+      // â”€â”€ PASSWORD STRENGTH METER â”€â”€
       window.updatePwStrength = function (val) {
         const segs = [1, 2, 3, 4].map((n) => document.getElementById("pw-seg-" + n));
         const label = document.getElementById("pw-strength-label");
@@ -12833,7 +12837,7 @@
         label.style.color = val.length ? colors[score] : "var(--muted2)";
       };
 
-      // ── SKELETON LOADERS ──
+      // â”€â”€ SKELETON LOADERS â”€â”€
       window.showSkeletons = function (containerId, count, type) {
         const el = document.getElementById(containerId);
         if (!el) return;
@@ -12850,7 +12854,7 @@
         // Skeletons already injected during initial blank render
       }
 
-      // ── NOTIFICATION REFRESH AFTER DATA LOADS ──
+      // â”€â”€ NOTIFICATION REFRESH AFTER DATA LOADS â”€â”€
       const _origRenderDashboard = window.renderDashboard;
       // We hook buildNotifications into renderDashboard by patching it after module load
       // Use MutationObserver trick: after app loads, run notifications
@@ -12869,7 +12873,7 @@
         });
       });
 
-      // ── CLOSE NOTIF PANEL ON ESC ──
+      // â”€â”€ CLOSE NOTIF PANEL ON ESC â”€â”€
       document.addEventListener("keydown", (e) => {
         if (e.key === "Escape") {
           closeGlobalSearch();
@@ -12878,7 +12882,7 @@
         }
       });
 
-      // ── KEYBOARD SHORTCUT: / to focus search ──
+      // â”€â”€ KEYBOARD SHORTCUT: / to focus search â”€â”€
       document.addEventListener("keydown", (e) => {
         if (
           e.key === "/" &&
@@ -12891,11 +12895,11 @@
         }
       });
 
-      // ╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═
-      // EDUTRACK v4 – PER-LEVEL TERMS + AUTO WARNING SYSTEM
-      // ╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═╔═
+      // â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•
+      // EDUTRACK v4 â€“ PER-LEVEL TERMS + AUTO WARNING SYSTEM
+      // â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•â•”â•
 
-      // ── PER-LEVEL TERMS DATA STRUCTURE ──
+      // â”€â”€ PER-LEVEL TERMS DATA STRUCTURE â”€â”€
       // allTerms now supports per-level: { primary_1, primary_2, primary_3, middle_1, ... }
       // Backwards compatible with legacy numeric keys {1,2,3}
 
@@ -12912,7 +12916,7 @@
         upper: "var(--us)",
         advanced: "var(--al)",
       };
-      const LEVEL_EMOJIS = { primary: "🟢", middle: "🔵", upper: "🟣", advanced: "🟡" };
+      const LEVEL_EMOJIS = { primary: "ðŸŸ¢", middle: "ðŸ”µ", upper: "ðŸŸ£", advanced: "ðŸŸ¡" };
 
       let currentTermsLevel = "primary";
 
@@ -12935,7 +12939,7 @@
         const terms = window.allTerms || {};
         const key = levelTermKey(level, termNum);
         if (terms[key] && terms[key].startDate) return terms[key];
-        // Legacy fallback – if no per-level term, check legacy numeric
+        // Legacy fallback â€“ if no per-level term, check legacy numeric
         if (SCHOOL_LEVELS.indexOf(level) === 0 && terms[termNum]) return terms[termNum]; // only for primary as legacy
         return {};
       }
@@ -12953,7 +12957,7 @@
         const label = document.getElementById("terms-level-label");
         if (label)
           label.textContent =
-            LEVEL_EMOJIS[level] + " " + LEVEL_LABELS[level] + " – 3 independent terms";
+            LEVEL_EMOJIS[level] + " " + LEVEL_LABELS[level] + " â€“ 3 independent terms";
 
         const termColors = ["t1", "t2", "t3"];
         const termAccents = ["var(--accent)", "var(--accent2)", "var(--al)"];
@@ -13131,7 +13135,7 @@
         runAutoWarningCheck();
       };
 
-      // ── AUTO WARNING ENGINE ──
+      // â”€â”€ AUTO WARNING ENGINE â”€â”€
       let _autoWarningInterval = null;
       let _warningLog = [];
 
@@ -13220,9 +13224,9 @@
               '<div style="font-size:13px;color:var(--text-2);">' +
               _esc(w.message) +
               "</div>" +
-              "<div style=\"font-size:11px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace;\">" +
+              "<div style=\"font-size:11px;color:var(--muted);margin-top:2px;font-family:'JetBrains Mono',monospace;\">" +
               _esc(w.timestamp) +
-              " · " +
+              " Â· " +
               (w.type === "auto" ? "Auto" : "Manual") +
               "</div>" +
               "</div>" +
@@ -13298,7 +13302,7 @@
             if (!termData || !termData.endDate) return;
 
             const endDate = termData.endDate;
-            if (today <= endDate) return; // Term not ended yet – skip (only warn after deadline)
+            if (today <= endDate) return; // Term not ended yet â€“ skip (only warn after deadline)
 
             // Check if we already warned today for this level+term
             const warnKey = "edutrack_warned_" + level + "_" + termNum + "_" + endDate;
@@ -13315,7 +13319,7 @@
                 LEVEL_LABELS[level] +
                 " Term " +
                 termNum +
-                " deadline passed – " +
+                " deadline passed â€“ " +
                 teacher.name +
                 " is at " +
                 pct +
@@ -13360,7 +13364,7 @@
 
             incompletes.forEach(({ teacher, pct }) => {
               const msg =
-                "[AUTO] ⚠️ " +
+                "[AUTO] âš ï¸ " +
                 LEVEL_LABELS[level] +
                 " Term " +
                 termNum +
@@ -13368,7 +13372,7 @@
                 daysLeft +
                 " day" +
                 (daysLeft !== 1 ? "s" : "") +
-                " – " +
+                " â€“ " +
                 teacher.name +
                 " at " +
                 pct +
@@ -13397,7 +13401,7 @@
           renderWarningLog();
           buildNotifications();
           showToast(
-            "⚠️ " +
+            "âš ï¸ " +
               newWarnings.length +
               " auto-warning" +
               (newWarnings.length !== 1 ? "s" : "") +
@@ -13425,7 +13429,7 @@
         }
       }
 
-      // Start auto-warning engine – runs on load and every hour
+      // Start auto-warning engine â€“ runs on load and every hour
       function startAutoWarningEngine() {
         if (!(cud && (cud.role === "admin" || cud.role === "admin_master"))) return;
         runAutoWarningCheck();
@@ -13433,7 +13437,7 @@
         _autoWarningInterval = setInterval(runAutoWarningCheck, 60 * 60 * 1000); // every hour
       }
 
-      // ── MANUAL WARNING SYSTEM ──
+      // â”€â”€ MANUAL WARNING SYSTEM â”€â”€
       window.openManualWarningModal = function () {
         document.getElementById("mw-preview").style.display = "none";
         openModal("manual-warning-modal");
@@ -13450,9 +13454,9 @@
 
         if (!teachers.length) {
           list.innerHTML =
-            '<div style="color:var(--accent2);">✅ All teachers are at or above ' +
+            '<div style="color:var(--accent2);">âœ… All teachers are at or above ' +
             threshold +
-            "% – no warnings needed.</div>";
+            "% â€“ no warnings needed.</div>";
         } else {
           list.innerHTML = teachers
             .map(
@@ -13469,7 +13473,7 @@
                 " T" +
                 w.term +
                 "</span>" +
-                "<span style=\"font-family:'DM Mono',monospace;font-size:12px;color:var(--danger);\">" +
+                "<span style=\"font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--danger);\">" +
                 w.pct +
                 "%</span>" +
                 "</div>",
@@ -13496,7 +13500,7 @@
           const msg = customMsg
             ? "[MANUAL] " +
               customMsg +
-              " – " +
+              " â€“ " +
               w.teacher.name +
               " (" +
               w.levelLabel +
@@ -13505,7 +13509,7 @@
               ") at " +
               w.pct +
               "%"
-            : "[MANUAL] Syllabus reminder – " +
+            : "[MANUAL] Syllabus reminder â€“ " +
               w.teacher.name +
               " needs to complete " +
               w.levelLabel +
@@ -13535,7 +13539,7 @@
         buildNotifications();
         closeModal("manual-warning-modal");
         showToast(
-          "⚠️ " + teachers.length + " warning" + (teachers.length !== 1 ? "s" : "") + " sent!",
+          "âš ï¸ " + teachers.length + " warning" + (teachers.length !== 1 ? "s" : "") + " sent!",
           "success",
         );
       };
@@ -13558,7 +13562,7 @@
         return results;
       }
 
-      // ── SEND WARNING FOR SPECIFIC LEVEL+TERM (from Terms card) ──
+      // â”€â”€ SEND WARNING FOR SPECIFIC LEVEL+TERM (from Terms card) â”€â”€
       window.sendLevelTermWarning = async function (level, termNum) {
         const incompletes = getIncompleteTeachersForLevelTerm(level, termNum);
         if (!incompletes.length) {
@@ -13573,7 +13577,7 @@
             LEVEL_LABELS[level] +
             " Term " +
             termNum +
-            " reminder – " +
+            " reminder â€“ " +
             teacher.name +
             " at " +
             pct +
@@ -13611,7 +13615,7 @@
         );
       };
 
-      // ── ENHANCED NOTIFICATION BUILDER (add per-level warnings) ──
+      // â”€â”€ ENHANCED NOTIFICATION BUILDER (add per-level warnings) â”€â”€
       const _origBuildNotifications = window.buildNotifications || function () {};
       window.buildNotifications = function () {
         _origBuildNotifications();
@@ -13644,7 +13648,7 @@
               daysLeft +
               " day" +
               (daysLeft !== 1 ? "s" : "") +
-              " – " +
+              " â€“ " +
               incompletes.length +
               " teacher" +
               (incompletes.length !== 1 ? "s" : "") +
@@ -13690,7 +13694,7 @@
         renderNotifPanel();
       };
 
-      // ── EXPOSE saveTerm to also save per-level ──
+      // â”€â”€ EXPOSE saveTerm to also save per-level â”€â”€
       const _origSaveTerm = window.saveTerm;
       window._saveTermsToDb = async function () {
         // Persist per-level terms to localStorage AND Firestore via the exposed setDoc
@@ -14179,7 +14183,7 @@
               escapeHtml(item.teacher_name || "-") +
               "</div></div><div style=\"text-align:right\">" +
               yearPlanBadge(hasPlan ? item.year_plan_status || "Draft" : "Not Created", hasPlan ? "good" : "warn") +
-              '<div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;margin-top:6px;color:var(--accent-bright)">' +
+              '<div style="font-size:28px;font-weight:800;font-family:\'JetBrains Mono\',monospace;margin-top:6px;color:var(--accent-bright)">' +
               progress +
               '%</div></div></div><div class="pbar-wrap" style="height:9px;margin:14px 0"><div class="pbar" style="width:' +
               progress +
@@ -14533,7 +14537,7 @@
               Number(plan.completed_subtopics || 0) +
               "/" +
               Number(plan.total_subtopics || 0) +
-              '</div></div><div style="text-align:right"><div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;color:var(--accent-bright)">' +
+              '</div></div><div style="text-align:right"><div style="font-size:28px;font-weight:800;font-family:\'JetBrains Mono\',monospace;color:var(--accent-bright)">' +
               Math.round(Number(plan.progress_percentage || 0)) +
               '%</div><button class="btn sm" onclick="openYearPlan(' +
               Number(plan.id) +
@@ -15569,7 +15573,7 @@
         } catch (e) {}
       })();
 
-      // ── BOOT: Start auto-warning engine after app loads ──
+      // â”€â”€ BOOT: Start auto-warning engine after app loads â”€â”€
       document.addEventListener("DOMContentLoaded", () => {
         const observer2 = new MutationObserver(() => {
           const app = document.getElementById("app");
@@ -15585,7 +15589,7 @@
         });
       });
 
-      // ── ALSO PATCH renderTerms to show current-level tabs correctly ──
+      // â”€â”€ ALSO PATCH renderTerms to show current-level tabs correctly â”€â”€
       // Ensure the tabs reflect the active level
       // Patch showPage after module loads (module scripts are deferred, so DOMContentLoaded fires after)
       document.addEventListener("DOMContentLoaded", function () {
@@ -15612,3 +15616,12 @@
     </script>
   </body>
 </html>
+
+
+
+
+
+
+
+
+

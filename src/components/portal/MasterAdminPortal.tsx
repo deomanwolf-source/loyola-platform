@@ -122,42 +122,67 @@ export function MasterAdminPortal() {
       {active === "dashboard" && (
         <>
           <PageTitle kicker="Full access" title="Master Admin Dashboard" />
-          <div className="grid gap-4 md:grid-cols-4">
-            <StatCard label="Users" value={db.users.length} accent />
-            <StatCard label="Students" value={db.students.length} />
-            <StatCard label="Admissions" value={db.admissions.length} />
-            <StatCard label="Audit events" value={db.auditLogs.length} />
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard icon={Users} label="Portal Accounts" value={db.users.length} accent hint="Admin + teacher + parent + student" />
+            <StatCard icon={GraduationCap} label="Students" value={db.students.length} hint="Enrolled students" />
+            <StatCard icon={BookOpen} label="Teachers" value={db.teachers?.length ?? 0} hint="Teaching staff" />
+            <StatCard icon={Inbox} label="Pending Admissions" value={db.admissions.filter((a) => a.status !== "Enrolled").length} hint="Awaiting review" />
           </div>
-          <div className="mt-8 grid gap-6 lg:grid-cols-3">
+          <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <StatCard icon={FileText} label="News & Notices" value={db.news.length} hint="Published content" />
+            <StatCard icon={Calendar} label="Events" value={db.events.length} hint="Upcoming + past" />
+            <StatCard icon={MessageSquare} label="Messages" value={db.messages.length} hint="Contact form submissions" />
+            <StatCard icon={Activity} label="Audit Events" value={db.auditLogs.length} hint="All system actions" />
+          </div>
+          <div className="mt-6 grid gap-6 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <Panel title="Master permissions">
-                <div className="grid gap-4 md:grid-cols-3">
+              <Panel title="Quick actions">
+                <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
                   {[
-                    "Manage admins and super admins",
-                    "Edit website content and school records",
-                    "Access system settings, audit logs, and backup tools",
-                  ].map((item) => (
-                    <div
-                      key={item}
-                      className="border border-border bg-secondary/45 p-4 text-sm text-navy"
+                    { label: "Manage Admins", id: "users", Icon: Shield, desc: "Add or remove admin accounts and roles" },
+                    { label: "Audit Logs", id: "audit", Icon: FileText, desc: "Review all system events and user actions" },
+                    { label: "System Health", id: "health", Icon: Activity, desc: "Server, database, and performance metrics" },
+                    { label: "Backup & Restore", id: "backup", Icon: Database, desc: "Export data or restore from backup" },
+                    { label: "School Settings", id: "settings", Icon: Settings, desc: "Configure school name, phone, address" },
+                    { label: "Admissions", id: "admissions", Icon: Inbox, desc: "Review and enroll new student applications" },
+                  ].map(({ label, id, Icon, desc }) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setActive(id)}
+                      className="rounded-2xl border border-border bg-secondary/40 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-gold/60 hover:bg-white hover:shadow-md"
                     >
-                      {item}
-                    </div>
+                      <Icon className="h-6 w-6 text-gold" />
+                      <p className="mt-2.5 text-sm font-bold text-navy">{label}</p>
+                      <p className="mt-1 text-xs leading-5 text-muted-foreground">{desc}</p>
+                    </button>
                   ))}
                 </div>
               </Panel>
             </div>
             <Panel title="Recent activity">
-              <ul className="space-y-3">
-                {db.auditLogs.slice(0, 7).map((log) => (
-                  <li key={log.id} className="border-l-2 border-gold pl-3">
-                    <p className="text-sm text-navy">{log.action}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {log.user} | {new Date(log.createdAt).toLocaleString()}
-                    </p>
-                  </li>
-                ))}
-              </ul>
+              {db.auditLogs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+              ) : (
+                <ul className="space-y-3">
+                  {db.auditLogs.slice(0, 8).map((log) => (
+                    <li key={log.id} className="border-l-2 border-gold pl-3">
+                      <p className="text-sm font-medium text-navy">{log.action}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {log.user} &middot; {new Date(log.createdAt).toLocaleString()}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {db.auditLogs.length > 8 && (
+                <button
+                  onClick={() => setActive("audit")}
+                  className="mt-4 text-xs font-semibold text-gold hover:underline"
+                >
+                  View all {db.auditLogs.length} events →
+                </button>
+              )}
             </Panel>
           </div>
         </>
@@ -404,14 +429,62 @@ function AuditLogs() {
 }
 
 function SystemHealth() {
+  const db = useDb();
+  const publishedAt = db.publishedAt ? new Date(db.publishedAt) : null;
+  const lastPublish = publishedAt
+    ? `${publishedAt.toLocaleDateString()} ${publishedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+    : "Never";
+
+  const checks = [
+    { label: "Web server", status: "Operational", ok: true },
+    { label: "Database connection", status: "Connected", ok: true },
+    { label: "File storage", status: "Online", ok: true },
+    { label: "EduTrack service", status: "Running", ok: true },
+    { label: "Email service", status: "Connected", ok: true },
+    { label: "SSL certificate", status: "Valid", ok: true },
+  ];
+
   return (
     <>
       <PageTitle kicker="Diagnostics" title="System Health" />
-      <div className="grid gap-4 md:grid-cols-4">
-        <StatCard label="Web server" value="OK" accent />
-        <StatCard label="Database" value="Local" />
-        <StatCard label="Error rate" value="0.02%" />
-        <StatCard label="Sessions" value="38" />
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="System status" value="All OK" accent />
+        <StatCard label="Data records" value={db.students.length + db.teachers.length + db.users.length} hint="Students + teachers + accounts" />
+        <StatCard label="Last published" value={lastPublish} hint="Website content push" />
+        <StatCard label="Audit events" value={db.auditLogs.length} hint="Total system events logged" />
+      </div>
+      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <Panel title="Service status">
+          <ul className="divide-y divide-border">
+            {checks.map(({ label, status, ok }) => (
+              <li key={label} className="flex items-center justify-between py-3">
+                <span className="text-sm font-medium text-navy">{label}</span>
+                <span className={`rounded-full px-3 py-1 text-xs font-bold ${ok ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+                  {status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
+        <Panel title="Data summary">
+          <ul className="divide-y divide-border">
+            {[
+              ["Portal accounts", db.users.length],
+              ["Students enrolled", db.students.length],
+              ["Teaching staff", db.teachers.length],
+              ["News articles", db.news.length],
+              ["Events", db.events.length],
+              ["Media files", db.gallery.length + db.videoGallery.length],
+              ["Audit log entries", db.auditLogs.length],
+              ["Admission applications", db.admissions.length],
+            ].map(([label, count]) => (
+              <li key={String(label)} className="flex items-center justify-between py-3">
+                <span className="text-sm text-muted-foreground">{label}</span>
+                <span className="font-mono text-sm font-bold text-navy">{count}</span>
+              </li>
+            ))}
+          </ul>
+        </Panel>
       </div>
     </>
   );

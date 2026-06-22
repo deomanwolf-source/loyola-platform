@@ -2566,6 +2566,114 @@ function HomeRequiredSections() {
           </div>
         </div>
       </section>
+
+      {/* ── NEWS & EVENTS STRIP ── */}
+      {(db.news.length > 0 || db.events.length > 0) && (
+        <section
+          data-home-reveal
+          className="reveal-on-scroll bg-[radial-gradient(circle_at_top_right,rgba(212,160,23,0.08),transparent_38%),linear-gradient(180deg,#fafcff_0%,#f2f7ff_100%)] py-14 md:py-20"
+        >
+          <div className="mx-auto max-w-7xl px-5 sm:px-6">
+            <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.28em] text-crimson">Stay informed</p>
+                <h2 className="mt-3 font-serif text-4xl font-bold text-navy md:text-5xl">Latest from Loyola</h2>
+              </div>
+              <div className="flex gap-4">
+                {pageIsLive("/news") && (
+                  <a href="/news" className="inline-flex items-center gap-2 text-sm font-bold text-navy/70 hover:text-crimson">
+                    All news <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                )}
+                {pageIsLive("/events") && (
+                  <a href="/calendar" className="inline-flex items-center gap-2 text-sm font-bold text-navy/70 hover:text-crimson">
+                    All events <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+              {/* News column */}
+              {db.news.length > 0 && (
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 content-start">
+                  {db.news.slice(0, 4).map((item) => (
+                    <a
+                      key={item.id}
+                      href="/news"
+                      className="group flex flex-col overflow-hidden rounded-[22px] border border-white/80 bg-white shadow-[0_8px_32px_-14px_rgba(10,22,40,0.18)] transition-all hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-elegant"
+                    >
+                      {item.image && (
+                        <div className="relative h-36 overflow-hidden">
+                          <img src={item.image} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_50%,rgba(7,18,36,0.35)_100%)]" />
+                        </div>
+                      )}
+                      <div className="flex flex-1 flex-col p-5">
+                        <span className="mb-2 inline-block text-[9px] font-black uppercase tracking-[0.22em] text-crimson">
+                          {item.audience || "Notice"}
+                        </span>
+                        <h3 className="font-serif text-base font-bold leading-snug text-navy line-clamp-2">{item.title}</h3>
+                        {item.body && (
+                          <p className="mt-2 text-xs leading-5 text-slate-500 line-clamp-2">{item.body}</p>
+                        )}
+                        <div className="mt-auto pt-3">
+                          <time className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                            {item.date ? new Date(item.date).toLocaleDateString("en-LK", { day: "numeric", month: "short", year: "numeric" }) : ""}
+                          </time>
+                        </div>
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {/* Events column */}
+              {db.events.length > 0 && (
+                <div className="flex flex-col gap-3">
+                  <div className="rounded-[22px] border border-navy/12 bg-navy px-6 py-5 text-white">
+                    <p className="text-xs font-black uppercase tracking-[0.22em] text-gold-light">Upcoming events</p>
+                    <ul className="mt-4 space-y-4">
+                      {db.events.slice(0, 5).map((event) => (
+                        <li key={event.id} className="flex gap-4 border-t border-white/10 pt-4">
+                          <div className="flex-shrink-0 text-center">
+                            {event.date ? (
+                              <>
+                                <div className="text-2xl font-black leading-none text-gold">
+                                  {new Date(event.date).getDate()}
+                                </div>
+                                <div className="mt-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white/50">
+                                  {new Date(event.date).toLocaleString("en-LK", { month: "short" })}
+                                </div>
+                              </>
+                            ) : (
+                              <div className="h-9 w-8 rounded bg-white/10" />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold leading-snug text-white">{event.title}</p>
+                            {event.description && (
+                              <p className="mt-1 text-xs text-white/50 line-clamp-1">{event.description}</p>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                    {pageIsLive("/calendar") && (
+                      <a
+                        href="/calendar"
+                        className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/8 py-2.5 text-xs font-black uppercase tracking-[0.14em] text-white/80 transition hover:border-gold/50 hover:bg-gold/10 hover:text-gold-light"
+                      >
+                        Full Calendar <ArrowRight className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
     </>
   );
 }

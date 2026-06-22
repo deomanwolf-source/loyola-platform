@@ -505,18 +505,25 @@ export function StatCard({
   value,
   hint,
   accent,
+  icon: Icon,
 }: {
   label: string;
   value: string | number;
   hint?: string;
   accent?: boolean;
+  icon?: React.ComponentType<{ className?: string }>;
 }) {
   return (
     <div
-      className={`rounded-lg border ${accent ? "border-[#ffe06d]/80 bg-gradient-to-br from-[#ffe06d]/22 to-white" : "border-[#d6e0f8] bg-white"} p-6 shadow-[0_18px_44px_-34px_rgb(8_39_102_/0.38)]`}
+      className={`rounded-lg border ${accent ? "border-[#ffe06d]/80 bg-gradient-to-br from-[#ffe06d]/22 to-white" : "border-[#d6e0f8] bg-white"} p-5 shadow-[0_18px_44px_-34px_rgb(8_39_102_/0.38)]`}
     >
+      {Icon && (
+        <div className={`mb-3 inline-flex h-9 w-9 items-center justify-center rounded-lg ${accent ? "bg-[#ffe06d]/25" : "bg-[#eef2ff]"}`}>
+          <Icon className={`h-[18px] w-[18px] ${accent ? "text-[#806900]" : "text-[#07215a]"}`} />
+        </div>
+      )}
       <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground">{label}</p>
-      <p className="mt-2 font-serif text-3xl font-semibold text-navy">{value}</p>
+      <p className="mt-1.5 font-serif text-3xl font-semibold text-navy">{value}</p>
       {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
     </div>
   );

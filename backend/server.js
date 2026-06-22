@@ -156,8 +156,10 @@ function contentSecurityPolicyForRequest(req) {
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-XSS-Protection", "0");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   res.setHeader("Content-Security-Policy", contentSecurityPolicyForRequest(req));
   next();
 });
@@ -11100,7 +11102,7 @@ app.post(
 
 app.post(
   "/api/login",
-  rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: "login" }),
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "login" }),
   async (req, res) => {
     try {
       await ensureAccessTables();
@@ -11165,7 +11167,7 @@ app.post(
 
 app.post(
   "/api/login/2fa",
-  rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: "login-2fa" }),
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 10, keyPrefix: "login-2fa" }),
   async (req, res) => {
     try {
       await ensureAccessTables();
