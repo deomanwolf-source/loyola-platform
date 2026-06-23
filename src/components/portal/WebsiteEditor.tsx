@@ -1859,6 +1859,15 @@ export function WebsiteEditor() {
       n.has(s) ? n.delete(s) : n.add(s);
       return n;
     });
+  const [pageOpenPanels, setPageOpenPanels] = useState<Set<string>>(
+    () => new Set(["Page Media", "Page Blocks"]),
+  );
+  const togglePagePanel = (s: string) =>
+    setPageOpenPanels((prev) => {
+      const n = new Set(prev);
+      n.has(s) ? n.delete(s) : n.add(s);
+      return n;
+    });
   const [leadershipUploadTarget, setLeadershipUploadTarget] = useState<string | null>(null);
   const [pastRectorUploadTarget, setPastRectorUploadTarget] = useState<number | null>(null);
   const [facilityUploadTarget, setFacilityUploadTarget] = useState<number | null>(null);
@@ -2902,11 +2911,9 @@ export function WebsiteEditor() {
 
       <div
         className={
-          widePreview
+          widePreview || visualEditorOpen
             ? "grid gap-5"
-            : selectedPage === "home" && !visualEditorOpen
-              ? "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)]"
-              : "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)_352px]"
+            : "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)]"
         }
       >
         {!widePreview && (
@@ -3364,88 +3371,356 @@ export function WebsiteEditor() {
               </div>
             </div>
           ) : (
-            <PreviewWebsite
-              db={db}
-              selectedPage={selectedPage}
-              selectedSection={selectedSection}
-              frameRef={previewFrameRef}
-              visualEditing={safeVisualEditorActive}
-              onSelectSection={selectPreviewSection}
-              onCloseVisualEditing={closeSafeVisualEditor}
-            />
-          )}
-          {selectedPage !== "home" && (
-            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-3.5">
-                <div className="flex items-center gap-2">
-                  <Menu className="h-4 w-4 text-[#d4a017]" />
-                  <h3 className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                    Header &amp; Navigation
-                  </h3>
-                </div>
-                <StudioButton tone="dark" onClick={removeDuplicatePortalButtons}>
-                  <RefreshCw className="h-3.5 w-3.5" /> Fix duplicates
-                </StudioButton>
+            /* ── Generic Page Form Editor ── */
+            <div className="space-y-3">
+              {/* Hidden file inputs — always in DOM for non-home pages */}
+              <input ref={heroInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("hero", e.target.files?.[0])} />
+              <input ref={logoInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("logo", e.target.files?.[0])} />
+              <input ref={campusInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("campus", e.target.files?.[0])} />
+              <input ref={principalInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { void uploadTo("principal", e.target.files?.[0]); e.currentTarget.value = ""; }} />
+              <input ref={rectorInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { void uploadTo("rector", e.target.files?.[0]); e.currentTarget.value = ""; }} />
+              <input ref={leadershipImageInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { if (leadershipUploadTarget) void uploadLeadershipCardImage(leadershipUploadTarget, e.target.files?.[0]); e.currentTarget.value = ""; }} />
+              <input ref={pastRectorImageInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { if (pastRectorUploadTarget !== null) void uploadPastRectorProfileImage(pastRectorUploadTarget, e.target.files?.[0]); e.currentTarget.value = ""; }} />
+              <input ref={facilityImageInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { if (facilityUploadTarget !== null) void uploadFacilityImage(facilityUploadTarget, e.target.files?.[0]); e.currentTarget.value = ""; }} />
+              <input ref={pageImageInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("page", e.target.files?.[0])} />
+              <input ref={anthemVideoCoverInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("anthemVideoCover", e.target.files?.[0])} />
+              <input ref={backgroundMediaInputRef} type="file" accept="image/jpeg,image/png,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm" className="hidden" onChange={(e) => void uploadBackgroundMedia(e.target.files?.[0])} />
+
+              {/* ── Page Media ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => togglePagePanel("Page Media")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <ImageIcon className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Page Media</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Page Media") ? "rotate-180" : ""}`} />
+                </button>
+                {pageOpenPanels.has("Page Media") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <MediaUploadStatus />
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <StudioButton tone="gold" onClick={() => pageImageInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload page image
+                      </StudioButton>
+                      <StudioButton onClick={() => backgroundMediaInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload background
+                      </StudioButton>
+                      <StudioButton onClick={() => logoInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload logo
+                      </StudioButton>
+                      <StudioButton onClick={() => campusInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload campus image
+                      </StudioButton>
+                      <StudioButton onClick={() => principalInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload principal
+                      </StudioButton>
+                    </div>
+                    {page.backgroundMediaUrl && (
+                      <>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs text-slate-500">
+                          <span className="font-bold text-navy">Background: </span>
+                          <span className="break-all font-mono">{page.backgroundMediaUrl}</span>
+                        </div>
+                        <StudioButton onClick={clearBackgroundMedia}>
+                          <Trash2 className="h-4 w-4" /> Remove background
+                        </StudioButton>
+                      </>
+                    )}
+                    <Field label="Background opacity" hint={`${Math.round((page.backgroundMediaOpacity || 0.34) * 100)}% — behind the hero gradient.`}>
+                      <input type="range" min="0.08" max="0.75" step="0.01" value={page.backgroundMediaOpacity || 0.34} onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))} className="w-full accent-[#d4a017]" />
+                    </Field>
+                  </div>
+                )}
               </div>
-              <div className="p-4 space-y-2">
-                {visibleNav.map((item) => {
-                  const isSubpage = !!item.parentId;
-                  return (
-                    <div
-                      key={item.id}
-                      className={`grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 md:grid-cols-[1fr_auto_auto_auto] md:items-center transition-all duration-200 hover:border-slate-200 hover:bg-white hover:shadow-sm ${isSubpage ? "ml-6" : ""}`}
+
+              {/* ── Page Content / Blocks ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => togglePagePanel("Page Blocks")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Code2 className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Page Content</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Page Blocks") ? "rotate-180" : ""}`} />
+                </button>
+                {pageOpenPanels.has("Page Blocks") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <PageBlockEditor pageId={selectedPage} />
+                    <button
+                      type="button"
+                      onClick={selectedPageUsesLiveRenderer ? openFullVisualBuilder : openVisualBuilder}
+                      className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
                     >
-                      <input
-                        value={item.label}
-                        onChange={(e) => renameNav(item.id, e.target.value)}
-                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition-colors focus:border-[#d4a017] focus:shadow-[0_0_0_3px_rgba(212,160,23,0.15)]"
-                      />
+                      <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />
+                      {selectedPageUsesLiveRenderer
+                        ? selectedPageUsesVisualOverride ? "Edit Full Visual Page" : "Open Full Visual Builder"
+                        : "Open Visual Builder"}
+                    </button>
+                    {selectedPageUsesLiveRenderer && (
                       <button
                         type="button"
-                        onClick={() => toggleNav(item.id)}
-                        className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-200 ${
-                          item.visible
-                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                        }`}
+                        onClick={openSafeVisualEditor}
+                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-navy transition hover:bg-slate-50"
                       >
-                        {item.visible ? (
-                          <Eye className="h-3.5 w-3.5" />
-                        ) : (
-                          <EyeOff className="h-3.5 w-3.5" />
-                        )}
-                        {item.visible ? "Visible" : "Hidden"}
+                        <Wand2 className="h-4 w-4" />
+                        {safeVisualEditorActive ? "Safe editor active" : "Open safe field editor"}
                       </button>
-                      <div className="flex gap-1">
-                        <button
-                          type="button"
-                          onClick={() => moveNav(item.id, -1)}
-                          className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                        >
-                          <ArrowUp className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveNav(item.id, 1)}
-                          className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                        >
-                          <ArrowDown className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                      <span className="text-[11px] font-mono text-slate-400">
-                        /{item.id === "home" ? "" : item.id}
-                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Rector Photos (past-rectors pages only) ── */}
+              {isPastRectorsPage(selectedPage) && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                  <button type="button" onClick={() => togglePagePanel("Rector Photos")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                    <div className="flex items-center gap-2.5">
+                      <Users className="h-4 w-4 text-[#d4a017]" />
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Rector Photos</span>
                     </div>
-                  );
-                })}
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); addPastRectorProfile(); }} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy hover:bg-slate-50">
+                        <Plus className="h-3.5 w-3.5" /> Add
+                      </button>
+                      <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Rector Photos") ? "rotate-180" : ""}`} />
+                    </div>
+                  </button>
+                  {pageOpenPanels.has("Rector Photos") && (
+                    <div className="border-t border-slate-100 p-5 space-y-3">
+                      {inspectorPastRectorProfiles.map((profile, index) => (
+                        <div key={`${profile.name}-${index}`} className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+                          {profile.image && <img src={profile.image} alt="" className="max-h-72 w-full rounded-lg bg-slate-100 object-contain" />}
+                          <Field label="Name">
+                            <input value={profile.name} onChange={(e) => updatePastRectorProfile(index, { name: e.target.value })} className="input-line" />
+                          </Field>
+                          <Field label="Service period">
+                            <input value={profile.years} onChange={(e) => updatePastRectorProfile(index, { years: e.target.value })} placeholder="1949 - 1987" className="input-line" />
+                          </Field>
+                          <Field label="Image URL">
+                            <input value={profile.image} onChange={(e) => updatePastRectorProfile(index, { image: e.target.value })} placeholder="Paste URL or upload below" className="input-line" />
+                          </Field>
+                          <div className="grid gap-2">
+                            <StudioButton tone="gold" onClick={() => { setPastRectorUploadTarget(index); pastRectorImageInputRef.current?.click(); }}>
+                              <Upload className="h-4 w-4" /> Upload photo
+                            </StudioButton>
+                            <StudioButton onClick={() => updatePastRectorProfile(index, { image: "" })}>
+                              <Trash2 className="h-4 w-4" /> Remove photo
+                            </StudioButton>
+                            <StudioButton onClick={() => removePastRectorProfile(index)}>
+                              <Trash2 className="h-4 w-4" /> Remove profile
+                            </StudioButton>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Facility Cards (facilities page only) ── */}
+              {selectedPage === FACILITIES_PAGE_ID && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                  <button type="button" onClick={() => togglePagePanel("Facility Cards")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                    <div className="flex items-center gap-2.5">
+                      <Building2 className="h-4 w-4 text-[#d4a017]" />
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Facility Cards</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); addFacilityItem(); }} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy hover:bg-slate-50">
+                        <Plus className="h-3.5 w-3.5" /> Add
+                      </button>
+                      <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Facility Cards") ? "rotate-180" : ""}`} />
+                    </div>
+                  </button>
+                  {pageOpenPanels.has("Facility Cards") && (
+                    <div className="border-t border-slate-100 p-5 space-y-3">
+                      {inspectorFacilityItems.map((facility, index) => (
+                        <div key={`${facility.title}-${index}`} className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+                          {facility.image && <img src={facility.image} alt="" className="max-h-56 w-full rounded-lg bg-slate-100 object-cover" />}
+                          <Field label="Title">
+                            <input value={facility.title} onChange={(e) => updateFacilityItem(index, { title: e.target.value })} className="input-line" />
+                          </Field>
+                          <Field label="Category">
+                            <input value={facility.category} onChange={(e) => updateFacilityItem(index, { category: e.target.value })} className="input-line" />
+                          </Field>
+                          <Field label="Body">
+                            <textarea value={facility.body} onChange={(e) => updateFacilityItem(index, { body: e.target.value })} rows={4} className="input-line resize-none" />
+                          </Field>
+                          <Field label="Highlights" hint="Comma-separated list">
+                            <input value={facility.highlights.join(", ")} onChange={(e) => updateFacilityItem(index, { highlights: e.target.value.split(",").map((item) => item.trim()).filter(Boolean) })} placeholder="Swimming, Water safety, Training" className="input-line" />
+                          </Field>
+                          <Field label="Image URL">
+                            <input value={facility.image} onChange={(e) => updateFacilityItem(index, { image: e.target.value })} placeholder="Paste URL or upload below" className="input-line" />
+                          </Field>
+                          <div className="grid gap-2">
+                            <StudioButton tone="gold" onClick={() => { setFacilityUploadTarget(index); facilityImageInputRef.current?.click(); }}>
+                              <Upload className="h-4 w-4" /> Upload photo
+                            </StudioButton>
+                            <StudioButton onClick={() => updateFacilityItem(index, { image: "" })}>
+                              <Trash2 className="h-4 w-4" /> Remove photo
+                            </StudioButton>
+                            <StudioButton onClick={() => removeFacilityItem(index)}>
+                              <Trash2 className="h-4 w-4" /> Remove facility
+                            </StudioButton>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Anthem Media (anthem page only) ── */}
+              {selectedPage === "about/college-anthem-hymn" && (
+                <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                  <button type="button" onClick={() => togglePagePanel("Anthem Media")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                    <div className="flex items-center gap-2.5">
+                      <Sparkles className="h-4 w-4 text-[#d4a017]" />
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Anthem Media</span>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Anthem Media") ? "rotate-180" : ""}`} />
+                  </button>
+                  {pageOpenPanels.has("Anthem Media") && (
+                    <div className="border-t border-slate-100 p-5 space-y-4">
+                      <Field label="Media title">
+                        <input value={page.anthemVideoTitle || ""} onChange={(e) => updatePage("anthemVideoTitle", e.target.value)} placeholder="College Anthem &amp; Hymn" className="input-line" />
+                      </Field>
+                      <Field label="Video link">
+                        <input value={page.anthemVideoUrl || ""} onChange={(e) => updatePage("anthemVideoUrl", e.target.value)} placeholder="YouTube or MP4 URL" className="input-line" />
+                      </Field>
+                      <Field label="Cover photo URL">
+                        <input value={page.anthemVideoCoverImage || ""} onChange={(e) => updatePage("anthemVideoCoverImage", e.target.value)} placeholder="Paste image URL" className="input-line" />
+                      </Field>
+                      {page.anthemVideoCoverImage && (
+                        <img src={page.anthemVideoCoverImage} alt="" className="aspect-video w-full rounded-xl object-cover" />
+                      )}
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <StudioButton tone="gold" onClick={() => anthemVideoCoverInputRef.current?.click()}>
+                          <Upload className="h-4 w-4" /> Upload video cover
+                        </StudioButton>
+                        {page.anthemVideoCoverImage && (
+                          <StudioButton onClick={() => updatePage("anthemVideoCoverImage", "")}>
+                            <Trash2 className="h-4 w-4" /> Remove cover
+                          </StudioButton>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── Footer ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => togglePagePanel("Footer")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Footer</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Footer") ? "rotate-180" : ""}`} />
+                </button>
+                {pageOpenPanels.has("Footer") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <Field label="Footer description">
+                      <textarea value={db.websiteContent.footerText} onChange={(e) => updateContent({ footerText: e.target.value })} rows={4} className="input-line resize-none" />
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Copyright line">
+                        <input value={db.websiteContent.footerCopyrightLine} onChange={(e) => updateContent({ footerCopyrightLine: e.target.value })} className="input-line" />
+                      </Field>
+                      <Field label="Legal line">
+                        <input value={db.websiteContent.footerLegalLine} onChange={(e) => updateContent({ footerLegalLine: e.target.value })} className="input-line" />
+                      </Field>
+                    </div>
+                    <Field label="Developer credit">
+                      <input value={db.websiteContent.developerCredit} onChange={(e) => updateContent({ developerCredit: e.target.value })} className="input-line" />
+                    </Field>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Design & Colors ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => togglePagePanel("Design")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Palette className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Design &amp; Colors</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Design") ? "rotate-180" : ""}`} />
+                </button>
+                {pageOpenPanels.has("Design") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="Primary color">
+                        <input type="color" value={db.websiteContent.primaryColor} onChange={(e) => updateContent({ primaryColor: e.target.value })} className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 transition-all hover:border-[#d4a017]" />
+                      </Field>
+                      <Field label="Accent color">
+                        <input type="color" value={db.websiteContent.accentColor} onChange={(e) => updateContent({ accentColor: e.target.value })} className="h-11 w-full cursor-pointer rounded-xl border border-slate-200 bg-white p-1 transition-all hover:border-[#d4a017]" />
+                      </Field>
+                    </div>
+                    <Field label="Custom CSS" hint="Advanced: add extra CSS overrides.">
+                      <textarea value={db.websiteContent.customCss} onChange={(e) => updateContent({ customCss: e.target.value })} rows={4} className="input-line resize-none font-mono text-xs" />
+                    </Field>
+                    <div className="grid gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-3 text-xs leading-5 text-slate-500">
+                      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-navy">
+                        <Wand2 className="h-3.5 w-3.5 text-[#d4a017]" /> Animation system active
+                      </div>
+                      <p>Fade-in, card lift, button glow, and smooth section transitions are enabled globally.</p>
+                    </div>
+                    <div className="grid gap-2 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100/50 p-3 text-xs leading-5 text-slate-500">
+                      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-navy">
+                        <MonitorSmartphone className="h-3.5 w-3.5 text-[#d4a017]" /> Responsive layout
+                      </div>
+                      <p>Mobile menu, responsive grids, and flexible cards built into every page.</p>
+                    </div>
+                    <StudioButton tone="gold" onClick={addGalleryPlaceholder}>
+                      <ImageIcon className="h-4 w-4" /> Add gallery album
+                    </StudioButton>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Navigation ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => togglePagePanel("Navigation")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Menu className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Header &amp; Navigation</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); removeDuplicatePortalButtons(); }} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); removeDuplicatePortalButtons(); } }} className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-50">
+                      <RefreshCw className="h-3 w-3" /> Fix dupes
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${pageOpenPanels.has("Navigation") ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                {pageOpenPanels.has("Navigation") && (
+                  <div className="border-t border-slate-100 p-4 space-y-2">
+                    {visibleNav.map((item) => {
+                      const isSubpage = !!item.parentId;
+                      return (
+                        <div key={item.id} className={`grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 md:grid-cols-[1fr_auto_auto_auto] md:items-center transition-all duration-200 hover:border-slate-200 hover:bg-white hover:shadow-sm ${isSubpage ? "ml-6" : ""}`}>
+                          <input value={item.label} onChange={(e) => renameNav(item.id, e.target.value)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition-colors focus:border-[#d4a017] focus:shadow-[0_0_0_3px_rgba(212,160,23,0.15)]" />
+                          <button type="button" onClick={() => toggleNav(item.id)} className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-200 ${item.visible ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200" : "bg-slate-100 text-slate-500 hover:bg-slate-200"}`}>
+                            {item.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                            {item.visible ? "Visible" : "Hidden"}
+                          </button>
+                          <div className="flex gap-1">
+                            <button type="button" onClick={() => moveNav(item.id, -1)} className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"><ArrowUp className="h-3.5 w-3.5" /></button>
+                            <button type="button" onClick={() => moveNav(item.id, 1)} className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"><ArrowDown className="h-3.5 w-3.5" /></button>
+                          </div>
+                          <span className="text-[11px] font-mono text-slate-400">/{item.id === "home" ? "" : item.id}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           )}
         </main>
 
-        {!widePreview && selectedPage !== "home" && (
+        {false && (
           <aside className="space-y-4">
-            {/* Section Editor */}
+            {/* Section Editor — retired; all content is now in the form panel */}
             <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
               <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
                 <div className="flex items-center gap-2">
