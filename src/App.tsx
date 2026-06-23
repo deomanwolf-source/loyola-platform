@@ -2968,7 +2968,7 @@ function HomeNewsTicker() {
   if (items.length === 0) return null;
   const doubled = [...items, ...items];
   return (
-    <div className="relative overflow-hidden border-b border-navy/15 bg-navy">
+    <div data-website-section="News Ticker" className="relative overflow-hidden border-b border-navy/15 bg-navy">
       <div className="flex items-stretch">
         <div className="z-10 flex flex-shrink-0 items-center gap-2.5 border-r border-white/15 bg-crimson px-5 py-3">
           <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
@@ -3082,6 +3082,7 @@ function HomeAdmissionsCTA() {
   return (
     <section
       data-home-reveal
+      data-website-section="Admissions CTA"
       className="reveal-on-scroll relative overflow-hidden bg-[linear-gradient(135deg,#071224_0%,#0d1e3d_42%,#8a0a13_100%)] py-20 md:py-28"
     >
       <div className="pointer-events-none absolute inset-0">
@@ -3296,9 +3297,7 @@ function HomePage() {
       <div id="below-hero" />
       <HomeNewsTicker />
       <HomeVisionMissionIdentity />
-      <HomeCampusMosaic />
       <HomeRequiredSections />
-      <HomeAdmissionsCTA />
       <SubpagesSection parentId="home" />
     </PublicLayout>
   );

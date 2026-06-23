@@ -1685,10 +1685,7 @@ const studioSections = [
   "Header",
   "Hero",
   "About College",
-  "Rector Message",
   "Leadership",
-  "Welcome",
-  "Vision & Mission",
   "News & Notices",
   "Events",
   "Gallery",
@@ -2593,11 +2590,12 @@ export function WebsiteEditor() {
     });
     setSafeVisualEditorOpen(false);
     setVisualEditorOpen(true);
+    setWidePreview(true);
     setMessageTone("info");
     setMessage(
       isLivePage
-        ? `Full Visual Builder opened for '${savedPage?.title || selectedPage}'. Saving will make this page use a visual override; the coded design is kept and can be restored.`
-        : `Visual Builder opened for '${savedPage?.title || selectedPage}'.`,
+        ? `Visual Builder active for '${savedPage?.title || selectedPage}'. Save to apply, or close to return to the field editor.`
+        : `Visual Builder active for '${savedPage?.title || selectedPage}'.`,
     );
   };
 
@@ -2772,70 +2770,51 @@ export function WebsiteEditor() {
 
   return (
     <div className="space-y-5 animate-fade-in-up">
-      {/* ── Premium Header ── */}
+      {/* ── Studio Header ── */}
       <div className="relative overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_4px_32px_-8px_rgba(10,22,40,0.15)]">
-        {/* Gradient accent bar */}
-        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0a1628] via-[#b70f1b] to-[#d4a017]" />
-        <div className="px-6 pt-5 pb-4">
-          <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-[0.28em] text-crimson">
-                Loyola Digital Studio
-              </p>
-              <h2 className="mt-1 font-serif text-3xl font-bold text-navy">
-                Professional Website Editor
-              </h2>
-              <p className="mt-1 max-w-md text-sm text-slate-500">
-                Live preview, page content, menu control, theme and server publishing.
-              </p>
+        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-[#0a1628] via-[#b70f1b] to-[#d4a017]" />
+        <div className="px-6 pt-4 pb-3">
+          <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-3">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-navy to-[#1e3560] text-white shadow-sm">
+                <LayoutTemplate className="h-4 w-4" />
+              </div>
+              <div>
+                <h2 className="font-serif text-[18px] font-bold leading-none text-navy">
+                  Website Studio
+                </h2>
+                <p className="mt-0.5 text-[11px] text-slate-400">
+                  Edit page content, images, navigation and publish to your live site
+                </p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <StudioButton onClick={() => void save()} disabled={savingState !== "idle"}>
-                <Save className="h-4 w-4" />
-                {savingState === "saving" ? "Saving…" : "Save Draft"}
+              <StudioButton onClick={() => window.open("/", "_blank", "noopener,noreferrer")}>
+                <Eye className="h-4 w-4" /> Preview Site
               </StudioButton>
               <StudioButton onClick={() => setWidePreview((current) => !current)}>
                 <MonitorSmartphone className="h-4 w-4" />
-                {widePreview ? "Show Panels" : "Wide Editor"}
+                {widePreview ? "Show Panels" : "Full Width"}
               </StudioButton>
               <StudioButton
                 tone="dark"
                 onClick={selectedPageUsesLiveRenderer ? openSafeVisualEditor : openFullVisualBuilder}
               >
-                {selectedPageUsesLiveRenderer ? (
-                  <>
-                    <Wand2 className="h-4 w-4" />{" "}
-                    {safeVisualEditorActive ? "Safe Editor Active" : "Open Safe Editor"}
-                  </>
-                ) : (
-                  <>
-                    <Wand2 className="h-4 w-4" /> Visual Builder
-                  </>
-                )}
+                <Wand2 className="h-4 w-4" />
+                {selectedPageUsesLiveRenderer
+                  ? safeVisualEditorActive
+                    ? "Safe Editor Active"
+                    : "Edit Sections"
+                  : "Visual Editor"}
               </StudioButton>
               {selectedPageUsesLiveRenderer && (
                 <StudioButton onClick={openFullVisualBuilder}>
-                  <LayoutTemplate className="h-4 w-4" /> Full Visual Builder
+                  <LayoutTemplate className="h-4 w-4" /> Full Builder
                 </StudioButton>
               )}
-              <StudioButton onClick={() => window.open("/", "_blank", "noopener,noreferrer")}>
-                <Eye className="h-4 w-4" /> Preview
-              </StudioButton>
-              <StudioButton
-                onClick={() => {
-                  const pageMap: Record<string, string> = {
-                    home: "src/App.tsx",
-                    "about/college-administration":
-                      "src/components/site/CollegeAdministrationPage.tsx",
-                    "about/college-staff": "src/components/site/CollegeStaffPage.tsx",
-                  };
-                  const file = pageMap[selectedPage] || "src/App.tsx";
-                  fetch(`/__-loyola-open-editor?file=${encodeURIComponent(file)}`).catch(() => {
-                    window.alert("VS Code integration only works in local dev mode.");
-                  });
-                }}
-              >
-                <Code2 className="h-4 w-4" /> Open in VS Code
+              <StudioButton onClick={() => void save()} disabled={savingState !== "idle"}>
+                <Save className="h-4 w-4" />
+                {savingState === "saving" ? "Saving…" : "Save Draft"}
               </StudioButton>
               <StudioButton
                 tone="gold"
@@ -2847,67 +2826,55 @@ export function WebsiteEditor() {
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-navy/30 border-t-navy" />{" "}
                     {savingState === "submitting" ? "Submitting…" : "Publishing…"}
                   </>
+                ) : needsApproval ? (
+                  <><Send className="h-4 w-4" /> Submit for Approval</>
                 ) : (
-                  <>
-                    {needsApproval ? (
-                      <>
-                        <Send className="h-4 w-4" /> Submit for Approval
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" /> Publish
-                      </>
-                    )}
-                  </>
+                  <><CheckCircle2 className="h-4 w-4" /> Publish</>
                 )}
               </StudioButton>
             </div>
           </div>
         </div>
 
-        {/* ── Status message bar ── */}
-        <div
-          className={`flex items-start gap-3 border-t px-6 py-3 text-sm font-medium transition-all duration-300 ${
-            messageTone === "error" && !isLocalOnly
-              ? "border-red-100 bg-red-50 text-red-800"
-              : isLocalOnly
-                ? "border-amber-100 bg-amber-50 text-amber-800"
-                : "border-emerald-100 bg-emerald-50 text-emerald-800"
-          }`}
-        >
-          <span className="mt-0.5 shrink-0 text-base">
-            {messageTone === "error" && !isLocalOnly ? "⚠️" : isLocalOnly ? "💾" : "✅"}
-          </span>
-          <span className="leading-5">{message}</span>
-        </div>
-        {selectedPageUsesLiveRenderer && (
-          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-6 py-3 text-xs font-bold text-slate-600">
-            <span>
-              {selectedPageUsesVisualOverride
-                ? `'${page.title || selectedPage}' is using Full Visual Builder mode.`
-                : `'${page.title || selectedPage}' is using the coded live design.`}
-            </span>
-            {selectedPageUsesVisualOverride ? (
-              <button
-                type="button"
-                onClick={useCodedDesign}
-                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-navy transition hover:bg-slate-100"
-              >
-                <RefreshCw className="h-3.5 w-3.5" />
-                Use coded design
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={openFullVisualBuilder}
-                className="inline-flex items-center gap-2 rounded-lg border border-[#d4a017]/55 bg-white px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-navy transition hover:bg-[#fff7d6]"
-              >
-                <LayoutTemplate className="h-3.5 w-3.5" />
-                Edit everything
-              </button>
-            )}
+        {/* ── Status bar ── */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-2.5">
+          <div
+            className={`flex items-center gap-2 text-xs font-medium ${
+              messageTone === "error" && !isLocalOnly
+                ? "text-red-700"
+                : isLocalOnly
+                  ? "text-amber-700"
+                  : "text-emerald-700"
+            }`}
+          >
+            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${messageTone === "error" && !isLocalOnly ? "bg-red-500" : isLocalOnly ? "bg-amber-500" : "bg-emerald-500"}`} />
+            <span className="leading-5">{message}</span>
           </div>
-        )}
+          {selectedPageUsesLiveRenderer && (
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-slate-400">
+                {selectedPageUsesVisualOverride ? "Visual Builder mode" : "Coded design"}
+              </span>
+              {selectedPageUsesVisualOverride ? (
+                <button
+                  type="button"
+                  onClick={useCodedDesign}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600 transition hover:bg-slate-50"
+                >
+                  <RefreshCw className="h-3 w-3" /> Restore coded design
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openFullVisualBuilder}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-[#d4a017]/40 bg-[#fff9e6] px-2.5 py-1 text-[10px] font-bold text-[#7c5c00] transition hover:bg-[#fff3c0]"
+                >
+                  <LayoutTemplate className="h-3 w-3" /> Edit everything
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div
@@ -3122,12 +3089,17 @@ export function WebsiteEditor() {
 
         {!widePreview && (
           <aside className="space-y-4">
-            {/* Content Inspector */}
+            {/* Section Editor */}
             <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-              <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
-                <Sparkles className="h-4 w-4 text-[#d4a017]" />
-                <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                  Content Inspector
+              <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-[#d4a017]" />
+                  <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">
+                    Section Editor
+                  </span>
+                </div>
+                <span className="truncate rounded-full bg-[#f0f4ff] px-2 py-0.5 text-[10px] font-bold text-[#07215a]">
+                  {selectedSection}
                 </span>
               </div>
               <div className="p-4 space-y-4">
@@ -3251,75 +3223,36 @@ export function WebsiteEditor() {
                       </div>
                     )}
 
-                    {selectedSection === "Rector Message" && (
+                    {selectedSection === "Admissions CTA" && (
                       <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
                         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-crimson">
-                          Rector message
+                          Admissions CTA banner
                         </p>
-                        <Field label="Label">
+                        <Field label="Label above heading" hint="Small uppercase label (e.g. 'Admissions Open')">
                           <input
-                            value={db.homeSections.rectorHeading}
-                            onChange={(e) => updateHomeSection({ rectorHeading: e.target.value })}
+                            value={db.homeSections.admissionsCtaKicker}
+                            onChange={(e) => updateHomeSection({ admissionsCtaKicker: e.target.value })}
+                            placeholder="Admissions Open"
                             className="input-line"
                           />
                         </Field>
-                        <Field label="Title">
+                        <Field label="Headline" hint="Main CTA heading text">
                           <textarea
-                            value={db.homeSections.rectorTitle}
-                            onChange={(e) => updateHomeSection({ rectorTitle: e.target.value })}
+                            value={db.homeSections.admissionsCtaTitle}
+                            onChange={(e) => updateHomeSection({ admissionsCtaTitle: e.target.value })}
                             rows={2}
+                            placeholder="Join the Loyola Family"
                             className="input-line resize-none"
                           />
                         </Field>
-                        <Field label="Message">
-                          <textarea
-                            value={db.homeSections.rectorBody}
-                            onChange={(e) => updateHomeSection({ rectorBody: e.target.value })}
-                            rows={6}
-                            className="input-line resize-none"
-                          />
-                        </Field>
-                        <Field label="Rector name">
+                        <Field label="Button label" hint="Text on the apply button">
                           <input
-                            value={db.homeSections.rectorName}
-                            onChange={(e) => updateHomeSection({ rectorName: e.target.value })}
+                            value={db.homeSections.admissionsCtaButton}
+                            onChange={(e) => updateHomeSection({ admissionsCtaButton: e.target.value })}
+                            placeholder="Apply Now"
                             className="input-line"
                           />
                         </Field>
-                        <Field label="Designation">
-                          <input
-                            value={db.homeSections.rectorDesignation}
-                            onChange={(e) =>
-                              updateHomeSection({ rectorDesignation: e.target.value })
-                            }
-                            className="input-line"
-                          />
-                        </Field>
-                        <Field label="Photo URL">
-                          <input
-                            value={db.homeSections.rectorImage}
-                            onChange={(e) => updateHomeSection({ rectorImage: e.target.value })}
-                            placeholder="Paste image URL or upload below"
-                            className="input-line"
-                          />
-                        </Field>
-                        {db.homeSections.rectorImage && (
-                          <img
-                            src={db.homeSections.rectorImage}
-                            alt=""
-                            className="aspect-[4/5] w-full rounded-xl object-cover"
-                          />
-                        )}
-                        <div className="grid gap-2">
-                          <StudioButton tone="gold" onClick={() => rectorInputRef.current?.click()}>
-                            <Upload className="h-4 w-4" /> Upload rector photo
-                          </StudioButton>
-                          {db.homeSections.rectorImage && (
-                            <StudioButton onClick={() => updateHomeSection({ rectorImage: "" })}>
-                              <Trash2 className="h-4 w-4" /> Remove photo
-                            </StudioButton>
-                          )}
-                        </div>
                       </div>
                     )}
 
@@ -3686,6 +3619,24 @@ export function WebsiteEditor() {
                       </div>
                     )}
                   </>
+                )}
+                {selectedSection === "News & Notices" && selectedPage === "home" && (
+                  <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 text-xs leading-5 text-slate-600">
+                    <p className="font-black uppercase tracking-[0.16em] text-sky-700 mb-2">News & Notices section</p>
+                    News items shown on the homepage come from the <strong>News &amp; Events</strong> panel (left sidebar → Content → News &amp; Events). Add or edit news items there, then save and publish.
+                  </div>
+                )}
+                {selectedSection === "Events" && selectedPage === "home" && (
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs leading-5 text-slate-600">
+                    <p className="font-black uppercase tracking-[0.16em] text-emerald-700 mb-2">Events section</p>
+                    Events shown on the homepage come from the <strong>News &amp; Events</strong> panel. Add or edit events there, then save and publish.
+                  </div>
+                )}
+                {selectedSection === "Gallery" && selectedPage === "home" && (
+                  <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4 text-xs leading-5 text-slate-600">
+                    <p className="font-black uppercase tracking-[0.16em] text-violet-700 mb-2">Gallery mosaic section</p>
+                    Campus photos shown here come from the <strong>Media Library</strong> panel. Upload campus photos there and they'll appear in the mosaic automatically.
+                  </div>
                 )}
                 {selectedSection === "Footer" && (
                   <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/60 p-4">
