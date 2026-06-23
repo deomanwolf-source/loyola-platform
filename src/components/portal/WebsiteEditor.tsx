@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
+  BarChart2,
+  BookOpen,
+  Building2,
+  ChevronDown,
   CheckCircle2,
   Code2,
   Eye,
@@ -13,6 +17,7 @@ import {
   MonitorSmartphone,
   Palette,
   Pencil,
+  Phone,
   Plus,
   RefreshCw,
   Save,
@@ -20,6 +25,7 @@ import {
   Sparkles,
   Trash2,
   Upload,
+  Users,
   Wand2,
 } from "lucide-react";
 import {
@@ -1844,6 +1850,15 @@ export function WebsiteEditor() {
     "idle",
   );
   const [widePreview, setWidePreview] = useState(false);
+  const [homeOpenPanels, setHomeOpenPanels] = useState<Set<string>>(
+    () => new Set(["Hero", "About College"]),
+  );
+  const toggleHomePanel = (s: string) =>
+    setHomeOpenPanels((prev) => {
+      const n = new Set(prev);
+      n.has(s) ? n.delete(s) : n.add(s);
+      return n;
+    });
   const [leadershipUploadTarget, setLeadershipUploadTarget] = useState<string | null>(null);
   const [pastRectorUploadTarget, setPastRectorUploadTarget] = useState<number | null>(null);
   const [facilityUploadTarget, setFacilityUploadTarget] = useState<number | null>(null);
@@ -2887,7 +2902,11 @@ export function WebsiteEditor() {
 
       <div
         className={
-          widePreview ? "grid gap-5" : "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)_352px]"
+          widePreview
+            ? "grid gap-5"
+            : selectedPage === "home" && !visualEditorOpen
+              ? "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)]"
+              : "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)_352px]"
         }
       >
         {!widePreview && (
@@ -3017,6 +3036,333 @@ export function WebsiteEditor() {
                 }}
               />
             </div>
+          ) : selectedPage === "home" ? (
+            <div className="space-y-3">
+              {/* Hidden file inputs — always in DOM when home page is active */}
+              <input ref={heroInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("hero", e.target.files?.[0])} />
+              <input ref={logoInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("logo", e.target.files?.[0])} />
+              <input ref={campusInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("campus", e.target.files?.[0])} />
+              <input ref={rectorInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("rector", e.target.files?.[0])} />
+              <input ref={principalInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("principal", e.target.files?.[0])} />
+              <input
+                ref={leadershipImageInputRef}
+                type="file"
+                accept="image/jpeg,image/png"
+                className="hidden"
+                onChange={(e) => {
+                  if (leadershipUploadTarget) void uploadLeadershipCardImage(leadershipUploadTarget, e.target.files?.[0]);
+                  e.currentTarget.value = "";
+                }}
+              />
+              <input
+                ref={backgroundMediaInputRef}
+                type="file"
+                accept="image/jpeg,image/png,video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
+                className="hidden"
+                onChange={(e) => void uploadBackgroundMedia(e.target.files?.[0])}
+              />
+
+              {/* ── Site Identity ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Site Identity")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Site Identity</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Site Identity") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Site Identity") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <Field label="School name">
+                      <input value={db.websiteContent.schoolName} onChange={(e) => updateContent({ schoolName: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Motto / tagline">
+                      <input value={db.websiteContent.tagline} onChange={(e) => updateContent({ tagline: e.target.value })} className="input-line" />
+                    </Field>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <StudioButton tone="gold" onClick={() => logoInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload logo
+                      </StudioButton>
+                      <StudioButton onClick={() => campusInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload campus image
+                      </StudioButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Hero ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Hero")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <ImageIcon className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Hero</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Hero") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Hero") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <Field label="Hero title">
+                      <textarea value={db.websiteContent.heroTitle} onChange={(e) => updateContent({ heroTitle: e.target.value })} rows={3} className="input-line resize-none" />
+                    </Field>
+                    <Field label="Hero subtitle">
+                      <textarea value={db.websiteContent.heroText} onChange={(e) => updateContent({ heroText: e.target.value })} rows={4} className="input-line resize-none" />
+                    </Field>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <StudioButton tone="gold" onClick={() => heroInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload hero image
+                      </StudioButton>
+                      <StudioButton onClick={() => backgroundMediaInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload background
+                      </StudioButton>
+                    </div>
+                    {page.backgroundMediaUrl && (
+                      <>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs text-slate-500">
+                          <span className="font-bold text-navy">Background: </span>
+                          <span className="break-all font-mono">{page.backgroundMediaUrl}</span>
+                        </div>
+                        <StudioButton onClick={clearBackgroundMedia}>
+                          <Trash2 className="h-4 w-4" /> Remove background
+                        </StudioButton>
+                      </>
+                    )}
+                    <Field label="Background opacity" hint={`${Math.round((page.backgroundMediaOpacity || 0.34) * 100)}% — behind the hero gradient.`}>
+                      <input type="range" min="0.08" max="0.75" step="0.01" value={page.backgroundMediaOpacity || 0.34} onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))} className="w-full accent-[#d4a017]" />
+                    </Field>
+                  </div>
+                )}
+              </div>
+
+              {/* ── About College ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("About College")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <BookOpen className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">About College</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("About College") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("About College") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <Field label="Heading">
+                      <input value={db.homeSections.aboutHeading} onChange={(e) => updateHomeSection({ aboutHeading: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Body">
+                      <textarea value={db.homeSections.aboutBody} onChange={(e) => updateHomeSection({ aboutBody: e.target.value })} rows={5} className="input-line resize-none" />
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Button text">
+                        <input value={db.homeSections.aboutButtonLabel} onChange={(e) => updateHomeSection({ aboutButtonLabel: e.target.value })} className="input-line" />
+                      </Field>
+                      <Field label="Button link">
+                        <input value={db.homeSections.aboutButtonHref} onChange={(e) => updateHomeSection({ aboutButtonHref: e.target.value })} className="input-line" />
+                      </Field>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Stats Row ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Stats")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <BarChart2 className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Stats Row</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Stats") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Stats") && (
+                  <div className="border-t border-slate-100 p-5 space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Stats</span>
+                      <button type="button" onClick={addHomeStat} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy hover:bg-slate-50">
+                        <Plus className="h-3.5 w-3.5" /> Add stat
+                      </button>
+                    </div>
+                    {db.homeSections.stats.map((stat) => (
+                      <div key={stat.id} className="grid gap-2 rounded-xl border border-slate-200 bg-white p-3">
+                        <input value={stat.value} onChange={(e) => updateHomeStat(stat.id, { value: e.target.value })} placeholder="Value (e.g. 1,400+)" className="input-line" />
+                        <input value={stat.label} onChange={(e) => updateHomeStat(stat.id, { label: e.target.value })} placeholder="Label (e.g. Students)" className="input-line" />
+                        <button type="button" onClick={() => removeHomeStat(stat.id)} className="inline-flex items-center justify-center gap-1 rounded-lg border border-red-100 bg-red-50 px-2.5 py-1.5 text-xs font-bold text-red-700 hover:bg-red-100">
+                          <Trash2 className="h-3.5 w-3.5" /> Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Leadership ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Leadership")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Users className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Leadership</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Leadership") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Leadership") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <Field label="Kicker">
+                      <input value={db.homeSections.leadershipKicker} onChange={(e) => updateHomeSection({ leadershipKicker: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Title">
+                      <textarea value={db.homeSections.leadershipTitle} onChange={(e) => updateHomeSection({ leadershipTitle: e.target.value })} rows={2} className="input-line resize-none" />
+                    </Field>
+                    <Field label="Body">
+                      <textarea value={db.homeSections.leadershipBody} onChange={(e) => updateHomeSection({ leadershipBody: e.target.value })} rows={4} className="input-line resize-none" />
+                    </Field>
+                    <StudioButton tone="gold" onClick={() => rectorInputRef.current?.click()}>
+                      <Upload className="h-4 w-4" /> Upload rector photo
+                    </StudioButton>
+                    <div className="flex items-center justify-between gap-2 pt-1">
+                      <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Cards</span>
+                      <button type="button" onClick={addLeadershipCard} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy hover:bg-slate-50">
+                        <Plus className="h-3.5 w-3.5" /> Add card
+                      </button>
+                    </div>
+                    {inspectorLeadershipCards.map((card) => (
+                      <div key={card.id} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+                        {card.image && (
+                          <img src={card.image} alt="" className="aspect-[4/5] w-full rounded-lg object-cover" />
+                        )}
+                        <Field label="Name">
+                          <input value={card.name} onChange={(e) => updateLeadershipCard(card.id, { name: e.target.value })} className="input-line" />
+                        </Field>
+                        <Field label="Role">
+                          <input value={card.title} onChange={(e) => updateLeadershipCard(card.id, { title: e.target.value })} className="input-line" />
+                        </Field>
+                        <Field label="Description">
+                          <textarea value={card.description} onChange={(e) => updateLeadershipCard(card.id, { description: e.target.value })} rows={3} className="input-line resize-none" />
+                        </Field>
+                        <Field label="Image URL">
+                          <input value={card.image} onChange={(e) => updateLeadershipCard(card.id, { image: e.target.value })} className="input-line" />
+                        </Field>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          <Field label="Order">
+                            <input type="number" value={card.order || 0} onChange={(e) => updateLeadershipCard(card.id, { order: Number(e.target.value) || 0 })} className="input-line" />
+                          </Field>
+                          <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-navy">
+                            <input type="checkbox" checked={card.visible !== false} onChange={(e) => updateLeadershipCard(card.id, { visible: e.target.checked })} className="accent-[#d4a017]" />
+                            Show
+                          </label>
+                        </div>
+                        <div className="grid gap-2">
+                          <StudioButton tone="gold" onClick={() => { setLeadershipUploadTarget(card.id); leadershipImageInputRef.current?.click(); }}>
+                            <Upload className="h-4 w-4" /> Upload photo
+                          </StudioButton>
+                          <StudioButton onClick={() => removeLeadershipCard(card.id)}>
+                            <Trash2 className="h-4 w-4" /> Remove card
+                          </StudioButton>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Contact & Footer ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Contact & Footer")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Phone className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Contact &amp; Footer</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Contact & Footer") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Contact & Footer") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <Field label="Phone">
+                        <input value={db.websiteContent.phone} onChange={(e) => updateContent({ phone: e.target.value })} className="input-line" />
+                      </Field>
+                      <Field label="Email">
+                        <input value={db.websiteContent.email} onChange={(e) => updateContent({ email: e.target.value })} className="input-line" />
+                      </Field>
+                    </div>
+                    <Field label="Address">
+                      <textarea value={db.websiteContent.address} onChange={(e) => updateContent({ address: e.target.value })} rows={2} className="input-line resize-none" />
+                    </Field>
+                    <Field label="Footer description">
+                      <textarea value={db.websiteContent.footerText} onChange={(e) => updateContent({ footerText: e.target.value })} rows={3} className="input-line resize-none" />
+                    </Field>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Field label="Copyright line">
+                        <input value={db.websiteContent.footerCopyrightLine} onChange={(e) => updateContent({ footerCopyrightLine: e.target.value })} className="input-line" />
+                      </Field>
+                      <Field label="Legal line">
+                        <input value={db.websiteContent.footerLegalLine} onChange={(e) => updateContent({ footerLegalLine: e.target.value })} className="input-line" />
+                      </Field>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Header & Navigation ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Navigation")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Menu className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Header &amp; Navigation</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      role="button"
+                      tabIndex={0}
+                      onClick={(e) => { e.stopPropagation(); removeDuplicatePortalButtons(); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); removeDuplicatePortalButtons(); } }}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-bold text-slate-500 hover:bg-slate-50"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Fix dupes
+                    </span>
+                    <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Navigation") ? "rotate-180" : ""}`} />
+                  </div>
+                </button>
+                {homeOpenPanels.has("Navigation") && (
+                  <div className="border-t border-slate-100 p-4 space-y-2">
+                    {visibleNav.map((item) => {
+                      const isSubpage = !!item.parentId;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 md:grid-cols-[1fr_auto_auto_auto] md:items-center transition-all duration-200 hover:border-slate-200 hover:bg-white hover:shadow-sm ${isSubpage ? "ml-6" : ""}`}
+                        >
+                          <input
+                            value={item.label}
+                            onChange={(e) => renameNav(item.id, e.target.value)}
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition-colors focus:border-[#d4a017] focus:shadow-[0_0_0_3px_rgba(212,160,23,0.15)]"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => toggleNav(item.id)}
+                            className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-200 ${
+                              item.visible
+                                ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                                : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                            }`}
+                          >
+                            {item.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                            {item.visible ? "Visible" : "Hidden"}
+                          </button>
+                          <div className="flex gap-1">
+                            <button type="button" onClick={() => moveNav(item.id, -1)} className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                              <ArrowUp className="h-3.5 w-3.5" />
+                            </button>
+                            <button type="button" onClick={() => moveNav(item.id, 1)} className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors">
+                              <ArrowDown className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                          <span className="text-[11px] font-mono text-slate-400">
+                            /{item.id === "home" ? "" : item.id}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
           ) : (
             <PreviewWebsite
               db={db}
@@ -3028,74 +3374,76 @@ export function WebsiteEditor() {
               onCloseVisualEditing={closeSafeVisualEditor}
             />
           )}
-          <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-3.5">
-              <div className="flex items-center gap-2">
-                <Menu className="h-4 w-4 text-[#d4a017]" />
-                <h3 className="text-xs font-black uppercase tracking-[0.18em] text-navy">
-                  Header &amp; Navigation
-                </h3>
+          {selectedPage !== "home" && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-5 py-3.5">
+                <div className="flex items-center gap-2">
+                  <Menu className="h-4 w-4 text-[#d4a017]" />
+                  <h3 className="text-xs font-black uppercase tracking-[0.18em] text-navy">
+                    Header &amp; Navigation
+                  </h3>
+                </div>
+                <StudioButton tone="dark" onClick={removeDuplicatePortalButtons}>
+                  <RefreshCw className="h-3.5 w-3.5" /> Fix duplicates
+                </StudioButton>
               </div>
-              <StudioButton tone="dark" onClick={removeDuplicatePortalButtons}>
-                <RefreshCw className="h-3.5 w-3.5" /> Fix duplicates
-              </StudioButton>
-            </div>
-            <div className="p-4 space-y-2">
-              {visibleNav.map((item) => {
-                const isSubpage = !!item.parentId;
-                return (
-                  <div
-                    key={item.id}
-                    className={`grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 md:grid-cols-[1fr_auto_auto_auto] md:items-center transition-all duration-200 hover:border-slate-200 hover:bg-white hover:shadow-sm ${isSubpage ? "ml-6" : ""}`}
-                  >
-                    <input
-                      value={item.label}
-                      onChange={(e) => renameNav(item.id, e.target.value)}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition-colors focus:border-[#d4a017] focus:shadow-[0_0_0_3px_rgba(212,160,23,0.15)]"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => toggleNav(item.id)}
-                      className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-200 ${
-                        item.visible
-                          ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
-                      }`}
+              <div className="p-4 space-y-2">
+                {visibleNav.map((item) => {
+                  const isSubpage = !!item.parentId;
+                  return (
+                    <div
+                      key={item.id}
+                      className={`grid gap-2 rounded-xl border border-slate-100 bg-slate-50/60 px-3 py-2.5 md:grid-cols-[1fr_auto_auto_auto] md:items-center transition-all duration-200 hover:border-slate-200 hover:bg-white hover:shadow-sm ${isSubpage ? "ml-6" : ""}`}
                     >
-                      {item.visible ? (
-                        <Eye className="h-3.5 w-3.5" />
-                      ) : (
-                        <EyeOff className="h-3.5 w-3.5" />
-                      )}
-                      {item.visible ? "Visible" : "Hidden"}
-                    </button>
-                    <div className="flex gap-1">
+                      <input
+                        value={item.label}
+                        onChange={(e) => renameNav(item.id, e.target.value)}
+                        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold outline-none transition-colors focus:border-[#d4a017] focus:shadow-[0_0_0_3px_rgba(212,160,23,0.15)]"
+                      />
                       <button
                         type="button"
-                        onClick={() => moveNav(item.id, -1)}
-                        className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                        onClick={() => toggleNav(item.id)}
+                        className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition-all duration-200 ${
+                          item.visible
+                            ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                            : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                        }`}
                       >
-                        <ArrowUp className="h-3.5 w-3.5" />
+                        {item.visible ? (
+                          <Eye className="h-3.5 w-3.5" />
+                        ) : (
+                          <EyeOff className="h-3.5 w-3.5" />
+                        )}
+                        {item.visible ? "Visible" : "Hidden"}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => moveNav(item.id, 1)}
-                        className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
-                      >
-                        <ArrowDown className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => moveNav(item.id, -1)}
+                          className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                        >
+                          <ArrowUp className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveNav(item.id, 1)}
+                          className="rounded-lg border border-slate-200 bg-white p-1.5 hover:border-slate-300 hover:bg-slate-50 transition-colors"
+                        >
+                          <ArrowDown className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400">
+                        /{item.id === "home" ? "" : item.id}
+                      </span>
                     </div>
-                    <span className="text-[11px] font-mono text-slate-400">
-                      /{item.id === "home" ? "" : item.id}
-                    </span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </main>
 
-        {!widePreview && (
+        {!widePreview && selectedPage !== "home" && (
           <aside className="space-y-4">
             {/* Section Editor */}
             <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
