@@ -1684,11 +1684,11 @@ function PreviewWebsite({
 const studioSections = [
   "Header",
   "Hero",
+  "News Ticker",
   "About College",
   "Leadership",
   "News & Notices",
   "Events",
-  "Gallery",
   "Footer",
 ];
 
@@ -3620,6 +3620,12 @@ export function WebsiteEditor() {
                     )}
                   </>
                 )}
+                {selectedSection === "News Ticker" && selectedPage === "home" && (
+                  <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 text-xs leading-5 text-slate-600">
+                    <p className="font-black uppercase tracking-[0.16em] text-amber-700 mb-2">News Ticker</p>
+                    The scrolling news ticker at the top of the page is driven by items in the <strong>News &amp; Events</strong> panel. Add news items there to populate the ticker.
+                  </div>
+                )}
                 {selectedSection === "News & Notices" && selectedPage === "home" && (
                   <div className="rounded-xl border border-sky-200 bg-sky-50/60 p-4 text-xs leading-5 text-slate-600">
                     <p className="font-black uppercase tracking-[0.16em] text-sky-700 mb-2">News & Notices section</p>
@@ -3630,12 +3636,6 @@ export function WebsiteEditor() {
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs leading-5 text-slate-600">
                     <p className="font-black uppercase tracking-[0.16em] text-emerald-700 mb-2">Events section</p>
                     Events shown on the homepage come from the <strong>News &amp; Events</strong> panel. Add or edit events there, then save and publish.
-                  </div>
-                )}
-                {selectedSection === "Gallery" && selectedPage === "home" && (
-                  <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-4 text-xs leading-5 text-slate-600">
-                    <p className="font-black uppercase tracking-[0.16em] text-violet-700 mb-2">Gallery mosaic section</p>
-                    Campus photos shown here come from the <strong>Media Library</strong> panel. Upload campus photos there and they'll appear in the mosaic automatically.
                   </div>
                 )}
                 {selectedSection === "Footer" && (

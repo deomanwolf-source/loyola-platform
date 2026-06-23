@@ -2571,6 +2571,7 @@ function HomeRequiredSections() {
       {(db.news.length > 0 || db.events.length > 0) && (
         <section
           data-home-reveal
+          data-website-section="News & Notices"
           className="reveal-on-scroll bg-[radial-gradient(circle_at_top_right,rgba(212,160,23,0.08),transparent_38%),linear-gradient(180deg,#fafcff_0%,#f2f7ff_100%)] py-14 md:py-20"
         >
           <div className="mx-auto max-w-7xl px-5 sm:px-6">
@@ -2630,7 +2631,7 @@ function HomeRequiredSections() {
 
               {/* Events column */}
               {db.events.length > 0 && (
-                <div className="flex flex-col gap-3">
+                <div data-website-section="Events" className="flex flex-col gap-3">
                   <div className="rounded-[22px] border border-navy/12 bg-navy px-6 py-5 text-white">
                     <p className="text-xs font-black uppercase tracking-[0.22em] text-gold-light">Upcoming events</p>
                     <ul className="mt-4 space-y-4">
@@ -2726,6 +2727,7 @@ function HomeVisionMissionIdentity() {
   return (
     <section
       data-home-reveal
+      data-website-section="About College"
       className="reveal-on-scroll bg-[radial-gradient(circle_at_top_left,rgba(212,160,23,0.07),transparent_40%),linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] py-20 md:py-28"
     >
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
