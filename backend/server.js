@@ -3649,8 +3649,10 @@ function protectPageSnapshot(siteDb, existingDb) {
 function shouldPreserveExistingArray(incoming, existing) {
   if (!Array.isArray(existing) || existing.length === 0) return false;
   if (!Array.isArray(incoming)) return true;
-  if (incoming.length === 0) return true;
-  return existing.length >= 6 && incoming.length < Math.ceil(existing.length / 2);
+  // Only restore when the array is completely empty — likely a missing/corrupted payload,
+  // not an intentional deletion. Removing the "less than half" threshold prevents
+  // legitimate bulk deletions from being silently reverted.
+  return incoming.length === 0;
 }
 
 function mergeMediaSnapshot(incoming = {}, existing = {}) {

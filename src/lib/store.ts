@@ -1054,6 +1054,10 @@ let draftPersistTimer: number | null = null;
 let serverPersistTimer: number | null = null;
 let pendingServerDb: DB | null = null;
 let remoteHydrationStarted = false;
+// Tracks whether the initial server hydration has completed (success or failure).
+// Auto-saves are blocked until this is true to prevent seed data from overwriting
+// the real draft when the admin edits before the first server fetch returns.
+let initialHydrationComplete = false;
 let draftWriteVersion = 0;
 let publishedWriteVersion = 0;
 
@@ -1122,6 +1126,14 @@ async function hydrateFromRemoteDb(adoptDraftIfClean = false, force = false) {
     listeners.forEach((l) => l());
   } catch {
     // Local development without Hostinger-ready backend functions still works from the local draft cache.
+  } finally {
+    // Allow auto-saves to the server now that we've synced with (or failed to reach) the server.
+    // This prevents the race condition where seed/fallback data is auto-saved before the real
+    // draft is fetched, which would overwrite the actual database content.
+    if (!initialHydrationComplete) {
+      initialHydrationComplete = true;
+      if (pendingServerDb) void flushServerPersist();
+    }
   }
 }
 
@@ -2240,6 +2252,11 @@ function scheduleServerPersist(db: DB) {
     return;
   }
   pendingServerDb = db;
+  // Block server saves until the initial server hydration has completed.
+  // This prevents the case where the store was seeded with default/fallback data
+  // (because localStorage was empty) and the admin edits before the real draft
+  // is fetched — auto-saving fallback data would erase the actual draft in MySQL.
+  if (!initialHydrationComplete) return;
   if (serverPersistTimer) window.clearTimeout(serverPersistTimer);
   serverPersistTimer = window.setTimeout(() => {
     serverPersistTimer = null;
