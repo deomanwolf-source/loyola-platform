@@ -3297,7 +3297,6 @@ function HomePage() {
       <HomeNewsTicker />
       <HomeVisionMissionIdentity />
       <HomeCampusMosaic />
-      <HomeRectorsMessage />
       <HomeRequiredSections />
       <HomeAdmissionsCTA />
       <SubpagesSection parentId="home" />

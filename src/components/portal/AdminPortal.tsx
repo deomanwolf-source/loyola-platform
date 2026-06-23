@@ -134,26 +134,41 @@ const navGroups: {
   items: { id: PanelId; label: string; icon: React.ComponentType<{ className?: string }> }[];
 }[] = [
   {
-    label: "Website",
+    label: "Overview",
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    label: "Studio",
+    items: [
       { id: "studio", label: "Website Studio", icon: Globe },
       { id: "approvals", label: "Publish Approvals", icon: ClipboardList },
-      { id: "pages", label: "Pages", icon: FileText },
-      { id: "content", label: "News / Events", icon: Newspaper },
+      { id: "pages", label: "Page Manager", icon: FileText },
+      { id: "design", label: "Design System", icon: Palette },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { id: "content", label: "News & Events", icon: Newspaper },
       { id: "vacancies", label: "Job Vacancies", icon: Briefcase },
+      { id: "messages", label: "Messages", icon: MessageSquare },
+    ],
+  },
+  {
+    label: "Media",
+    items: [
       { id: "media", label: "Media Library", icon: ImageIcon },
       { id: "activityMedia", label: "Activity Media", icon: GalleryHorizontal },
       { id: "clubsSocieties", label: "Clubs & Societies", icon: Users },
       { id: "departmentMedia", label: "Department Media", icon: GalleryHorizontal },
       { id: "storage", label: "Storage", icon: Database },
-      { id: "design", label: "Design System", icon: Palette },
     ],
   },
   {
-    label: "Management",
+    label: "System",
     items: [
-      { id: "messages", label: "Messages", icon: MessageSquare },
       { id: "users", label: "Users & Roles", icon: Users },
       { id: "security", label: "Security", icon: ShieldCheck },
       { id: "activity", label: "Activity Logs", icon: ClipboardList },
@@ -287,18 +302,19 @@ function StatCard({
 }) {
   return (
     <div
-      className={`hover-lift rounded-[1.4rem] border p-5 shadow-soft transition-smooth ${accent ? "stat-card-shimmer border-gold/40 bg-gold/10" : "border-border bg-white"}`}
+      className={`group relative overflow-hidden rounded-[1.6rem] border p-6 shadow-[0_4px_24px_-8px_rgba(10,22,40,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(10,22,40,0.18)] ${accent ? "border-gold/30 bg-gradient-to-br from-[#fffbef] to-[#fff8e0]" : "border-slate-100 bg-white"}`}
     >
+      <span className={`absolute inset-x-0 top-0 h-0.5 ${accent ? "bg-gradient-to-r from-gold via-[#f7d96b] to-gold/40" : "bg-gradient-to-r from-navy/30 via-navy/10 to-transparent"}`} />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-sm font-bold text-muted-foreground">{label}</p>
-          <p className="mt-2 font-serif text-3xl font-bold text-navy">{value}</p>
-          {hint && <p className="mt-1 text-xs font-semibold text-muted-foreground">{hint}</p>}
+          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
+          <p className="mt-3 font-serif text-3xl font-bold text-navy">{value}</p>
+          {hint && <p className="mt-1.5 text-xs font-semibold text-slate-400">{hint}</p>}
         </div>
         <span
-          className={`grid h-12 w-12 place-items-center rounded-2xl ${accent ? "bg-gold text-navy" : "bg-navy text-gold"}`}
+          className={`grid h-11 w-11 flex-shrink-0 place-items-center rounded-2xl ${accent ? "bg-gold text-navy" : "bg-navy/8 text-navy"}`}
         >
-          <Icon className="h-6 w-6" />
+          <Icon className="h-5 w-5" />
         </span>
       </div>
     </div>
@@ -317,17 +333,19 @@ function PanelShell({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="animate-panel-entry rounded-[1.6rem] border border-border bg-white p-6 shadow-soft">
-      <div className="mb-6 flex flex-col justify-between gap-3 md:flex-row md:items-center">
-        <div>
-          {kicker && (
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-crimson">{kicker}</p>
-          )}
-          <h2 className="mt-1 font-serif text-3xl font-bold text-navy">{title}</h2>
+    <div className="animate-panel-entry overflow-hidden rounded-[1.6rem] border border-slate-100 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
+        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
+          <div>
+            {kicker && (
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-crimson">{kicker}</p>
+            )}
+            <h2 className={`font-serif text-2xl font-bold text-navy ${kicker ? "mt-0.5" : ""}`}>{title}</h2>
+          </div>
+          {action}
         </div>
-        {action}
       </div>
-      {children}
+      <div className="p-6">{children}</div>
     </div>
   );
 }
@@ -5788,94 +5806,150 @@ export function AdminPortal() {
     setSavingState("idle");
   };
 
+  const activeNavItem = visibleNavGroups.flatMap((g) => g.items).find((i) => i.id === activePanel);
+  const ActiveIcon = activeNavItem?.icon;
+  const userInitials = auth.user.email
+    ? auth.user.email.slice(0, 2).toUpperCase()
+    : "A";
+
   return (
-    <div data-admin-panel className="flex min-h-screen bg-[#eef3f8] text-slate-900">
+    <div data-admin-panel className="flex min-h-screen bg-[#f0f4f8] text-slate-900" style={{ backgroundImage: "radial-gradient(circle at 20% 10%, rgba(10,22,40,0.04) 0%, transparent 50%), radial-gradient(circle at 80% 90%, rgba(212,160,23,0.05) 0%, transparent 45%)" }}>
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-navy/60 backdrop-blur-sm lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-72 flex-col bg-navy text-white shadow-2xl transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col shadow-[4px_0_32px_-8px_rgba(10,22,40,0.35)] transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        style={{ background: "linear-gradient(180deg, #071430 0%, #0a1e48 60%, #0a1628 100%)" }}
       >
-        <div className="border-b border-white/10 p-6">
+        {/* Logo area */}
+        <div className="relative overflow-hidden border-b border-white/8 px-5 py-5">
+          <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gold/12 blur-2xl" />
           <a
             href="/"
             aria-label="Open public website"
             title="Open public website"
-            className="flex items-center gap-3 rounded-2xl outline-none transition-smooth hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-gold"
+            className="relative flex items-center gap-3 rounded-2xl outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-gold"
           >
-            <img
-              src="/loyola-crest.jpg"
-              alt="Loyola crest"
-              className="h-12 w-12 rounded-full border-2 border-gold bg-white object-contain p-1"
-            />
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-gold/30 blur-md" />
+              <img
+                src="/loyola-crest.jpg"
+                alt="Loyola crest"
+                className="relative h-11 w-11 rounded-full border-2 border-gold/70 bg-white object-contain p-1 shadow-[0_0_16px_rgba(212,160,23,0.35)]"
+              />
+            </div>
             <div>
-              <p className="font-serif text-2xl font-bold text-gold-light">Loyola Studio</p>
-              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/50">
-                Professional CMS
+              <p className="font-serif text-xl font-bold text-white leading-tight">Loyola Studio</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.26em] text-gold/60">
+                Website CMS
               </p>
             </div>
           </a>
         </div>
-        <nav className="flex-1 overflow-y-auto p-3">
+
+        {/* Nav */}
+        <nav className="flex-1 overflow-y-auto px-3 py-4">
           {visibleNavGroups.map((group) => (
-            <div key={group.label} className="py-2">
-              <p className="px-3 py-3 text-[10px] font-black uppercase tracking-[0.22em] text-white/40">
+            <div key={group.label} className="mb-3">
+              <p className="mb-1 px-3 pb-1 pt-2 text-[9px] font-black uppercase tracking-[0.30em] text-white/30">
                 {group.label}
               </p>
-              <div className="space-y-1">
-                {group.items.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setActive(item.id);
-                      replaceAdminPanelUrl(item.id);
-                      setSidebarOpen(false);
-                    }}
-                    className={`flex w-full items-center gap-3 rounded-2xl px-4 py-3 text-left text-sm font-bold transition-smooth ${activePanel === item.id ? "bg-gold text-navy shadow-gold" : "text-white/60 hover:bg-white/10 hover:text-white"}`}
-                  >
-                    <item.icon className="h-5 w-5" /> {item.label}
-                  </button>
-                ))}
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const active = activePanel === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setActive(item.id);
+                        replaceAdminPanelUrl(item.id);
+                        setSidebarOpen(false);
+                      }}
+                      className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all ${
+                        active
+                          ? "bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
+                          : "text-white/50 hover:bg-white/6 hover:text-white/85"
+                      }`}
+                    >
+                      {active && (
+                        <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-gold" />
+                      )}
+                      <span className={`grid h-7 w-7 flex-shrink-0 place-items-center rounded-lg ${active ? "bg-gold text-navy" : "bg-white/6 text-white/40 group-hover:bg-white/10 group-hover:text-white/70"}`}>
+                        <item.icon className="h-4 w-4" />
+                      </span>
+                      <span className="truncate">{item.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           ))}
         </nav>
-        <div className="border-t border-white/10 p-4">
+
+        {/* User + sign out */}
+        <div className="border-t border-white/8 p-4 space-y-2">
+          <div className="flex items-center gap-3 rounded-xl bg-white/6 px-3 py-2.5">
+            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-gold text-[11px] font-black text-navy">
+              {userInitials}
+            </span>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold text-white/85">{auth.user.email}</p>
+              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">
+                {formatRole(auth.user.role)}
+              </p>
+            </div>
+          </div>
           <button
             type="button"
             onClick={logout}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white/10 px-4 py-3 text-sm font-black text-white hover:bg-white/15"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/6 px-4 py-2.5 text-xs font-black text-white/55 transition hover:bg-white/12 hover:text-white"
           >
-            <LogOut className="h-4 w-4" /> Sign out
+            <LogOut className="h-3.5 w-3.5" /> Sign out
           </button>
         </div>
       </aside>
 
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 border-b border-border bg-white/90 px-4 py-4 shadow-soft backdrop-blur md:px-8">
-          <div className="flex flex-col justify-between gap-4 xl:flex-row xl:items-center">
+        {/* Top gold accent line */}
+        <div className="h-0.5 bg-gradient-to-r from-navy via-gold to-crimson" />
+        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/92 px-4 py-3.5 shadow-[0_1px_12px_rgba(10,22,40,0.08)] backdrop-blur-md md:px-6">
+          <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={() => setSidebarOpen(true)}
-                className="rounded-xl border border-border bg-white p-2 lg:hidden"
+                className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden"
               >
-                <Menu className="h-5 w-5" />
+                <Menu className="h-5 w-5 text-slate-600" />
               </button>
-              <div>
-                <p className="text-xs font-black uppercase tracking-[0.22em] text-crimson">
-                  {formatRole(auth.user.role)} access
-                </p>
-                <h1 className="font-serif text-3xl font-bold text-navy">
-                  {visibleNavGroups.flatMap((g) => g.items).find((i) => i.id === activePanel)
-                    ?.label || "Dashboard"}
-                </h1>
+              <div className="flex items-center gap-3">
+                {ActiveIcon && (
+                  <span className="hidden h-9 w-9 place-items-center rounded-xl bg-navy text-gold sm:grid">
+                    <ActiveIcon className="h-4.5 w-4.5" />
+                  </span>
+                )}
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
+                    {formatRole(auth.user.role)} · Admin Panel
+                  </p>
+                  <h1 className="font-serif text-2xl font-bold text-navy leading-tight">
+                    {activeNavItem?.label || "Dashboard"}
+                  </h1>
+                </div>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => window.open("/", "_blank", "noopener,noreferrer")}
-                className="inline-flex items-center gap-2 rounded-xl border border-border bg-white px-4 py-2.5 text-sm font-black text-navy"
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-navy/20 hover:text-navy"
               >
                 <MonitorSmartphone className="h-4 w-4" /> Preview
               </button>
@@ -5885,15 +5959,15 @@ export function AdminPortal() {
                     type="button"
                     disabled={savingState !== "idle"}
                     onClick={() => void saveDraft()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-navy px-4 py-2.5 text-sm font-black text-white disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-xl border border-navy/20 bg-navy px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-navy-mid disabled:opacity-50"
                   >
-                    <Save className="h-4 w-4" /> {savingState === "saving" ? "Saving" : "Save"}
+                    <Save className="h-4 w-4" /> {savingState === "saving" ? "Saving…" : "Save"}
                   </button>
                   <button
                     type="button"
                     disabled={savingState !== "idle"}
                     onClick={() => void publish()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2.5 text-sm font-black text-navy disabled:opacity-60"
+                    className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2 text-sm font-bold text-navy shadow-[0_4px_14px_rgba(212,160,23,0.35)] transition hover:shadow-[0_6px_20px_rgba(212,160,23,0.5)] disabled:opacity-50"
                   >
                     {needsApproval ? (
                       <Send className="h-4 w-4" />
@@ -5901,28 +5975,30 @@ export function AdminPortal() {
                       <CheckCircle2 className="h-4 w-4" />
                     )}{" "}
                     {savingState === "publishing"
-                      ? "Publishing"
+                      ? "Publishing…"
                       : savingState === "submitting"
-                        ? "Submitting"
+                        ? "Submitting…"
                         : needsApproval
                           ? "Submit for Approval"
                           : "Publish"}
                   </button>
                 </>
               )}
-              <span
-                className={`inline-flex max-w-full items-center rounded-xl border px-3 py-2.5 text-xs font-black ${
-                  saveMessageTone === "error"
-                    ? "border-red-200 bg-red-50 text-red-800"
-                    : "border-border bg-white text-muted-foreground"
-                }`}
-              >
-                {saveMessage}
-              </span>
+              {saveMessage && (
+                <span
+                  className={`inline-flex items-center rounded-xl border px-3 py-2 text-xs font-bold ${
+                    saveMessageTone === "error"
+                      ? "border-red-200 bg-red-50 text-red-700"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  }`}
+                >
+                  {saveMessage}
+                </span>
+              )}
             </div>
           </div>
         </header>
-        <main className="p-4 md:p-8">
+        <main className="p-4 md:p-6">
           {activePanel === "dashboard" && (
             <DashboardPanel
               db={db}
