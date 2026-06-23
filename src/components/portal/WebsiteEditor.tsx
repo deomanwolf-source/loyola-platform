@@ -2513,10 +2513,17 @@ export function WebsiteEditor() {
 
   const getLatestEditorDb = useCallback((): DB => {
     const currentDb = getDb();
-    if (!safeVisualEditorOpen || !isLiveRenderedEditorPage(selectedPage)) return currentDb;
+
+    // Always heal home page if it was accidentally set to visual mode by the full builder.
+    const healHomeMode = (d: DB): DB => {
+      if (d.pages?.home?.visualMode !== "visual") return d;
+      return { ...d, pages: { ...d.pages, home: { ...d.pages.home, visualMode: "coded" as const } } };
+    };
+
+    if (!safeVisualEditorOpen || !isLiveRenderedEditorPage(selectedPage)) return healHomeMode(currentDb);
 
     const snapshot = getLivePreviewSnapshot();
-    if (!snapshot?.html.trim()) return currentDb;
+    if (!snapshot?.html.trim()) return healHomeMode(currentDb);
 
     const currentPage = currentDb.pages[selectedPage] || {};
     return {
@@ -2735,7 +2742,8 @@ export function WebsiteEditor() {
         ...currentDb.pages,
         [selectedPage]: {
           ...(currentDb.pages[selectedPage] || {}),
-          ...(isLiveRenderedEditorPage(selectedPage) ? { visualMode: "visual" as const } : {}),
+          // "home" always renders as a coded React component; never set visualMode:"visual" for it.
+          ...(isLiveRenderedEditorPage(selectedPage) && selectedPage !== "home" ? { visualMode: "visual" as const } : {}),
           visualHtml: stableHtml,
           visualCss: stableCss,
           visualBaseCss: stableBaseCss,
@@ -2807,7 +2815,7 @@ export function WebsiteEditor() {
                     : "Edit Sections"
                   : "Visual Editor"}
               </StudioButton>
-              {selectedPageUsesLiveRenderer && (
+              {selectedPageUsesLiveRenderer && selectedPage !== "home" && (
                 <StudioButton onClick={openFullVisualBuilder}>
                   <LayoutTemplate className="h-4 w-4" /> Full Builder
                 </StudioButton>

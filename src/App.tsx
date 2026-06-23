@@ -1238,6 +1238,9 @@ function shouldRenderVisualBuilder(
     visualBaseCss?: string;
   },
 ) {
+  // Home always renders as the coded React component — the full visual builder
+  // can set visualMode:"visual" for home but must never replace <HomePage />.
+  if (pageId === "home") return false;
   if (!page?.visualHtml?.trim()) return false;
   if (!page.visualBaseCss?.trim() || !page.visualCss?.trim()) return false;
   if (!isLiveRenderedPage(pageId)) return true;
