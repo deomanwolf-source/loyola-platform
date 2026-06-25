@@ -2791,37 +2791,6 @@ function HomeVisionMissionIdentity() {
           })}
         </div>
 
-        {/* Stats row */}
-        {stats.length > 0 && (
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {stats.map((stat, index) => (
-              <HomeMetricCard
-                key={stat.id}
-                label={stat.label}
-                value={stat.value}
-                tone={statTones[index % statTones.length]}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* CTA buttons */}
-        <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <a
-            href={home.aboutButtonHref || "/about"}
-            className="inline-flex items-center gap-2 rounded-full bg-navy px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(10,22,40,0.35)] transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
-          >
-            {home.aboutButtonLabel || "More About Loyola"}
-            <ArrowRight className="h-4 w-4" />
-          </a>
-          <a
-            href="/gallery/photo-gallery"
-            className="inline-flex items-center gap-2 rounded-full border border-navy/20 bg-transparent px-7 py-3.5 text-sm font-bold text-navy transition-smooth hover:-translate-y-0.5 hover:bg-navy/5"
-          >
-            View Gallery
-            <Images className="h-4 w-4" />
-          </a>
-        </div>
       </div>
     </section>
   );
@@ -3251,30 +3220,6 @@ function HomePage() {
             <span className="h-px w-14 bg-gradient-to-l from-transparent to-gold/60" />
           </div>
 
-          {/* CTA row */}
-          <div className="mt-10 flex flex-wrap justify-center gap-4 animate-fade-in-up animation-delay-2">
-            <a
-              href={home.aboutButtonHref || "/about"}
-              className="inline-flex items-center gap-2 rounded-full bg-gold px-8 py-3.5 text-sm font-bold text-navy shadow-[0_12px_32px_rgba(212,160,23,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-[0_20px_42px_rgba(212,160,23,0.55)]"
-            >
-              {home.aboutButtonLabel || "Explore College"}
-              <ArrowRight className="h-4 w-4" />
-            </a>
-            <a
-              href="/gallery/photo-gallery"
-              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-8 py-3.5 text-sm font-bold text-white backdrop-blur-sm transition-smooth hover:-translate-y-1 hover:bg-white/18"
-            >
-              Gallery
-              <Images className="h-4 w-4" />
-            </a>
-            <a
-              href="/news"
-              className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-transparent px-8 py-3.5 text-sm font-bold text-white transition-smooth hover:-translate-y-1 hover:bg-white/10"
-            >
-              News & Notices
-              <Bell className="h-4 w-4" />
-            </a>
-          </div>
 
           {/* Pillars row */}
           <div className="mt-8 flex flex-wrap justify-center gap-2.5 animate-fade-in-up animation-delay-2">
