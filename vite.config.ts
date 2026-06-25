@@ -50,6 +50,9 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
+        entryFileNames: "assets/[name].js",
+        chunkFileNames: "assets/[name].js",
+        assetFileNames: "assets/[name].[ext]",
         manualChunks(id) {
           // Split grapesjs (visual builder) into its own chunk, only loaded when editor opens
           if (id.includes("node_modules/grapesjs")) return "vendor-grapesjs";
