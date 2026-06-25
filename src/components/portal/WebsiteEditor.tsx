@@ -1833,6 +1833,9 @@ export function WebsiteEditor() {
   const heroInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
   const campusInputRef = useRef<HTMLInputElement>(null);
+  const visionInputRef = useRef<HTMLInputElement>(null);
+  const missionInputRef = useRef<HTMLInputElement>(null);
+  const mottoInputRef = useRef<HTMLInputElement>(null);
   const principalInputRef = useRef<HTMLInputElement>(null);
   const rectorInputRef = useRef<HTMLInputElement>(null);
   const leadershipImageInputRef = useRef<HTMLInputElement>(null);
@@ -2131,7 +2134,7 @@ export function WebsiteEditor() {
   };
 
   const uploadTo = async (
-    target: "hero" | "logo" | "campus" | "page" | "principal" | "rector" | "anthemVideoCover",
+    target: "hero" | "logo" | "campus" | "page" | "principal" | "rector" | "anthemVideoCover" | "vision" | "mission" | "motto",
     file?: File,
   ) => {
     if (!file) return;
@@ -2152,6 +2155,12 @@ export function WebsiteEditor() {
             ...current,
             websiteContent: { ...current.websiteContent, logoImage: imageUrl },
           };
+        if (target === "vision")
+          return { ...current, homeSections: { ...current.homeSections, visionImage: imageUrl } };
+        if (target === "mission")
+          return { ...current, homeSections: { ...current.homeSections, missionImage: imageUrl } };
+        if (target === "motto")
+          return { ...current, homeSections: { ...current.homeSections, mottoImage: imageUrl } };
         if (target === "principal")
           return { ...current, media: { ...current.media, principalImage: imageUrl } };
         if (target === "rector")
@@ -3051,6 +3060,9 @@ export function WebsiteEditor() {
               <input ref={campusInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("campus", e.target.files?.[0])} />
               <input ref={rectorInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("rector", e.target.files?.[0])} />
               <input ref={principalInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("principal", e.target.files?.[0])} />
+              <input ref={visionInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { void uploadTo("vision", e.target.files?.[0]); e.currentTarget.value = ""; }} />
+              <input ref={missionInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { void uploadTo("mission", e.target.files?.[0]); e.currentTarget.value = ""; }} />
+              <input ref={mottoInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => { void uploadTo("motto", e.target.files?.[0]); e.currentTarget.value = ""; }} />
               <input
                 ref={leadershipImageInputRef}
                 type="file"
@@ -3092,6 +3104,36 @@ export function WebsiteEditor() {
                       </StudioButton>
                       <StudioButton onClick={() => campusInputRef.current?.click()}>
                         <Upload className="h-4 w-4" /> Upload campus image
+                      </StudioButton>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ── About Section Photos ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("About Photos")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <ImageIcon className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">About Section Photos</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("About Photos") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("About Photos") && (
+                  <div className="border-t border-slate-100 p-5 space-y-3">
+                    <p className="text-xs text-slate-500">Upload photos for each card in the Vision / Mission / Motto section.</p>
+                    <div className="grid gap-2">
+                      <StudioButton tone="gold" onClick={() => visionInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload Vision photo
+                        {db.homeSections.visionImage && <span className="ml-auto text-[10px] text-emerald-600 font-bold">✓ set</span>}
+                      </StudioButton>
+                      <StudioButton onClick={() => missionInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload Mission photo
+                        {db.homeSections.missionImage && <span className="ml-auto text-[10px] text-emerald-600 font-bold">✓ set</span>}
+                      </StudioButton>
+                      <StudioButton onClick={() => mottoInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload Motto photo
+                        {db.homeSections.mottoImage && <span className="ml-auto text-[10px] text-emerald-600 font-bold">✓ set</span>}
                       </StudioButton>
                     </div>
                   </div>

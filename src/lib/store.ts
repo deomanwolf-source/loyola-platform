@@ -524,6 +524,9 @@ export interface DB {
     leadershipTitle: string;
     leadershipBody: string;
     leadershipCards: HomeLeadershipCard[];
+    visionImage: string;
+    missionImage: string;
+    mottoImage: string;
   };
   aboutSections: {
     storyKicker: string;
@@ -877,6 +880,9 @@ export const seed: DB = {
     rectorName: "Rev. Dr. D.M.J. Kennedy Perera",
     rectorDesignation: "Rector / Principal",
     rectorImage: "",
+    visionImage: "",
+    missionImage: "",
+    mottoImage: "",
     leadershipKicker: "Administration Board",
     leadershipTitle: "Leadership guiding Loyola College.",
     leadershipBody:
