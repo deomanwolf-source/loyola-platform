@@ -2688,42 +2688,40 @@ function HomeVisionMissionIdentity() {
   const content = db.websiteContent;
   const heroImage = db.media.campusImage || content.heroImage || DEFAULT_HERO_IMAGE;
   const logoImage = content.logoImage || "/loyola-crest.jpg";
-  const stats = (home.stats || []).slice(0, 4);
-  const statTones: HomePhotoTone[] = ["gold", "crimson", "blue", "emerald"];
 
-  const vmCards = [
+  const panels = [
     {
       key: "vision",
       icon: Eye,
+      num: "01",
       title: "Our Vision",
       body: "To announce God's Kingdom through Christian values, nurturing every student to reach their fullest human and spiritual potential.",
       image: heroImage,
-      accentBar: "from-gold to-[#f3ce78]",
-      accentText: "text-gold",
-      overlay: "bg-[linear-gradient(180deg,rgba(7,18,36,0)_28%,rgba(10,22,40,0.78)_100%)]",
-      iconBg: "bg-gold/20",
+      accent: "#d4a017",
+      glowBg: "rgba(212,160,23,0.35)",
+      barGrad: "linear-gradient(90deg,#d4a017,#f3ce78,transparent)",
     },
     {
       key: "mission",
       icon: CheckCircle2,
+      num: "02",
       title: "Our Mission",
       body: "To aim at integral education of body, mind, and spirit through service and leadership — forming citizens of upright character who pursue excellence.",
       image: db.gallery[0]?.image || HOME_LEGACY_PANELS[3]?.src || heroImage,
-      accentBar: "from-crimson to-[#f49cab]",
-      accentText: "text-crimson",
-      overlay: "bg-[linear-gradient(180deg,rgba(7,18,36,0)_28%,rgba(10,22,40,0.78)_100%)]",
-      iconBg: "bg-crimson/20",
+      accent: "#b70f1b",
+      glowBg: "rgba(183,15,27,0.35)",
+      barGrad: "linear-gradient(90deg,#b70f1b,#f49cab,transparent)",
     },
     {
       key: "motto",
       icon: Trophy,
+      num: "03",
       title: "Our Motto",
-      body: "Veritate ad Lumen et Vitam — In Truth to Light and Life. This guiding motto has shaped Loyola's spirit across 75 years.",
+      body: "Veritate ad Lumen et Vitam — In Truth to Light and Life. This guiding motto has shaped Loyola's spirit across 75 years of excellence.",
       image: logoImage,
-      accentBar: "from-sky-500 to-[#60a5fa]",
-      accentText: "text-sky-600",
-      overlay: "bg-[linear-gradient(180deg,rgba(7,18,36,0.2)_0%,rgba(7,18,36,0.55)_100%)]",
-      iconBg: "bg-sky-500/20",
+      accent: "#3b82f6",
+      glowBg: "rgba(59,130,246,0.35)",
+      barGrad: "linear-gradient(90deg,#3b82f6,#93c5fd,transparent)",
     },
   ];
 
@@ -2731,64 +2729,126 @@ function HomeVisionMissionIdentity() {
     <section
       data-home-reveal
       data-website-section="About College"
-      className="reveal-on-scroll bg-[radial-gradient(circle_at_top_left,rgba(212,160,23,0.07),transparent_40%),linear-gradient(180deg,#ffffff_0%,#f7faff_100%)] py-20 md:py-28"
+      className="reveal-on-scroll relative overflow-hidden bg-[#040c18] py-24 md:py-36"
     >
-      <div className="mx-auto max-w-7xl px-5 sm:px-6">
-        {/* Section header */}
-        <div className="mb-16 text-center">
-          <p className="text-xs font-black uppercase tracking-[0.30em] text-crimson">
-            Loyola Identity
-          </p>
-          <h2 className="mt-5 font-serif text-4xl font-bold text-navy md:text-5xl">
+      {/* Ambient glows */}
+      <div className="pointer-events-none absolute inset-0 select-none">
+        <div className="absolute -left-60 -top-20 h-[600px] w-[600px] rounded-full bg-[#d4a017]/5 blur-[120px]" />
+        <div className="absolute -right-60 -bottom-20 h-[600px] w-[600px] rounded-full bg-crimson/5 blur-[120px]" />
+        <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-900/8 blur-[90px]" />
+        {/* Dot grid */}
+        <div
+          className="absolute inset-0 opacity-[0.025]"
+          style={{ backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.7) 1px,transparent 1px)", backgroundSize: "40px 40px" }}
+        />
+      </div>
+
+      <div className="relative mx-auto max-w-7xl px-5 sm:px-6">
+
+        {/* ── Header ── */}
+        <div className="mb-20 text-center">
+          <div className="inline-flex items-center gap-4 mb-5">
+            <span className="h-px w-14 bg-gradient-to-r from-transparent to-[#d4a017]/60" />
+            <p className="text-[10px] font-black uppercase tracking-[0.44em] text-[#d4a017]">Loyola Identity</p>
+            <span className="h-px w-14 bg-gradient-to-l from-transparent to-[#d4a017]/60" />
+          </div>
+          <h2 className="font-serif text-5xl font-bold text-white md:text-6xl lg:text-[4.5rem] leading-[1.05]">
             {home.aboutHeading || "About Our College"}
           </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-slate-500">
-            {home.aboutBody ||
-              "Loyola College has a proud story of faith, learning, discipline, and service, shaped by generations of teachers, students, and leaders."}
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/48">
+            {home.aboutBody || "Loyola College has a proud story of faith, learning, discipline, and service, shaped by generations of teachers, students, and leaders."}
           </p>
         </div>
 
-        {/* 3 photo cards */}
-        <div className="grid gap-8 md:grid-cols-3">
-          {vmCards.map((card) => {
-            const Icon = card.icon;
+        {/* ── Cards ── */}
+        <div className="grid gap-5 md:grid-cols-3">
+          {panels.map((p, i) => {
+            const Icon = p.icon;
             return (
               <article
-                key={card.key}
-                className="group flex flex-col overflow-hidden rounded-[32px] border border-slate-100 bg-white shadow-[0_8px_48px_-18px_rgba(10,22,40,0.18)] transition-all duration-500 hover:-translate-y-2 hover:shadow-[0_28px_64px_-20px_rgba(10,22,40,0.28)]"
+                key={p.key}
+                style={{ animationDelay: `${i * 140}ms` }}
+                className="group relative overflow-hidden rounded-[26px] cursor-default animate-fade-in-up"
               >
+                {/* Bottom glow */}
+                <div
+                  className="absolute -bottom-8 left-1/2 -translate-x-1/2 h-20 w-4/5 rounded-full blur-2xl opacity-0 group-hover:opacity-80 transition-opacity duration-700 pointer-events-none"
+                  style={{ backgroundColor: p.glowBg }}
+                />
+
                 {/* Photo */}
-                <div className="relative h-60 overflow-hidden">
+                <div className="relative h-[460px] overflow-hidden">
                   <img
-                    src={card.image}
-                    alt={card.title}
-                    className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                    src={p.image}
+                    alt={p.title}
+                    className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.07]"
                   />
-                  <div className={`absolute inset-0 ${card.overlay}`} />
-                  {/* Icon badge */}
+                  {/* Deep cinematic gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#040c18] via-[#040c18]/55 to-[#040c18]/8" />
+                  {/* Subtle color wash on hover */}
                   <div
-                    className={`absolute bottom-4 left-5 flex h-11 w-11 items-center justify-center rounded-2xl ${card.iconBg} backdrop-blur-sm`}
-                  >
-                    <Icon className="h-5 w-5 text-white" />
-                  </div>
-                  {/* Accent top bar */}
-                  <div className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${card.accentBar}`} />
+                    className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-600 mix-blend-color-dodge"
+                    style={{ backgroundColor: p.accent }}
+                  />
                 </div>
 
-                {/* Content */}
-                <div className="flex flex-1 flex-col px-7 py-6">
-                  <h3 className="font-serif text-2xl font-bold text-navy">{card.title}</h3>
-                  <p className="mt-3 flex-1 text-sm leading-7 text-slate-500">{card.body}</p>
-                  <a
-                    href="/about"
-                    className={`mt-6 inline-flex items-center gap-1.5 text-sm font-bold ${card.accentText}`}
-                  >
-                    Learn more <ArrowRight className="h-3.5 w-3.5" />
-                  </a>
+                {/* Content pinned to bottom */}
+                <div className="absolute inset-x-0 bottom-0 p-7">
+                  {/* Number + icon row */}
+                  <div className="flex items-center justify-between mb-4">
+                    <span
+                      className="text-[10px] font-black tracking-[0.42em] uppercase"
+                      style={{ color: p.accent }}
+                    >
+                      {p.num}
+                    </span>
+                    <div
+                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-white/8 backdrop-blur-md"
+                    >
+                      <Icon className="h-4 w-4 text-white/80" />
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <h3 className="font-serif text-[1.65rem] font-bold text-white leading-tight mb-3">
+                    {p.title}
+                  </h3>
+
+                  {/* Body */}
+                  <p className="text-sm leading-[1.85] text-white/55 line-clamp-3">{p.body}</p>
+
+                  {/* Animated accent bar */}
+                  <div
+                    className="mt-5 h-[2px] w-0 rounded-full group-hover:w-full transition-all duration-[550ms] ease-out"
+                    style={{ background: p.barGrad }}
+                  />
                 </div>
+
+                {/* Card ring */}
+                <div
+                  className="absolute inset-0 rounded-[26px] ring-1 ring-white/8 group-hover:ring-white/18 transition-all duration-500 pointer-events-none"
+                />
               </article>
             );
           })}
+        </div>
+
+        {/* ── Pillars ── */}
+        <div className="mt-16 flex flex-wrap justify-center gap-3">
+          {[
+            { label: "Faith", color: "#d4a017" },
+            { label: "Learning", color: "#b70f1b" },
+            { label: "Discipline", color: "#3b82f6" },
+            { label: "Service", color: "#10b981" },
+          ].map(({ label, color }) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.3em] text-white/45 backdrop-blur-sm transition-all duration-300 hover:border-white/22 hover:bg-white/8 hover:text-white/80"
+            >
+              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+              {label}
+            </span>
+          ))}
         </div>
 
       </div>
