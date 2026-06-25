@@ -132,7 +132,7 @@ export const SiteHeader = memo(function SiteHeader() {
         >
           <span className="grid h-[50px] w-[50px] shrink-0 place-items-center overflow-hidden rounded-full border-2 border-gold/80 bg-navy p-1 shadow-[0_4px_16px_-4px_rgb(10_22_40_/0.4)] transition-smooth group-hover:border-gold xl:h-[56px] xl:w-[56px]">
             <img
-                src="/loyola-crest.jpg"
+                src={db.websiteContent.logoImage || "/loyola-crest.jpg"}
                 alt="Loyola College crest"
                 className="h-full w-full rounded-full object-contain"
               />
@@ -360,7 +360,7 @@ export const SiteFooter = memo(function SiteFooter() {
             <a href="/" className="group inline-flex items-center gap-3">
               <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-gold/60 bg-white/8 p-1.5 transition-smooth group-hover:border-gold">
                 <img
-                    src="/loyola-crest.jpg"
+                    src={db.websiteContent.logoImage || "/loyola-crest.jpg"}
                     alt="Loyola College crest"
                     className="h-full w-full rounded-full object-contain"
                   />

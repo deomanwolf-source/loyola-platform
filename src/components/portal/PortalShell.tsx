@@ -201,7 +201,7 @@ export function PortalShell({
     return <BrandedLoader title="Redirecting to login" subtitle="Your session was not found" />;
   }
 
-  const logoImage = "/loyola-crest.jpg";
+  const logoImage = db.websiteContent.logoImage || "/loyola-crest.jpg";
 
   return (
     <div data-admin-panel className="flex h-screen overflow-hidden bg-[#edf2fb] text-[#172033]">

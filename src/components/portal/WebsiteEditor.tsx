@@ -1831,6 +1831,7 @@ export function WebsiteEditor() {
   const db = useDb();
   const auth = useAuth();
   const heroInputRef = useRef<HTMLInputElement>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const campusInputRef = useRef<HTMLInputElement>(null);
   const principalInputRef = useRef<HTMLInputElement>(null);
   const rectorInputRef = useRef<HTMLInputElement>(null);
@@ -2130,7 +2131,7 @@ export function WebsiteEditor() {
   };
 
   const uploadTo = async (
-    target: "hero" | "campus" | "page" | "principal" | "rector" | "anthemVideoCover",
+    target: "hero" | "logo" | "campus" | "page" | "principal" | "rector" | "anthemVideoCover",
     file?: File,
   ) => {
     if (!file) return;
@@ -2145,6 +2146,11 @@ export function WebsiteEditor() {
           return {
             ...current,
             websiteContent: { ...current.websiteContent, heroImage: imageUrl },
+          };
+        if (target === "logo")
+          return {
+            ...current,
+            websiteContent: { ...current.websiteContent, logoImage: imageUrl },
           };
         if (target === "principal")
           return { ...current, media: { ...current.media, principalImage: imageUrl } };
@@ -3041,6 +3047,7 @@ export function WebsiteEditor() {
             <div className="space-y-3">
               {/* Hidden file inputs — always in DOM when home page is active */}
               <input ref={heroInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("hero", e.target.files?.[0])} />
+              <input ref={logoInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("logo", e.target.files?.[0])} />
               <input ref={campusInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("campus", e.target.files?.[0])} />
               <input ref={rectorInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("rector", e.target.files?.[0])} />
               <input ref={principalInputRef} type="file" accept="image/jpeg,image/png" className="hidden" onChange={(e) => void uploadTo("principal", e.target.files?.[0])} />
@@ -3080,6 +3087,9 @@ export function WebsiteEditor() {
                       <input value={db.websiteContent.tagline} onChange={(e) => updateContent({ tagline: e.target.value })} className="input-line" />
                     </Field>
                     <div className="grid gap-2 sm:grid-cols-2">
+                      <StudioButton tone="gold" onClick={() => logoInputRef.current?.click()}>
+                        <Upload className="h-4 w-4" /> Upload logo
+                      </StudioButton>
                       <StudioButton onClick={() => campusInputRef.current?.click()}>
                         <Upload className="h-4 w-4" /> Upload campus image
                       </StudioButton>
