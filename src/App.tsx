@@ -2183,12 +2183,12 @@ function HomeRequiredSections() {
     },
   ];
   const clubs = [
-    { title: "Media Unit", icon: Camera },
-    { title: "Science Society", icon: Award },
-    { title: "ICT Society", icon: Film },
-    { title: "Prefects Board", icon: ShieldCheck },
-    { title: "English Literary Association", icon: GraduationCap },
-    { title: "Religious Society", icon: Landmark },
+    { title: "Media Unit", icon: Camera, href: "/sports-clubs/photography-and-media-unit" },
+    { title: "Science Society", icon: Award, href: "/sports-clubs#clubs-and-societies" },
+    { title: "ICT Society", icon: Film, href: "/sports-clubs#clubs-and-societies" },
+    { title: "Prefects Board", icon: ShieldCheck, href: "/sports-clubs/teachers-in-charge-of-prefects-senior" },
+    { title: "English Literary Association", icon: GraduationCap, href: "/sports-clubs/english-literary-union-secondary" },
+    { title: "Religious Society", icon: Landmark, href: "/sports-clubs/bible-association" },
   ];
   const academicPreviews = [
     {
@@ -2352,7 +2352,7 @@ function HomeRequiredSections() {
               return (
                 <a
                   key={club.title}
-                  href="/sports-clubs"
+                  href={club.href}
                   className={`group relative overflow-hidden rounded-[28px] border border-white/70 p-5 text-left shadow-[0_18px_48px_-34px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
                 >
                   <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${style.bar}`} />
