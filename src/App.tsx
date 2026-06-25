@@ -6127,49 +6127,63 @@ function SportsClubsPage() {
         image={page.image}
       />
       <section id="sports" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="overflow-hidden rounded-[32px] border border-[#dbe5f1] bg-white shadow-[0_24px_80px_-44px_rgba(10,22,40,0.5)]">
-          <div className="bg-gradient-to-br from-[#f8fbff] via-white to-[#fff7ea] p-8 md:p-10">
-            <div className="max-w-5xl">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="grid h-14 w-14 place-items-center rounded-3xl bg-[#edf4ff] text-[#234b93] shadow-soft">
-                  <Award className="h-6 w-6" />
-                </span>
-                <span className="rounded-full border border-[#d8e6ff] bg-white/90 px-4 py-2 text-xs font-bold uppercase tracking-[0.16em] text-[#234b93] shadow-soft">
+        {/* Directory intro card */}
+        <div className="overflow-hidden rounded-2xl border border-[#dbe5f1] bg-white shadow-[0_8px_40px_-16px_rgba(10,22,40,0.18)]">
+          {/* navy top accent band */}
+          <div className="h-1.5 w-full bg-gradient-to-r from-navy via-[#1e3a6e] to-crimson" />
+          <div className="p-8 md:p-12">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-start lg:justify-between">
+              <div className="max-w-2xl">
+                <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.2em] text-crimson">
+                  <Award className="h-3.5 w-3.5" />
                   Co-Curricular Directory
-                </span>
-              </div>
-              <h2 className="mt-6 max-w-4xl font-serif text-4xl font-bold leading-tight text-navy md:text-5xl">
-                Activities, clubs, societies, sports, and student leadership.
-              </h2>
-              <p className="mt-4 max-w-3xl text-base leading-8 text-slate-600">
-                Explore the programmes that shape confidence, discipline, creativity, teamwork,
-                service, and school spirit beyond the classroom.
-              </p>
-              <div className="relative mt-7 max-w-xl">
-                <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
-                <input
-                  value={searchTerm}
-                  onChange={(event) => setSearchTerm(event.target.value)}
-                  placeholder="Search clubs, societies, sports, or teachers"
-                  className="h-14 w-full rounded-2xl border border-[#d9e4f2] bg-white pl-12 pr-4 text-sm font-semibold text-navy shadow-soft outline-none transition-smooth focus:border-gold"
-                />
-              </div>
-              {searchKey && (
-                <p className="mt-3 text-sm font-semibold text-slate-500">
-                  Showing {visibleActivityCount} result{visibleActivityCount === 1 ? "" : "s"} for
-                  "{searchTerm.trim()}"
                 </p>
-              )}
-              <div className="mt-7 flex flex-wrap gap-3">
+                <h2 className="mt-4 font-serif text-3xl font-bold leading-snug text-navy md:text-4xl">
+                  Activities, clubs, societies,<br className="hidden md:block" /> sports &amp; student leadership.
+                </h2>
+                <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
+                  Explore the programmes that shape confidence, discipline, creativity, teamwork,
+                  service, and school spirit beyond the classroom.
+                </p>
+                <div className="relative mt-6 max-w-lg">
+                  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search clubs, societies, sports, or teachers…"
+                    className="h-12 w-full rounded-xl border border-[#d9e4f2] bg-[#f8fafd] pl-11 pr-4 text-sm text-navy outline-none transition-smooth placeholder:text-slate-400 focus:border-navy/40 focus:bg-white focus:shadow-[0_0_0_3px_rgba(35,75,147,0.08)]"
+                  />
+                </div>
+                {searchKey && (
+                  <p className="mt-2.5 text-xs font-medium text-slate-400">
+                    {visibleActivityCount} result{visibleActivityCount === 1 ? "" : "s"} for &ldquo;{searchTerm.trim()}&rdquo;
+                  </p>
+                )}
+              </div>
+              {/* Stats column */}
+              <div className="flex shrink-0 gap-6 lg:flex-col lg:gap-4 lg:text-right">
+                <div>
+                  <p className="text-2xl font-bold text-navy">{groups.reduce((n, g) => n + g.items.length, 0)}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Activities</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-navy">{groups.length}</p>
+                  <p className="mt-0.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">Categories</p>
+                </div>
+              </div>
+            </div>
+            {/* Category jump links */}
+            <div className="mt-8 border-t border-[#edf1f8] pt-6">
+              <div className="flex flex-wrap gap-2">
                 {groups.map((group) => {
                   const Icon = group.icon;
                   return (
                     <a
                       key={group.id}
                       href={`#${group.id}`}
-                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold shadow-soft ${group.theme.pillClass}`}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe5f1] bg-[#f7f9fd] px-3.5 py-2 text-xs font-semibold text-navy transition-smooth hover:border-navy/30 hover:bg-navy hover:text-white"
                     >
-                      <Icon className="h-4 w-4" />
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
                       {group.title}
                     </a>
                   );
@@ -6178,40 +6192,35 @@ function SportsClubsPage() {
             </div>
           </div>
         </div>
+
         {groups.length === 0 && (
-          <div className="mt-8 rounded-[24px] border border-dashed border-[#dbe5f1] bg-white p-8 text-sm font-semibold leading-7 text-slate-500 shadow-soft">
+          <div className="mt-8 rounded-xl border border-dashed border-[#dbe5f1] bg-white px-8 py-10 text-center text-sm text-slate-400">
             No club, society, sport, or activity matches this search.
           </div>
         )}
+
         {groups.map((group) => {
           const GroupIcon = group.icon;
           return (
-            <section key={group.id} id={group.id} className="mt-12">
-              <div
-                className={`overflow-hidden rounded-[30px] border border-[#dbe5f1] bg-gradient-to-br ${group.theme.panelClass} p-7 shadow-[0_22px_70px_-42px_rgba(10,22,40,0.45)]`}
-              >
-                <div className="flex flex-wrap items-start justify-between gap-6">
-                  <div className="flex max-w-4xl items-start gap-4">
-                    <span
-                      className={`grid h-16 w-16 shrink-0 place-items-center rounded-3xl shadow-soft ${group.theme.iconClass}`}
-                    >
-                      <GroupIcon className="h-7 w-7" />
-                    </span>
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
-                        Activity Collection
-                      </p>
-                      <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
-                        {group.title}
-                      </h2>
-                      <p className="mt-3 max-w-3xl text-sm leading-7 text-slate-600">
-                        {group.description}
-                      </p>
-                    </div>
+            <section key={group.id} id={group.id} className="mt-16">
+              {/* Section header */}
+              <div className="mb-8 flex flex-wrap items-end justify-between gap-4 border-b border-[#e8edf6] pb-5">
+                <div className="flex items-center gap-3">
+                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${group.theme.iconClass}`}>
+                    <GroupIcon className="h-5 w-5" />
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Activity Collection</p>
+                    <h2 className="mt-0.5 font-serif text-2xl font-bold text-navy">{group.title}</h2>
                   </div>
                 </div>
+                <span className="rounded-lg border border-[#dbe5f1] bg-white px-3 py-1.5 text-xs font-bold text-slate-500">
+                  {group.items.length} {group.items.length === 1 ? "activity" : "activities"}
+                </span>
               </div>
-              <div className="stagger-children mt-8 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+              <p className="mb-8 -mt-4 max-w-2xl text-sm leading-7 text-slate-500">{group.description}</p>
+
+              <div className="stagger-children grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {group.items.map(
                   ({
                     activity,
@@ -6230,77 +6239,70 @@ function SportsClubsPage() {
                       <article
                         key={activity.id}
                         id={activity.id}
-                        className="group relative flex h-full flex-col overflow-hidden rounded-[28px] border border-[#dbe4f0] bg-white p-6 shadow-[0_18px_50px_-34px_rgba(10,22,40,0.55)] transition-smooth hover:-translate-y-1 hover:border-gold/70 hover:shadow-elegant"
+                        className="group flex h-full flex-col overflow-hidden rounded-xl border border-[#dbe4f0] bg-white shadow-[0_2px_16px_-6px_rgba(10,22,40,0.12)] transition-smooth hover:-translate-y-0.5 hover:border-[#b8c8e8] hover:shadow-[0_8px_32px_-12px_rgba(10,22,40,0.2)]"
                       >
-                        <div
-                          className={`absolute right-0 top-0 h-28 w-28 rounded-bl-[32px] opacity-70 ${group.theme.glowClass}`}
-                        />
-                        <div className="relative flex items-start justify-between gap-4">
-                          <span
-                            className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl shadow-soft ${group.theme.iconClass}`}
-                          >
-                            <Icon className="h-5 w-5" />
-                          </span>
-                          <div className="flex flex-wrap justify-end gap-2">
-                            {activity.note && (
-                              <span
-                                className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] ${group.theme.pillClass}`}
-                              >
-                                {activity.note}
+                        {/* Colored top strip */}
+                        <div className={`h-1 w-full ${group.theme.glowClass}`} />
+                        <div className="flex flex-1 flex-col p-6">
+                          {/* Icon + badges row */}
+                          <div className="flex items-start justify-between gap-3">
+                            <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${group.theme.iconClass}`}>
+                              <Icon className="h-4.5 w-4.5" />
+                            </span>
+                            <div className="flex flex-wrap justify-end gap-1.5">
+                              {activity.note && (
+                                <span className="rounded-md bg-crimson/8 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-crimson">
+                                  {activity.note}
+                                </span>
+                              )}
+                              <span className="rounded-md border border-[#e2e8f2] bg-[#f7f9fd] px-2.5 py-1 text-[10px] font-semibold text-slate-500">
+                                {teacherCount} {teacherCount === 1 ? "Teacher" : "Teachers"}
                               </span>
-                            )}
-                            <span className="rounded-full border border-[#d9e1ef] bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                              {teacherCount} {teacherCount === 1 ? "Teacher" : "Teachers"}
-                            </span>
+                            </div>
                           </div>
-                        </div>
-                        <h3 className="relative mt-6 font-serif text-[2rem] font-bold leading-tight text-navy">
-                          {activity.title}
-                        </h3>
-                        <p className="relative mt-3 text-sm leading-7 text-slate-600">
-                          {activityLeadText(activity)}
-                        </p>
-                        <div className="relative mt-5 flex flex-wrap gap-2">
-                          {teacherPreview.map((teacherName) => (
-                            <span
-                              key={`${activity.id}-${teacherName}`}
-                              className="rounded-full bg-[#f7f8fb] px-3 py-1.5 text-xs font-semibold text-slate-600"
-                            >
-                              {teacherName}
-                            </span>
-                          ))}
-                          {teacherCount > teacherPreview.length && (
-                            <span
-                              className={`rounded-full px-3 py-1.5 text-xs font-semibold ${group.theme.pillClass}`}
-                            >
-                              +{teacherCount - teacherPreview.length} more
-                            </span>
+                          {/* Title + description */}
+                          <h3 className="mt-4 font-serif text-xl font-bold leading-snug text-navy">
+                            {activity.title}
+                          </h3>
+                          <p className="mt-2 flex-1 text-sm leading-6 text-slate-500">
+                            {activityLeadText(activity)}
+                          </p>
+                          {/* Teacher chips */}
+                          {teacherPreview.length > 0 && (
+                            <div className="mt-4 flex flex-wrap gap-1.5">
+                              {teacherPreview.map((teacherName) => (
+                                <span
+                                  key={`${activity.id}-${teacherName}`}
+                                  className="rounded-full border border-[#e2e8f2] bg-[#f7f9fd] px-2.5 py-1 text-[11px] font-medium text-slate-600"
+                                >
+                                  {teacherName}
+                                </span>
+                              ))}
+                              {teacherCount > teacherPreview.length && (
+                                <span className="rounded-full border border-[#e2e8f2] bg-[#f7f9fd] px-2.5 py-1 text-[11px] font-medium text-slate-400">
+                                  +{teacherCount - teacherPreview.length} more
+                                </span>
+                              )}
+                            </div>
                           )}
-                        </div>
-                        <div className="relative mt-6 grid grid-cols-2 gap-3">
-                          <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
-                            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                              <Images className="h-4 w-4 text-gold" />
-                              Gallery Photos
-                            </p>
-                            <p className="mt-2 text-lg font-bold text-navy">{galleryPhotoCount}</p>
+                          {/* Stats row */}
+                          <div className="mt-5 flex items-center gap-4 border-t border-[#edf1f8] pt-4">
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+                              <Images className="h-3.5 w-3.5 text-gold" />
+                              {galleryPhotoCount} Photos
+                            </span>
+                            <span className="flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+                              <Eye className="h-3.5 w-3.5 text-gold" />
+                              {matchedProfileCount} Profiles
+                            </span>
+                            <a
+                              href={extraCurricularActivityHref(activity.id)}
+                              className="ml-auto flex items-center gap-1 text-xs font-bold text-navy transition-smooth hover:text-crimson"
+                            >
+                              View page <ArrowRight className="h-3.5 w-3.5" />
+                            </a>
                           </div>
-                          <div className="rounded-[22px] border border-[#e4ebf5] bg-[#fbfcfe] p-3">
-                            <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
-                              <Eye className="h-4 w-4 text-gold" />
-                              Public Profiles
-                            </p>
-                            <p className="mt-2 text-lg font-bold text-navy">
-                              {matchedProfileCount}
-                            </p>
-                          </div>
                         </div>
-                        <a
-                          href={extraCurricularActivityHref(activity.id)}
-                          className="relative mt-6 inline-flex w-fit items-center gap-2 rounded-full bg-navy px-5 py-3 text-sm font-bold text-white shadow-soft transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
-                        >
-                          View Activity Page <ArrowRight className="h-4 w-4" />
-                        </a>
                       </article>
                     );
                   },
