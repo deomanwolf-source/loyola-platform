@@ -2816,15 +2816,15 @@ function HomeVisionMissionIdentity() {
 
                   {/* Body */}
                   {p.key === "motto" ? (
-                    <p className="font-serif italic leading-snug text-white/75">
+                    <p className="font-serif italic leading-snug text-white/90">
                       {p.body.split("\n").map((line, idx) => (
-                        <span key={idx} className={`block ${idx === 0 ? "text-[1.05rem] font-semibold" : "mt-1.5 text-sm text-white/55"}`}>
+                        <span key={idx} className={`block ${idx === 0 ? "text-[1.05rem] font-semibold text-white" : "mt-1.5 text-sm text-white/72"}`}>
                           {line}
                         </span>
                       ))}
                     </p>
                   ) : (
-                    <p className="text-sm leading-[1.85] text-white/55">{p.body}</p>
+                    <p className="text-sm leading-[1.85] text-white/82">{p.body}</p>
                   )}
 
                   {/* Animated accent bar */}
