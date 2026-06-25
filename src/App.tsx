@@ -2815,7 +2815,7 @@ function HomeVisionMissionIdentity() {
                   </h3>
 
                   {/* Body */}
-                  <p className="text-sm leading-[1.85] text-white/55 line-clamp-3">{p.body}</p>
+                  <p className="text-sm leading-[1.85] text-white/55">{p.body}</p>
 
                   {/* Animated accent bar */}
                   <div
