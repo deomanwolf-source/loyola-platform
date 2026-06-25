@@ -2717,7 +2717,7 @@ function HomeVisionMissionIdentity() {
       icon: Trophy,
       num: "03",
       title: "Our Motto",
-      body: "Veritate ad Lumen et Vitam — In Truth to Light and Life. This guiding motto has shaped Loyola's spirit across 75 years of excellence.",
+      body: "“Veritate ad Lumen et Vitam”\n‘In truth to light and life’",
       image: home.mottoImage || HOME_LEGACY_PANELS[0]?.src || heroImage,
       accent: "#3b82f6",
       glowBg: "rgba(59,130,246,0.35)",
@@ -2815,7 +2815,17 @@ function HomeVisionMissionIdentity() {
                   </h3>
 
                   {/* Body */}
-                  <p className="text-sm leading-[1.85] text-white/55">{p.body}</p>
+                  {p.key === "motto" ? (
+                    <p className="font-serif italic leading-snug text-white/75">
+                      {p.body.split("\n").map((line, idx) => (
+                        <span key={idx} className={`block ${idx === 0 ? "text-[1.05rem] font-semibold" : "mt-1.5 text-sm text-white/55"}`}>
+                          {line}
+                        </span>
+                      ))}
+                    </p>
+                  ) : (
+                    <p className="text-sm leading-[1.85] text-white/55">{p.body}</p>
+                  )}
 
                   {/* Animated accent bar */}
                   <div
