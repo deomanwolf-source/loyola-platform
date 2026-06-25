@@ -2746,21 +2746,6 @@ function HomeVisionMissionIdentity() {
 
       <div className="relative mx-auto max-w-7xl px-5 sm:px-6">
 
-        {/* ── Header ── */}
-        <div className="mb-20 text-center">
-          <div className="inline-flex items-center gap-4 mb-5">
-            <span className="h-px w-14 bg-gradient-to-r from-transparent to-[#d4a017]/60" />
-            <p className="text-[10px] font-black uppercase tracking-[0.44em] text-[#d4a017]">Loyola Identity</p>
-            <span className="h-px w-14 bg-gradient-to-l from-transparent to-[#d4a017]/60" />
-          </div>
-          <h2 className="font-serif text-5xl font-bold text-white md:text-6xl lg:text-[4.5rem] leading-[1.05]">
-            {home.aboutHeading || "About Our College"}
-          </h2>
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-8 text-white/48">
-            {home.aboutBody || "Loyola College has a proud story of faith, learning, discipline, and service, shaped by generations of teachers, students, and leaders."}
-          </p>
-        </div>
-
         {/* ── Cards ── */}
         <div className="grid gap-5 md:grid-cols-3">
           {panels.map((p, i) => {
