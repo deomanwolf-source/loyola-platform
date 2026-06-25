@@ -40,6 +40,7 @@ import { CollegeAdministrationPage } from "@/components/site/CollegeAdministrati
 import {
   EXTRA_CURRICULAR_GROUPS,
   extraCurricularActivitiesByGroup,
+  extraCurricularActivityById,
   type ExtraCurricularActivity,
 } from "@/lib/extracurricular-activities";
 import { normalizePositionCode } from "@/lib/staff-position-codes";
