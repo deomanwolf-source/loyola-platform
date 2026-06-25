@@ -1,5 +1,3 @@
-import { useDb } from "@/lib/store";
-
 export function BrandedLoader({
   title = "Loading Loyola College",
   subtitle = "Preparing your experience",
@@ -9,8 +7,7 @@ export function BrandedLoader({
   subtitle?: string;
   fullScreen?: boolean;
 }) {
-  const db = useDb();
-  const logo = db.websiteContent.logoImage || "/loyola-crest.jpg";
+  const logo = "/loyola-crest.jpg";
 
   return (
     <div

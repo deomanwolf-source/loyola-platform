@@ -131,17 +131,11 @@ export const SiteHeader = memo(function SiteHeader() {
           aria-label={db.websiteContent.schoolName}
         >
           <span className="grid h-[50px] w-[50px] shrink-0 place-items-center overflow-hidden rounded-full border-2 border-gold/80 bg-navy p-1 shadow-[0_4px_16px_-4px_rgb(10_22_40_/0.4)] transition-smooth group-hover:border-gold xl:h-[56px] xl:w-[56px]">
-            {db.websiteContent.logoImage ? (
-              <img
-                src={db.websiteContent.logoImage}
+            <img
+                src="/loyola-crest.jpg"
                 alt="Loyola College crest"
                 className="h-full w-full rounded-full object-contain"
               />
-            ) : (
-              <span className="font-serif text-base font-bold text-gold">
-                {db.websiteContent.logoText}
-              </span>
-            )}
           </span>
           <span className="hidden min-w-0 sm:block">
             <span className="block truncate font-serif text-[17px] font-bold leading-tight text-navy transition-smooth group-hover:text-navy/80 xl:text-[19px]">
@@ -365,17 +359,11 @@ export const SiteFooter = memo(function SiteFooter() {
           <div>
             <a href="/" className="group inline-flex items-center gap-3">
               <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-2 border-gold/60 bg-white/8 p-1.5 transition-smooth group-hover:border-gold">
-                {db.websiteContent.logoImage ? (
-                  <img
-                    src={db.websiteContent.logoImage}
-                    alt=""
+                <img
+                    src="/loyola-crest.jpg"
+                    alt="Loyola College crest"
                     className="h-full w-full rounded-full object-contain"
                   />
-                ) : (
-                  <span className="font-serif text-lg font-bold text-gold">
-                    {db.websiteContent.logoText}
-                  </span>
-                )}
               </span>
               <div>
                 <p className="font-serif text-xl font-bold leading-snug text-white transition-smooth group-hover:text-gold/90">

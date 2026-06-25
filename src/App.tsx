@@ -2687,7 +2687,7 @@ function HomeVisionMissionIdentity() {
   const home = db.homeSections;
   const content = db.websiteContent;
   const heroImage = db.media.campusImage || content.heroImage || DEFAULT_HERO_IMAGE;
-  const logoImage = content.logoImage || "/loyola-crest.jpg";
+  const logoImage = "/loyola-crest.jpg";
   const stats = (home.stats || []).slice(0, 4);
   const statTones: HomePhotoTone[] = ["gold", "crimson", "blue", "emerald"];
 
@@ -3155,7 +3155,7 @@ function HomePage() {
   const home = db.homeSections;
   const heroMotto = content.heroText?.trim() || content.tagline?.trim() || "Veritate ad Lumen et Vitam";
   const heroImage = page.image || content.heroImage || db.media.campusImage || DEFAULT_HERO_IMAGE;
-  const logoImage = content.logoImage || "/loyola-crest.jpg";
+  const logoImage = "/loyola-crest.jpg";
   const parallaxRef = useRef<HTMLDivElement>(null);
 
   // Scroll-triggered reveals for all data-home-reveal sections
@@ -3525,7 +3525,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
           </div>
           <aside className="rounded-lg border border-white/14 bg-white/10 p-6 text-center shadow-elegant backdrop-blur">
             <img
-              src={db.websiteContent.logoImage || "/loyola-crest.jpg"}
+              src="/loyola-crest.jpg"
               alt=""
               className="mx-auto h-24 w-24 rounded-full border-4 border-gold bg-white object-contain p-2"
             />
