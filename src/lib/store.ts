@@ -1132,7 +1132,22 @@ async function hydrateFromRemoteDb(adoptDraftIfClean = false, force = false) {
     // draft is fetched, which would overwrite the actual database content.
     if (!initialHydrationComplete) {
       initialHydrationComplete = true;
-      if (pendingServerDb) void flushServerPersist();
+      if (pendingServerDb) {
+        // Guard: never flush seed-level data (contentVersion ≤ 1) when the real
+        // MySQL draft has a higher version. This covers the resetDb() → write() race
+        // where an audit log or interaction fires before hydrateFromRemoteDb returns,
+        // producing a pendingServerDb with seed content that would erase the real database.
+        const seedLevelPending = pendingServerDb.contentVersion <= 1;
+        const remoteHasRealData = publishedCache !== null && publishedCache.contentVersion > 1;
+        if (seedLevelPending && remoteHasRealData) {
+          draftCache = publishedCache;
+          pendingServerDb = null;
+          scheduleDraftPersist();
+          listeners.forEach((l) => l());
+        } else {
+          void flushServerPersist();
+        }
+      }
     }
   }
 }
@@ -2303,6 +2318,12 @@ export function resetDb() {
     serverPersistTimer = null;
   }
   if (typeof window !== "undefined") localStorage.removeItem(KEY);
+  // Reset hydration flags so the next read triggers a fresh fetch from MySQL
+  // and blocks pending server saves until the fetch settles. Without this,
+  // any write that happens after resetDb() (e.g. an auto-logged audit entry)
+  // would immediately auto-save seed data to MySQL and erase real content.
+  initialHydrationComplete = false;
+  remoteHydrationStarted = false;
   listeners.forEach((l) => l());
 }
 
