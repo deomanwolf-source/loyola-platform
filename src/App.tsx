@@ -2706,7 +2706,7 @@ function HomeVisionMissionIdentity() {
       icon: CheckCircle2,
       num: "02",
       title: "Our Mission",
-      body: "To aim at integral education of body, mind, and spirit through service and leadership — forming citizens of upright character who pursue excellence.",
+      body: "To provide a holistic education that nurtures the intellectual, physical, moral, and spiritual development of every student. We strive to cultivate men and women of integrity, compassion, and leadership who are committed to excellence, lifelong learning, and service to society. Guided by Christian values, we seek to empower our students to become responsible global citizens who contribute meaningfully to the advancement of their communities and the world.",
       image: home.missionImage || db.gallery[0]?.image || HOME_LEGACY_PANELS[3]?.src || heroImage,
       accent: "#b70f1b",
       glowBg: "rgba(183,15,27,0.35)",
