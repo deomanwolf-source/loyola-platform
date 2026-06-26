@@ -3232,7 +3232,7 @@ function HomePage() {
           mediaUrl={content.backgroundMediaUrl || undefined}
           mediaType={(content.backgroundMediaType as "image" | "video" | "") || undefined}
           mediaOpacity={content.backgroundMediaOpacity}
-          gradientClassName="bg-[linear-gradient(180deg,rgba(7,18,36,0.48)_0%,rgba(7,18,36,0.28)_38%,rgba(7,18,36,0.62)_100%)]"
+          gradientClassName="bg-[linear-gradient(180deg,rgba(7,18,36,0.62)_0%,rgba(7,18,36,0.52)_38%,rgba(7,18,36,0.78)_100%)]"
           gridOpacityClassName="opacity-[0.04]"
         />
 
@@ -3258,22 +3258,22 @@ function HomePage() {
           </div>
 
           {/* Eyebrow */}
-          <p className="mt-8 text-[11px] font-black uppercase tracking-[0.42em] text-gold-light/85 animate-fade-in-up animation-delay-2">
+          <p className="mt-8 text-[11px] font-black uppercase tracking-[0.42em] text-gold animate-fade-in-up animation-delay-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
             Est. 1949 · Negombo, Sri Lanka
           </p>
 
           {/* School name */}
-          <h1 className="mt-5 max-w-4xl text-balance font-serif text-5xl font-bold leading-[1.04] drop-shadow-[0_4px_24px_rgba(0,0,0,0.55)] sm:text-6xl md:text-7xl lg:text-[5.5rem] animate-fade-in-up animation-delay-2">
+          <h1 className="mt-5 max-w-4xl text-balance font-serif text-5xl font-bold leading-[1.04] drop-shadow-[0_4px_28px_rgba(0,0,0,0.75)] sm:text-6xl md:text-7xl lg:text-[5.5rem] animate-fade-in-up animation-delay-2">
             {content.schoolName || "Loyola College Negombo"}
           </h1>
 
           {/* Motto with gold rule lines */}
           <div className="mt-7 flex items-center gap-5 animate-fade-in-up animation-delay-2">
-            <span className="h-px w-14 bg-gradient-to-r from-transparent to-gold/60" />
-            <p className="font-display text-lg font-medium italic text-gold-light sm:text-xl">
+            <span className="h-px w-14 bg-gradient-to-r from-transparent to-gold/80" />
+            <p className="font-display text-lg font-medium italic text-gold drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] sm:text-xl">
               {heroMotto}
             </p>
-            <span className="h-px w-14 bg-gradient-to-l from-transparent to-gold/60" />
+            <span className="h-px w-14 bg-gradient-to-l from-transparent to-gold/80" />
           </div>
 
 
@@ -3282,7 +3282,7 @@ function HomePage() {
             {["Faith", "Learning", "Discipline", "Service"].map((item) => (
               <span
                 key={item}
-                className="rounded-full border border-white/18 bg-white/8 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-white/62 backdrop-blur-sm"
+                className="rounded-full border border-white/40 bg-white/12 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.22em] text-white shadow-[0_2px_12px_rgba(0,0,0,0.35)] backdrop-blur-sm"
               >
                 {item}
               </span>
