@@ -4224,17 +4224,79 @@ async function processVideoUpload(req, file, folder = "videos") {
 async function processBackgroundVideoUpload(req, file, folder) {
   const outputDirectory = path.join(uploadRoot, safePathSegment(folder || "site-videos/backgrounds"));
   await fs.promises.mkdir(outputDirectory, { recursive: true });
+  const baseName = uniqueMediaBaseName(file);
+  const mp4Path  = path.join(outputDirectory, `${baseName}.mp4`);
+  const webmPath = path.join(outputDirectory, `${baseName}.webm`);
+
+  // Scale down to max 1280 wide, strip audio — hero videos don't need sound.
+  // Use -vf with scale2ref-safe formula: cap at 1280px, keep aspect, force even dimensions.
+  const scaleFilter = "scale=iw*min(1\\,1280/iw):-2";
+
+  if (ffmpeg) {
+    try {
+      // 1. Optimised MP4 — H.264 with moov atom at the front for instant streaming
+      await transcodeVideo(file.path, mp4Path, [
+        "-map", "0:v:0",
+        "-sn",
+        "-vf", scaleFilter,
+        "-c:v", "libx264",
+        "-preset", "fast",
+        "-crf", "26",
+        "-pix_fmt", "yuv420p",
+        "-an",
+        "-movflags", "+faststart",
+      ]);
+
+      // 2. WebM VP9 — typically 40-60 % smaller than H.264 for the same quality
+      await transcodeVideo(file.path, webmPath, [
+        "-map", "0:v:0",
+        "-sn",
+        "-vf", scaleFilter,
+        "-c:v", "libvpx-vp9",
+        "-b:v", "0",
+        "-crf", "36",
+        "-deadline", "good",
+        "-cpu-used", "4",
+        "-row-mt", "1",
+        "-an",
+      ]);
+
+      await unlinkQuiet(file.path);
+
+      const [mp4Stat, webmStat] = await Promise.all([
+        fs.promises.stat(mp4Path),
+        fs.promises.stat(webmPath),
+      ]);
+
+      return {
+        fileName:        `${baseName}.mp4`,
+        fileUrl:         publicUploadUrl(req, mp4Path),
+        webmUrl:         publicUploadUrl(req, webmPath),
+        fileType:        "video",
+        mediaType:       "short_video_upload",
+        fileSize:        mp4Stat.size + webmStat.size,
+        durationSeconds: null,
+      };
+    } catch (err) {
+      // ffmpeg present but transcode failed — clean up and fall back to original
+      await unlinkQuiet(mp4Path);
+      await unlinkQuiet(webmPath);
+      console.warn("[bg-video] ffmpeg transcode failed, storing original:", err.message);
+    }
+  }
+
+  // Fallback: just store the raw uploaded file without transcoding
   const ext = path.extname(file.originalname || ".mp4").toLowerCase() || ".mp4";
-  const outputPath = path.join(outputDirectory, `${uniqueMediaBaseName(file)}${ext}`);
-  await fs.promises.rename(file.path, outputPath);
-  const stat = await fs.promises.stat(outputPath);
+  const rawPath = path.join(outputDirectory, `${baseName}${ext}`);
+  await fs.promises.rename(file.path, rawPath);
+  const stat = await fs.promises.stat(rawPath);
   return {
-    fileName: path.basename(outputPath),
-    fileUrl: publicUploadUrl(req, outputPath),
-    webmUrl: "",
-    fileType: "video",
-    mediaType: "short_video_upload",
-    fileSize: stat.size,
+    fileName:        path.basename(rawPath),
+    fileUrl:         publicUploadUrl(req, rawPath),
+    webmUrl:         "",
+    fileType:        "video",
+    mediaType:       "short_video_upload",
+    fileSize:        stat.size,
     durationSeconds: null,
   };
 }

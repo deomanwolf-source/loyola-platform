@@ -2268,12 +2268,12 @@ export function WebsiteEditor() {
       if (isVideo) setUploadProgress(0);
       const prepared = isVideo
         ? await (async () => {
-            const url = await uploadFileToBackendWithProgress(
+            const result = await uploadFileToBackendWithProgress(
               "site-videos/backgrounds",
               file,
               setUploadProgress,
             );
-            return { url, type: "video" as const, message: `Background video uploaded: ${formatBytes(file.size)}` };
+            return { url: result.url, webmUrl: result.webmUrl, type: "video" as const, message: `Background video uploaded: ${formatBytes(file.size)}` };
           })()
         : await prepareBackgroundMedia(file);
       setDb((current) => ({
@@ -2282,9 +2282,10 @@ export function WebsiteEditor() {
           ...current.pages,
           [selectedPage]: {
             ...(current.pages[selectedPage] || {}),
-            backgroundMediaUrl: prepared.url,
-            backgroundMediaType: prepared.type,
-            backgroundMediaOpacity: current.pages[selectedPage]?.backgroundMediaOpacity || 0.34,
+            backgroundMediaUrl:      prepared.url,
+            backgroundMediaWebmUrl:  ("webmUrl" in prepared ? prepared.webmUrl : "") || "",
+            backgroundMediaType:     prepared.type,
+            backgroundMediaOpacity:  current.pages[selectedPage]?.backgroundMediaOpacity || 0.34,
           },
         },
       }));
@@ -2306,8 +2307,9 @@ export function WebsiteEditor() {
         ...current.pages,
         [selectedPage]: {
           ...(current.pages[selectedPage] || {}),
-          backgroundMediaUrl: "",
-          backgroundMediaType: "",
+          backgroundMediaUrl:     "",
+          backgroundMediaWebmUrl: "",
+          backgroundMediaType:    "",
           backgroundMediaOpacity: 0.34,
         },
       },

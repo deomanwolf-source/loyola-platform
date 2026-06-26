@@ -98,11 +98,13 @@ export async function uploadFileToBackend(prefix: string, file: File) {
   return payload.url;
 }
 
+export type UploadResult = { url: string; webmUrl: string };
+
 export function uploadFileToBackendWithProgress(
   prefix: string,
   file: File,
   onProgress: (pct: number) => void,
-): Promise<string> {
+): Promise<UploadResult> {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append("file", file);
@@ -121,7 +123,8 @@ export function uploadFileToBackendWithProgress(
     xhr.onload = () => {
       try {
         const payload = JSON.parse(xhr.responseText) as UploadedMediaPayload;
-        if (xhr.status >= 200 && xhr.status < 300) resolve(payload.url);
+        if (xhr.status >= 200 && xhr.status < 300)
+          resolve({ url: payload.url, webmUrl: payload.webmUrl || "" });
         else reject(new Error((payload as Record<string, string>)?.error || "Media upload failed."));
       } catch {
         reject(new Error(xhr.status >= 200 && xhr.status < 300 ? "Upload response parse error." : "Media upload failed."));

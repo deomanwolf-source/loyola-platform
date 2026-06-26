@@ -3229,6 +3229,7 @@ function HomePage() {
           fallbackImage={heroImage}
           fallbackOpacity={0.55}
           mediaUrl={page.backgroundMediaUrl || undefined}
+          mediaWebmUrl={page.backgroundMediaWebmUrl || undefined}
           mediaType={(page.backgroundMediaType as "image" | "video" | "") || undefined}
           mediaOpacity={page.backgroundMediaOpacity ?? (page.backgroundMediaType === "video" ? 0.65 : 0.55)}
           gradientClassName="bg-[linear-gradient(180deg,rgba(7,18,36,0.55)_0%,rgba(7,18,36,0.38)_38%,rgba(7,18,36,0.72)_100%)]"
@@ -3503,6 +3504,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
           fallbackImage={heroImage}
           fallbackOpacity={0.34}
           mediaUrl={page?.backgroundMediaUrl}
+          mediaWebmUrl={page?.backgroundMediaWebmUrl}
           mediaType={page?.backgroundMediaType}
           mediaOpacity={page?.backgroundMediaOpacity}
           gradientClassName="bg-[linear-gradient(110deg,rgb(10_22_40_/0.98),rgb(10_22_40_/0.9)_48%,rgb(183_15_27_/0.72))]"

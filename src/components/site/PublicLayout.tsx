@@ -517,6 +517,7 @@ export function HeroBackgroundLayer({
   fallbackImage,
   fallbackOpacity = 0.28,
   mediaUrl,
+  mediaWebmUrl,
   mediaType,
   mediaOpacity,
   gradientClassName = "bg-[linear-gradient(105deg,rgb(10_22_40_/0.98),rgb(10_22_40_/0.86),rgb(183_15_27_/0.42))]",
@@ -525,6 +526,7 @@ export function HeroBackgroundLayer({
   fallbackImage?: string;
   fallbackOpacity?: number;
   mediaUrl?: string;
+  mediaWebmUrl?: string;
   mediaType?: "image" | "video" | "";
   mediaOpacity?: number;
   gradientClassName?: string;
@@ -540,15 +542,18 @@ export function HeroBackgroundLayer({
       {resolvedUrl && resolvedMediaType === "video" && (
         <video
           key={resolvedUrl}
-          src={resolvedUrl}
           autoPlay
           muted
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           className="hero-media absolute inset-0 h-full w-full object-cover"
           style={{ opacity: resolvedOpacity }}
-        />
+        >
+          {/* WebM first — smaller file, browsers that support it load faster */}
+          {mediaWebmUrl && <source src={mediaWebmUrl} type="video/webm" />}
+          <source src={resolvedUrl} type="video/mp4" />
+        </video>
       )}
       {resolvedUrl && resolvedMediaType !== "video" && (
         <img
@@ -590,6 +595,7 @@ export function PageHeader({
       <HeroBackgroundLayer
         fallbackImage={fallbackHeroImage}
         mediaUrl={page?.backgroundMediaUrl}
+        mediaWebmUrl={page?.backgroundMediaWebmUrl}
         mediaType={page?.backgroundMediaType}
         mediaOpacity={page?.backgroundMediaOpacity}
       />
