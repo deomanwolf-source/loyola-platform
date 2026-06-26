@@ -3192,6 +3192,11 @@ export function WebsiteEditor() {
                         <Upload className="h-4 w-4" /> Upload background
                       </StudioButton>
                     </div>
+                    {db.websiteContent.heroImage && (
+                      <StudioButton onClick={() => { updateContent({ heroImage: "" }); setMessage("Hero image removed."); }}>
+                        <Trash2 className="h-4 w-4" /> Remove hero image
+                      </StudioButton>
+                    )}
                     {page.backgroundMediaUrl && (
                       <>
                         <div className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2 text-xs text-slate-500">
