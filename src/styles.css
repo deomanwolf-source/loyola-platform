@@ -1511,7 +1511,7 @@
   animation-delay: 120ms;
 }
 
-.public-site .hero-media {
+.public-site .hero-media:not(video) {
   transform-origin: center;
   animation: slowZoom 18s ease-in-out infinite alternate;
   will-change: transform;
