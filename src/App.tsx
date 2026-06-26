@@ -3229,9 +3229,9 @@ function HomePage() {
         <HeroBackgroundLayer
           fallbackImage={heroImage}
           fallbackOpacity={0.55}
-          mediaUrl={content.backgroundMediaUrl || undefined}
-          mediaType={(content.backgroundMediaType as "image" | "video" | "") || undefined}
-          mediaOpacity={content.backgroundMediaOpacity}
+          mediaUrl={page.backgroundMediaUrl || undefined}
+          mediaType={(page.backgroundMediaType as "image" | "video" | "") || undefined}
+          mediaOpacity={page.backgroundMediaOpacity}
           gradientClassName="bg-[linear-gradient(180deg,rgba(7,18,36,0.62)_0%,rgba(7,18,36,0.52)_38%,rgba(7,18,36,0.78)_100%)]"
           gridOpacityClassName="opacity-[0.04]"
         />
