@@ -148,8 +148,8 @@ export const SiteHeader = memo(function SiteHeader() {
         </a>
 
         {/* Desktop navigation */}
-        <nav className="hidden xl:flex h-full flex-1 items-center justify-center">
-          <ul className="flex h-full items-stretch gap-0">
+        <nav className="hidden xl:flex h-full flex-1 items-center justify-center overflow-hidden">
+          <ul className="flex h-full items-stretch gap-0 flex-nowrap">
             {nav.map((item) => {
               const href = hrefFor(item.id);
               const children = childrenFor(item.id);
@@ -159,13 +159,13 @@ export const SiteHeader = memo(function SiteHeader() {
               return (
                 <li
                   key={item.id}
-                  className="relative flex items-stretch"
+                  className="relative flex items-stretch shrink-0"
                   onMouseEnter={() => hasDropdown && setActiveDropdown(item.id)}
                   onMouseLeave={() => setActiveDropdown(null)}
                 >
                   <a
                     href={href}
-                    className={`relative flex items-center gap-1 px-3.5 text-[13px] font-semibold tracking-wide transition-smooth after:absolute after:bottom-0 after:left-3.5 after:right-3.5 after:h-[2px] after:rounded-full after:bg-gold after:transition-smooth xl:text-[13.5px] ${
+                    className={`relative flex items-center gap-0.5 whitespace-nowrap px-2.5 text-[12.5px] font-semibold tracking-[0.01em] transition-smooth after:absolute after:bottom-0 after:left-2.5 after:right-2.5 after:h-[2px] after:rounded-full after:bg-gold after:transition-smooth ${
                       active
                         ? "text-navy after:scale-x-100"
                         : "text-slate-600 after:scale-x-0 hover:text-navy hover:after:scale-x-100"
@@ -175,7 +175,7 @@ export const SiteHeader = memo(function SiteHeader() {
                     {formatDisplayHeading(item.label)}
                     {hasDropdown && (
                       <ChevronDown
-                        className={`h-3.5 w-3.5 shrink-0 transition-smooth ${activeDropdown === item.id ? "rotate-180" : ""}`}
+                        className={`h-3 w-3 shrink-0 transition-smooth ${activeDropdown === item.id ? "rotate-180" : ""}`}
                       />
                     )}
                   </a>
