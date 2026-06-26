@@ -3245,8 +3245,8 @@ function HomePage() {
 
         {/* Centred brand content — my-auto centers without clipping top on short viewports */}
         <div className="relative z-10 my-auto flex w-full flex-col items-center px-5 py-16 text-center sm:px-8">
-          {/* Glowing crest */}
-          <div className="relative animate-fade-in-up">
+          {/* Glowing crest — drops in first */}
+          <div className="relative hero-crest-reveal">
             <div className="absolute inset-0 scale-150 rounded-full bg-gold/25 blur-3xl" />
             <div className="relative rounded-full border-4 border-gold/55 bg-white/10 p-2 shadow-[0_0_72px_rgba(212,160,23,0.45)] backdrop-blur-sm">
               <img
@@ -3258,17 +3258,17 @@ function HomePage() {
           </div>
 
           {/* Eyebrow */}
-          <p className="mt-8 text-[11px] font-black uppercase tracking-[0.42em] text-gold animate-fade-in-up animation-delay-2 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
+          <p className="mt-8 text-[11px] font-black uppercase tracking-[0.42em] text-gold hero-eyebrow-reveal drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]">
             Est. 1949 · Negombo, Sri Lanka
           </p>
 
           {/* School name */}
-          <h1 className="mt-5 max-w-4xl text-balance text-5xl font-bold leading-[1.06] drop-shadow-[0_4px_28px_rgba(0,0,0,0.75)] sm:text-6xl md:text-7xl lg:text-[5.75rem] animate-fade-in-up animation-delay-2" style={{ fontFamily: "var(--font-hero)" }}>
+          <h1 className="mt-5 max-w-4xl text-balance text-5xl font-bold leading-[1.06] drop-shadow-[0_4px_28px_rgba(0,0,0,0.75)] sm:text-6xl md:text-7xl lg:text-[5.75rem] hero-title-reveal" style={{ fontFamily: "var(--font-hero)" }}>
             {content.schoolName || "Loyola College Negombo"}
           </h1>
 
           {/* Motto with gold rule lines */}
-          <div className="mt-7 flex items-center gap-5 animate-fade-in-up animation-delay-2">
+          <div className="mt-7 flex items-center gap-5 hero-motto-reveal">
             <span className="h-px w-14 bg-gradient-to-r from-transparent to-gold/80" />
             <p className="font-display text-lg font-medium italic text-gold drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)] sm:text-xl">
               {heroMotto}
@@ -3276,9 +3276,8 @@ function HomePage() {
             <span className="h-px w-14 bg-gradient-to-l from-transparent to-gold/80" />
           </div>
 
-
           {/* Pillars row */}
-          <div className="mt-8 flex flex-wrap justify-center gap-2.5 animate-fade-in-up animation-delay-2">
+          <div className="mt-8 flex flex-wrap justify-center gap-2.5 hero-pillars-reveal">
             {["Faith", "Learning", "Discipline", "Service"].map((item) => (
               <span
                 key={item}

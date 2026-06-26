@@ -1226,13 +1226,29 @@
 }
 
 @keyframes slowZoom {
-  from {
-    transform: scale(1);
-  }
-  to {
-    transform: scale(1.055);
-  }
+  from { transform: scale(1); }
+  to   { transform: scale(1.055); }
 }
+
+/* Cinematic hero reveal sequence */
+@keyframes heroCrestDrop {
+  from { opacity: 0; transform: translateY(-28px) scale(0.82); }
+  to   { opacity: 1; transform: translateY(0)     scale(1); }
+}
+@keyframes heroSlideUp {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes heroFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.hero-crest-reveal    { animation: heroCrestDrop 1s cubic-bezier(0.16,1,0.3,1) 0.8s both; }
+.hero-eyebrow-reveal  { animation: heroSlideUp   0.7s ease-out               1.5s both; }
+.hero-title-reveal    { animation: heroSlideUp   1s   cubic-bezier(0.16,1,0.3,1) 1.8s both; }
+.hero-motto-reveal    { animation: heroFadeIn    0.8s ease-out               2.5s both; }
+.hero-pillars-reveal  { animation: heroSlideUp   0.7s ease-out               2.9s both; }
 
 @keyframes brandRingSpin {
   to {
