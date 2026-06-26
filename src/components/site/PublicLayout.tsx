@@ -148,7 +148,7 @@ export const SiteHeader = memo(function SiteHeader() {
         </a>
 
         {/* Desktop navigation */}
-        <nav className="hidden xl:flex h-full flex-1 items-center justify-center overflow-hidden">
+        <nav className="hidden xl:flex h-full flex-1 items-center justify-center">
           <ul className="flex h-full items-stretch gap-0 flex-nowrap">
             {nav.map((item) => {
               const href = hrefFor(item.id);
