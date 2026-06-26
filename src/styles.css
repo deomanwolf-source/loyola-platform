@@ -304,6 +304,63 @@
   opacity: 1;
 }
 
+/* ─── About Section — Expanding Accordion Cards ─────────────────────────── */
+.expand-cards {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+}
+/* On mobile: stack vertically */
+@media (max-width: 767px) {
+  .expand-cards { flex-direction: column; }
+  .expand-card  { flex: none !important; }
+  .expand-card-body { opacity: 1 !important; transform: none !important; max-height: none !important; }
+}
+@media (min-width: 768px) {
+  .expand-card {
+    flex: 1;
+    min-width: 0;
+    transition: flex 0.58s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: default;
+  }
+  /* Sibling cards shrink when one is hovered */
+  .expand-cards:has(.expand-card:hover) .expand-card:not(:hover) {
+    flex: 0.45;
+  }
+  /* Hovered card expands */
+  .expand-card:hover {
+    flex: 2.1;
+  }
+}
+/* Body text — hidden by default, revealed on hover */
+.expand-card-body {
+  opacity: 0;
+  transform: translateY(10px);
+  max-height: 0;
+  overflow: hidden;
+  transition:
+    opacity 0.36s ease 0.22s,
+    transform 0.36s ease 0.22s,
+    max-height 0.52s ease 0.08s;
+}
+@media (min-width: 768px) {
+  .expand-card:hover .expand-card-body {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 320px;
+  }
+}
+/* Accent bar — grows on hover */
+.expand-card-bar {
+  height: 2px;
+  width: 0;
+  border-radius: 9999px;
+  transition: width 0.55s ease 0.24s;
+}
+.expand-card:hover .expand-card-bar {
+  width: 100%;
+}
+
 /* ─── Card image hover zoom ─────────────────────────────────────────────── */
 .card-img-zoom {
   overflow: hidden;

@@ -2747,82 +2747,82 @@ function HomeVisionMissionIdentity() {
       <div className="relative mx-auto max-w-7xl px-5 sm:px-6">
 
         {/* ── Cards ── */}
-        <div className="stagger-fast grid gap-5 md:grid-cols-3">
-          {panels.map((p, i) => {
+        <div className="expand-cards">
+          {panels.map((p) => {
             const Icon = p.icon;
             return (
               <article
                 key={p.key}
-                className="group relative overflow-hidden rounded-[26px] cursor-default"
+                className="expand-card group relative overflow-hidden rounded-[26px]"
               >
-                {/* Bottom glow */}
-                <div
-                  className="absolute -bottom-8 left-1/2 -translate-x-1/2 h-20 w-4/5 rounded-full blur-2xl opacity-0 group-hover:opacity-80 transition-opacity duration-700 pointer-events-none"
-                  style={{ backgroundColor: p.glowBg }}
-                />
-
-                {/* Photo */}
-                <div className="relative h-[460px] overflow-hidden">
+                {/* Full-height image fills the card */}
+                <div className="relative h-[480px] w-full overflow-hidden md:h-[520px]">
                   <img
                     src={p.image}
                     alt={p.title}
-                    className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.07]"
+                    className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
                   />
-                  {/* Deep cinematic gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#040c18] via-[#040c18]/55 to-[#040c18]/8" />
-                  {/* Subtle color wash on hover */}
+                  {/* Gradient: lighter at top, heavier at bottom for readability */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#040c18] via-[#040c18]/50 to-[#040c18]/10" />
+                  {/* Color accent wash on hover */}
                   <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-600 mix-blend-color-dodge"
+                    className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-18 mix-blend-color-dodge"
                     style={{ backgroundColor: p.accent }}
+                  />
+                  {/* Bottom ambient glow */}
+                  <div
+                    className="pointer-events-none absolute -bottom-6 left-1/2 h-20 w-3/4 -translate-x-1/2 rounded-full blur-2xl opacity-0 transition-opacity duration-700 group-hover:opacity-70"
+                    style={{ backgroundColor: p.glowBg }}
                   />
                 </div>
 
-                {/* Content pinned to bottom */}
-                <div className="absolute inset-x-0 bottom-0 p-7">
-                  {/* Number + icon row */}
-                  <div className="flex items-center justify-between mb-4">
+                {/* Content pinned to bottom of the card */}
+                <div className="absolute inset-x-0 bottom-0 p-6 md:p-7">
+                  {/* Number + icon — always visible */}
+                  <div className="mb-3 flex items-center justify-between">
                     <span
                       className="text-[10px] font-black tracking-[0.42em] uppercase"
                       style={{ color: p.accent }}
                     >
                       {p.num}
                     </span>
-                    <div
-                      className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/12 bg-white/8 backdrop-blur-md"
-                    >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/14 bg-white/10 backdrop-blur-md">
                       <Icon className="h-4 w-4 text-white/80" />
                     </div>
                   </div>
 
-                  {/* Title */}
-                  <h3 className="font-serif text-[1.65rem] font-bold text-white leading-tight mb-3">
+                  {/* Title — always visible */}
+                  <h3 className="font-serif text-2xl font-bold leading-tight text-white md:text-[1.6rem]">
                     {p.title}
                   </h3>
 
-                  {/* Body */}
-                  {p.key === "motto" ? (
-                    <p className="font-serif italic leading-snug text-white/90">
-                      {p.body.split("\n").map((line, idx) => (
-                        <span key={idx} className={`block ${idx === 0 ? "text-[1.05rem] font-semibold text-white" : "mt-1.5 text-sm text-white/72"}`}>
-                          {line}
-                        </span>
-                      ))}
-                    </p>
-                  ) : (
-                    <p className="text-sm leading-[1.85] text-white/82">{p.body}</p>
-                  )}
+                  {/* Body — hidden by default, revealed on hover */}
+                  <div className="expand-card-body mt-3">
+                    {p.key === "motto" ? (
+                      <p className="font-serif italic leading-snug text-white/90">
+                        {p.body.split("\n").map((line, idx) => (
+                          <span
+                            key={idx}
+                            className={`block ${idx === 0 ? "text-base font-semibold text-white" : "mt-1.5 text-sm text-white/72"}`}
+                          >
+                            {line}
+                          </span>
+                        ))}
+                      </p>
+                    ) : (
+                      <p className="text-sm leading-[1.8] text-white/80">{p.body}</p>
+                    )}
+                  </div>
 
                   {/* Animated accent bar */}
                   <div
-                    className="mt-5 h-[2px] w-0 rounded-full group-hover:w-full transition-all duration-[550ms] ease-out"
+                    className="expand-card-bar mt-4"
                     style={{ background: p.barGrad }}
                   />
                 </div>
 
-                {/* Card ring */}
-                <div
-                  className="absolute inset-0 rounded-[26px] ring-1 ring-white/8 group-hover:ring-white/18 transition-all duration-500 pointer-events-none"
-                />
+                {/* Card border ring */}
+                <div className="pointer-events-none absolute inset-0 rounded-[26px] ring-1 ring-white/8 transition-all duration-500 group-hover:ring-white/20" />
               </article>
             );
           })}
