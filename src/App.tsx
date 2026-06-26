@@ -2310,7 +2310,7 @@ function HomeRequiredSections() {
         className="reveal-on-scroll bg-[radial-gradient(circle_at_top_right,rgba(212,160,23,0.12),transparent_42%),radial-gradient(circle_at_bottom_left,rgba(183,15,27,0.08),transparent_38%),linear-gradient(180deg,#f0f6ff_0%,#e8f0fe_100%)] py-10 md:py-14"
       >
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="stagger-fast grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {quickActions.map((item, index) => {
               const Icon = item.icon;
               const style = quickActionStyles[index % quickActionStyles.length];
@@ -2336,10 +2336,10 @@ function HomeRequiredSections() {
 
           <div className="mt-14 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              <p className="reveal-from-left text-xs font-bold uppercase tracking-[0.22em] text-crimson">
                 Student life
               </p>
-              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">Extra Curriculars</h2>
+              <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy" style={{ transitionDelay: "0.1s" }}>Extra Curriculars</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
                 Teacher-in-charge highlights from the current college activity list.
               </p>
@@ -2379,10 +2379,10 @@ function HomeRequiredSections() {
         <div className="mx-auto max-w-7xl px-5 sm:px-6">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+              <p className="reveal-from-left text-xs font-bold uppercase tracking-[0.22em] text-crimson">
                 Academic journey
               </p>
-              <h2 className="mt-3 font-serif text-4xl font-bold text-navy">
+              <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy" style={{ transitionDelay: "0.1s" }}>
                 Academic Composition
               </h2>
               <p className="mt-2 text-sm text-slate-500">
@@ -2477,8 +2477,8 @@ function HomeRequiredSections() {
             <div className="relative">
               <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                 <div>
-                  <p className="text-xs font-black uppercase text-gold">Annual school schedule</p>
-                  <h2 className="mt-2 font-serif text-4xl font-bold leading-tight md:text-5xl">
+                  <p className="reveal-from-left text-xs font-black uppercase text-gold">Annual school schedule</p>
+                  <h2 className="reveal-from-left mt-2 font-serif text-4xl font-bold leading-tight md:text-5xl" style={{ transitionDelay: "0.1s" }}>
                     Academic Calendar &amp; Year Plan
                   </h2>
                   <p className="mt-3 max-w-xl text-sm leading-6 text-white/70">
@@ -2531,10 +2531,10 @@ function HomeRequiredSections() {
         className="reveal-on-scroll bg-[linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)] py-14 md:py-20"
       >
         <div className="mx-auto max-w-7xl px-5 text-center sm:px-6">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+          <p className="reveal-from-left text-xs font-bold uppercase tracking-[0.22em] text-crimson">
             Administration board
           </p>
-          <h2 className="mt-3 font-serif text-4xl font-bold text-navy md:text-5xl">
+          <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy md:text-5xl" style={{ transitionDelay: "0.1s" }}>
             {home.leadershipTitle || "Leadership guiding Loyola College"}
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-sm leading-6 text-slate-500">
@@ -2544,7 +2544,7 @@ function HomeRequiredSections() {
           <div className="stagger-fast mt-10 grid gap-7 sm:grid-cols-2 lg:grid-cols-4">
             {leadershipCards.map((card) => (
               <article key={card.id} className="text-center">
-                <div className="overflow-hidden rounded-[28px] bg-[#909090] shadow-soft">
+                <div className="card-img-zoom overflow-hidden rounded-[28px] bg-[#909090] shadow-soft">
                   {card.image ? (
                     <img
                       src={card.image}
@@ -2581,8 +2581,8 @@ function HomeRequiredSections() {
           <div className="mx-auto max-w-7xl px-5 sm:px-6">
             <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.28em] text-crimson">Stay informed</p>
-                <h2 className="mt-3 font-serif text-4xl font-bold text-navy md:text-5xl">Latest from Loyola</h2>
+                <p className="reveal-from-left text-xs font-black uppercase tracking-[0.28em] text-crimson">Stay informed</p>
+                <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy md:text-5xl" style={{ transitionDelay: "0.1s" }}>Latest from Loyola</h2>
               </div>
               <div className="flex gap-4">
                 {pageIsLive("/news") && (
@@ -2601,7 +2601,7 @@ function HomeRequiredSections() {
             <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
               {/* News column */}
               {db.news.length > 0 && (
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2 content-start">
+                <div className="stagger-fast grid gap-4 sm:grid-cols-2 lg:grid-cols-2 content-start">
                   {db.news.slice(0, 4).map((item) => (
                     <a
                       key={item.id}
@@ -2609,8 +2609,8 @@ function HomeRequiredSections() {
                       className="group flex flex-col overflow-hidden rounded-[22px] border border-white/80 bg-white shadow-[0_8px_32px_-14px_rgba(10,22,40,0.18)] transition-all hover:-translate-y-0.5 hover:border-gold/40 hover:shadow-elegant"
                     >
                       {item.image && (
-                        <div className="relative h-36 overflow-hidden">
-                          <img src={item.image} alt={item.title} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        <div className="card-img-zoom relative h-36 overflow-hidden">
+                          <img src={item.image} alt={item.title} className="h-full w-full object-cover" />
                           <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_50%,rgba(7,18,36,0.35)_100%)]" />
                         </div>
                       )}
@@ -2747,14 +2747,13 @@ function HomeVisionMissionIdentity() {
       <div className="relative mx-auto max-w-7xl px-5 sm:px-6">
 
         {/* ── Cards ── */}
-        <div className="grid gap-5 md:grid-cols-3">
+        <div className="stagger-fast grid gap-5 md:grid-cols-3">
           {panels.map((p, i) => {
             const Icon = p.icon;
             return (
               <article
                 key={p.key}
-                style={{ animationDelay: `${i * 140}ms` }}
-                className="group relative overflow-hidden rounded-[26px] cursor-default animate-fade-in-up"
+                className="group relative overflow-hidden rounded-[26px] cursor-default"
               >
                 {/* Bottom glow */}
                 <div
@@ -2884,10 +2883,10 @@ function HomeCampusMosaic() {
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
         <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-gold-light">
+            <p className="reveal-from-left text-xs font-black uppercase tracking-[0.28em] text-gold-light">
               Campus Life
             </p>
-            <h2 className="mt-4 font-serif text-4xl font-bold text-white md:text-5xl">
+            <h2 className="reveal-from-left mt-4 font-serif text-4xl font-bold text-white md:text-5xl" style={{ transitionDelay: "0.1s" }}>
               Life at Loyola
             </h2>
             <p className="mt-3 max-w-xl text-sm leading-7 text-white/68">
@@ -2903,7 +2902,7 @@ function HomeCampusMosaic() {
           </a>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="stagger-fast grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {/* Large main tile */}
           <article className="mosaic-tile group relative overflow-hidden rounded-[28px] border border-white/15 shadow-[0_24px_70px_-38px_rgba(10,22,40,0.9)] lg:col-span-2 lg:row-span-2">
             <div className="relative h-72 lg:h-full lg:min-h-[28rem] overflow-hidden bg-navy">
@@ -3046,7 +3045,7 @@ function HomeRectorsMessage() {
       <div className="mx-auto max-w-7xl px-5 sm:px-6">
         <div className="grid gap-14 lg:grid-cols-[400px_1fr] lg:items-center">
           {/* Photo */}
-          <div className="relative mx-auto max-w-sm lg:mx-0">
+          <div className="reveal-scale relative mx-auto max-w-sm lg:mx-0">
             <div className="absolute -inset-6 rounded-[44px] bg-gradient-to-br from-gold/20 to-transparent" />
             <div className="relative overflow-hidden rounded-[32px] border-4 border-white shadow-[0_32px_80px_-24px_rgba(10,22,40,0.30)]">
               <img
@@ -3065,10 +3064,10 @@ function HomeRectorsMessage() {
 
           {/* Content */}
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.30em] text-crimson">
+            <p className="reveal-from-left text-xs font-black uppercase tracking-[0.30em] text-crimson">
               Rector's Welcome
             </p>
-            <h2 className="mt-5 font-serif text-4xl font-bold text-navy md:text-5xl">
+            <h2 className="reveal-from-left mt-5 font-serif text-4xl font-bold text-navy md:text-5xl" style={{ transitionDelay: "0.1s" }}>
               {home.rectorHeading || "A Message from Our Rector"}
             </h2>
             <div className="mt-6 h-0.5 w-16 bg-gradient-to-r from-gold to-gold/20" />
@@ -3088,7 +3087,7 @@ function HomeRectorsMessage() {
             <div className="mt-8">
               <a
                 href="/about"
-                className="inline-flex items-center gap-2 rounded-full bg-navy px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(10,22,40,0.30)] transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
+                className="btn-shimmer inline-flex items-center gap-2 rounded-full bg-navy px-7 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(10,22,40,0.30)] transition-smooth hover:-translate-y-0.5 hover:bg-navy-mid"
               >
                 Read Full Message
                 <ArrowRight className="h-4 w-4" />
@@ -3123,10 +3122,10 @@ function HomeAdmissionsCTA() {
       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-gold/70 to-transparent" />
 
       <div className="relative mx-auto max-w-5xl px-5 text-center sm:px-6">
-        <p className="text-[11px] font-black uppercase tracking-[0.36em] text-gold-light">
+        <p className="reveal-from-left text-[11px] font-black uppercase tracking-[0.36em] text-gold-light">
           {home.admissionsCtaKicker || "Admissions Open"}
         </p>
-        <h2 className="mt-5 font-serif text-4xl font-bold leading-tight text-white md:text-6xl">
+        <h2 className="reveal-from-left mt-5 font-serif text-4xl font-bold leading-tight text-white md:text-6xl" style={{ transitionDelay: "0.12s" }}>
           {home.admissionsCtaTitle || "Join the Loyola Family"}
         </h2>
         <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-white/65">
@@ -3137,7 +3136,7 @@ function HomeAdmissionsCTA() {
           {pageIsLive("/admissions") && (
             <a
               href="/admissions"
-              className="inline-flex items-center gap-2 rounded-full bg-gold px-9 py-4 text-sm font-bold text-navy shadow-[0_14px_40px_rgba(212,160,23,0.55)] transition-smooth hover:-translate-y-1 hover:shadow-[0_22px_54px_rgba(212,160,23,0.65)]"
+              className="btn-shimmer inline-flex items-center gap-2 rounded-full bg-gold px-9 py-4 text-sm font-bold text-navy shadow-[0_14px_40px_rgba(212,160,23,0.55)] transition-smooth hover:-translate-y-1 hover:shadow-[0_22px_54px_rgba(212,160,23,0.65)]"
             >
               {home.admissionsCtaButton || "Apply Now"}
               <ArrowRight className="h-4 w-4" />
@@ -3146,7 +3145,7 @@ function HomeAdmissionsCTA() {
           {pageIsLive("/contact") && (
             <a
               href="/contact"
-              className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-9 py-4 text-sm font-bold text-white backdrop-blur-sm transition-smooth hover:-translate-y-1 hover:bg-white/18"
+              className="btn-shimmer inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-9 py-4 text-sm font-bold text-white backdrop-blur-sm transition-smooth hover:-translate-y-1 hover:bg-white/18"
             >
               Contact Admissions
               <Mail className="h-4 w-4" />
@@ -3154,7 +3153,7 @@ function HomeAdmissionsCTA() {
           )}
         </div>
 
-        <div className="mt-16 grid grid-cols-3 divide-x divide-white/15 border-t border-white/15 pt-12">
+        <div className="stagger-fast mt-16 grid grid-cols-3 divide-x divide-white/15 border-t border-white/15 pt-12">
           {[
             { value: "75+", label: "Years of Excellence" },
             { value: "2,688", label: "Students Enrolled" },
