@@ -4221,6 +4221,24 @@ async function processVideoUpload(req, file, folder = "videos") {
   };
 }
 
+async function processBackgroundVideoUpload(req, file, folder) {
+  const outputDirectory = path.join(uploadRoot, safePathSegment(folder || "site-videos/backgrounds"));
+  await fs.promises.mkdir(outputDirectory, { recursive: true });
+  const ext = path.extname(file.originalname || ".mp4").toLowerCase() || ".mp4";
+  const outputPath = path.join(outputDirectory, `${uniqueMediaBaseName(file)}${ext}`);
+  await fs.promises.rename(file.path, outputPath);
+  const stat = await fs.promises.stat(outputPath);
+  return {
+    fileName: path.basename(outputPath),
+    fileUrl: publicUploadUrl(req, outputPath),
+    webmUrl: "",
+    fileType: "video",
+    mediaType: "short_video_upload",
+    fileSize: stat.size,
+    durationSeconds: null,
+  };
+}
+
 async function processDocumentUpload(req, file, folder) {
   const outputDirectory = path.join(uploadRoot, folder);
   await fs.promises.mkdir(outputDirectory, { recursive: true });
@@ -4248,7 +4266,11 @@ async function processDocumentUpload(req, file, folder) {
 async function processUploadedMedia(req, file, folder) {
   const kind = uploadMediaKind(file);
   if (kind === "image") return processImageUpload(req, file, folder);
-  if (kind === "short_video_upload") return processVideoUpload(req, file, folder);
+  if (kind === "short_video_upload") {
+    // Background/hero videos don't need ffprobe duration validation
+    if (folder.startsWith("site-videos")) return processBackgroundVideoUpload(req, file, folder);
+    return processVideoUpload(req, file, folder);
+  }
   if (kind === "document") return processDocumentUpload(req, file, folder);
   await unlinkQuiet(file.path);
   throw new Error("Unsupported media type.");
