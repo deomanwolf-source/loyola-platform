@@ -44,7 +44,7 @@ import {
   type FacilityItem,
   type PastRectorProfile,
 } from "@/lib/store";
-import { uploadFileToBackend } from "@/lib/backend-upload";
+import { uploadFileToBackend, uploadFileToBackendWithProgress } from "@/lib/backend-upload";
 import { createPublishRequest } from "@/lib/publish-requests";
 import {
   VISUAL_BUILDER_CANVAS_STATIC_CSS,
@@ -1849,6 +1849,7 @@ export function WebsiteEditor() {
   const [selectedSection, setSelectedSection] = useState("Hero");
   const [message, setMessage] = useState("Ready to edit.");
   const [messageTone, setMessageTone] = useState<"info" | "error">("info");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "publishing" | "submitting">(
     "idle",
   );
@@ -2258,12 +2259,23 @@ export function WebsiteEditor() {
   const uploadBackgroundMedia = async (file?: File) => {
     if (!file) return;
     try {
+      const isVideo = file.type.startsWith("video/");
       setMessage(
-        file.type.startsWith("video/")
+        isVideo
           ? `Uploading background video for ${displayPageName(selectedPage)}...`
           : `Optimizing background image for ${displayPageName(selectedPage)}...`,
       );
-      const prepared = await prepareBackgroundMedia(file);
+      if (isVideo) setUploadProgress(0);
+      const prepared = isVideo
+        ? await (async () => {
+            const url = await uploadFileToBackendWithProgress(
+              "site-videos/backgrounds",
+              file,
+              setUploadProgress,
+            );
+            return { url, type: "video" as const, message: `Background video uploaded: ${formatBytes(file.size)}` };
+          })()
+        : await prepareBackgroundMedia(file);
       setDb((current) => ({
         ...current,
         pages: {
@@ -2277,10 +2289,12 @@ export function WebsiteEditor() {
         },
       }));
       audit(`Page background ${prepared.type} uploaded: ${selectedPage}`, "Website editor");
+      setUploadProgress(null);
       setMessage(
         `${prepared.message}. It now appears behind the ${displayPageName(selectedPage)} page hero.`,
       );
     } catch (error) {
+      setUploadProgress(null);
       setMessage(error instanceof Error ? error.message : "Page background upload failed.");
     }
   };
@@ -2879,17 +2893,30 @@ export function WebsiteEditor() {
 
         {/* ── Status bar ── */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-6 py-2.5">
-          <div
-            className={`flex items-center gap-2 text-xs font-medium ${
-              messageTone === "error" && !isLocalOnly
-                ? "text-red-700"
-                : isLocalOnly
-                  ? "text-amber-700"
-                  : "text-emerald-700"
-            }`}
-          >
-            <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${messageTone === "error" && !isLocalOnly ? "bg-red-500" : isLocalOnly ? "bg-amber-500" : "bg-emerald-500"}`} />
-            <span className="leading-5">{message}</span>
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+            <div
+              className={`flex items-center gap-2 text-xs font-medium ${
+                messageTone === "error" && !isLocalOnly
+                  ? "text-red-700"
+                  : isLocalOnly
+                    ? "text-amber-700"
+                    : "text-emerald-700"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${messageTone === "error" && !isLocalOnly ? "bg-red-500" : isLocalOnly ? "bg-amber-500" : "bg-emerald-500"}`} />
+              <span className="leading-5">{message}</span>
+              {uploadProgress !== null && (
+                <span className="ml-1 font-bold tabular-nums text-emerald-700">{uploadProgress}%</span>
+              )}
+            </div>
+            {uploadProgress !== null && (
+              <div className="h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-slate-200">
+                <div
+                  className="h-full rounded-full bg-emerald-500 transition-all duration-200 ease-out"
+                  style={{ width: `${uploadProgress}%` }}
+                />
+              </div>
+            )}
           </div>
           {selectedPageUsesLiveRenderer && (
             <div className="flex items-center gap-2">

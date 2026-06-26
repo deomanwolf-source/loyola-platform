@@ -98,6 +98,42 @@ export async function uploadFileToBackend(prefix: string, file: File) {
   return payload.url;
 }
 
+export function uploadFileToBackendWithProgress(
+  prefix: string,
+  file: File,
+  onProgress: (pct: number) => void,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}/api/uploads?folder=${encodeURIComponent(uploadFolder(prefix))}`);
+    xhr.withCredentials = true;
+
+    const headers = authHeaders() as Record<string, string>;
+    Object.entries(headers).forEach(([k, v]) => xhr.setRequestHeader(k, v));
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+
+    xhr.onload = () => {
+      try {
+        const payload = JSON.parse(xhr.responseText) as UploadedMediaPayload;
+        if (xhr.status >= 200 && xhr.status < 300) resolve(payload.url);
+        else reject(new Error((payload as Record<string, string>)?.error || "Media upload failed."));
+      } catch {
+        reject(new Error(xhr.status >= 200 && xhr.status < 300 ? "Upload response parse error." : "Media upload failed."));
+      }
+    };
+    xhr.onerror = () => reject(new Error("Network error during upload."));
+    xhr.onabort = () => reject(new Error("Upload cancelled."));
+
+    xhr.send(formData);
+  });
+}
+
 export async function uploadFileToBackendInfo(prefix: string, file: File) {
   return uploadMedia(prefix, file, file.name, file.type);
 }
