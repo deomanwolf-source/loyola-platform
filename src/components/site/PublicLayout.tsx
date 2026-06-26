@@ -28,7 +28,7 @@ function hrefFor(id: string) {
 
 function clampMediaOpacity(value?: number) {
   if (typeof value !== "number" || Number.isNaN(value)) return 0.34;
-  return Math.min(0.75, Math.max(0.08, value));
+  return Math.min(1, Math.max(0.08, value));
 }
 
 function pageIdFromHref(href: string) {

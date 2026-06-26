@@ -3209,7 +3209,7 @@ export function WebsiteEditor() {
                       </>
                     )}
                     <Field label="Background opacity" hint={`${Math.round((page.backgroundMediaOpacity || 0.34) * 100)}% — behind the hero gradient.`}>
-                      <input type="range" min="0.08" max="0.75" step="0.01" value={page.backgroundMediaOpacity || 0.34} onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))} className="w-full accent-[#d4a017]" />
+                      <input type="range" min="0.08" max="1" step="0.01" value={page.backgroundMediaOpacity || 0.34} onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))} className="w-full accent-[#d4a017]" />
                     </Field>
                   </div>
                 )}
@@ -3497,7 +3497,7 @@ export function WebsiteEditor() {
                       </>
                     )}
                     <Field label="Background opacity" hint={`${Math.round((page.backgroundMediaOpacity || 0.34) * 100)}% — behind the hero gradient.`}>
-                      <input type="range" min="0.08" max="0.75" step="0.01" value={page.backgroundMediaOpacity || 0.34} onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))} className="w-full accent-[#d4a017]" />
+                      <input type="range" min="0.08" max="1" step="0.01" value={page.backgroundMediaOpacity || 0.34} onChange={(e) => updatePage("backgroundMediaOpacity", Number(e.target.value))} className="w-full accent-[#d4a017]" />
                     </Field>
                   </div>
                 )}

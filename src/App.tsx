@@ -3223,7 +3223,7 @@ function HomePage() {
       {/* ── FULL-SCREEN CINEMATIC HERO ── */}
       <section
         data-website-section="Hero"
-        className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden text-white"
+        className="relative flex min-h-screen flex-col overflow-hidden text-white"
       >
         {/* Background video / image */}
         <HeroBackgroundLayer
@@ -3231,8 +3231,8 @@ function HomePage() {
           fallbackOpacity={0.55}
           mediaUrl={page.backgroundMediaUrl || undefined}
           mediaType={(page.backgroundMediaType as "image" | "video" | "") || undefined}
-          mediaOpacity={page.backgroundMediaOpacity}
-          gradientClassName="bg-[linear-gradient(180deg,rgba(7,18,36,0.62)_0%,rgba(7,18,36,0.52)_38%,rgba(7,18,36,0.78)_100%)]"
+          mediaOpacity={page.backgroundMediaOpacity ?? (page.backgroundMediaType === "video" ? 0.65 : 0.55)}
+          gradientClassName="bg-[linear-gradient(180deg,rgba(7,18,36,0.55)_0%,rgba(7,18,36,0.38)_38%,rgba(7,18,36,0.72)_100%)]"
           gridOpacityClassName="opacity-[0.04]"
         />
 
@@ -3243,8 +3243,8 @@ function HomePage() {
           <div className="absolute bottom-20 left-1/2 h-64 w-[36rem] -translate-x-1/2 rounded-full bg-navy/30 blur-[60px]" />
         </div>
 
-        {/* Centred brand content */}
-        <div className="relative z-10 flex flex-col items-center px-5 py-24 text-center sm:px-8">
+        {/* Centred brand content — my-auto centers without clipping top on short viewports */}
+        <div className="relative z-10 my-auto flex w-full flex-col items-center px-5 py-16 text-center sm:px-8">
           {/* Glowing crest */}
           <div className="relative animate-fade-in-up">
             <div className="absolute inset-0 scale-150 rounded-full bg-gold/25 blur-3xl" />
