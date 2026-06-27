@@ -2730,115 +2730,151 @@ function HomeVisionMissionIdentity() {
     <section
       data-home-reveal
       data-website-section="About College"
-      className="reveal-on-scroll relative overflow-hidden bg-[#040c18] py-24 md:py-36"
+      className="reveal-on-scroll relative overflow-hidden bg-[#030b16] py-20 md:py-32"
     >
-      {/* Ambient glows */}
+      {/* Ambient background glows */}
       <div className="pointer-events-none absolute inset-0 select-none">
-        <div className="absolute -left-60 -top-20 h-[600px] w-[600px] rounded-full bg-[#d4a017]/5 blur-[120px]" />
-        <div className="absolute -right-60 -bottom-20 h-[600px] w-[600px] rounded-full bg-crimson/5 blur-[120px]" />
-        <div className="absolute left-1/2 top-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-900/8 blur-[90px]" />
-        {/* Dot grid */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{ backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.7) 1px,transparent 1px)", backgroundSize: "40px 40px" }}
-        />
+        <div className="absolute -left-48 top-0 h-[700px] w-[700px] rounded-full bg-[#d4a017]/6 blur-[140px]" />
+        <div className="absolute -right-48 bottom-0 h-[700px] w-[700px] rounded-full bg-[#b70f1b]/6 blur-[140px]" />
+        <div className="absolute left-1/2 top-1/3 h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-blue-900/5 blur-[100px]" />
+        <div className="absolute inset-0 opacity-[0.022]"
+          style={{ backgroundImage: "radial-gradient(circle,rgba(255,255,255,0.8) 1px,transparent 1px)", backgroundSize: "36px 36px" }} />
       </div>
 
       <div className="relative mx-auto max-w-7xl px-5 sm:px-6">
 
-        {/* ── Cards ── */}
+        {/* ── Section heading ── */}
+        <div className="mb-14 text-center">
+          <p className="reveal-from-left inline-block text-[10px] font-black uppercase tracking-[0.44em] text-gold">
+            Est. 1949 · Negombo, Sri Lanka
+          </p>
+          <h2 className="reveal-from-left mt-4 font-serif text-4xl font-bold text-white md:text-5xl" style={{ transitionDelay: "0.1s" }}>
+            Our Identity &amp; Purpose
+          </h2>
+          <div className="mx-auto mt-5 h-px w-16 bg-gradient-to-r from-transparent via-gold/60 to-transparent" />
+          <p className="mx-auto mt-5 max-w-xl text-sm leading-7 text-white/45">
+            Rooted in Jesuit tradition, we form students of faith, intellect, and compassion — ready to serve God and society.
+          </p>
+        </div>
+
+        {/* ── Expanding cards ── */}
         <div className="expand-cards">
           {panels.map((p) => {
             const Icon = p.icon;
             return (
               <article
                 key={p.key}
-                className="expand-card group relative overflow-hidden rounded-[26px]"
+                className="expand-card group relative overflow-hidden rounded-[28px]"
               >
-                {/* Full-height image fills the card */}
-                <div className="relative h-[480px] w-full overflow-hidden md:h-[520px]">
+                {/* Image layer */}
+                <div className="relative h-[500px] w-full overflow-hidden md:h-[560px]">
                   <img
                     src={p.image}
                     alt={p.title}
                     className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.06]"
                   />
-                  {/* Gradient: lighter at top, heavier at bottom for readability */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#040c18] via-[#040c18]/50 to-[#040c18]/10" />
-                  {/* Color accent wash on hover */}
+
+                  {/* Two-layer gradient: subtle color at top, dark at bottom */}
                   <div
-                    className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-18 mix-blend-color-dodge"
-                    style={{ backgroundColor: p.accent }}
+                    className="absolute inset-0"
+                    style={{
+                      background: `linear-gradient(to top, #030b16 0%, rgba(3,11,22,0.52) 45%, transparent 72%), linear-gradient(to bottom, ${p.accent}20 0%, transparent 40%)`,
+                    }}
                   />
-                  {/* Bottom ambient glow */}
+
+                  {/* Watermark number — editorial premium feel */}
+                  <span className="pointer-events-none absolute -right-3 top-2 select-none font-serif text-[128px] font-black leading-none text-white opacity-[0.06]">
+                    {p.num}
+                  </span>
+
+                  {/* Top accent strip */}
+                  <div className="absolute inset-x-0 top-0 h-[3px] rounded-t-[28px]"
+                    style={{ background: p.barGrad }} />
+
+                  {/* Bottom ambient glow on hover */}
                   <div
-                    className="pointer-events-none absolute -bottom-6 left-1/2 h-20 w-3/4 -translate-x-1/2 rounded-full blur-2xl opacity-0 transition-opacity duration-700 group-hover:opacity-70"
+                    className="pointer-events-none absolute -bottom-8 left-1/2 h-28 w-4/5 -translate-x-1/2 rounded-full blur-3xl opacity-0 transition-opacity duration-700 group-hover:opacity-55"
                     style={{ backgroundColor: p.glowBg }}
                   />
                 </div>
 
-                {/* Content pinned to bottom of the card */}
-                <div className="absolute inset-x-0 bottom-0 p-6 md:p-7">
-                  {/* Number + icon — always visible */}
-                  <div className="mb-3 flex items-center justify-between">
-                    <span
-                      className="text-[10px] font-black tracking-[0.42em] uppercase"
-                      style={{ color: p.accent }}
-                    >
-                      {p.num}
-                    </span>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/14 bg-white/10 backdrop-blur-md">
-                      <Icon className="h-4 w-4 text-white/80" />
-                    </div>
+                {/* Content panel */}
+                <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
+
+                  {/* Colored icon badge */}
+                  <div
+                    className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border backdrop-blur-md transition-all duration-300"
+                    style={{
+                      backgroundColor: `${p.accent}20`,
+                      borderColor: `${p.accent}35`,
+                    }}
+                  >
+                    <Icon className="h-4 w-4" style={{ color: p.accent }} />
                   </div>
 
-                  {/* Title — always visible */}
-                  <h3 className="font-serif text-2xl font-bold leading-tight text-white md:text-[1.6rem]">
+                  {/* Title */}
+                  <h3 className="font-serif text-[1.85rem] font-bold leading-tight tracking-[-0.01em] text-white md:text-[2.1rem]">
                     {p.title}
                   </h3>
 
-                  {/* Body — hidden by default, revealed on hover */}
-                  <div className="expand-card-body mt-3">
+                  {/* Accent underline — grows on hover */}
+                  <div className="expand-card-bar mt-3" style={{ background: p.barGrad }} />
+
+                  {/* Body text — revealed on hover */}
+                  <div className="expand-card-body mt-4">
                     {p.key === "motto" ? (
-                      <p className="font-serif italic leading-snug text-white/90">
+                      <p className="font-serif italic leading-relaxed text-white/90">
                         {p.body.split("\n").map((line, idx) => (
-                          <span
-                            key={idx}
-                            className={`block ${idx === 0 ? "text-base font-semibold text-white" : "mt-1.5 text-sm text-white/72"}`}
-                          >
+                          <span key={idx} className={`block ${idx === 0 ? "text-lg font-semibold not-italic text-white" : "mt-2 text-sm text-white/65"}`}>
                             {line}
                           </span>
                         ))}
                       </p>
                     ) : (
-                      <p className="text-sm leading-[1.8] text-white/80">{p.body}</p>
+                      <p className="text-sm leading-[1.9] text-white/72">{p.body}</p>
                     )}
                   </div>
-
-                  {/* Animated accent bar */}
-                  <div
-                    className="expand-card-bar mt-4"
-                    style={{ background: p.barGrad }}
-                  />
                 </div>
 
-                {/* Card border ring */}
-                <div className="pointer-events-none absolute inset-0 rounded-[26px] ring-1 ring-white/8 transition-all duration-500 group-hover:ring-white/20" />
+                {/* Hover border glow matching accent */}
+                <div
+                  className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 transition-all duration-500"
+                  style={{
+                    boxShadow: "none",
+                  }}
+                />
+                <div className="pointer-events-none absolute inset-0 rounded-[28px] ring-1 ring-white/8 transition-all duration-500 group-hover:ring-white/20" />
               </article>
             );
           })}
         </div>
 
-        {/* ── Pillars ── */}
-        <div className="mt-16 flex flex-wrap justify-center gap-3">
+        {/* ── Pillar badges ── */}
+        <div className="mt-14 flex flex-wrap items-center justify-center gap-3">
           {[
-            { label: "Faith", color: "#d4a017" },
-            { label: "Learning", color: "#b70f1b" },
-            { label: "Discipline", color: "#3b82f6" },
-            { label: "Service", color: "#10b981" },
-          ].map(({ label, color }) => (
+            { label: "Faith",       color: "#d4a017", bg: "rgba(212,160,23,0.08)" },
+            { label: "Learning",    color: "#b70f1b", bg: "rgba(183,15,27,0.08)" },
+            { label: "Discipline",  color: "#3b82f6", bg: "rgba(59,130,246,0.08)" },
+            { label: "Service",     color: "#10b981", bg: "rgba(16,185,129,0.08)" },
+          ].map(({ label, color, bg }) => (
             <span
               key={label}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-6 py-2.5 text-[10px] font-black uppercase tracking-[0.3em] text-white/45 backdrop-blur-sm transition-all duration-300 hover:border-white/22 hover:bg-white/8 hover:text-white/80"
+              className="inline-flex cursor-default items-center gap-2.5 rounded-full border px-7 py-3 text-[10px] font-black uppercase tracking-[0.32em] backdrop-blur-sm transition-all duration-300"
+              style={{
+                borderColor: `${color}25`,
+                backgroundColor: bg,
+                color: `${color}80`,
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.color = color;
+                (e.currentTarget as HTMLElement).style.borderColor = `${color}55`;
+                (e.currentTarget as HTMLElement).style.backgroundColor = `${color}15`;
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.color = `${color}80`;
+                (e.currentTarget as HTMLElement).style.borderColor = `${color}25`;
+                (e.currentTarget as HTMLElement).style.backgroundColor = bg;
+              }}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
               {label}
