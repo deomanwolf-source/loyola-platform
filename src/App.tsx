@@ -4317,18 +4317,21 @@ function isLegacyFacilityImage(image?: string) {
 }
 
 function editableFacilityItems(page?: { facilityItems?: FacilityItem[] }): FacilityItem[] {
-  const saved = page?.facilityItems;
-  const savedItems = Array.isArray(saved) ? saved : [];
-  const savedByTitle = new Map(savedItems.map((facility) => [facility.title, facility]));
-  const defaultTitles = new Set(defaultFacilitiesServices.map((facility) => facility.title));
-  const source = [
-    ...defaultFacilitiesServices.map((facility) => ({
-      ...facility,
-      ...(savedByTitle.get(facility.title) || {}),
-    })),
-    ...savedItems.filter((facility) => !defaultTitles.has(facility.title)),
-  ];
-  return source.map((facility) => ({
+  const savedItems = Array.isArray(page?.facilityItems) ? page.facilityItems : [];
+
+  // No saved state yet — show all defaults
+  if (savedItems.length === 0) {
+    return defaultFacilitiesServices.map((f) => ({
+      ...f,
+      highlights: Array.isArray(f.highlights) ? f.highlights.filter(Boolean) : [],
+    }));
+  }
+
+  // Saved state exists — use it as authoritative so removed items stay removed
+  const templateByTitle = new Map(defaultFacilitiesServices.map((f) => [f.title, f]));
+  return savedItems.map((facility) => ({
+    ...(templateByTitle.get(facility.title) ?? {}),
+    ...facility,
     title: facility.title || "Campus facility",
     category: facility.category || "Facility",
     image: facility.image || "",

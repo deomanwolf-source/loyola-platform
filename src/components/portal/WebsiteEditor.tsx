@@ -661,24 +661,25 @@ const facilitiesTemplateItems: FacilityItem[] = [
 
 function editableFacilityItems(page?: DB["pages"][string]): FacilityItem[] {
   const savedItems = Array.isArray(page?.facilityItems) ? page.facilityItems : [];
-  const savedByTitle = new Map(savedItems.map((facility) => [facility.title, facility]));
-  const defaultTitles = new Set(facilitiesTemplateItems.map((facility) => facility.title));
-  const source = [
-    ...facilitiesTemplateItems.map((facility) => ({
-      ...facility,
-      ...(savedByTitle.get(facility.title) || {}),
-    })),
-    ...savedItems.filter((facility) => !defaultTitles.has(facility.title)),
-  ];
 
-  return source.map((facility) => ({
+  // No saved state yet — show all defaults
+  if (savedItems.length === 0) {
+    return facilitiesTemplateItems.map((f) => ({
+      ...f,
+      highlights: Array.isArray(f.highlights) ? f.highlights.filter(Boolean) : [],
+    }));
+  }
+
+  // Saved state exists — use it as authoritative so removed items stay removed
+  const templateByTitle = new Map(facilitiesTemplateItems.map((f) => [f.title, f]));
+  return savedItems.map((facility) => ({
+    ...(templateByTitle.get(facility.title) ?? {}),
+    ...facility,
     title: facility.title || "Campus facility",
     category: facility.category || "Facility",
     image: facility.image || "",
     body: facility.body || "Add facility details.",
-    highlights: Array.isArray(facility.highlights)
-      ? facility.highlights.filter(Boolean)
-      : [],
+    highlights: Array.isArray(facility.highlights) ? facility.highlights.filter(Boolean) : [],
   }));
 }
 
