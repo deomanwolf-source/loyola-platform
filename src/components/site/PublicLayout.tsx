@@ -1,4 +1,4 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import {
   DEFAULT_DEVELOPER_CREDIT,
   DEFAULT_FOOTER_COPYRIGHT_LINE,
@@ -503,6 +503,24 @@ export const SiteFooter = memo(function SiteFooter() {
 
 export function PublicLayout({ children }: { children: React.ReactNode }) {
   const db = useDb();
+
+  useEffect(() => {
+    const els = document.querySelectorAll<HTMLElement>("[data-scroll-reveal]");
+    if (!els.length) return;
+    const io = new IntersectionObserver(
+      (entries) =>
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("sr-visible");
+            io.unobserve(e.target);
+          }
+        }),
+      { threshold: 0.07 },
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  });
+
   return (
     <div className="public-site flex min-h-screen flex-col bg-background">
       {db.websiteContent.customCss && <style>{db.websiteContent.customCss}</style>}
@@ -547,11 +565,12 @@ export function HeroBackgroundLayer({
           loop
           playsInline
           preload="auto"
+          poster={fallbackImage}
           className="hero-media absolute inset-0 h-full w-full object-cover"
           style={{ opacity: resolvedOpacity }}
         >
-          {/* WebM first — smaller file, browsers that support it load faster */}
-          {mediaWebmUrl && <source src={mediaWebmUrl} type="video/webm" />}
+          {/* WebM first — smaller file. Codec hint lets iOS Safari skip to MP4 if VP9 unsupported. */}
+          {mediaWebmUrl && <source src={mediaWebmUrl} type='video/webm; codecs="vp9"' />}
           <source src={resolvedUrl} type="video/mp4" />
         </video>
       )}
@@ -599,16 +618,42 @@ export function PageHeader({
         mediaType={page?.backgroundMediaType}
         mediaOpacity={page?.backgroundMediaOpacity}
       />
-      <div className="relative mx-auto max-w-[90rem] px-6 py-20 md:py-28 animate-fade-in-up">
-        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-gold/80">
+
+      {/* Ambient blobs */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="page-header-blob absolute -left-24 -top-16 h-72 w-72 bg-gold/14 blur-[90px]" />
+        <div className="page-header-blob absolute -right-16 bottom-0 h-80 w-80 bg-crimson/12 blur-[100px]" />
+        <div className="page-header-blob absolute right-1/3 top-0 h-60 w-60 bg-white/6 blur-[70px]" />
+      </div>
+
+      {/* Subtle grid overlay */}
+      <div className="pointer-events-none absolute inset-0 premium-grid opacity-40" />
+
+      <div className="relative mx-auto max-w-[90rem] px-6 py-20 md:py-28">
+        {/* Kicker with leading gold bar */}
+        <p
+          className="section-kicker text-gold/80 animate-fade-in-up"
+          style={{ animationDelay: "0.05s", animationFillMode: "both" }}
+        >
           {formatDisplayHeading(kicker)}
         </p>
-        <span className="gold-divider mt-4" />
-        <h1 className="max-w-4xl break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-5xl lg:text-6xl">
+
+        {/* Animated gold divider */}
+        <span className="gold-divider mt-4 gold-divider-animate block" />
+
+        {/* Page title */}
+        <h1
+          className="mt-3 max-w-4xl break-words font-serif text-3xl font-bold leading-tight sm:text-4xl md:text-5xl lg:text-6xl animate-fade-in-up"
+          style={{ animationDelay: "0.16s", animationFillMode: "both" }}
+        >
           {formatDisplayHeading(title)}
         </h1>
+
         {subtitle && (
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white/72 md:text-lg">
+          <p
+            className="mt-6 max-w-2xl text-base leading-relaxed text-white/72 md:text-lg animate-fade-in-up"
+            style={{ animationDelay: "0.28s", animationFillMode: "both" }}
+          >
             {subtitle}
           </p>
         )}

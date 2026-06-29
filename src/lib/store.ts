@@ -479,6 +479,7 @@ export interface DB {
       body?: string;
       image?: string;
       backgroundMediaUrl?: string;
+      backgroundMediaWebmUrl?: string;
       backgroundMediaType?: "image" | "video" | "";
       backgroundMediaOpacity?: number;
       anthemVideoCoverImage?: string;
@@ -1246,6 +1247,7 @@ function normalizeImageFields(db: DB): DB {
           ...page,
           image: normalizeImageUrl(page.image),
           backgroundMediaUrl: normalizeImageUrl(page.backgroundMediaUrl),
+          backgroundMediaWebmUrl: normalizeImageUrl(page.backgroundMediaWebmUrl),
           anthemVideoCoverImage: normalizeImageUrl(page.anthemVideoCoverImage),
           pastRectorProfiles: page.pastRectorProfiles?.map((profile) => ({
             ...profile,

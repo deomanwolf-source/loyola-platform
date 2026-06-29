@@ -2697,6 +2697,7 @@ function HomeVisionMissionIdentity() {
       num: "01",
       title: "Our Vision",
       body: "To announce God's Kingdom through Christian values, nurturing every student to reach their fullest human and spiritual potential.",
+      bullets: null as string[] | null,
       image: home.visionImage || heroImage,
       accent: "#d4a017",
       glowBg: "rgba(212,160,23,0.35)",
@@ -2707,7 +2708,15 @@ function HomeVisionMissionIdentity() {
       icon: CheckCircle2,
       num: "02",
       title: "Our Mission",
-      body: "To provide a holistic education that nurtures the intellectual, physical, moral, and spiritual development of every student. We strive to cultivate men and women of integrity, compassion, and leadership who are committed to excellence, lifelong learning, and service to society. Guided by Christian values, we seek to empower our students to become responsible global citizens who contribute meaningfully to the advancement of their communities and the world.",
+      body: "",
+      bullets: [
+        "Provide a holistic education that nurtures the intellectual, physical, moral, and spiritual development of every student.",
+        "Cultivate men and women of integrity, compassion, and leadership.",
+        "Encourage a commitment to excellence, lifelong learning, and service to society.",
+        "Guide students through Christian values and principles.",
+        "Empower students to become responsible global citizens.",
+        "Inspire students to contribute meaningfully to the advancement of their communities and the world.",
+      ],
       image: home.missionImage || db.gallery[0]?.image || HOME_LEGACY_PANELS[3]?.src || heroImage,
       accent: "#b70f1b",
       glowBg: "rgba(183,15,27,0.35)",
@@ -2718,7 +2727,8 @@ function HomeVisionMissionIdentity() {
       icon: Trophy,
       num: "03",
       title: "Our Motto",
-      body: "“Veritate ad Lumen et Vitam”\n‘In truth to light and life’",
+      body: '"Veritate ad Lumen et Vitam"\n\'In truth to light and life\'',
+      bullets: null as string[] | null,
       image: home.mottoImage || HOME_LEGACY_PANELS[0]?.src || heroImage,
       accent: "#3b82f6",
       glowBg: "rgba(59,130,246,0.35)",
@@ -2764,10 +2774,10 @@ function HomeVisionMissionIdentity() {
             return (
               <article
                 key={p.key}
-                className="expand-card group relative overflow-hidden rounded-[28px]"
+                className="expand-card group relative overflow-hidden rounded-[28px] bg-[#030b16]"
               >
                 {/* Image layer */}
-                <div className="relative h-[500px] w-full overflow-hidden md:h-[560px]">
+                <div className="relative h-[220px] w-full overflow-hidden md:h-[560px]">
                   <img
                     src={p.image}
                     alt={p.title}
@@ -2799,7 +2809,7 @@ function HomeVisionMissionIdentity() {
                 </div>
 
                 {/* Content panel */}
-                <div className="absolute inset-x-0 bottom-0 p-6 md:p-8">
+                <div className="relative p-5 md:absolute md:inset-x-0 md:bottom-0 md:p-8">
 
                   {/* Colored icon badge */}
                   <div
@@ -2830,6 +2840,18 @@ function HomeVisionMissionIdentity() {
                           </span>
                         ))}
                       </p>
+                    ) : p.bullets ? (
+                      <ul className="space-y-2">
+                        {p.bullets.map((point, idx) => (
+                          <li key={idx} className="flex items-start gap-2.5 text-sm leading-snug text-white/75">
+                            <span
+                              className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full"
+                              style={{ backgroundColor: p.accent }}
+                            />
+                            {point}
+                          </li>
+                        ))}
+                      </ul>
                     ) : (
                       <p className="text-sm leading-[1.9] text-white/72">{p.body}</p>
                     )}
@@ -3189,13 +3211,13 @@ function HomeAdmissionsCTA() {
           )}
         </div>
 
-        <div className="stagger-fast mt-16 grid grid-cols-3 divide-x divide-white/15 border-t border-white/15 pt-12">
+        <div className="stagger-fast mt-12 sm:mt-16 flex flex-col sm:flex-row border-t border-white/15 pt-8 sm:pt-12">
           {[
             { value: "75+", label: "Years of Excellence" },
             { value: "2,688", label: "Students Enrolled" },
             { value: "150+", label: "Qualified Teachers" },
-          ].map((s) => (
-            <div key={s.label} className="px-6">
+          ].map((s, i) => (
+            <div key={s.label} className={`flex-1 py-6 px-4 text-center sm:py-0 sm:px-6 ${i > 0 ? "border-t sm:border-t-0 sm:border-l border-white/15" : ""}`}>
               <p className="font-serif text-3xl font-bold text-gold md:text-4xl">{s.value}</p>
               <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.18em] text-white/55">
                 {s.label}
@@ -3372,6 +3394,16 @@ function AboutPage() {
   const historyTitle = about.storyTitle || "College History";
   const quote = about.quote || "Faith, Learning, Discipline, and Service";
   const quoteAuthor = about.quoteAuthor || "Loyola College Negombo";
+
+  const milestones = [
+    { year: "1949", label: "Founded" },
+    { year: "1979", label: "Marist Era" },
+    { year: "1994", label: "Archdiocesan" },
+    { year: "1995", label: "New Campus" },
+    { year: "2003", label: "English Medium" },
+    { year: "2024", label: "77 Years Strong" },
+  ];
+
   return (
     <PublicLayout>
       <PageHeader
@@ -3381,26 +3413,94 @@ function AboutPage() {
         subtitle={page.body}
         image={page.image || db.media.aboutImage}
       />
+
+      {/* Milestone strip */}
+      <div className="border-b border-border bg-white">
+        <div
+          className="mx-auto max-w-7xl px-6 py-5"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3">
+            {milestones.map((m, i) => (
+              <div key={m.year} className="flex items-center gap-3">
+                <div className="text-center">
+                  <span className="block font-serif text-2xl font-bold text-gradient-gold">{m.year}</span>
+                  <span className="block text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{m.label}</span>
+                </div>
+                {i < milestones.length - 1 && (
+                  <span className="hidden h-px w-10 bg-gradient-to-r from-gold/50 to-transparent sm:block" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Main history section */}
       <section
         id="history"
-        className="mx-auto grid max-w-7xl gap-10 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_420px]"
+        className="mx-auto grid max-w-7xl gap-12 px-6 py-20 lg:grid-cols-[minmax(0,1fr)_400px]"
       >
-        <article>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-crimson">
-            {historyKicker}
-          </p>
-          <h2 className="mt-3 font-serif text-4xl font-bold text-navy">{historyTitle}</h2>
-          <div className="mt-7 space-y-5 text-base leading-8 text-muted-foreground">
+        <article data-scroll-reveal>
+          <p className="section-kicker text-crimson">{historyKicker}</p>
+          <h2 className="mt-4 font-serif text-4xl font-bold text-navy">{historyTitle}</h2>
+          <div className="history-timeline mt-8 space-y-5">
             {collegeHistoryParagraphs.map((paragraph) => (
-              <p key={paragraph}>{paragraph}</p>
+              <div key={paragraph} className="history-milestone text-base leading-8 text-muted-foreground">
+                {paragraph}
+              </div>
             ))}
           </div>
         </article>
-        <aside className="h-fit rounded-lg bg-navy p-8 text-white shadow-soft lg:sticky lg:top-28">
-          <p className="font-serif text-3xl leading-snug">{quote}</p>
-          <p className="mt-6 text-sm font-bold uppercase tracking-[0.18em] text-gold-light">
-            {quoteAuthor}
-          </p>
+
+        <aside className="h-fit lg:sticky lg:top-28 space-y-6" data-scroll-reveal data-reveal-dir="right">
+          {/* Quote card */}
+          <div className="relative overflow-hidden rounded-2xl bg-navy p-8 text-white shadow-elegant">
+            {/* Gold corner accent */}
+            <div className="absolute right-0 top-0 h-28 w-28 rounded-bl-[80px] bg-gold/10" />
+            <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-crimson/12 blur-2xl" />
+            <span className="quote-open">"</span>
+            <p className="relative font-serif text-2xl leading-snug">{quote}</p>
+            <div className="mt-6 flex items-center gap-3">
+              <span className="h-px w-8 bg-gold" />
+              <p className="text-sm font-bold uppercase tracking-[0.18em] text-gold-light">
+                {quoteAuthor}
+              </p>
+            </div>
+          </div>
+
+          {/* Core values */}
+          <div className="rounded-2xl border border-border bg-white p-6 shadow-soft">
+            <p className="section-kicker text-crimson">Core Values</p>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              {["Faith", "Learning", "Discipline", "Service"].map((value) => (
+                <div
+                  key={value}
+                  className="card-shine hover-lift flex flex-col items-center rounded-xl border border-border bg-page-soft p-4 text-center transition-smooth"
+                >
+                  <span className="font-serif text-base font-bold text-navy">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="rounded-2xl border border-border bg-white p-6 shadow-soft">
+            <p className="section-kicker text-crimson">College Today</p>
+            <div className="mt-4 space-y-3">
+              {[
+                { label: "Students", value: "2,688+" },
+                { label: "Faculty", value: "150+" },
+                { label: "Years of Excellence", value: "77" },
+              ].map((stat) => (
+                <div key={stat.label} className="flex items-center justify-between border-b border-border pb-3 last:border-0 last:pb-0">
+                  <span className="text-sm text-muted-foreground">{stat.label}</span>
+                  <span className="font-serif text-2xl font-bold text-gradient-gold">{stat.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </aside>
       </section>
     </PublicLayout>
@@ -5027,27 +5127,11 @@ function CollegeDepartmentPage({ pageId }: { pageId: string }) {
 function AcademicsPage() {
   const db = useDb();
   const page = db.pages.academics;
-  const sections = [
-    [
-      "Primary Section",
-      "primary",
-      "Foundational literacy, numeracy, faith formation, creativity, and school readiness.",
-    ],
-    [
-      "Middle School",
-      "middle",
-      "Balanced academic growth with clubs, sports, language learning, and personal responsibility.",
-    ],
-    [
-      "Upper School",
-      "upper",
-      "Examination focus, subject depth, leadership, discipline, and career preparation.",
-    ],
-    [
-      "Advanced Level",
-      "advanced-level",
-      "Technology, Science, Commerce, and Arts streams with senior academic guidance.",
-    ],
+  const deptColors = [
+    { bar: "bg-gold", text: "text-gold" },
+    { bar: "bg-crimson", text: "text-crimson" },
+    { bar: "bg-[#1e6cbf]", text: "text-[#1e6cbf]" },
+    { bar: "bg-[#0e7f5a]", text: "text-[#0e7f5a]" },
   ];
   const quickLinks = [
     {
@@ -5073,55 +5157,98 @@ function AcademicsPage() {
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="stagger-children grid gap-5 md:grid-cols-2">
-          {db.academicsSections.departments.map((department) => (
-            <article
-              key={department.id}
-              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
-            >
-              <p className="font-serif text-4xl font-bold text-gold">{department.count}</p>
-              <h2 className="mt-3 text-xl font-bold text-navy">{department.name}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                {department.body}
-              </p>
-            </article>
-          ))}
+        {/* Section heading */}
+        <div className="mb-10" data-scroll-reveal>
+          <p className="section-kicker text-crimson">Academic Departments</p>
+          <h2 className="mt-3 font-serif text-3xl font-bold text-navy">
+            Sections & Departments
+          </h2>
         </div>
+
+        {/* Department cards */}
         <div
-          id="exam-timetable"
-          className="mt-10 overflow-x-auto rounded-lg border border-border bg-white shadow-soft"
+          className="grid gap-6 md:grid-cols-2"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+          style={{ "--sr-delay": "0.1s" } as React.CSSProperties}
         >
-          <table className="w-full text-sm">
-            <thead className="bg-secondary text-left text-xs uppercase tracking-[0.18em] text-muted-foreground">
-              <tr>
-                <th className="p-4">Subject</th>
-                <th className="p-4">Grade</th>
-                <th className="p-4">Department</th>
-              </tr>
-            </thead>
-            <tbody>
-              {db.subjects.map((subject) => (
-                <tr key={subject.id} className="border-t border-border">
-                  <td className="p-4 font-medium text-navy">{subject.name}</td>
-                  <td className="p-4">{subject.grade}</td>
-                  <td className="p-4">{subject.department}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {db.academicsSections.departments.map((department, i) => {
+            const color = deptColors[i % deptColors.length];
+            return (
+              <article
+                key={department.id}
+                className="card-shine hover-lift group relative overflow-hidden rounded-2xl border border-border bg-white p-7 shadow-soft"
+              >
+                {/* Top accent gradient */}
+                <div className={`absolute inset-x-0 top-0 h-1 ${color.bar}`} />
+                <p className={`font-serif text-5xl font-bold ${color.text}`}>{department.count}</p>
+                <h2 className="mt-3 text-xl font-bold text-navy">{department.name}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{department.body}</p>
+                <div className={`dept-bar ${color.bar} mt-4`} />
+              </article>
+            );
+          })}
         </div>
-        <div id="calendar" className="stagger-children mt-8 grid gap-5 md:grid-cols-2">
+
+        {/* Subjects table */}
+        {db.subjects.length > 0 && (
+          <div
+            id="exam-timetable"
+            className="mt-14 overflow-hidden rounded-2xl border border-border bg-white shadow-elegant"
+            data-scroll-reveal
+          >
+            <div className="border-b border-border bg-navy px-6 py-4">
+              <p className="section-kicker text-gold/80">Curriculum</p>
+              <h3 className="mt-1 font-serif text-2xl font-bold text-white">Subjects & Departments</h3>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-secondary text-left text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+                  <tr>
+                    <th className="px-6 py-3">Subject</th>
+                    <th className="px-6 py-3">Grade</th>
+                    <th className="px-6 py-3">Department</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {db.subjects.map((subject, i) => (
+                    <tr
+                      key={subject.id}
+                      className={`border-t border-border transition-colors hover:bg-gold/5 ${i % 2 === 0 ? "bg-white" : "bg-page-soft/40"}`}
+                    >
+                      <td className="px-6 py-3.5 font-semibold text-navy">{subject.name}</td>
+                      <td className="px-6 py-3.5 text-muted-foreground">{subject.grade}</td>
+                      <td className="px-6 py-3.5 text-muted-foreground">{subject.department}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Quick links */}
+        <div
+          id="calendar"
+          className="mt-10 grid gap-5 md:grid-cols-2"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
           {quickLinks.map((item) => {
             const Icon = item.icon;
             return (
               <a
                 key={item.title}
                 href={item.href}
-                className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+                className="card-shine hover-lift group flex gap-5 rounded-2xl border border-border bg-white p-6 shadow-soft transition-smooth hover:border-gold/50"
               >
-                <Icon className="h-7 w-7 text-gold" />
-                <h2 className="mt-3 font-serif text-2xl text-navy">{item.title}</h2>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold transition-smooth group-hover:bg-gold/20">
+                  <Icon className="h-6 w-6" />
+                </div>
+                <div>
+                  <h2 className="font-serif text-xl font-bold text-navy">{item.title}</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+                </div>
               </a>
             );
           })}
@@ -5166,94 +5293,140 @@ function AdmissionsPage() {
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="stagger-children mb-10 grid gap-5 md:grid-cols-3">
-          {["Admission Requirements", "Required Documents", "Important Dates"].map((item) => (
-            <article
-              key={item}
-              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
-            >
-              <FileText className="h-7 w-7 text-gold" />
-              <h2 className="mt-3 font-serif text-2xl text-navy">{item}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Families can review this information before submitting an online inquiry.
-              </p>
-            </article>
-          ))}
-        </div>
-        <div className="stagger-children grid gap-4 md:grid-cols-4">
-          {db.admissionsSteps.map((step) => (
-            <div
-              key={step.id}
-              className="hover-lift rounded-lg border border-border border-l-gold bg-white p-5 shadow-soft"
-            >
-              <p className="font-serif text-3xl text-gold">{step.number}</p>
-              <h2 className="mt-2 font-bold text-navy">{step.title}</h2>
-              <p className="mt-1 text-sm text-muted-foreground">{step.body}</p>
-            </div>
-          ))}
-        </div>
-        <div className="mx-auto mt-12 max-w-3xl rounded-lg border border-border bg-white p-8 shadow-elegant">
-          {submitted ? (
-            <div className="py-10 text-center">
-              <CheckCircle2 className="mx-auto h-14 w-14 text-success" />
-              <h2 className="mt-4 font-serif text-3xl text-navy">
-                {db.forms.admissionsSuccessTitle}
-              </h2>
-              <p className="mt-2 text-muted-foreground">{db.forms.admissionsSuccessText}</p>
-            </div>
-          ) : (
-            <form onSubmit={submit} className="space-y-5">
-              <h2 className="font-serif text-3xl text-navy">{db.forms.admissionsTitle}</h2>
-              <Field label="Child's full name">
-                <input required name="childName" className="input-line" />
-              </Field>
-              <Field label="Grade applying for">
-                <select name="grade" defaultValue="Grade 1" className="input-line">
-                  {Array.from({ length: 12 }, (_, index) => (
-                    <option key={index}>Grade {index + 1}</option>
-                  ))}
-                </select>
-              </Field>
-              <div className="grid gap-5 md:grid-cols-2">
-                <Field label="Parent / guardian name">
-                  <input required name="parentName" className="input-line" />
-                </Field>
-                <Field label="Phone">
-                  <input required name="phone" className="input-line" />
-                </Field>
-              </div>
-              <Field label="Email">
-                <input required type="email" name="email" className="input-line" />
-              </Field>
-              <button
-                type="submit"
-                className="w-full rounded-lg bg-navy py-4 text-sm font-bold text-white"
+        {/* Info cards */}
+        <div
+          className="mb-14 grid gap-6 md:grid-cols-3"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
+          {[
+            { title: "Admission Requirements", body: "Learn the eligibility criteria and entry standards for each grade level.", icon: FileText, color: "bg-gold/10 text-gold" },
+            { title: "Required Documents", body: "Birth certificate, school report, baptismal certificate, and parent ID.", icon: Award, color: "bg-crimson/10 text-crimson" },
+            { title: "Important Dates", body: "Applications open annually — check the events calendar for this year's timeline.", icon: Calendar, color: "bg-[#1e6cbf]/10 text-[#1e6cbf]" },
+          ].map((item) => {
+            const Icon = item.icon;
+            return (
+              <article
+                key={item.title}
+                className="card-shine hover-lift group relative overflow-hidden rounded-2xl border border-border bg-white p-7 shadow-soft"
               >
-                {db.forms.admissionsSubmitLabel}
-              </button>
-            </form>
-          )}
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl ${item.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h2 className="mt-4 font-serif text-xl font-bold text-navy">{item.title}</h2>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{item.body}</p>
+              </article>
+            );
+          })}
         </div>
-        <div className="stagger-children mt-10 grid gap-5 md:grid-cols-2">
+
+        {/* Steps */}
+        {db.admissionsSteps.length > 0 && (
+          <div className="mb-14" data-scroll-reveal>
+            <p className="section-kicker text-crimson mb-6">How to Apply</p>
+            <div className="grid gap-4 md:grid-cols-4">
+              {db.admissionsSteps.map((step, i) => (
+                <div
+                  key={step.id}
+                  className="card-shine hover-lift relative rounded-2xl border border-border bg-white p-6 shadow-soft"
+                >
+                  <div className="step-pill">{step.number || i + 1}</div>
+                  <h2 className="mt-4 font-bold text-navy">{step.title}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{step.body}</p>
+                  {/* Connecting dot */}
+                  {i < db.admissionsSteps.length - 1 && (
+                    <span className="absolute -right-2 top-1/2 z-10 hidden h-4 w-4 -translate-y-1/2 items-center justify-center rounded-full bg-gold md:flex">
+                      <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Application form */}
+        <div
+          className="mx-auto mt-4 max-w-3xl overflow-hidden rounded-2xl border border-border bg-white shadow-elegant"
+          data-scroll-reveal
+        >
+          {/* Form header */}
+          <div className="border-b border-border bg-navy px-8 py-5">
+            <p className="section-kicker text-gold/80">Online Inquiry</p>
+            <h2 className="mt-1 font-serif text-2xl font-bold text-white">{db.forms.admissionsTitle}</h2>
+          </div>
+          <div className="p-8">
+            {submitted ? (
+              <div className="py-10 text-center">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-success/10">
+                  <CheckCircle2 className="h-9 w-9 text-success" />
+                </div>
+                <h2 className="mt-5 font-serif text-3xl text-navy">{db.forms.admissionsSuccessTitle}</h2>
+                <p className="mt-3 text-muted-foreground">{db.forms.admissionsSuccessText}</p>
+              </div>
+            ) : (
+              <form onSubmit={submit} className="space-y-5">
+                <Field label="Child's full name">
+                  <input required name="childName" className="input-line" />
+                </Field>
+                <Field label="Grade applying for">
+                  <select name="grade" defaultValue="Grade 1" className="input-line">
+                    {Array.from({ length: 12 }, (_, index) => (
+                      <option key={index}>Grade {index + 1}</option>
+                    ))}
+                  </select>
+                </Field>
+                <div className="grid gap-5 md:grid-cols-2">
+                  <Field label="Parent / guardian name">
+                    <input required name="parentName" className="input-line" />
+                  </Field>
+                  <Field label="Phone">
+                    <input required name="phone" className="input-line" />
+                  </Field>
+                </div>
+                <Field label="Email">
+                  <input required type="email" name="email" className="input-line" />
+                </Field>
+                <button
+                  type="submit"
+                  className="login-submit btn-shimmer w-full rounded-xl bg-navy py-4 text-sm font-bold text-white shadow-[0_4px_20px_-4px_rgba(10,22,40,0.5)] transition-smooth hover:bg-navy-mid hover:-translate-y-px"
+                >
+                  {db.forms.admissionsSubmitLabel}
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom CTAs */}
+        <div className="mt-10 grid gap-5 md:grid-cols-2" data-scroll-reveal data-reveal-dir="scale">
           <a
             href="/downloads"
-            className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+            className="card-shine hover-lift group flex items-start gap-5 rounded-2xl border border-border bg-white p-6 shadow-soft transition-smooth hover:border-gold/50"
           >
-            <Download className="h-7 w-7 text-gold" />
-            <h2 className="mt-3 font-serif text-2xl text-navy">Download Application Forms</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Admission forms, circulars, requirements, and parent documents.
-            </p>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold transition-smooth group-hover:bg-gold/20">
+              <Download className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="font-serif text-xl font-bold text-navy">Download Application Forms</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Admission forms, circulars, requirements, and parent documents.
+              </p>
+            </div>
           </a>
           <a
             href="/contact"
-            className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+            className="card-shine hover-lift group flex items-start gap-5 rounded-2xl border border-border bg-white p-6 shadow-soft transition-smooth hover:border-gold/50"
           >
-            <Mail className="h-7 w-7 text-gold" />
-            <h2 className="mt-3 font-serif text-2xl text-navy">Contact Admission Office</h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Ask questions about process, dates, documents, and available grades.
-            </p>
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold transition-smooth group-hover:bg-gold/20">
+              <Mail className="h-6 w-6" />
+            </div>
+            <div>
+              <h2 className="font-serif text-xl font-bold text-navy">Contact Admission Office</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Ask questions about process, dates, documents, and available grades.
+              </p>
+            </div>
           </a>
         </div>
       </section>
@@ -5285,21 +5458,42 @@ function EventsPage() {
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="stagger-children mb-8 flex flex-wrap gap-2">
+        {/* Section heading */}
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between" data-scroll-reveal>
+          <div>
+            <p className="section-kicker text-crimson">Browse Events</p>
+            <h2 className="mt-2 font-serif text-3xl font-bold text-navy">College Events</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">{db.events.length} event{db.events.length === 1 ? "" : "s"}</p>
+        </div>
+
+        {/* Category chips */}
+        <div className="mb-8 flex flex-wrap gap-2" data-scroll-reveal data-reveal-dir="left">
           {categories.map((category) => (
-            <span
-              key={category}
-              className="hover-lift rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft"
-            >
+            <span key={category} className="chip-filter">
               {category}
             </span>
           ))}
         </div>
-        <div className="stagger-children grid gap-5 md:grid-cols-3">
+
+        {/* Events grid */}
+        <div
+          className="grid gap-6 md:grid-cols-3"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
           {db.events.map((event) => (
             <EventCard key={event.id} event={event} />
           ))}
         </div>
+
+        {db.events.length === 0 && (
+          <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-soft" data-scroll-reveal>
+            <Calendar className="mx-auto h-10 w-10 text-gold/60" />
+            <p className="mt-4 font-serif text-xl text-navy">No events scheduled yet</p>
+            <p className="mt-2 text-sm text-muted-foreground">Check back soon for upcoming college events.</p>
+          </div>
+        )}
       </section>
       <SubpagesSection parentId="events" />
     </PublicLayout>
@@ -5349,17 +5543,19 @@ function JobVacanciesPage() {
               subtitle="Checking current opportunities"
             />
           ) : vacancies.length === 0 ? (
-            <div className="rounded-lg border border-border bg-white p-8 text-center shadow-soft">
-              <Briefcase className="mx-auto h-8 w-8 text-gold" />
-              <h2 className="mt-4 font-serif text-3xl font-bold text-navy">
-                No vacancies are currently published
+            <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-soft" data-scroll-reveal>
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-gold/10">
+                <Briefcase className="h-7 w-7 text-gold" />
+              </div>
+              <h2 className="mt-5 font-serif text-2xl font-bold text-navy">
+                No vacancies currently published
               </h2>
               <p className="mt-3 text-sm text-muted-foreground">
-                Please check this page again for future opportunities.
+                Please check back for future employment opportunities.
               </p>
             </div>
           ) : (
-            <div className="grid gap-6">
+            <div className="grid gap-6" data-scroll-reveal>
               {vacancies.map((vacancy) => {
                 const isOpen = vacancy.status === "Open";
                 const email = vacancy.application_email || db.websiteContent.email;
@@ -5370,68 +5566,71 @@ function JobVacanciesPage() {
                 return (
                   <article
                     key={vacancy.id}
-                    className="rounded-lg border border-border bg-white p-6 shadow-soft md:p-8"
+                    className="vacancy-card overflow-hidden rounded-2xl border border-border bg-white shadow-soft"
                   >
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
-                          Employment Opportunity
-                        </p>
-                        <h2 className="mt-3 break-words font-serif text-3xl font-bold text-navy">
-                          {vacancy.title}
-                        </h2>
+                    {/* Card header */}
+                    <div className="border-b border-border bg-navy/3 px-6 py-5 md:px-8">
+                      <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="section-kicker text-crimson">Employment Opportunity</p>
+                          <h2 className="mt-2 break-words font-serif text-2xl font-bold text-navy md:text-3xl">
+                            {vacancy.title}
+                          </h2>
+                        </div>
+                        <span
+                          className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold ${
+                            isOpen ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                          }`}
+                        >
+                          {vacancy.status}
+                        </span>
                       </div>
-                      <span
-                        className={`rounded-full px-3 py-1 text-xs font-bold ${
-                          isOpen ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-700"
-                        }`}
-                      >
-                        {vacancy.status}
-                      </span>
                     </div>
 
-                    <p className="mt-5 whitespace-pre-line text-sm leading-7 text-slate-700">
-                      {vacancy.description}
-                    </p>
-                    {vacancy.requirements && (
-                      <div className="mt-6 border-t border-border pt-5">
-                        <h3 className="font-bold text-navy">Requirements</h3>
-                        <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">
-                          {vacancy.requirements}
-                        </p>
+                    <div className="p-6 md:p-8">
+                      <p className="whitespace-pre-line text-sm leading-7 text-slate-700">
+                        {vacancy.description}
+                      </p>
+                      {vacancy.requirements && (
+                        <div className="mt-6 rounded-xl border border-border bg-page-soft p-5">
+                          <h3 className="font-bold text-navy">Requirements</h3>
+                          <p className="mt-2 whitespace-pre-line text-sm leading-7 text-muted-foreground">
+                            {vacancy.requirements}
+                          </p>
+                        </div>
+                      )}
+                      <div className="mt-6 flex flex-wrap items-center gap-4">
+                        {vacancy.deadline && (
+                          <span className="inline-flex items-center gap-2 rounded-lg bg-gold/8 px-3 py-1.5 text-sm font-semibold text-navy">
+                            <Calendar className="h-4 w-4 text-gold" />
+                            Deadline:{" "}
+                            {new Date(`${vacancy.deadline}T00:00:00`).toLocaleDateString("en-LK", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric",
+                            })}
+                          </span>
+                        )}
+                        {vacancy.attachment_url && (
+                          <a
+                            href={vacancy.attachment_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-2 text-sm font-bold text-crimson transition-smooth hover:text-crimson-dark"
+                          >
+                            <FileText className="h-4 w-4" />
+                            View attachment
+                          </a>
+                        )}
                       </div>
-                    )}
-                    <div className="mt-6 flex flex-wrap items-center gap-3">
-                      {vacancy.deadline && (
-                        <span className="inline-flex items-center gap-2 text-sm font-semibold text-navy">
-                          <Calendar className="h-4 w-4 text-gold" />
-                          Deadline:{" "}
-                          {new Date(`${vacancy.deadline}T00:00:00`).toLocaleDateString("en-LK", {
-                            year: "numeric",
-                            month: "long",
-                            day: "numeric",
-                          })}
-                        </span>
-                      )}
-                      {vacancy.attachment_url && (
-                        <a
-                          href={vacancy.attachment_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-2 text-sm font-bold text-crimson"
-                        >
-                          <FileText className="h-4 w-4" />
-                          View attachment
-                        </a>
-                      )}
+                      <a
+                        href={emailHref}
+                        className="btn-shimmer mt-6 inline-flex items-center gap-2 rounded-xl bg-navy px-6 py-3 text-sm font-bold text-white transition-smooth hover:bg-navy-mid hover:-translate-y-px"
+                      >
+                        <Mail className="h-4 w-4" />
+                        {isOpen ? "Apply Now" : "Email Us"}
+                      </a>
                     </div>
-                    <a
-                      href={emailHref}
-                      className="mt-6 inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-3 text-sm font-bold text-white"
-                    >
-                      <Mail className="h-4 w-4" />
-                      {isOpen ? "Apply Now" : "Email Us"}
-                    </a>
                   </article>
                 );
               })}
@@ -5460,9 +5659,27 @@ function CalendarPage() {
         }
         image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
       />
-      <section className="bg-secondary/35 px-4 py-12 sm:px-6 md:py-16">
+      <section className="bg-page-soft px-4 py-12 sm:px-6 md:py-16">
         <div className="mx-auto max-w-[82rem]">
-          <div className="overflow-hidden rounded-lg border border-border bg-white shadow-elegant">
+          {/* Section heading */}
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 px-2" data-scroll-reveal>
+            <div>
+              <p className="section-kicker text-crimson">Academic Schedule</p>
+              <h2 className="mt-2 font-serif text-3xl font-bold text-navy">College Calendar</h2>
+            </div>
+            <div className="flex gap-3">
+              {["Events", "Holidays", "Academic Dates"].map((label) => (
+                <span key={label} className="chip-filter">{label}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Calendar embed */}
+          <div
+            className="overflow-hidden rounded-2xl border border-border bg-white shadow-elegant"
+            data-scroll-reveal
+            data-reveal-dir="scale"
+          >
             <GoogleCalendarFrame
               title="Loyola College calendar"
               mode="MONTH"
@@ -5478,6 +5695,8 @@ function CalendarPage() {
 function NewsPage() {
   const db = useDb();
   const page = db.pages.news;
+  const [search, setSearch] = useState("");
+  const [activeFilter, setActiveFilter] = useState("Latest News");
   const filters = [
     "Latest News",
     "Important Notices",
@@ -5501,22 +5720,34 @@ function NewsPage() {
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="mb-8 grid gap-3 md:grid-cols-[1fr_auto]">
-          <input
-            className="rounded-lg border border-border bg-white px-4 py-3 text-sm outline-none focus:border-gold"
-            placeholder="Search news, notices, circulars..."
-          />
-          <select className="rounded-lg border border-border bg-white px-4 py-3 text-sm">
+        {/* Search bar */}
+        <div
+          className="mb-8 flex flex-col gap-3 sm:flex-row"
+          data-scroll-reveal
+        >
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              className="w-full rounded-xl border border-border bg-white py-3 pl-11 pr-4 text-sm shadow-soft outline-none transition-smooth focus:border-gold focus:shadow-[0_0_0_3px_rgba(212,160,23,0.15)]"
+              placeholder="Search news, notices, circulars..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <select className="rounded-xl border border-border bg-white px-4 py-3 text-sm shadow-soft outline-none transition-smooth focus:border-gold">
             <option>Category filter</option>
             {filters.map((filter) => (
               <option key={filter}>{filter}</option>
             ))}
           </select>
         </div>
-        <div className="stagger-children mb-8 flex flex-wrap gap-2">
+
+        {/* Filter chips */}
+        <div className="mb-8 flex flex-wrap gap-2" data-scroll-reveal data-reveal-dir="left">
           {filters.map((filter) => (
-            <span
+            <button
               key={filter}
+              type="button"
               id={
                 filter === "Latest News"
                   ? "latest-news"
@@ -5524,28 +5755,32 @@ function NewsPage() {
                     ? "important-notices"
                     : undefined
               }
-              className="hover-lift rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft"
+              onClick={() => setActiveFilter(filter)}
+              className={`chip-filter ${activeFilter === filter ? "border-gold bg-gold/10 text-navy shadow-[0_2px_12px_rgba(212,160,23,0.25)]" : ""}`}
             >
               {filter}
-            </span>
+            </button>
           ))}
         </div>
-        <div className="stagger-children grid gap-5 md:grid-cols-3">
+
+        {/* News grid */}
+        <div
+          className="grid gap-6 md:grid-cols-3"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
           {db.news.map((item) => (
             <NewsCard key={item.id} item={item} />
           ))}
         </div>
-        <div className="stagger-children mt-10 grid gap-4 md:grid-cols-3">
-          {["Pinned notices", "Urgent notice badge", "PDF download button"].map((feature) => (
-            <div
-              key={feature}
-              className="hover-lift rounded-lg border border-border bg-white p-5 text-sm font-medium text-navy shadow-soft"
-            >
-              <Bell className="mb-3 h-6 w-6 text-gold" />
-              {feature}
-            </div>
-          ))}
-        </div>
+
+        {db.news.length === 0 && (
+          <div className="rounded-2xl border border-border bg-white p-12 text-center shadow-soft" data-scroll-reveal>
+            <Bell className="mx-auto h-10 w-10 text-gold/60" />
+            <p className="mt-4 font-serif text-xl text-navy">No news published yet</p>
+            <p className="mt-2 text-sm text-muted-foreground">College updates will appear here.</p>
+          </div>
+        )}
       </section>
       <SubpagesSection parentId="news" />
     </PublicLayout>
@@ -6728,18 +6963,34 @@ function GalleryPage() {
         image={page.image || db.media.campusImage}
       />
       <section id="photos" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="stagger-children mb-8 flex flex-wrap gap-2">
-          {categories.map((category) => (
-            <span
-              key={category}
-              id={category === "Video Gallery" ? "videos" : undefined}
-              className="hover-lift rounded-full border border-border bg-white px-4 py-2 text-xs font-bold text-navy shadow-soft"
-            >
-              {category}
-            </span>
-          ))}
+        {/* Section heading + category chips */}
+        <div className="mb-8 flex flex-col gap-6" data-scroll-reveal>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="section-kicker text-crimson">Photo Albums</p>
+              <h2 className="mt-2 font-serif text-3xl font-bold text-navy">College Gallery</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">{albums.length} album{albums.length === 1 ? "" : "s"}</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {categories.map((category) => (
+              <span
+                key={category}
+                id={category === "Video Gallery" ? "videos" : undefined}
+                className="chip-filter"
+              >
+                {category}
+              </span>
+            ))}
+          </div>
         </div>
-        <div className="stagger-children grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+
+        {/* Albums grid */}
+        <div
+          className="grid gap-6 md:grid-cols-2 xl:grid-cols-3"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
           {albums.map((item) => {
             const images = (item.images || (item.image ? [item.image] : []))
               .filter(Boolean)
@@ -6748,26 +6999,32 @@ function GalleryPage() {
             return (
               <article
                 key={item.id}
-                className="hover-lift overflow-hidden rounded-lg border border-border bg-white shadow-soft"
+                className="hover-lift card-img-zoom group overflow-hidden rounded-2xl border border-border bg-white shadow-soft"
               >
-                <img src={cover} alt={item.label} className="aspect-[4/3] w-full object-cover" />
+                {/* Cover with overlay */}
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <img src={cover} alt={item.label} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                  <div className="gallery-card-overlay" />
+                  <div className="absolute bottom-3 left-4 z-10 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                    <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-bold text-navy backdrop-blur-sm">
+                      {images.length} photo{images.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                </div>
                 <div className="p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                    Photo album | {images.length} photo{images.length === 1 ? "" : "s"}
-                  </p>
-                  <h2 className="mt-2 font-serif text-2xl text-navy">{item.label}</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {item.description ||
-                      "Browse this Loyola College album and open the full collection link."}
+                  <p className="section-kicker text-crimson">{`Photo album`}</p>
+                  <h2 className="mt-2 font-serif text-xl text-navy">{item.label}</h2>
+                  <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
+                    {item.description || "Browse this Loyola College album and open the full collection."}
                   </p>
                   {images.length > 1 && (
-                    <div className="mt-4 grid grid-cols-5 gap-2">
+                    <div className="mt-4 grid grid-cols-5 gap-1.5">
                       {images.slice(0, 5).map((image) => (
                         <img
                           key={image}
                           src={image}
                           alt=""
-                          className="aspect-square rounded-md object-cover"
+                          className="aspect-square rounded-lg object-cover transition-transform duration-300 hover:scale-110"
                         />
                       ))}
                     </div>
@@ -6777,13 +7034,13 @@ function GalleryPage() {
                       href={item.link}
                       target="_blank"
                       rel="noreferrer"
-                      className="mt-5 inline-flex rounded-lg bg-navy px-4 py-2 text-sm font-bold text-white"
+                      className="btn-shimmer mt-5 inline-flex items-center gap-2 rounded-xl bg-navy px-5 py-2.5 text-sm font-bold text-white transition-smooth hover:bg-navy-mid hover:-translate-y-px"
                     >
-                      Show more
+                      <Images className="h-3.5 w-3.5" /> View Album
                     </a>
                   ) : (
-                    <span className="mt-5 inline-flex rounded-lg bg-muted-foreground/35 px-4 py-2 text-sm font-bold text-white">
-                      Show more
+                    <span className="mt-5 inline-flex items-center gap-2 rounded-xl bg-muted-foreground/30 px-5 py-2.5 text-sm font-bold text-white">
+                      <Images className="h-3.5 w-3.5" /> View Album
                     </span>
                   )}
                 </div>
@@ -6791,28 +7048,35 @@ function GalleryPage() {
             );
           })}
           {albums.length === 0 && (
-            <p className="rounded-lg border border-border bg-white p-6 text-sm text-muted-foreground shadow-soft">
-              No visible albums yet.
-            </p>
+            <div className="col-span-full rounded-2xl border border-border bg-white p-12 text-center shadow-soft">
+              <Camera className="mx-auto h-10 w-10 text-gold/60" />
+              <p className="mt-4 font-serif text-xl text-navy">No albums published yet</p>
+              <p className="mt-2 text-sm text-muted-foreground">Photo albums will appear here.</p>
+            </div>
           )}
         </div>
+
+        {/* Video gallery CTA */}
         {videoAlbums.length > 0 && (
-          <div className="hover-lift mt-12 rounded-lg border border-border bg-white p-6 shadow-soft">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-              Video gallery
-            </p>
-            <h2 className="mt-2 font-serif text-3xl font-bold text-navy">
-              Videos are managed separately
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Open the dedicated video gallery to view school videos and YouTube previews.
-            </p>
-            <a
-              href="/gallery/video-gallery"
-              className="mt-5 inline-flex items-center gap-2 rounded-lg bg-navy px-4 py-2 text-sm font-bold text-white"
-            >
-              Open Video Gallery <Film className="h-4 w-4" />
-            </a>
+          <div
+            className="mt-12 overflow-hidden rounded-2xl border border-border bg-white shadow-elegant"
+            data-scroll-reveal
+          >
+            <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="section-kicker text-crimson">Video Gallery</p>
+                <h2 className="mt-2 font-serif text-2xl font-bold text-navy">School Videos & Coverage</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Watch school events, ceremonies, and YouTube coverage in the dedicated video gallery.
+                </p>
+              </div>
+              <a
+                href="/gallery/video-gallery"
+                className="btn-shimmer inline-flex shrink-0 items-center gap-2 rounded-xl bg-navy px-5 py-3 text-sm font-bold text-white transition-smooth hover:bg-navy-mid hover:-translate-y-px"
+              >
+                <Film className="h-4 w-4" /> Open Video Gallery
+              </a>
+            </div>
           </div>
         )}
       </section>
@@ -7283,31 +7547,53 @@ function DownloadsPage() {
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="stagger-children grid gap-5 md:grid-cols-4">
+        <div className="mb-8" data-scroll-reveal>
+          <p className="section-kicker text-crimson">Document Library</p>
+          <h2 className="mt-2 font-serif text-3xl font-bold text-navy">Available Downloads</h2>
+        </div>
+        <div
+          className="grid gap-5 md:grid-cols-2 xl:grid-cols-4"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
           {db.downloads.map((item) => (
             <article
               key={item.id}
-              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft"
+              className="card-shine hover-lift group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-white p-6 shadow-soft"
             >
-              <Download className="h-7 w-7 text-gold" />
-              <h2 className="mt-4 font-serif text-2xl text-navy">{item.title}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              {/* Top accent */}
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-gold to-gold/30 transition-all duration-500 group-hover:from-gold group-hover:to-gold" />
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gold/10 text-gold transition-smooth group-hover:bg-gold/20">
+                <Download className="h-5 w-5" />
+              </div>
+              <h2 className="mt-4 font-serif text-xl text-navy">{item.title}</h2>
+              <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">
                 {item.description}
               </p>
-              <p className="mt-4 text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-                {item.type}
-              </p>
+              {item.type && (
+                <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-crimson">
+                  {item.type}
+                </p>
+              )}
               <a
                 href={item.fileUrl || "#"}
                 download
-                className={`mt-4 inline-flex rounded-lg px-4 py-2 text-sm font-bold text-white ${
-                  item.fileUrl ? "bg-navy" : "pointer-events-none bg-muted-foreground/45"
+                className={`mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white transition-smooth ${
+                  item.fileUrl
+                    ? "btn-shimmer bg-navy hover:bg-navy-mid hover:-translate-y-px"
+                    : "pointer-events-none bg-muted-foreground/45"
                 }`}
               >
-                Download
+                <Download className="h-3.5 w-3.5" /> Download
               </a>
             </article>
           ))}
+          {db.downloads.length === 0 && (
+            <div className="col-span-full rounded-2xl border border-border bg-white p-12 text-center shadow-soft">
+              <FileText className="mx-auto h-10 w-10 text-gold/60" />
+              <p className="mt-4 font-serif text-xl text-navy">No downloads published yet</p>
+            </div>
+          )}
         </div>
       </section>
       <SubpagesSection parentId="downloads" />
@@ -7318,15 +7604,15 @@ function DownloadsPage() {
 function StudentPortalLandingPage() {
   const db = useDb();
   const page = db.pages["student-portal"];
-  const links = [
-    "LMS Login",
-    "Exam Results",
-    "Timetables",
-    "Assignments",
-    "Online Resources",
-    "School Calendar",
-    "Notices",
-    "Help / Support",
+  const portalLinks = [
+    { label: "LMS Login", icon: BookOpen, color: "bg-[#1e6cbf]/10 text-[#1e6cbf]" },
+    { label: "Exam Results", icon: Award, color: "bg-gold/10 text-gold" },
+    { label: "Timetables", icon: Calendar, color: "bg-crimson/10 text-crimson" },
+    { label: "Assignments", icon: FileText, color: "bg-[#0e7f5a]/10 text-[#0e7f5a]" },
+    { label: "Online Resources", icon: BookOpen, color: "bg-[#7c3aed]/10 text-[#7c3aed]" },
+    { label: "School Calendar", icon: Calendar, color: "bg-gold/10 text-gold" },
+    { label: "Notices", icon: Bell, color: "bg-crimson/10 text-crimson" },
+    { label: "Help / Support", icon: Mail, color: "bg-[#1e6cbf]/10 text-[#1e6cbf]" },
   ];
   return (
     <PublicLayout>
@@ -7343,18 +7629,53 @@ function StudentPortalLandingPage() {
         image={page.image}
       />
       <section className="mx-auto max-w-7xl px-6 py-20">
-        <div className="stagger-children grid gap-5 md:grid-cols-4">
-          {links.map((link) => (
-            <a
-              key={link}
-              href="/login"
-              className="hover-lift rounded-lg border border-border bg-white p-6 shadow-soft transition-smooth hover:-translate-y-1 hover:border-gold"
-            >
-              <ShieldCheck className="h-7 w-7 text-gold" />
-              <h2 className="mt-4 font-serif text-2xl text-navy">{link}</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Open Secure Portal Access</p>
-            </a>
-          ))}
+        {/* Section heading */}
+        <div className="mb-10 text-center" data-scroll-reveal>
+          <p className="section-kicker justify-center text-crimson">Secure Access</p>
+          <h2 className="mt-3 font-serif text-3xl font-bold text-navy">Student & Parent Portal</h2>
+          <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
+            Login with your portal credentials to access your academic tools and resources.
+          </p>
+        </div>
+
+        {/* Portal cards */}
+        <div
+          className="grid gap-5 md:grid-cols-4"
+          data-scroll-reveal
+          data-reveal-dir="scale"
+        >
+          {portalLinks.map((item) => {
+            const Icon = item.icon;
+            return (
+              <a
+                key={item.label}
+                href="/login"
+                className="card-shine hover-lift group relative overflow-hidden rounded-2xl border border-border bg-white p-6 shadow-soft transition-smooth hover:border-gold/50"
+              >
+                <div className={`flex h-11 w-11 items-center justify-center rounded-xl transition-smooth group-hover:scale-110 ${item.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+                <h2 className="mt-4 font-serif text-lg font-bold text-navy">{item.label}</h2>
+                <p className="mt-1.5 text-sm text-muted-foreground">Open Secure Portal</p>
+                <ArrowRight className="absolute bottom-5 right-5 h-4 w-4 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 group-hover:translate-x-1" />
+              </a>
+            );
+          })}
+        </div>
+
+        {/* Login CTA */}
+        <div className="mt-12 flex flex-col items-center gap-4 rounded-2xl border border-border bg-navy p-8 text-center text-white shadow-elegant" data-scroll-reveal>
+          <ShieldCheck className="h-12 w-12 text-gold" />
+          <h3 className="font-serif text-2xl font-bold">Ready to Log In?</h3>
+          <p className="max-w-md text-sm text-white/75">
+            Use your college-issued credentials to securely access the portal.
+          </p>
+          <a
+            href="/login"
+            className="btn-shimmer mt-2 inline-flex items-center gap-2 rounded-xl bg-gold px-8 py-3 text-sm font-bold text-navy transition-smooth hover:brightness-105 hover:-translate-y-px"
+          >
+            <Lock className="h-4 w-4" /> Log In to Portal
+          </a>
         </div>
       </section>
       <SubpagesSection parentId="student-portal" />
@@ -7388,6 +7709,14 @@ function ContactPage() {
     setSent(true);
     event.currentTarget.reset();
   };
+  const socials = db.websiteContent.socials || {};
+  const socialLinks = [
+    { href: socials.facebook, label: "Facebook" },
+    { href: socials.instagram, label: "Instagram" },
+    { href: socials.youtube, label: "YouTube" },
+    { href: socials.linkedin, label: "LinkedIn" },
+  ].filter((s) => s.href && s.href !== "#");
+
   return (
     <PublicLayout>
       <PageHeader
@@ -7398,25 +7727,65 @@ function ContactPage() {
         image={page.image}
       />
       <section className="mx-auto grid max-w-7xl gap-8 px-6 py-20 lg:grid-cols-[380px_1fr]">
-        <aside className="hover-lift rounded-lg bg-navy p-7 text-white">
-          <h2 className="font-serif text-3xl">College office</h2>
-          <div className="mt-6 space-y-4 text-sm text-white/75">
-            <p className="flex gap-3">
-              <MapPin className="h-5 w-5 text-gold" /> {db.websiteContent.address}
-            </p>
-            <p className="flex gap-3">
-              <Phone className="h-5 w-5 text-gold" /> {db.websiteContent.phone}
-            </p>
-            <p className="flex gap-3">
-              <Mail className="h-5 w-5 text-gold" /> {db.websiteContent.email}
-            </p>
-            <p className="flex gap-3">
-              <Calendar className="h-5 w-5 text-gold" /> Office Hours:{" "}
-              {db.websiteContent.officeHours}
-            </p>
+        {/* Info sidebar */}
+        <aside className="space-y-5" data-scroll-reveal data-reveal-dir="left">
+          {/* Contact card */}
+          <div className="relative overflow-hidden rounded-2xl bg-navy p-7 text-white shadow-elegant">
+            {/* Decorative blobs */}
+            <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-gold/12 blur-2xl" />
+            <div className="absolute -bottom-8 -left-6 h-28 w-28 rounded-full bg-crimson/14 blur-2xl" />
+
+            <h2 className="relative font-serif text-2xl font-bold">College Office</h2>
+            <div className="relative mt-6 space-y-4 text-sm text-white/80">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gold/15">
+                  <MapPin className="h-4 w-4 text-gold" />
+                </div>
+                <span className="leading-relaxed">{db.websiteContent.address}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gold/15">
+                  <Phone className="h-4 w-4 text-gold" />
+                </div>
+                <span>{db.websiteContent.phone}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gold/15">
+                  <Mail className="h-4 w-4 text-gold" />
+                </div>
+                <span>{db.websiteContent.email}</span>
+              </div>
+              {db.websiteContent.officeHours && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gold/15">
+                    <Calendar className="h-4 w-4 text-gold" />
+                  </div>
+                  <span>{db.websiteContent.officeHours}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Social links */}
+            {socialLinks.length > 0 && (
+              <div className="relative mt-6 flex flex-wrap gap-2 border-t border-white/12 pt-5">
+                {socialLinks.map((s) => (
+                  <a
+                    key={s.label}
+                    href={s.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-lg border border-white/20 px-3 py-1.5 text-xs font-bold text-white/80 transition-smooth hover:border-gold hover:text-gold"
+                  >
+                    {s.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
-          <div className="mt-7 overflow-hidden rounded-lg border border-white/12 bg-white">
-            <div className="relative aspect-[4/3] min-h-[260px]">
+
+          {/* Map */}
+          <div className="overflow-hidden rounded-2xl border border-border bg-white shadow-soft">
+            <div className="relative aspect-[4/3] min-h-[240px]">
               <iframe
                 title="Loyola College Negombo location"
                 src={mapEmbedUrl}
@@ -7428,64 +7797,71 @@ function ContactPage() {
                 href={mapUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="absolute left-3 top-3 rounded-md bg-white px-3 py-2 text-sm font-bold text-blue-700 shadow-soft"
+                className="absolute left-3 top-3 rounded-lg bg-white px-3 py-2 text-xs font-bold text-navy shadow-soft transition-smooth hover:-translate-y-px hover:shadow-elegant"
               >
-                Open in Maps
+                Open in Maps ↗
               </a>
             </div>
           </div>
-        </aside>
-        <form
-          onSubmit={submit}
-          className="rounded-lg border border-border bg-white p-8 shadow-soft focus-gold"
-        >
-          <h2 className="font-serif text-3xl text-navy">{db.forms.contactTitle}</h2>
-          {sent && (
-            <p className="mt-4 rounded-lg bg-success/10 p-3 text-sm text-success">
-              {db.forms.contactSuccessText}
-            </p>
-          )}
-          <div className="mt-6 grid gap-5 md:grid-cols-3">
-            <Field label="Name">
-              <input required name="name" className="input-line" />
-            </Field>
-            <Field label="Email">
-              <input required type="email" name="email" className="input-line" />
-            </Field>
-            <Field label="Phone">
-              <input name="phone" className="input-line" placeholder="Optional" />
-            </Field>
-          </div>
-          <Field label="Subject">
-            <input required name="subject" className="input-line" />
-          </Field>
-          <Field label="Message">
-            <textarea required name="message" rows={5} className="input-line resize-none" />
-          </Field>
-          <button
-            type="submit"
-            className="mt-5 rounded-lg bg-navy px-6 py-3 text-sm font-bold text-white"
+
+          {/* Job vacancies link */}
+          <a
+            href="/job-vacancies"
+            className="card-shine hover-lift flex items-center gap-4 rounded-2xl border border-border bg-white p-5 shadow-soft transition-smooth hover:border-gold/50"
           >
-            {db.forms.contactSubmitLabel}
-          </button>
-          <div className="stagger-children mt-8 grid gap-3 md:grid-cols-3">
-            {[
-              { label: "Google Map", href: mapUrl },
-              { label: "Social Media Links", href: "/contact" },
-              { label: "Vacancies", href: "/contact" },
-            ].map((item) => (
-              <a
-                key={item.label}
-                href={item.href}
-                target={item.label === "Google Map" ? "_blank" : undefined}
-                rel={item.label === "Google Map" ? "noreferrer" : undefined}
-                className="hover-lift rounded-lg border border-border bg-secondary/60 px-4 py-3 text-sm font-medium text-navy"
-              >
-                {item.label}
-              </a>
-            ))}
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold/10 text-gold">
+              <Briefcase className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="font-bold text-navy">Job Vacancies</p>
+              <p className="text-xs text-muted-foreground">Current openings at the college</p>
+            </div>
+            <ArrowRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+          </a>
+        </aside>
+
+        {/* Contact form */}
+        <div
+          className="overflow-hidden rounded-2xl border border-border bg-white shadow-elegant"
+          data-scroll-reveal
+          data-reveal-dir="right"
+        >
+          <div className="border-b border-border bg-navy px-8 py-5">
+            <p className="section-kicker text-gold/80">Get in Touch</p>
+            <h2 className="mt-1 font-serif text-2xl font-bold text-white">{db.forms.contactTitle}</h2>
           </div>
-        </form>
+          <form onSubmit={submit} className="p-8">
+            {sent && (
+              <div className="mb-6 flex items-center gap-3 rounded-xl bg-success/10 px-4 py-3 text-sm text-success">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                {db.forms.contactSuccessText}
+              </div>
+            )}
+            <div className="grid gap-5 md:grid-cols-3">
+              <Field label="Name">
+                <input required name="name" className="input-line" />
+              </Field>
+              <Field label="Email">
+                <input required type="email" name="email" className="input-line" />
+              </Field>
+              <Field label="Phone">
+                <input name="phone" className="input-line" placeholder="Optional" />
+              </Field>
+            </div>
+            <Field label="Subject">
+              <input required name="subject" className="input-line" />
+            </Field>
+            <Field label="Message">
+              <textarea required name="message" rows={5} className="input-line resize-none" />
+            </Field>
+            <button
+              type="submit"
+              className="login-submit btn-shimmer mt-6 rounded-xl bg-navy px-8 py-3 text-sm font-bold text-white shadow-[0_4px_20px_-4px_rgba(10,22,40,0.5)] transition-smooth hover:bg-navy-mid hover:-translate-y-px"
+            >
+              {db.forms.contactSubmitLabel}
+            </button>
+          </form>
+        </div>
       </section>
       <SubpagesSection parentId="contact" />
     </PublicLayout>
@@ -7568,15 +7944,17 @@ function GenericPage({ pageId }: { pageId: string }) {
           ))}
         </div>
       ) : (
-        <section className="mx-auto max-w-4xl px-6 py-20">
-          <article className="rounded-lg border border-border bg-white p-8 shadow-soft">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">
-              {pageId === "home" ? "/" : `/${pageId}`}
-            </p>
-            <h2 className="mt-4 font-serif text-4xl font-bold capitalize text-navy">{title}</h2>
-            <p className="mt-5 leading-relaxed text-muted-foreground whitespace-pre-wrap">
-              {page?.body || "Add page content from the Page Builder."}
-            </p>
+        <section className="mx-auto max-w-4xl px-6 py-20" data-scroll-reveal>
+          <article className="card-shine overflow-hidden rounded-2xl border border-border bg-white shadow-elegant">
+            <div className="border-b border-border bg-navy px-8 py-5">
+              <p className="section-kicker text-gold/80">{pageId === "home" ? "Home" : pageId.split("/").pop()?.replaceAll("-", " ")}</p>
+              <h2 className="mt-1 font-serif text-3xl font-bold text-white capitalize">{title}</h2>
+            </div>
+            <div className="p-8">
+              <p className="leading-8 text-muted-foreground whitespace-pre-wrap">
+                {page?.body || "Add page content from the Page Builder."}
+              </p>
+            </div>
           </article>
         </section>
       )}
@@ -7604,18 +7982,27 @@ function RectorsMessagePage({ pageId = "rectors-message" }: { pageId?: string })
         image={page?.image || db.media.campusImage || db.websiteContent.heroImage}
       />
       <section className="mx-auto max-w-6xl px-6 py-24">
-        <div className="grid gap-12 lg:grid-cols-[400px_1fr] lg:gap-20">
-          <div className="relative">
-            <div className="overflow-hidden rounded-2xl border-4 border-white shadow-elegant">
+        <div className="grid gap-12 lg:grid-cols-[380px_1fr] lg:gap-16">
+          <div className="relative h-fit" data-scroll-reveal data-reveal-dir="left">
+            {/* Photo frame with gold accent */}
+            <div className="relative overflow-hidden rounded-2xl shadow-elegant">
               <img
                 src={db.media.principalImage || "/loyola-crest.jpg"}
                 alt="Rector of Loyola College"
-                className="w-full object-cover"
+                className="w-full object-cover transition-transform duration-700 hover:scale-105"
               />
+              <div className="absolute inset-0 bg-gradient-to-t from-navy/30 to-transparent" />
             </div>
-            <div className="absolute -bottom-6 -right-6 -z-10 h-full w-full rounded-2xl bg-gold/20" />
+            {/* Gold accent block */}
+            <div className="absolute -bottom-4 -right-4 -z-10 h-full w-full rounded-2xl bg-gradient-to-br from-gold/30 to-gold/5" />
+            {/* Name tag */}
+            <div className="mt-6 rounded-xl border border-border bg-white p-4 shadow-soft">
+              <p className="section-kicker text-crimson">College Rector</p>
+              <p className="mt-1 font-serif text-lg font-bold text-navy">Rev. Dr. D.M.J. Kennedy Perera</p>
+              <p className="text-xs text-muted-foreground">Rector & Principal · Loyola College Negombo</p>
+            </div>
           </div>
-          <article className="prose prose-lg prose-slate max-w-none">
+          <article className="prose prose-lg prose-slate max-w-none" data-scroll-reveal data-reveal-dir="right">
             {paragraphs.map((p, i) => {
               if (i === 0 && (p.startsWith("Dear") || p.startsWith("Welcome"))) {
                 return (
