@@ -25,6 +25,7 @@ import {
   Phone,
   PlayCircle,
   Search,
+  Heart,
   ShieldCheck,
   Trophy,
   Users,
@@ -4284,6 +4285,13 @@ const defaultFacilitiesServices: FacilityItem[] = [
     body: "An aquatic facility for swimming training, water safety, school practices, competitions, and student wellbeing.",
     highlights: ["Swimming", "Water safety", "Training"],
   },
+  {
+    title: "Medical Unit",
+    category: "Health & Wellness",
+    image: "",
+    body: "A dedicated on-campus health centre providing first aid, routine medical care, wellness support, and emergency response for students and staff.",
+    highlights: ["First Aid", "Student Health", "Wellness"],
+  },
 ];
 
 const facilityIconByTitle: Record<string, LucideIcon> = {
@@ -4299,6 +4307,7 @@ const facilityIconByTitle: Record<string, LucideIcon> = {
   Auditorium: Camera,
   Gym: Trophy,
   "Swimming Pool": Waves,
+  "Medical Unit": Heart,
 };
 
 type FacilityDisplayItem = FacilityItem & { icon: LucideIcon };
@@ -4355,9 +4364,9 @@ const facilityGroups = [
     icon: ShieldCheck,
   },
   {
-    title: "Sports & Aquatics",
-    body: "Training and wellness spaces for fitness, swimming, sports practice, and student physical development.",
-    items: ["Gym", "Swimming Pool"],
+    title: "Sports, Aquatics & Health",
+    body: "Training, wellness, and medical spaces for fitness, swimming, sports practice, student physical development, and on-campus healthcare.",
+    items: ["Gym", "Swimming Pool", "Medical Unit"],
     icon: Trophy,
   },
 ];
