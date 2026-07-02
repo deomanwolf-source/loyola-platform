@@ -3322,7 +3322,7 @@ function HomePage() {
           </p>
 
           {/* School name */}
-          <h1 className="mt-5 max-w-4xl text-balance text-5xl font-normal leading-[1.12] drop-shadow-[0_4px_28px_rgba(0,0,0,0.75)] sm:text-6xl md:text-7xl lg:text-[5.75rem] hero-title-reveal" style={{ fontFamily: "var(--font-hero)", fontWeight: 400 }}>
+          <h1 className="mt-5 max-w-4xl text-balance text-4xl font-black uppercase leading-[1.18] tracking-[0.18em] drop-shadow-[0_4px_28px_rgba(0,0,0,0.75)] sm:text-5xl md:text-6xl lg:text-7xl hero-title-reveal" style={{ fontFamily: "var(--font-hero)" }}>
             {content.schoolName || "Loyola College Negombo"}
           </h1>
 
