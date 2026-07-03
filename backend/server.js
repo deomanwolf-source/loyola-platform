@@ -634,9 +634,11 @@ function publicUserPayload(user) {
     id: user.id,
     name: user.name,
     email: user.email,
+    nicNumber: user.nic_number || "",
     role: user.role,
     status: user.status,
     twoFactorEnabled: twoFactorEnabledForUser(user),
+    mustChangePassword: Number(user.must_change_password || 0) === 1,
   };
 }
 
@@ -904,6 +906,10 @@ async function ensureAccessTables() {
     {
       name: "recovery_email",
       definition: "recovery_email VARCHAR(190) NULL AFTER email",
+    },
+    {
+      name: "must_change_password",
+      definition: "must_change_password BOOLEAN DEFAULT 0 AFTER password_hash",
     },
     {
       name: "two_factor_enabled",
@@ -1285,6 +1291,12 @@ async function writeMaintenanceSettings({ enabled, message }) {
   };
 }
 
+const PASSWORD_CHANGE_EXEMPT_PATHS = new Set([
+  "/api/change-password",
+  "/api/me",
+  "/api/logout",
+]);
+
 async function auth(req, res, next) {
   const token = tokenFromRequest(req);
 
@@ -1302,13 +1314,22 @@ async function auth(req, res, next) {
 
   try {
     const [[currentUser]] = await db.query(
-      "SELECT id, name, email, role, status FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, name, email, role, status, must_change_password FROM users WHERE id = ? LIMIT 1",
       [tokenUser.id],
     );
     if (!currentUser || String(currentUser.status || "").toLowerCase() !== "active") {
       clearAuthCookie(res);
       clearCsrfCookie(res);
       return res.status(401).json({ error: "This account is not active" });
+    }
+    if (
+      Number(currentUser.must_change_password || 0) === 1 &&
+      !PASSWORD_CHANGE_EXEMPT_PATHS.has(req.path)
+    ) {
+      return res.status(403).json({
+        error: "You must change your password before continuing.",
+        code: "password_change_required",
+      });
     }
 
     req.user = {
@@ -11159,6 +11180,40 @@ app.get("/api/edutrack/accounts", eduzyncAdminOnly, async (req, res) => {
   }
 });
 
+const DEFAULT_TEMP_PASSWORD = "TempPass123";
+
+app.post(
+  "/api/edutrack/accounts/reset-all-passwords",
+  edutrackMasterOnly,
+  async (req, res) => {
+    try {
+      await ensureContentTables();
+      const passwordHash = await bcrypt.hash(DEFAULT_TEMP_PASSWORD, 12);
+      const [result] = await db.query(
+        `
+          UPDATE users
+          SET password_hash = ?, must_change_password = 1
+          WHERE role NOT IN ('masteradmin', 'superadmin') AND id <> ?
+        `,
+        [passwordHash, String(req.user?.id || "")],
+      );
+      await recordAccountAudit(
+        req,
+        "passwords_reset_all",
+        {},
+        { affected: result.affectedRows, default_password: DEFAULT_TEMP_PASSWORD },
+      );
+      res.json({
+        success: true,
+        affected: result.affectedRows,
+        defaultPassword: DEFAULT_TEMP_PASSWORD,
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
 app.patch("/api/edutrack/accounts/:id/status", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureContentTables();
@@ -11360,7 +11415,7 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
     const id = `T-${Date.now()}`;
     const passwordHash = await bcrypt.hash(password, 12);
     await db.query(
-      "INSERT INTO users (id, external_staff_id, nic_number, name, email, role, status, password_hash) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?)",
+      "INSERT INTO users (id, external_staff_id, nic_number, name, email, role, status, password_hash, must_change_password) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?, 1)",
       [
         id,
         staffIdentity,
@@ -11451,7 +11506,10 @@ app.post("/api/edutrack/reset-user-password", eduzyncAdminOnly, async (req, res)
         .json({ error: "Only master admins can reset an admin account password." });
     }
     const passwordHash = await bcrypt.hash(password, 12);
-    await db.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, user.id]);
+    await db.query(
+      "UPDATE users SET password_hash = ?, must_change_password = 1 WHERE id = ?",
+      [passwordHash, user.id],
+    );
     const portalSync = await syncEduTrackUserAccountToPortal(
       { ...user, passwordHash },
       { password, passwordHash },
@@ -12166,6 +12224,57 @@ app.post(
   },
 );
 
+app.post(
+  "/api/change-password",
+  rateLimit({ windowMs: 15 * 60 * 1000, max: 20, keyPrefix: "change-password" }),
+  auth,
+  async (req, res) => {
+    try {
+      await ensureAccessTables();
+      const currentPassword = String(
+        req.body?.currentPassword || req.body?.current_password || "",
+      );
+      const newPassword = String(req.body?.newPassword || req.body?.new_password || "");
+      if (!currentPassword) {
+        return res.status(400).json({ error: "Current password is required." });
+      }
+      if (newPassword.length < 8) {
+        return res.status(400).json({ error: "New password must be at least 8 characters." });
+      }
+      if (newPassword === currentPassword) {
+        return res
+          .status(400)
+          .json({ error: "New password must be different from the current password." });
+      }
+      const [[user]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [req.user.id]);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      const valid = await bcrypt.compare(currentPassword, user.password_hash || "");
+      if (!valid) return res.status(401).json({ error: "Current password is incorrect." });
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await db.query(
+        "UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?",
+        [passwordHash, user.id],
+      );
+      await syncEduTrackUserAccountToPortal(
+        { ...user, passwordHash },
+        { password: newPassword, passwordHash },
+      ).catch(() => null);
+      await recordAccountAudit(req, "password_changed_self", {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+      });
+      const token = createToken(user);
+      setAuthCookie(res, token);
+      setCsrfCookie(res);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
 app.post("/api/logout", (req, res) => {
   clearAuthCookie(res);
   clearCsrfCookie(res);
@@ -12306,7 +12415,7 @@ app.get("/api/me", auth, async (req, res) => {
   try {
     await ensureAccessTables();
     const [users] = await db.query(
-      "SELECT id, name, email, role, status, two_factor_enabled, two_factor_secret FROM users WHERE id = ?",
+      "SELECT id, name, email, nic_number, role, status, two_factor_enabled, two_factor_secret, must_change_password FROM users WHERE id = ?",
       [req.user.id],
     );
 

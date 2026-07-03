@@ -6001,6 +6001,14 @@
                 <div class="accounts-meta" id="accounts-count">0 accounts</div>
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <button
+                  class="btn secondary sm"
+                  id="reset-all-passwords-btn"
+                  style="display: none"
+                  onclick="resetAllPasswords()"
+                >
+                  Reset All Passwords
+                </button>
                 <button class="btn secondary sm" onclick="toggleAccountAudit()">
                   Account Activity
                 </button>
@@ -6502,6 +6510,35 @@
     </div>
 
     <!-- ADD TEACHER MODAL -->
+    <div class="modal-overlay" id="force-password-modal">
+      <div class="modal" style="width: 440px">
+        <h3>Change Your Password</h3>
+        <p class="msub">
+          For security you must set a new password before continuing. Enter your current
+          (temporary) password, then choose a new one.
+        </p>
+        <div class="field">
+          <label>Current Password</label
+          ><input type="password" id="fp-current" placeholder="Your temporary password" />
+        </div>
+        <div class="field">
+          <label>New Password</label
+          ><input type="password" id="fp-new" placeholder="At least 8 characters" />
+        </div>
+        <div class="field">
+          <label>Confirm New Password</label
+          ><input type="password" id="fp-confirm" placeholder="Repeat the new password" />
+        </div>
+        <div id="fp-error" class="error-msg"></div>
+        <div class="actions">
+          <button class="btn secondary sm" onclick="doLogout()">Sign Out</button>
+          <button class="btn sm" id="fp-submit" onclick="submitForcedPasswordChange()">
+            Change Password
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="add-staff-modal">
       <div class="modal" style="width: 480px">
         <h3>Add Staff Account</h3>
@@ -7134,7 +7171,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.3.1";
+      const APP_VERSION = "v6.4.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -7628,6 +7665,11 @@
         setLoginButtonLoading(true);
         try {
           await signInWithEmailAndPassword(auth, email, pass);
+          const sessionUser = makeUserShape(platformUser());
+          if (sessionUser) {
+            cu = sessionUser;
+            await loadUserData(sessionUser.uid);
+          }
         } catch (e) {
           if (e && e.code === "auth/requires-two-factor") {
             window.location.href = "/login?next=%2Fportal%2Fedutrack";
@@ -7640,6 +7682,51 @@
         }
       };
       window.doLogout = async () => signOut(auth);
+
+      window.submitForcedPasswordChange = async function () {
+        const errBox = document.getElementById("fp-error");
+        if (errBox) errBox.textContent = "";
+        const current = document.getElementById("fp-current")?.value || "";
+        const next = document.getElementById("fp-new")?.value || "";
+        const confirmValue = document.getElementById("fp-confirm")?.value || "";
+        if (!current || !next || !confirmValue) {
+          if (errBox) errBox.textContent = "All three fields are required.";
+          return;
+        }
+        if (next.length < 8) {
+          if (errBox) errBox.textContent = "New password must be at least 8 characters.";
+          return;
+        }
+        if (next !== confirmValue) {
+          if (errBox) errBox.textContent = "New password and confirmation do not match.";
+          return;
+        }
+        if (next === current) {
+          if (errBox)
+            errBox.textContent = "New password must be different from the current password.";
+          return;
+        }
+        const btn = document.getElementById("fp-submit");
+        if (btn) btn.disabled = true;
+        try {
+          await apiFetch("/api/change-password", {
+            method: "POST",
+            body: JSON.stringify({ currentPassword: current, newPassword: next }),
+          });
+          closeModal("force-password-modal");
+          showToast("Password changed. Welcome!", "success");
+          const refreshed = await refreshPlatformSession();
+          const sessionUser = makeUserShape(refreshed);
+          if (sessionUser) {
+            cu = sessionUser;
+            await loadUserData(sessionUser.uid);
+          }
+        } catch (error) {
+          if (errBox) errBox.textContent = error.message;
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      };
 
       ["login-email", "login-password"].forEach((id) => {
         document.getElementById(id).addEventListener("keydown", (e) => {
@@ -7669,6 +7756,22 @@
       }
 
       async function loadUserData(uid) {
+        // Forced password change: block the app until the temporary password
+        // is replaced. All other API routes reject until then anyway.
+        const platformSession = platformUser();
+        if (platformSession && platformSession.mustChangePassword) {
+          document.getElementById("auth-screen").style.display = "none";
+          document.getElementById("app").style.display = "none";
+          setLoginButtonLoading(false);
+          ["fp-current", "fp-new", "fp-confirm"].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+          });
+          const fpError = document.getElementById("fp-error");
+          if (fpError) fpError.textContent = "";
+          openModal("force-password-modal");
+          return;
+        }
         const userRef = doc(db, "users", uid);
         const snap = await getDoc(userRef);
         if (snap.exists()) {
@@ -11912,6 +12015,9 @@
         const tbody = document.getElementById("accounts-tbody");
         const countEl = document.getElementById("accounts-count");
         if (!tbody || !countEl) return;
+        const bulkResetBtn = document.getElementById("reset-all-passwords-btn");
+        if (bulkResetBtn)
+          bulkResetBtn.style.display = cud && cud.isMasterAdmin ? "" : "none";
         try {
           managedAccounts = await apiFetch("/api/edutrack/accounts");
         } catch (error) {
@@ -12066,6 +12172,36 @@
             body: JSON.stringify({ nic }),
           });
           showToast(nic ? "NIC saved for " + name + "." : "NIC removed for " + name + ".", "success");
+          renderUserAccounts();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.resetAllPasswords = async function () {
+        if (!(cud && cud.isMasterAdmin)) {
+          showToast("Master admin access required.", "err");
+          return;
+        }
+        if (
+          !window.confirm(
+            "Reset EVERY teacher, coordinator, and EduTrack admin password to the default TempPass123?\n\nMaster and super admin passwords are not changed. Everyone else must set a new password at their next sign-in.",
+          )
+        )
+          return;
+        if (!window.confirm("Are you sure? This affects all accounts at once.")) return;
+        try {
+          const data = await apiFetch("/api/edutrack/accounts/reset-all-passwords", {
+            method: "POST",
+            body: "{}",
+          });
+          showToast(
+            (data.affected || 0) +
+              " account password(s) reset to " +
+              (data.defaultPassword || "TempPass123") +
+              ".",
+            "success",
+          );
           renderUserAccounts();
         } catch (error) {
           showToast(error.message, "err");
@@ -13122,6 +13258,8 @@
       };
       document.querySelectorAll(".modal-overlay").forEach((m) => {
         m.addEventListener("click", (e) => {
+          // The forced password-change modal cannot be dismissed by clicking away.
+          if (m.id === "force-password-modal") return;
           if (e.target === m) closeModal(m.id);
         });
       });
