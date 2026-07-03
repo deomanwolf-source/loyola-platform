@@ -595,6 +595,30 @@ Important warning:
 | Teacher Import | Loads EduTrack teacher records from a separate CSV | System/admins |
 | Report Cards | Stores student report card data | Teachers, admins, students, parents |
 
+## Academic Coordinator Role And Approval Workflow (v5.4.0)
+
+EduTrack supports three staff tiers:
+
+- **Admins** (`masteradmin`, `superadmin`, `master_edutrack_admin`, `eduzync_admin`) — full management: accounts, teachers, subjects, assignments, reviews, analytics.
+- **Academic Coordinators** (`academic_coordinator`) — school-wide read access plus review powers: Analytics, Year Plans (approve / request changes), Progress Reports, Staff Attendance, and Relief oversight. They cannot manage user accounts, teachers, or subject assignments.
+- **Teachers** — own assignments, year plans, daily progress, and relief uploads.
+
+Coordinator accounts are created from **User Accounts → Add Coordinator** (admins only). The platform role enum was extended additively with `academic_coordinator`; no existing data is modified.
+
+Year plans carry an approval workflow stored in additive columns on `edutrack_year_plans` (`approval_status`: `draft` → `submitted` → `approved` / `changes_requested`, plus reviewer name, timestamp, and comment):
+
+- Teachers submit a plan for review from the Year Plan Progress editor.
+- Coordinators or admins approve or request changes (comment required) from the Year Plans page.
+- Every transition is written to `edutrack_year_plan_audit_logs`.
+
+New API endpoints:
+
+- `POST /api/edutrack/year-plans/:id/submit` — teacher/admin submits a plan for review.
+- `POST /api/edutrack/year-plans/:id/review` — coordinator/admin decision (`approve` or `request_changes`).
+- `GET /api/edutrack/analytics/overview` — school-wide analytics: completion, approval pipeline, per-grade coverage, 30-day daily-progress activity, at-risk teachers (<40%), top performers, relief stats.
+
+The **Analytics** page in the sidebar (admins and coordinators) renders these aggregates with KPI tiles, bars, and a 30-day activity chart.
+
 ## In Short
 
 EduTrack is not just a syllabus page. It is a full academic operations system for teacher assignment, teaching plan creation, daily progress tracking, reporting, separate teacher import, relief document control, and academic account management.

@@ -552,6 +552,7 @@ const ROLE_ENUM_SQL = `
     'website_admin',
     'eduzync_admin',
     'master_edutrack_admin',
+    'academic_coordinator',
     'staff_admin',
     'viewadmin',
     'teacher',
@@ -567,6 +568,7 @@ const ROLE_ENUM_MIGRATION_SQL = `
     'website_admin',
     'eduzync_admin',
     'master_edutrack_admin',
+    'academic_coordinator',
     'staff_admin',
     'viewadmin',
     'teacher',
@@ -582,6 +584,7 @@ const ROLES = {
   website: "website_admin",
   eduzync: "eduzync_admin",
   masterEduTrack: "master_edutrack_admin",
+  coordinator: "academic_coordinator",
   staff: "staff_admin",
   view: "viewadmin",
   teacher: "teacher",
@@ -598,6 +601,7 @@ const SCHOOL_DATA_READ_ROLES = [
   ROLES.super,
   ROLES.masterEduTrack,
   ROLES.eduzync,
+  ROLES.coordinator,
   ROLES.view,
   ROLES.teacher,
 ];
@@ -606,8 +610,16 @@ const EDUTRACK_ROLES = [
   ROLES.super,
   ROLES.masterEduTrack,
   ROLES.eduzync,
+  ROLES.coordinator,
   ROLES.view,
   ROLES.teacher,
+];
+const EDUTRACK_OVERSIGHT_ROLES = [
+  ROLES.master,
+  ROLES.super,
+  ROLES.masterEduTrack,
+  ROLES.eduzync,
+  ROLES.coordinator,
 ];
 const REPORT_CARD_VIEW_ROLES = [
   ROLES.master,
@@ -634,6 +646,7 @@ const MAINTENANCE_BYPASS_ROLES = [
   ROLES.website,
   ROLES.eduzync,
   ROLES.masterEduTrack,
+  ROLES.coordinator,
   ROLES.staff,
   ROLES.view,
 ];
@@ -682,6 +695,11 @@ const rolePermissionsSeed = [
   [ROLES.eduzync, "subjects", 1, 1, 1, 1],
   [ROLES.eduzync, "edutrack", 1, 1, 1, 0],
   [ROLES.eduzync, "report_cards", 1, 1, 1, 0],
+  [ROLES.coordinator, "edutrack", 1, 1, 1, 0],
+  [ROLES.coordinator, "eduzync", 1, 0, 0, 0],
+  [ROLES.coordinator, "teachers", 1, 0, 0, 0],
+  [ROLES.coordinator, "subjects", 1, 0, 0, 0],
+  [ROLES.coordinator, "students", 1, 0, 0, 0],
   [ROLES.teacher, "edutrack", 1, 1, 1, 0],
   [ROLES.teacher, "elms", 0, 0, 0, 0],
   [ROLES.teacher, "report_cards", 1, 1, 1, 0],
@@ -1214,6 +1232,10 @@ function eduzyncAdminOnly(req, res, next) {
 
 function edutrackMasterOnly(req, res, next) {
   return authRole(ROLES.master, ROLES.super, ROLES.masterEduTrack)(req, res, next);
+}
+
+function edutrackOversightOnly(req, res, next) {
+  return authRole(...EDUTRACK_OVERSIGHT_ROLES, ROLES.view)(req, res, next);
 }
 
 function staffAdminOnly(req, res, next) {
@@ -2232,6 +2254,17 @@ async function ensureContentTables() {
     "progress_percentage",
     "DECIMAL(5,2) NOT NULL DEFAULT 0",
   );
+  await addColumnIfMissing(
+    "edutrack_year_plans",
+    "approval_status",
+    "VARCHAR(30) NOT NULL DEFAULT 'draft'",
+  );
+  await addColumnIfMissing("edutrack_year_plans", "submitted_at", "TIMESTAMP NULL");
+  await addColumnIfMissing("edutrack_year_plans", "submitted_by_name", "VARCHAR(190) NULL");
+  await addColumnIfMissing("edutrack_year_plans", "reviewed_at", "TIMESTAMP NULL");
+  await addColumnIfMissing("edutrack_year_plans", "reviewed_by_user_id", "VARCHAR(64) NULL");
+  await addColumnIfMissing("edutrack_year_plans", "reviewed_by_name", "VARCHAR(190) NULL");
+  await addColumnIfMissing("edutrack_year_plans", "review_comment", "TEXT NULL");
   await ensureTableIndexes("edutrack_teacher_subject_assignments", [
     {
       name: "idx_ypp_assign_teacher_user",
@@ -3090,7 +3123,8 @@ function eduTrackPortalAccountSyncConfig() {
 function portalRoleFromEduTrackRole(value) {
   const role = String(value || "").trim();
   if (!role || role === "teacher") return ROLES.teacher;
-  if (role === "admin" || role === "coordinator" || role === "edutrack_admin") {
+  if (role === "coordinator" || role === "academic_coordinator") return ROLES.coordinator;
+  if (role === "admin" || role === "edutrack_admin") {
     return ROLES.eduzync;
   }
   if (role === "student") return ROLES.student;
@@ -6974,6 +7008,14 @@ function isEduTrackAdminUser(req) {
   return EDUZYNC_ADMIN_ROLES.includes(req.user?.role) || isViewAdminRole(req.user?.role);
 }
 
+function isEduTrackCoordinatorUser(req) {
+  return req.user?.role === ROLES.coordinator;
+}
+
+function isEduTrackOversightUser(req) {
+  return isEduTrackAdminUser(req) || isEduTrackCoordinatorUser(req);
+}
+
 function isEduTrackMasterUser(req) {
   return [ROLES.master, ROLES.super, ROLES.masterEduTrack].includes(req.user?.role);
 }
@@ -7125,7 +7167,7 @@ async function insertDailySyllabusAudit(conn, req, recordId, action, oldValue, n
 function dailyProgressWhere(query, req, actor) {
   const conditions = [];
   const params = [];
-  if (!isEduTrackAdminUser(req)) {
+  if (!isEduTrackOversightUser(req)) {
     conditions.push("(teacher_user_id = ? OR teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
   }
@@ -7220,6 +7262,7 @@ function currentAcademicYear() {
 
 function canAccessYearPlan(req, actor, plan, action = "read") {
   if (isEduTrackAdminUser(req)) return true;
+  if (action === "read" && isEduTrackCoordinatorUser(req)) return true;
   const ownsPlan =
     String(plan.teacher_user_id || "") === actor.id ||
     String(plan.teacher_id || "") === actor.teacherId;
@@ -7475,7 +7518,7 @@ function assertAssignmentPayload(payload) {
 async function listYearPlanAssignments(req, actor, mineOnly = false) {
   const where = [];
   const params = [];
-  if (mineOnly || !isEduTrackAdminUser(req)) {
+  if (mineOnly || !isEduTrackOversightUser(req)) {
     where.push("(teacher_user_id = ? OR teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
   }
@@ -7710,7 +7753,7 @@ app.delete("/api/edutrack/teacher-assignments/:id", edutrackMasterOnly, async (r
 function yearPlanListWhere(query, req, actor) {
   const where = [];
   const params = [];
-  if (!isEduTrackAdminUser(req)) {
+  if (!isEduTrackOversightUser(req)) {
     where.push("(p.teacher_user_id = ? OR p.teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
   }
@@ -7726,6 +7769,7 @@ function yearPlanListWhere(query, req, actor) {
   addEq("p.section", query.section);
   addEq("p.academic_year", query.academic_year);
   addEq("p.status", query.status);
+  addEq("p.approval_status", query.approval_status);
   if (query.search) {
     const like = `%${String(query.search).trim()}%`;
     where.push(
@@ -7928,6 +7972,284 @@ app.put("/api/edutrack/year-plans/:id", teacherOrAdmin, async (req, res) => {
     res.status(500).json({ error: error.message });
   } finally {
     conn.release();
+  }
+});
+
+const YEAR_PLAN_APPROVAL_STATUSES = new Set([
+  "draft",
+  "submitted",
+  "approved",
+  "changes_requested",
+]);
+
+app.post("/api/edutrack/year-plans/:id/submit", teacherOrAdmin, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    await conn.beginTransaction();
+    const [rows] = await conn.query("SELECT * FROM edutrack_year_plans WHERE id = ? FOR UPDATE", [
+      Number(req.params.id),
+    ]);
+    const existing = rows[0];
+    if (!existing) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Year plan not found" });
+    }
+    if (!canAccessYearPlan(req, actor, existing, "edit")) {
+      await conn.rollback();
+      return res.status(403).json({ error: "Access denied" });
+    }
+    if (existing.approval_status === "approved") {
+      await conn.rollback();
+      return res.status(409).json({ error: "This year plan is already approved." });
+    }
+    await conn.query(
+      `
+        UPDATE edutrack_year_plans
+        SET approval_status = 'submitted', submitted_at = NOW(), submitted_by_name = ?,
+            reviewed_at = NULL, reviewed_by_user_id = NULL, reviewed_by_name = NULL,
+            review_comment = NULL, updated_at = NOW()
+        WHERE id = ?
+      `,
+      [shortText(actor.teacherName || actor.name, 190), existing.id],
+    );
+    await insertYearPlanAudit(
+      conn,
+      req,
+      existing.id,
+      "year_plan",
+      existing.id,
+      "submitted_for_review",
+      { approval_status: existing.approval_status },
+      { approval_status: "submitted" },
+      actor,
+    );
+    await conn.commit();
+    res.json({ success: true, plan: await readYearPlanDetail(existing.id) });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.post("/api/edutrack/year-plans/:id/review", edutrackOversightOnly, async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const decision = String(req.body?.decision || "").trim();
+    const nextStatus =
+      decision === "approve"
+        ? "approved"
+        : decision === "request_changes"
+          ? "changes_requested"
+          : "";
+    if (!nextStatus) {
+      return res.status(400).json({ error: "decision must be 'approve' or 'request_changes'" });
+    }
+    const comment = shortText(req.body?.comment || "", 2000);
+    if (nextStatus === "changes_requested" && !comment) {
+      return res.status(400).json({ error: "A comment is required when requesting changes." });
+    }
+    await conn.beginTransaction();
+    const [rows] = await conn.query("SELECT * FROM edutrack_year_plans WHERE id = ? FOR UPDATE", [
+      Number(req.params.id),
+    ]);
+    const existing = rows[0];
+    if (!existing) {
+      await conn.rollback();
+      return res.status(404).json({ error: "Year plan not found" });
+    }
+    await conn.query(
+      `
+        UPDATE edutrack_year_plans
+        SET approval_status = ?, reviewed_at = NOW(), reviewed_by_user_id = ?,
+            reviewed_by_name = ?, review_comment = ?, updated_at = NOW()
+        WHERE id = ?
+      `,
+      [nextStatus, actor.id, shortText(actor.name, 190), comment || null, existing.id],
+    );
+    await insertYearPlanAudit(
+      conn,
+      req,
+      existing.id,
+      "year_plan",
+      existing.id,
+      nextStatus === "approved" ? "review_approved" : "review_changes_requested",
+      { approval_status: existing.approval_status },
+      { approval_status: nextStatus, review_comment: comment },
+      actor,
+    );
+    await conn.commit();
+    res.json({ success: true, plan: await readYearPlanDetail(existing.id) });
+  } catch (error) {
+    await conn.rollback();
+    res.status(500).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.get("/api/edutrack/analytics/overview", edutrackOversightOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const academicYear = shortText(req.query.academic_year || "", 20);
+    const planWhere = academicYear ? "WHERE p.academic_year = ?" : "";
+    const planParams = academicYear ? [academicYear] : [];
+
+    const [planRows] = await db.query(
+      `
+        SELECT p.id, p.teacher_id, p.teacher_user_id, p.teacher_name, p.subject_name, p.grade,
+          p.section, p.academic_year, p.approval_status, p.updated_at,
+          COUNT(DISTINCT st.id) AS total_subtopics,
+          SUM(CASE WHEN st.is_completed = 1 THEN 1 ELSE 0 END) AS completed_subtopics
+        FROM edutrack_year_plans p
+        LEFT JOIN edutrack_year_plan_subtopics st ON st.year_plan_id = p.id
+        ${planWhere}
+        GROUP BY p.id
+        LIMIT 3000
+      `,
+      planParams,
+    );
+
+    const [activityRows] = await db.query(`
+      SELECT record_date, COUNT(*) AS records,
+        SUM(CASE WHEN completion_status = 'Completed' THEN 1 ELSE 0 END) AS completed_records
+      FROM edutrack_daily_syllabus_progress
+      WHERE record_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+      GROUP BY record_date
+      ORDER BY record_date ASC
+    `);
+
+    const [statusRows] = await db.query(`
+      SELECT completion_status, COUNT(*) AS records
+      FROM edutrack_daily_syllabus_progress
+      WHERE record_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY)
+      GROUP BY completion_status
+    `);
+
+    const [[reliefStats]] = await db.query(`
+      SELECT
+        SUM(CASE WHEN status <> 'deleted' THEN 1 ELSE 0 END) AS total,
+        SUM(CASE WHEN status <> 'deleted' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) THEN 1 ELSE 0 END) AS last_30_days
+      FROM edutrack_relief_assignments
+    `);
+
+    const [[teacherCounts]] = await db.query(`
+      SELECT
+        SUM(CASE WHEN role = 'teacher' AND LOWER(COALESCE(status, '')) = 'active' THEN 1 ELSE 0 END) AS active_teachers,
+        SUM(CASE WHEN role = 'academic_coordinator' AND LOWER(COALESCE(status, '')) = 'active' THEN 1 ELSE 0 END) AS active_coordinators
+      FROM users
+    `);
+
+    const approvalPipeline = { draft: 0, submitted: 0, approved: 0, changes_requested: 0 };
+    const teacherMap = new Map();
+    const gradeMap = new Map();
+    let totalSubtopics = 0;
+    let completedSubtopics = 0;
+    planRows.forEach((row) => {
+      const status = YEAR_PLAN_APPROVAL_STATUSES.has(row.approval_status)
+        ? row.approval_status
+        : "draft";
+      approvalPipeline[status] += 1;
+      const total = Number(row.total_subtopics || 0);
+      const completed = Number(row.completed_subtopics || 0);
+      totalSubtopics += total;
+      completedSubtopics += completed;
+      const teacherKey = String(row.teacher_user_id || row.teacher_id || row.teacher_name);
+      if (!teacherMap.has(teacherKey)) {
+        teacherMap.set(teacherKey, {
+          teacher_id: row.teacher_id,
+          teacher_name: row.teacher_name,
+          plans: 0,
+          total_subtopics: 0,
+          completed_subtopics: 0,
+          pending_review: 0,
+          last_activity: null,
+        });
+      }
+      const teacher = teacherMap.get(teacherKey);
+      teacher.plans += 1;
+      teacher.total_subtopics += total;
+      teacher.completed_subtopics += completed;
+      if (status === "submitted") teacher.pending_review += 1;
+      const updated = row.updated_at ? new Date(row.updated_at).toISOString() : null;
+      if (updated && (!teacher.last_activity || updated > teacher.last_activity)) {
+        teacher.last_activity = updated;
+      }
+      const gradeKey = String(row.grade || "-");
+      if (!gradeMap.has(gradeKey)) {
+        gradeMap.set(gradeKey, { grade: gradeKey, total_subtopics: 0, completed_subtopics: 0, plans: 0 });
+      }
+      const grade = gradeMap.get(gradeKey);
+      grade.plans += 1;
+      grade.total_subtopics += total;
+      grade.completed_subtopics += completed;
+    });
+
+    const withPct = (item) => ({
+      ...item,
+      completion_percentage: item.total_subtopics
+        ? Math.round((item.completed_subtopics / item.total_subtopics) * 100)
+        : 0,
+    });
+    const teachers = Array.from(teacherMap.values()).map(withPct);
+    const grades = Array.from(gradeMap.values())
+      .map(withPct)
+      .sort((a, b) => {
+        const numA = Number(a.grade);
+        const numB = Number(b.grade);
+        if (Number.isFinite(numA) && Number.isFinite(numB)) return numA - numB;
+        return String(a.grade).localeCompare(String(b.grade));
+      });
+    const atRisk = teachers
+      .filter((item) => item.total_subtopics > 0 && item.completion_percentage < 40)
+      .sort((a, b) => a.completion_percentage - b.completion_percentage)
+      .slice(0, 12);
+    const topPerformers = teachers
+      .filter((item) => item.total_subtopics > 0)
+      .sort((a, b) => b.completion_percentage - a.completion_percentage)
+      .slice(0, 6);
+
+    res.json({
+      generatedAt: new Date().toISOString(),
+      academicYear: academicYear || "all",
+      summary: {
+        totalPlans: planRows.length,
+        totalSubtopics,
+        completedSubtopics,
+        completionPercentage: totalSubtopics
+          ? Math.round((completedSubtopics / totalSubtopics) * 100)
+          : 0,
+        activeTeachers: Number(teacherCounts?.active_teachers || 0),
+        activeCoordinators: Number(teacherCounts?.active_coordinators || 0),
+        atRiskTeachers: atRisk.length,
+        pendingReviews: approvalPipeline.submitted,
+      },
+      approvalPipeline,
+      teachers: teachers.sort((a, b) => a.teacher_name.localeCompare(b.teacher_name)),
+      atRisk,
+      topPerformers,
+      grades,
+      dailyActivity: activityRows.map((row) => ({
+        date: dateOnly(row.record_date),
+        records: Number(row.records || 0),
+        completed_records: Number(row.completed_records || 0),
+      })),
+      statusBreakdown: statusRows.map((row) => ({
+        status: row.completion_status || "Unknown",
+        records: Number(row.records || 0),
+      })),
+      relief: {
+        total: Number(reliefStats?.total || 0),
+        last30Days: Number(reliefStats?.last_30_days || 0),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -8319,7 +8641,7 @@ app.post(
 function yearPlanReportWhere(query, req, actor) {
   const where = [];
   const params = [];
-  if (!isEduTrackAdminUser(req)) {
+  if (!isEduTrackOversightUser(req)) {
     where.push("(p.teacher_user_id = ? OR p.teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
   }
@@ -8908,7 +9230,7 @@ app.get("/api/edutrack/relief-assignments", teacherOrAdmin, async (req, res) => 
   try {
     await ensureContentTables();
     const actor = await reliefActorInfo(req);
-    const canSeeAll = isEduTrackAdminUser(req);
+    const canSeeAll = isEduTrackOversightUser(req);
     const [rows] = canSeeAll
       ? await db.query(
           "SELECT * FROM edutrack_relief_assignments WHERE status <> 'deleted' ORDER BY created_at DESC",
@@ -9365,6 +9687,7 @@ app.delete("/api/edutrack/relief-assignments/:id", edutrackMasterOnly, async (re
 function eduTrackRole(role) {
   if ([ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync, ROLES.view].includes(role))
     return "admin";
+  if (role === ROLES.coordinator) return "coordinator";
   if (role === "teacher") return "teacher";
   return role || "teacher";
 }
@@ -10159,7 +10482,7 @@ async function platformUsersForEduTrack() {
         WHERE NULLIF(account_user_id, '') IS NOT NULL
         GROUP BY account_user_id
       ) linked ON linked.account_user_id = u.id
-      WHERE u.role IN ('eduzync_admin','master_edutrack_admin','superadmin','masteradmin')
+      WHERE u.role IN ('eduzync_admin','master_edutrack_admin','superadmin','masteradmin','academic_coordinator')
          OR (
            u.role = 'teacher'
            AND LOWER(COALESCE(u.status, '')) = 'active'

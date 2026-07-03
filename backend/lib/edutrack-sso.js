@@ -7,6 +7,7 @@ const EDUTRACK_SSO_ROLES = new Set([
   "superadmin",
   "master_edutrack_admin",
   "eduzync_admin",
+  "academic_coordinator",
   "viewadmin",
   "teacher",
 ]);

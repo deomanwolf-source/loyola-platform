@@ -4939,8 +4939,12 @@
           </div>
         </div>
         <div class="nav-section" id="admin-nav" style="display: none">
-          <div class="nav-label">Admin</div>
-          <div class="nav-item" onclick="showPage('teacher-assignments')">
+          <div class="nav-label" id="admin-nav-label">Admin</div>
+          <div class="nav-item" onclick="showPage('analytics')">
+            <span class="nav-icon"><i data-lucide="activity"></i></span
+            ><span class="nav-text"> Analytics</span>
+          </div>
+          <div class="nav-item admin-only-nav" onclick="showPage('teacher-assignments')">
             <span class="nav-icon"><i data-lucide="clipboard-list"></i></span
             ><span class="nav-text"> Teacher Assignments</span>
           </div>
@@ -4956,11 +4960,11 @@
             <span class="nav-icon"><i data-lucide="calendar-check"></i></span
             ><span class="nav-text"> Staff Attendance</span>
           </div>
-          <div class="nav-item" onclick="showPage('teachers')">
+          <div class="nav-item admin-only-nav" onclick="showPage('teachers')">
             <span class="nav-icon"><i data-lucide="building-2"></i></span
             ><span class="nav-text"> Teachers</span>
           </div>
-          <div class="nav-item" onclick="showPage('subjects')">
+          <div class="nav-item admin-only-nav" onclick="showPage('subjects')">
             <span class="nav-icon"><i data-lucide="library"></i></span
             ><span class="nav-text"> Subject Assignments</span>
           </div>
@@ -4972,7 +4976,7 @@
             <span class="nav-icon"><i data-lucide="rotate-ccw"></i></span
             ><span class="nav-text"> Yearly Reset</span>
           </div>
-          <div class="nav-item" onclick="showPage('accounts')">
+          <div class="nav-item admin-only-nav" onclick="showPage('accounts')">
             <span class="nav-icon"><i data-lucide="users"></i></span
             ><span class="nav-text"> User Accounts</span>
           </div>
@@ -5165,6 +5169,55 @@
           </div>
           <div id="year-plan-editor" class="page-stack">
             <div class="empty">Open an assigned subject to begin.</div>
+          </div>
+        </div>
+
+        <!-- ANALYTICS -->
+        <div class="page page-shell" id="page-analytics">
+          <div class="page-header page-header-row">
+            <div>
+              <h2>Analytics</h2>
+              <p>School-wide teaching coverage, approval pipeline, and activity trends.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center">
+              <input
+                id="analytics-year"
+                class="quick-input"
+                placeholder="Academic year (all)"
+                style="max-width: 170px"
+                onkeydown="if (event.key === 'Enter') loadAnalyticsOverview()"
+              />
+              <button class="btn secondary sm" onclick="loadAnalyticsOverview()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div id="analytics-kpis" class="stats-grid" style="margin-bottom: 18px"></div>
+          <div class="card" style="margin-bottom: 18px">
+            <div class="section-title" style="margin-bottom: 12px">Year Plan Approval Pipeline</div>
+            <div id="analytics-pipeline" class="page-stack"></div>
+          </div>
+          <div class="card" style="margin-bottom: 18px">
+            <div class="section-title" style="margin-bottom: 4px">Daily Progress Activity</div>
+            <div class="page-meta-line" style="margin-bottom: 12px">
+              Syllabus progress records submitted per day, last 30 days.
+            </div>
+            <div id="analytics-activity"></div>
+          </div>
+          <div class="card" style="margin-bottom: 18px">
+            <div class="section-title" style="margin-bottom: 12px">Completion by Grade</div>
+            <div id="analytics-grades" class="page-stack"></div>
+          </div>
+          <div class="card" style="margin-bottom: 18px">
+            <div class="section-title" style="margin-bottom: 12px">Teachers Needing Support</div>
+            <div class="page-meta-line" style="margin-bottom: 12px">
+              Teachers below 40% year-plan completion.
+            </div>
+            <div id="analytics-at-risk" class="page-stack"></div>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom: 12px">Top Progress</div>
+            <div id="analytics-top" class="page-stack"></div>
           </div>
         </div>
 
@@ -5613,10 +5666,15 @@
             <div class="page-header accounts-head">
               <div>
                 <h2>User Accounts</h2>
-                <p>Create login accounts for teachers and students</p>
+                <p>Create login accounts for teachers, coordinators, and students</p>
                 <div class="accounts-meta" id="accounts-count">0 accounts</div>
               </div>
-              <button class="btn sm" onclick="openAddTeacherModal()">Create Account</button>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap">
+                <button class="btn secondary sm" onclick="openModal('add-coordinator-modal')">
+                  Add Coordinator
+                </button>
+                <button class="btn sm" onclick="openAddTeacherModal()">Create Account</button>
+              </div>
             </div>
             <div class="accounts-table-card">
               <table class="accounts-table">
@@ -6091,6 +6149,36 @@
     </div>
 
     <!-- ADD TEACHER MODAL -->
+    <div class="modal-overlay" id="add-coordinator-modal">
+      <div class="modal" style="width: 480px">
+        <h3>Add Academic Coordinator</h3>
+        <p class="msub">
+          Coordinators can review year plans, monitor school-wide progress, and view analytics.
+        </p>
+        <div class="field">
+          <label>Full Name</label
+          ><input type="text" id="coord-name" placeholder="e.g. Rev. Fr. John Perera" />
+        </div>
+        <div class="field">
+          <label>Email Address</label
+          ><input type="email" id="coord-email" placeholder="coordinator@school.edu" />
+        </div>
+        <div class="field">
+          <label>Temporary Password</label
+          ><input type="password" id="coord-password" placeholder="Set a temporary password" />
+        </div>
+        <div id="coord-error" class="error-msg"></div>
+        <div class="actions">
+          <button class="btn secondary sm" onclick="closeModal('add-coordinator-modal')">
+            Cancel
+          </button>
+          <button class="btn sm" id="coord-submit-btn" onclick="saveCoordinatorAccount()">
+            Create Coordinator
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="add-teacher-modal">
       <div class="modal" style="width: 580px">
         <h3 id="teacher-modal-title">Add Teacher Account</h3>
@@ -6656,7 +6744,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v5.3.1";
+      const APP_VERSION = "v5.4.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -7213,25 +7301,37 @@
         launchApp();
       }
 
+      function isOversightRole() {
+        return !!(cud && (cud.role === "admin" || cud.role === "coordinator"));
+      }
       function launchApp() {
         document.getElementById("auth-screen").style.display = "none";
         document.getElementById("app").style.display = "block";
         const isAdmin = cud.role === "admin";
-        document.getElementById("admin-nav").style.display = isAdmin ? "" : "none";
+        const isCoordinator = cud.role === "coordinator";
+        const isOversight = isAdmin || isCoordinator;
+        document.getElementById("admin-nav").style.display = isOversight ? "" : "none";
+        const adminNavLabel = document.getElementById("admin-nav-label");
+        if (adminNavLabel) adminNavLabel.textContent = isCoordinator ? "Coordination" : "Admin";
+        document.querySelectorAll(".admin-only-nav").forEach((item) => {
+          item.style.display = isAdmin ? "" : "none";
+        });
         ["nav-daily-progress", "nav-year-plan", "nav-year-plan-reports"].forEach((id) => {
           const item = document.getElementById(id);
-          if (item) item.style.display = isAdmin ? "none" : "";
+          if (item) item.style.display = isOversight ? "none" : "";
         });
         const mobileNav = document.getElementById("mobile-bottom-nav");
-        if (mobileNav) mobileNav.style.display = isAdmin ? "none" : "";
+        if (mobileNav) mobileNav.style.display = isOversight ? "none" : "";
         document.getElementById("sidebar-name").textContent = cud.name;
         document.getElementById("sidebar-role").textContent = isAdmin
           ? "Admin"
-          : "Teacher | " + lvlLabel(cud.level);
+          : isCoordinator
+            ? "Academic Coordinator"
+            : "Teacher | " + lvlLabel(cud.level);
         const av = document.getElementById("sidebar-avatar");
         av.textContent = (cud.name[0] || "?").toUpperCase();
-        av.style.background = isAdmin ? "var(--accent)" : lvlColor(cud.level);
-        document.getElementById("dash-subtitle").textContent = isAdmin
+        av.style.background = isOversight ? "var(--accent)" : lvlColor(cud.level);
+        document.getElementById("dash-subtitle").textContent = isOversight
           ? "School-wide coverage overview"
           : "Hello, " + cud.name + "! Here's your progress.";
         loadData();
@@ -7535,7 +7635,7 @@
       // Dashboard
       function renderDashboard() {
         const today = new Date().toISOString().slice(0, 10);
-        const isAdmin = !!(cud && cud.role === "admin");
+        const isAdmin = isOversightRole();
         let active = null;
         [1, 2, 3].forEach((n) => {
           const t = allTerms ? allTerms[n] : null;
@@ -11359,6 +11459,39 @@
           })
           .join("");
       }
+      window.saveCoordinatorAccount = async function () {
+        const errBox = document.getElementById("coord-error");
+        if (errBox) errBox.textContent = "";
+        const name = document.getElementById("coord-name")?.value.trim() || "";
+        const email = document.getElementById("coord-email")?.value.trim() || "";
+        const password = document.getElementById("coord-password")?.value || "";
+        if (!name || !email || password.length < 6) {
+          if (errBox)
+            errBox.textContent = "Name, email, and a 6+ character password are required.";
+          return;
+        }
+        const btn = document.getElementById("coord-submit-btn");
+        if (btn) btn.disabled = true;
+        try {
+          await apiFetch("/api/edutrack/create-user", {
+            method: "POST",
+            body: JSON.stringify({ name, email, password, role: "coordinator" }),
+          });
+          showToast("Coordinator account created.", "success");
+          ["coord-name", "coord-email", "coord-password"].forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.value = "";
+          });
+          closeModal("add-coordinator-modal");
+          await loadData();
+        } catch (error) {
+          if (errBox) errBox.textContent = error.message;
+          showToast(error.message, "err");
+        } finally {
+          if (btn) btn.disabled = false;
+        }
+      };
+
       window.sendAccountReset = async function (id, email, name) {
         if (!(cud && cud.role === "admin")) {
           showToast("Admin access required.", "err");
@@ -12180,11 +12313,34 @@
           "yearly-reset",
           "subjects",
           "progress",
+          "analytics",
+        ];
+        const coordinatorPages = [
+          "dashboard",
+          "analytics",
+          "year-plans",
+          "year-plan-reports",
+          "staff-attendance",
+          "relief",
         ];
         const teacherOnlyPages = ["assigned-subjects", "year-plan", "my-subjects"];
-        if (cud && cud.role === "admin" && teacherOnlyPages.includes(name))
+        const openingPlanForReview = name === "year-plan" && !!currentYearPlan;
+        if (cud && cud.role === "admin" && teacherOnlyPages.includes(name) && !openingPlanForReview)
           name = "teacher-assignments";
-        if (cud && cud.role !== "admin" && adminPages.includes(name)) name = "dashboard";
+        if (
+          cud &&
+          cud.role === "coordinator" &&
+          !coordinatorPages.includes(name) &&
+          !openingPlanForReview
+        )
+          name = "dashboard";
+        if (
+          cud &&
+          cud.role !== "admin" &&
+          cud.role !== "coordinator" &&
+          adminPages.includes(name)
+        )
+          name = "dashboard";
         if (!document.getElementById("page-" + name)) name = "dashboard";
         document.querySelectorAll(".page").forEach((p) => p.classList.remove("active"));
         document.querySelectorAll(".nav-item").forEach((n) => n.classList.remove("active"));
@@ -12214,9 +12370,10 @@
         if (name === "assigned-subjects") loadYearPlanAssignments();
         if (name === "year-plan") renderYearPlanEditor();
         if (name === "teacher-assignments" && cud && cud.role === "admin") loadTeacherAssignments();
-        if (name === "year-plans" && cud && cud.role === "admin") loadYearPlans();
+        if (name === "year-plans" && isOversightRole()) loadYearPlans();
         if (name === "year-plan-reports") loadYearPlanReports();
-        if (name === "staff-attendance" && cud && cud.role === "admin") loadEduTrackStaffAttendance();
+        if (name === "staff-attendance" && isOversightRole()) loadEduTrackStaffAttendance();
+        if (name === "analytics" && isOversightRole()) loadAnalyticsOverview();
         if (name === "relief") loadReliefAssignments();
         if (name === "daily-progress") loadDailyProgress();
         closeSidebar();
@@ -14160,7 +14317,13 @@
 
       function yearPlanBadge(text, tone) {
         const color =
-          tone === "good" ? "var(--accent2)" : tone === "warn" ? "var(--warn)" : "var(--accent)";
+          tone === "good"
+            ? "var(--accent2)"
+            : tone === "warn"
+              ? "var(--warn)"
+              : tone === "muted"
+                ? "var(--muted)"
+                : "var(--accent)";
         return (
           '<span class="badge" style="border-color:' +
           color +
@@ -14292,8 +14455,41 @@
           const term = (currentYearPlan.terms || []).find((item) => Number(item.term_order) === n);
           if (input && term) input.value = term.unit_count || 0;
         });
+        const approvalKey = String(currentYearPlan.approval_status || "draft").toLowerCase();
+        const canSubmitPlan =
+          (approvalKey === "draft" || approvalKey === "changes_requested") &&
+          !!(cud && (cud.role === "teacher" || cud.role === "admin"));
+        const approvalCopy =
+          approvalKey === "approved"
+            ? "This year plan was approved" +
+              (currentYearPlan.reviewed_by_name
+                ? " by " + escapeHtml(currentYearPlan.reviewed_by_name)
+                : "") +
+              "."
+            : approvalKey === "submitted"
+              ? "Submitted for review — awaiting a coordinator or admin decision."
+              : approvalKey === "changes_requested"
+                ? "Changes requested" +
+                  (currentYearPlan.reviewed_by_name
+                    ? " by " + escapeHtml(currentYearPlan.reviewed_by_name)
+                    : "") +
+                  (currentYearPlan.review_comment
+                    ? ': "' + escapeHtml(currentYearPlan.review_comment) + '"'
+                    : ".")
+                : "Draft — submit this plan for review once your units and topics are ready.";
+        const approvalHtml =
+          '<div class="card" style="margin-bottom:18px"><div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+          approvalStatusBadge(currentYearPlan.approval_status) +
+          '<span style="font-size:13px;color:var(--text-2)">' +
+          approvalCopy +
+          "</span></div>" +
+          (canSubmitPlan
+            ? '<button class="btn sm" onclick="submitYearPlanForReview()">Submit for Review</button>'
+            : "") +
+          "</div></div>";
         const summary = currentYearPlan.summary || {};
         const summaryHtml =
+          approvalHtml +
           '<div class="stats-grid" style="margin-bottom:18px"><div class="stat-card"><div class="stat-label">Units</div><div class="stat-val">' +
           (summary.total_units || 0) +
           '</div></div><div class="stat-card"><div class="stat-label">Main Topics</div><div class="stat-val">' +
@@ -14380,6 +14576,21 @@
           "</small></span></label>"
         );
       }
+
+      window.submitYearPlanForReview = async function () {
+        if (!currentYearPlan) return;
+        try {
+          const data = await apiFetch(
+            "/api/edutrack/year-plans/" + Number(currentYearPlan.id) + "/submit",
+            { method: "POST", body: "{}" },
+          );
+          currentYearPlan = data.plan;
+          renderYearPlanEditor();
+          showToast("Year plan submitted for review.", "success");
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
 
       window.saveUnitTitle = async function (unitId) {
         const value = document.getElementById("yp-unit-title-" + unitId)?.value || "";
@@ -14526,6 +14737,14 @@
         }
       };
 
+      function approvalStatusBadge(status) {
+        const key = String(status || "draft").toLowerCase();
+        if (key === "approved") return yearPlanBadge("Approved", "good");
+        if (key === "submitted") return yearPlanBadge("Awaiting Review", "info");
+        if (key === "changes_requested") return yearPlanBadge("Changes Requested", "warn");
+        return yearPlanBadge("Draft", "muted");
+      }
+
       function renderYearPlans() {
         const box = document.getElementById("year-plans-list");
         if (!box) return;
@@ -14533,13 +14752,33 @@
           box.innerHTML = '<div class="empty">No year plans created yet.</div>';
           return;
         }
+        const canReview = isOversightRole();
         box.innerHTML = yearPlans
-          .map(
-            (plan) =>
-              '<div class="card"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap"><div><div class="section-title">' +
+          .map((plan) => {
+            const reviewInfo =
+              plan.reviewed_by_name && String(plan.approval_status || "") !== "submitted"
+                ? '<div class="page-meta-line" style="margin-top:4px">Reviewed by ' +
+                  escapeHtml(plan.reviewed_by_name) +
+                  (plan.review_comment
+                    ? ' — "' + escapeHtml(plan.review_comment) + '"'
+                    : "") +
+                  "</div>"
+                : "";
+            const reviewButtons =
+              canReview && String(plan.approval_status || "") !== "approved"
+                ? '<button class="btn secondary sm" onclick="reviewYearPlan(' +
+                  Number(plan.id) +
+                  ",'approve')\">Approve</button>" +
+                  '<button class="btn secondary sm" onclick="reviewYearPlan(' +
+                  Number(plan.id) +
+                  ",'request_changes')\">Request Changes</button>"
+                : "";
+            return (
+              '<div class="card"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap"><div><div class="section-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
               escapeHtml(plan.teacher_name || "-") +
               " - " +
               escapeHtml(plan.subject_name || "-") +
+              approvalStatusBadge(plan.approval_status) +
               '</div><div class="page-meta-line">' +
               escapeHtml(yearPlanClassLabel(plan) || "-") +
               " | " +
@@ -14550,13 +14789,243 @@
               Number(plan.completed_subtopics || 0) +
               "/" +
               Number(plan.total_subtopics || 0) +
-              '</div></div><div style="text-align:right"><div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;color:var(--accent-bright)">' +
+              "</div>" +
+              reviewInfo +
+              '</div><div style="text-align:right"><div style="font-size:28px;font-weight:800;font-family:\'DM Mono\',monospace;color:var(--accent-bright)">' +
               Math.round(Number(plan.progress_percentage || 0)) +
-              '%</div><button class="btn sm" onclick="openYearPlan(' +
+              '%</div><div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-top:6px"><button class="btn sm" onclick="openYearPlan(' +
               Number(plan.id) +
-              ')">Open</button></div></div></div>',
-          )
+              ')">Open</button>' +
+              reviewButtons +
+              "</div></div></div></div>"
+            );
+          })
           .join("");
+      }
+
+      window.reviewYearPlan = async function (planId, decision) {
+        let comment = "";
+        if (decision === "request_changes") {
+          comment = window.prompt("Describe the changes this teacher should make:", "") || "";
+          if (!comment.trim()) {
+            showToast("A comment is required when requesting changes.", "err");
+            return;
+          }
+        } else {
+          comment = window.prompt("Optional approval note:", "") || "";
+        }
+        try {
+          await apiFetch("/api/edutrack/year-plans/" + Number(planId) + "/review", {
+            method: "POST",
+            body: JSON.stringify({ decision, comment: comment.trim() }),
+          });
+          showToast(
+            decision === "approve" ? "Year plan approved." : "Changes requested from teacher.",
+            "success",
+          );
+          await loadYearPlans();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      let analyticsOverview = null;
+
+      window.loadAnalyticsOverview = async function () {
+        const kpiBox = document.getElementById("analytics-kpis");
+        if (kpiBox && !analyticsOverview)
+          kpiBox.innerHTML = '<div class="empty">Loading analytics...</div>';
+        try {
+          const year = document.getElementById("analytics-year")?.value.trim() || "";
+          analyticsOverview = await apiFetch(
+            "/api/edutrack/analytics/overview" +
+              (year ? "?academic_year=" + encodeURIComponent(year) : ""),
+          );
+          renderAnalyticsOverview();
+        } catch (error) {
+          if (kpiBox)
+            kpiBox.innerHTML =
+              '<div class="empty">Could not load analytics: ' + escapeHtml(error.message) + "</div>";
+        }
+      };
+
+      function analyticsBarRow(label, meta, pct, color) {
+        const safePct = Math.max(0, Math.min(100, Number(pct) || 0));
+        return (
+          '<div style="display:grid;grid-template-columns:minmax(140px,220px) 1fr 52px;gap:12px;align-items:center">' +
+          '<div style="min-width:0"><div style="font-weight:700;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' +
+          escapeHtml(label) +
+          '</div><div style="font-size:11px;color:var(--muted)">' +
+          escapeHtml(meta || "") +
+          "</div></div>" +
+          '<div style="height:8px;border-radius:4px;background:rgba(148,163,184,.18);overflow:hidden">' +
+          '<div style="height:100%;width:' +
+          safePct +
+          "%;border-radius:4px;background:" +
+          color +
+          '"></div></div>' +
+          '<div style="font-family:\'DM Mono\',monospace;font-weight:700;font-size:13px;text-align:right">' +
+          safePct +
+          "%</div></div>"
+        );
+      }
+
+      function renderAnalyticsActivity(days) {
+        const box = document.getElementById("analytics-activity");
+        if (!box) return;
+        if (!days || !days.length) {
+          box.innerHTML = '<div class="empty small">No daily progress activity in the last 30 days.</div>';
+          return;
+        }
+        const width = 640;
+        const height = 120;
+        const pad = 6;
+        const max = Math.max(1, ...days.map((d) => d.records));
+        const step = days.length > 1 ? (width - pad * 2) / (days.length - 1) : 0;
+        const pointAt = (i, v) =>
+          [pad + i * step, height - pad - (v / max) * (height - pad * 2)];
+        const points = days.map((d, i) => pointAt(i, d.records));
+        const line = points.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" ");
+        const area =
+          pad +
+          "," +
+          (height - pad) +
+          " " +
+          line +
+          " " +
+          points[points.length - 1][0].toFixed(1) +
+          "," +
+          (height - pad);
+        const dots = days
+          .map((d, i) => {
+            const [x, y] = points[i];
+            return (
+              '<circle cx="' +
+              x.toFixed(1) +
+              '" cy="' +
+              y.toFixed(1) +
+              '" r="7" fill="transparent"><title>' +
+              escapeHtml(d.date + ": " + d.records + " record" + (d.records === 1 ? "" : "s")) +
+              "</title></circle>" +
+              (d.records
+                ? '<circle cx="' +
+                  x.toFixed(1) +
+                  '" cy="' +
+                  y.toFixed(1) +
+                  '" r="2.5" fill="var(--accent-bright)" pointer-events="none"></circle>'
+                : "")
+            );
+          })
+          .join("");
+        const total = days.reduce((acc, d) => acc + d.records, 0);
+        box.innerHTML =
+          '<div style="overflow-x:auto"><svg viewBox="0 0 ' +
+          width +
+          " " +
+          height +
+          '" style="width:100%;min-width:420px;height:130px;display:block">' +
+          '<polygon points="' +
+          area +
+          '" fill="rgba(79,149,255,.12)"></polygon>' +
+          '<polyline points="' +
+          line +
+          '" fill="none" stroke="var(--accent-bright)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>' +
+          dots +
+          "</svg></div>" +
+          '<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px"><span>' +
+          escapeHtml(days[0].date) +
+          "</span><span>" +
+          total +
+          ' records total</span><span>' +
+          escapeHtml(days[days.length - 1].date) +
+          "</span></div>";
+      }
+
+      function renderAnalyticsOverview() {
+        if (!analyticsOverview) return;
+        const data = analyticsOverview;
+        const summary = data.summary || {};
+        const kpiBox = document.getElementById("analytics-kpis");
+        if (kpiBox) {
+          const kpi = (label, value, sub) =>
+            '<div class="stat-card"><div class="stat-card-head"><div class="stat-label">' +
+            escapeHtml(label) +
+            '</div></div><div class="stat-val">' +
+            escapeHtml(String(value)) +
+            '</div><div class="stat-sub">' +
+            escapeHtml(sub || "") +
+            "</div></div>";
+          kpiBox.innerHTML =
+            kpi("Overall Completion", (summary.completionPercentage || 0) + "%", (summary.completedSubtopics || 0) + "/" + (summary.totalSubtopics || 0) + " subtopics") +
+            kpi("Year Plans", summary.totalPlans || 0, "across " + (data.teachers || []).length + " teachers") +
+            kpi("Pending Reviews", summary.pendingReviews || 0, "awaiting approval") +
+            kpi("Needing Support", summary.atRiskTeachers || 0, "teachers under 40%") +
+            kpi("Active Teachers", summary.activeTeachers || 0, (summary.activeCoordinators || 0) + " coordinators") +
+            kpi("Relief (30d)", (data.relief && data.relief.last30Days) || 0, ((data.relief && data.relief.total) || 0) + " total");
+        }
+        const pipelineBox = document.getElementById("analytics-pipeline");
+        if (pipelineBox) {
+          const pipeline = data.approvalPipeline || {};
+          const totalPlans = Math.max(1, Number(summary.totalPlans || 0));
+          const rows = [
+            ["Approved", pipeline.approved || 0, "#10d9a0"],
+            ["Submitted for Review", pipeline.submitted || 0, "var(--accent-bright)"],
+            ["Changes Requested", pipeline.changes_requested || 0, "#f59e0b"],
+            ["Draft", pipeline.draft || 0, "rgba(148,163,184,.85)"],
+          ];
+          pipelineBox.innerHTML = rows
+            .map(([label, count, color]) =>
+              analyticsBarRow(label, count + " plan" + (count === 1 ? "" : "s"), Math.round((count / totalPlans) * 100), color),
+            )
+            .join("");
+        }
+        renderAnalyticsActivity(data.dailyActivity || []);
+        const gradesBox = document.getElementById("analytics-grades");
+        if (gradesBox) {
+          const grades = (data.grades || []).filter((g) => g.total_subtopics > 0);
+          gradesBox.innerHTML = grades.length
+            ? grades
+                .map((g) =>
+                  analyticsBarRow(
+                    "Grade " + g.grade,
+                    g.plans + " plans | " + g.completed_subtopics + "/" + g.total_subtopics,
+                    g.completion_percentage,
+                    "var(--accent-bright)",
+                  ),
+                )
+                .join("")
+            : '<div class="empty small">No year plan content yet.</div>';
+        }
+        const riskBox = document.getElementById("analytics-at-risk");
+        if (riskBox) {
+          riskBox.innerHTML = (data.atRisk || []).length
+            ? data.atRisk
+                .map((t) =>
+                  analyticsBarRow(
+                    t.teacher_name || t.teacher_id || "Unknown",
+                    t.plans + " plans | " + t.completed_subtopics + "/" + t.total_subtopics + " done",
+                    t.completion_percentage,
+                    "#f59e0b",
+                  ),
+                )
+                .join("")
+            : '<div class="empty small">No teachers are currently below the 40% threshold.</div>';
+        }
+        const topBox = document.getElementById("analytics-top");
+        if (topBox) {
+          topBox.innerHTML = (data.topPerformers || []).length
+            ? data.topPerformers
+                .map((t) =>
+                  analyticsBarRow(
+                    t.teacher_name || t.teacher_id || "Unknown",
+                    t.plans + " plans | " + t.completed_subtopics + "/" + t.total_subtopics + " done",
+                    t.completion_percentage,
+                    "#10d9a0",
+                  ),
+                )
+                .join("")
+            : '<div class="empty small">No completion data yet.</div>';
+        }
       }
 
       function yearPlanReportQuery() {

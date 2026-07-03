@@ -32,6 +32,7 @@ function registerStaffRoutes(app, context) {
     ROLES.staff,
     ROLES.masterEduTrack,
     ROLES.eduzync,
+    ROLES.coordinator,
     ROLES.view,
   );
   const staffSelfOrManager = authRole(
