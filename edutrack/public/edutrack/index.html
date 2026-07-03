@@ -6010,6 +6010,16 @@
                 <button class="btn sm" onclick="openAddTeacherModal()">Add Teacher</button>
               </div>
             </div>
+            <div style="margin-bottom: 14px">
+              <input
+                type="text"
+                id="accounts-search"
+                class="quick-input"
+                placeholder="Search accounts by name, email, NIC, role, or status..."
+                style="width: 100%; max-width: 460px"
+                oninput="filterUserAccounts()"
+              />
+            </div>
             <div class="accounts-table-card">
               <table class="accounts-table">
                 <thead>
@@ -7113,7 +7123,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.0.0";
+      const APP_VERSION = "v6.1.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -11798,15 +11808,47 @@
             "</td></tr>";
           return;
         }
-        const users = [...managedAccounts].sort(
+        renderManagedAccountRows();
+      }
+
+      window.filterUserAccounts = function () {
+        renderManagedAccountRows();
+      };
+
+      function renderManagedAccountRows() {
+        const tbody = document.getElementById("accounts-tbody");
+        const countEl = document.getElementById("accounts-count");
+        if (!tbody || !countEl) return;
+        const query = (document.getElementById("accounts-search")?.value || "")
+          .trim()
+          .toLowerCase();
+        const matches = query
+          ? managedAccounts.filter((user) =>
+              [
+                user.name,
+                user.email,
+                user.nic_number,
+                user.external_staff_id,
+                accountRoleLabel(user),
+                user.status,
+              ]
+                .filter(Boolean)
+                .some((value) => String(value).toLowerCase().includes(query)),
+            )
+          : managedAccounts;
+        const users = [...matches].sort(
           (a, b) =>
             accountSortWeight(a) - accountSortWeight(b) ||
             (a.name || "").localeCompare(b.name || ""),
         );
-        countEl.textContent = users.length + " account" + (users.length !== 1 ? "s" : "");
+        countEl.textContent = query
+          ? users.length + " of " + managedAccounts.length + " accounts"
+          : users.length + " account" + (users.length !== 1 ? "s" : "");
         if (!users.length) {
           tbody.innerHTML =
-            '<tr><td colspan="5" style="text-align:center;padding:30px;color:#a78bfa;">No user accounts yet</td></tr>';
+            '<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--muted);">' +
+            (query ? "No accounts match your search." : "No user accounts yet") +
+            "</td></tr>";
           return;
         }
         tbody.innerHTML = users

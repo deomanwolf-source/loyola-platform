@@ -10610,7 +10610,11 @@ async function deleteEduTrackTeacherAccount(userId, actorUserId) {
   }
 }
 
-async function platformUsersForEduTrack() {
+function canViewMasterAccounts(viewer) {
+  return [ROLES.master, ROLES.super].includes(viewer?.role);
+}
+
+async function platformUsersForEduTrack(viewer = null) {
   await backfillEduTrackTeacherAccountLinks();
   await ensureLegacyEduTrackTeacherCleanup();
   const [users] = await db.query(
@@ -10642,10 +10646,19 @@ async function platformUsersForEduTrack() {
       ORDER BY u.name
     `,
   );
+  // Master and super admin rows are visible only to master/super admins
+  // (a viewer always sees their own row).
+  const visibleUsers = canViewMasterAccounts(viewer)
+    ? users
+    : users.filter(
+        (user) =>
+          ![ROLES.master, ROLES.super].includes(user.role) ||
+          String(user.id) === String(viewer?.id || ""),
+      );
   const docs = await listEduTrackDocs("users");
   const extraById = new Map(docs.map((item) => [item.id, item.data]));
   const identityHints = await loadEduTrackIdentityHints();
-  return users.map((user) => {
+  return visibleUsers.map((user) => {
     const extra = extraById.get(user.id) || {};
     const hint = findEduTrackIdentityHint(identityHints, user, extra);
     return fromPlatformUser(user, mergeEduTrackIdentity(user, extra, hint));
@@ -11029,10 +11042,16 @@ app.get("/api/edutrack/session", teacherOrAdmin, async (req, res) => {
 app.get("/api/edutrack/accounts", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureContentTables();
+    // Master and super admin accounts stay hidden from everyone except
+    // master/super admins themselves.
+    const canSeeMasterAccounts = [ROLES.master, ROLES.super].includes(req.user?.role);
+    const visibleRoles = canSeeMasterAccounts
+      ? "'teacher','academic_coordinator','eduzync_admin','master_edutrack_admin','masteradmin','superadmin'"
+      : "'teacher','academic_coordinator','eduzync_admin','master_edutrack_admin'";
     const [users] = await db.query(`
       SELECT id, external_staff_id, nic_number, name, email, role, status, created_at
       FROM users
-      WHERE role IN ('teacher','academic_coordinator','eduzync_admin','master_edutrack_admin','masteradmin','superadmin')
+      WHERE role IN (${visibleRoles})
       ORDER BY FIELD(role,'masteradmin','superadmin','master_edutrack_admin','eduzync_admin','academic_coordinator','teacher'), name
     `);
     res.json(
@@ -11419,7 +11438,8 @@ app.get("/api/edutrack/compat/:collection", teacherOrAdmin, async (req, res) => 
   try {
     await ensureContentTables();
     const collectionName = safePathSegment(req.params.collection).replace(/\//g, "-");
-    if (collectionName === "users") return res.json({ items: await platformUsersForEduTrack() });
+    if (collectionName === "users")
+      return res.json({ items: await platformUsersForEduTrack(req.user) });
     const docs = await listEduTrackDocs(collectionName);
     res.json({ items: docs });
   } catch (error) {
@@ -11438,6 +11458,14 @@ app.get("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, res)
         [docId],
       );
       if (!users.length) return res.json({ exists: false, data: null });
+      const isSelf = String(req.user?.id || "") === docId;
+      if (
+        [ROLES.master, ROLES.super].includes(users[0].role) &&
+        !canViewMasterAccounts(req.user) &&
+        !isSelf
+      ) {
+        return res.json({ exists: false, data: null });
+      }
       const extra = (await readEduTrackDoc("users", docId)) || {};
       const identityHints = await loadEduTrackIdentityHints();
       const hint = findEduTrackIdentityHint(identityHints, users[0], extra);
