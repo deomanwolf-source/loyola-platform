@@ -7171,7 +7171,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.4.0";
+      const APP_VERSION = "v6.4.1";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -12185,7 +12185,7 @@
         }
         if (
           !window.confirm(
-            "Reset EVERY teacher, coordinator, and EduTrack admin password to the default TempPass123?\n\nMaster and super admin passwords are not changed. Everyone else must set a new password at their next sign-in.",
+            "Reset EVERY teacher, coordinator, and EduTrack admin password to the default TempPass123?\n\nThe same password is also synced to the main website portal accounts. Master and super admin passwords are not changed. Everyone else must set a new password at their next sign-in.",
           )
         )
           return;
@@ -12199,7 +12199,7 @@
             (data.affected || 0) +
               " account password(s) reset to " +
               (data.defaultPassword || "TempPass123") +
-              ".",
+              ". Portal accounts are syncing in the background.",
             "success",
           );
           renderUserAccounts();

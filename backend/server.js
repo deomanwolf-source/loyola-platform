@@ -11188,14 +11188,23 @@ app.post(
   async (req, res) => {
     try {
       await ensureContentTables();
+      const requesterId = String(req.user?.id || "");
       const passwordHash = await bcrypt.hash(DEFAULT_TEMP_PASSWORD, 12);
+      const [affectedUsers] = await db.query(
+        `
+          SELECT id, external_staff_id, name, email, role, status
+          FROM users
+          WHERE role NOT IN ('masteradmin', 'superadmin') AND id <> ?
+        `,
+        [requesterId],
+      );
       const [result] = await db.query(
         `
           UPDATE users
           SET password_hash = ?, must_change_password = 1
           WHERE role NOT IN ('masteradmin', 'superadmin') AND id <> ?
         `,
-        [passwordHash, String(req.user?.id || "")],
+        [passwordHash, requesterId],
       );
       await recordAccountAudit(
         req,
@@ -11207,6 +11216,27 @@ app.post(
         success: true,
         affected: result.affectedRows,
         defaultPassword: DEFAULT_TEMP_PASSWORD,
+        portalSync: "started",
+      });
+      // Mirror the temporary password into the main website portal accounts
+      // in the background so the same TempPass123 works on both logins.
+      setImmediate(async () => {
+        let synced = 0;
+        let failed = 0;
+        for (const user of affectedUsers) {
+          const sync = await syncEduTrackUserAccountToPortal(
+            { ...user, passwordHash },
+            { password: DEFAULT_TEMP_PASSWORD, passwordHash },
+          );
+          if (sync && sync.ok === false) failed += 1;
+          else synced += 1;
+        }
+        await recordAccountAudit(
+          req,
+          "passwords_reset_all_portal_sync",
+          {},
+          { synced, failed },
+        );
       });
     } catch (error) {
       res.status(500).json({ error: error.message });
