@@ -7123,7 +7123,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.1.2";
+      const APP_VERSION = "v6.1.3";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -15149,10 +15149,53 @@
           '%</span></div><div style="display:grid;gap:8px;margin-top:10px">' +
           (subtopics.length
             ? subtopics.map(renderYearPlanSubtopic).join("")
-            : '<div class="empty small">No subtopics yet.</div>') +
+            : '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 10px;border:1px dashed rgba(148,163,184,.35);border-radius:10px"><span style="font-size:13px;color:var(--muted)">No subtopics yet — add subtopics below to tick them one by one, or mark the whole topic done.</span><button class="btn secondary sm" onclick="markTopicComplete(' +
+              Number(topic.id) +
+              ')">Mark Topic Complete</button></div>') +
           "</div></div>"
         );
       }
+
+      window.markTopicComplete = async function (topicId) {
+        if (!currentYearPlan) return;
+        let title = "Completed";
+        (currentYearPlan.terms || []).forEach((term) =>
+          (term.units || []).forEach((unit) =>
+            (unit.topics || []).forEach((topic) => {
+              if (Number(topic.id) === Number(topicId)) title = topic.main_topic || "Completed";
+            }),
+          ),
+        );
+        try {
+          const created = await apiFetch(
+            "/api/edutrack/year-plan-topics/" + Number(topicId) + "/subtopics",
+            { method: "POST", body: JSON.stringify({ subtopics: title }) },
+          );
+          currentYearPlan = created.plan;
+          let subtopicId = null;
+          (currentYearPlan.terms || []).forEach((term) =>
+            (term.units || []).forEach((unit) =>
+              (unit.topics || []).forEach((topic) => {
+                if (Number(topic.id) === Number(topicId)) {
+                  const subs = topic.subtopics || [];
+                  if (subs.length) subtopicId = subs[subs.length - 1].id;
+                }
+              }),
+            ),
+          );
+          if (subtopicId) {
+            const data = await apiFetch(
+              "/api/edutrack/year-plan-subtopics/" + Number(subtopicId) + "/toggle-complete",
+              { method: "POST", body: JSON.stringify({ is_completed: true }) },
+            );
+            currentYearPlan = data.plan;
+          }
+          renderYearPlanEditor();
+          showToast("Topic marked complete.", "success");
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
 
       function renderYearPlanSubtopic(subtopic) {
         const checked = Number(subtopic.is_completed || 0) === 1;
