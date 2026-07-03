@@ -7707,9 +7707,86 @@ async function listYearPlanAssignments(req, actor, mineOnly = false) {
   }));
 }
 
+// Subject Assignments (compat "subjects" docs) and Teacher Assignments
+// (edutrack_teacher_subject_assignments) are separate stores. Mirror every
+// subject-with-teacher into a teacher assignment row so the teacher's
+// "My Assigned Subjects" page and the year-plan flow pick it up.
+async function syncSubjectDocToTeacherAssignments(docData) {
+  try {
+    const subjectName = compactText(docData?.name, 150);
+    const teacherUserId = compactText(docData?.teacherId, 64);
+    const grade = compactText(docData?.grade, 50);
+    if (!subjectName || !teacherUserId || !grade) return;
+    const [users] = await db.query(
+      "SELECT id, external_staff_id, name FROM users WHERE id = ? LIMIT 1",
+      [teacherUserId],
+    );
+    const teacher = users[0];
+    if (!teacher) return;
+    const academicYear = currentAcademicYear();
+    const classIds = Array.isArray(docData.classIds)
+      ? docData.classIds
+      : docData.classId
+        ? String(docData.classId).split(",")
+        : [];
+    const classLabel = compactText(
+      classIds
+        .map((id) => String(id).trim())
+        .filter(Boolean)
+        .join(", "),
+      100,
+    );
+    const [existing] = await db.query(
+      `
+        SELECT id FROM edutrack_teacher_subject_assignments
+        WHERE teacher_user_id = ? AND subject_name = ? AND grade = ? AND academic_year = ?
+        LIMIT 1
+      `,
+      [teacher.id, subjectName, grade, academicYear],
+    );
+    if (existing.length) return;
+    await db.query(
+      `
+        INSERT INTO edutrack_teacher_subject_assignments
+          (teacher_user_id, teacher_id, teacher_name, subject_name, grade, section,
+           class_name, academic_year, assigned_by_name, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Subject Assignments sync', 'Active')
+      `,
+      [
+        teacher.id,
+        teacher.external_staff_id || teacher.id,
+        teacher.name,
+        subjectName,
+        grade,
+        compactText(classLabel, 50) || null,
+        classLabel || null,
+        academicYear,
+      ],
+    );
+  } catch (error) {
+    console.error("Subject-to-teacher-assignment sync failed:", error.message);
+  }
+}
+
+let subjectAssignmentBackfillDone = false;
+async function backfillSubjectDocTeacherAssignments() {
+  if (subjectAssignmentBackfillDone) return;
+  subjectAssignmentBackfillDone = true;
+  try {
+    const docs = await listEduTrackDocs("subjects");
+    for (const item of docs) {
+      await syncSubjectDocToTeacherAssignments(item.data || item || {});
+    }
+  } catch (error) {
+    subjectAssignmentBackfillDone = false;
+    console.error("Subject assignment backfill failed:", error.message);
+  }
+}
+
 app.get("/api/edutrack/my-assignments", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
+    await backfillSubjectDocTeacherAssignments();
     const actor = await eduTrackActor(req);
     res.json(await listYearPlanAssignments(req, actor, true));
   } catch (error) {
@@ -7720,6 +7797,7 @@ app.get("/api/edutrack/my-assignments", teacherOrAdmin, async (req, res) => {
 app.get("/api/edutrack/teacher-assignments", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
+    await backfillSubjectDocTeacherAssignments();
     const actor = await eduTrackActor(req);
     res.json(await listYearPlanAssignments(req, actor, false));
   } catch (error) {
@@ -11486,7 +11564,9 @@ app.post("/api/edutrack/compat/:collection", teacherOrAdmin, async (req, res) =>
     await ensureContentTables();
     const collectionName = safePathSegment(req.params.collection).replace(/\//g, "-");
     const id = `${collectionName}-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
-    await writeEduTrackDoc(collectionName, id, { ...(req.body || {}), id });
+    const payload = { ...(req.body || {}), id };
+    await writeEduTrackDoc(collectionName, id, payload);
+    if (collectionName === "subjects") await syncSubjectDocToTeacherAssignments(payload);
     res.status(201).json({ success: true, id });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -11500,6 +11580,7 @@ app.put("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, res)
     const docId = String(req.params.id);
     const payload = { ...(req.body || {}), id: docId };
     await writeEduTrackDoc(collectionName, docId, payload);
+    if (collectionName === "subjects") await syncSubjectDocToTeacherAssignments(payload);
     let portalSync = null;
     if (collectionName === "users" && EDUZYNC_ADMIN_ROLES.includes(req.user?.role)) {
       await linkExistingEduTrackTeacherDocument(docId, payload);
@@ -11521,6 +11602,7 @@ app.patch("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, re
     const current = (await readEduTrackDoc(collectionName, docId)) || {};
     const payload = { ...current, ...(req.body || {}), id: docId };
     await writeEduTrackDoc(collectionName, docId, payload);
+    if (collectionName === "subjects") await syncSubjectDocToTeacherAssignments(payload);
     let portalSync = null;
     if (collectionName === "users" && EDUZYNC_ADMIN_ROLES.includes(req.user?.role)) {
       await linkExistingEduTrackTeacherDocument(docId, payload);
