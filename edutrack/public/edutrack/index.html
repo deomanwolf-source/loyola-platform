@@ -7123,7 +7123,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.2.1";
+      const APP_VERSION = "v6.3.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -7697,10 +7697,14 @@
         document.querySelectorAll(".admin-only-nav").forEach((item) => {
           item.style.display = isAdmin ? "" : "none";
         });
-        ["nav-daily-progress", "nav-year-plan", "nav-year-plan-reports"].forEach((id) => {
+        // Coordinators keep the teacher workflow (assigned subjects + year
+        // plan editor) because many coordinators also teach; admins do not.
+        ["nav-daily-progress", "nav-year-plan"].forEach((id) => {
           const item = document.getElementById(id);
-          if (item) item.style.display = isOversight ? "none" : "";
+          if (item) item.style.display = isAdmin ? "none" : "";
         });
+        const myReportNav = document.getElementById("nav-year-plan-reports");
+        if (myReportNav) myReportNav.style.display = isOversight ? "none" : "";
         const mobileNav = document.getElementById("mobile-bottom-nav");
         if (mobileNav) mobileNav.style.display = isOversight ? "none" : "";
         document.getElementById("sidebar-name").textContent = cud.name;
@@ -7732,9 +7736,11 @@
           ]);
           allSubjects = ss.docs.map((d) => normalizeSubject({ id: d.id, ...d.data() }));
           allUsers = us.docs.map((d) => ({ id: d.id, ...d.data() }));
+          // Coordinators can also teach subjects, so they join the teacher
+          // lists, pickers, and dashboard alongside regular teachers.
           allTeachers = allUsers
             .map((user) => normalizeTeacher(user))
-            .filter((u) => u.role === "teacher");
+            .filter((u) => u.role === "teacher" || u.role === "coordinator");
           allWarnings = ws ? ws.docs.map((d) => ({ id: d.id, ...d.data() })) : [];
           if (ts.exists()) {
             allTerms = { ...allTerms, ...ts.data() };
@@ -12994,6 +13000,8 @@
           "year-plan-reports",
           "staff-attendance",
           "relief",
+          "assigned-subjects",
+          "year-plan",
         ];
         const teacherOnlyPages = ["assigned-subjects", "year-plan", "my-subjects"];
         const openingPlanForReview = name === "year-plan" && !!currentYearPlan;
@@ -15128,9 +15136,16 @@
           if (input && term) input.value = term.unit_count || 0;
         });
         const approvalKey = String(currentYearPlan.approval_status || "draft").toLowerCase();
+        const ownsCurrentPlan =
+          !!cud && String(currentYearPlan.teacher_user_id || "") === String(cud.id);
         const canSubmitPlan =
           (approvalKey === "draft" || approvalKey === "changes_requested") &&
-          !!(cud && (cud.role === "teacher" || cud.role === "admin"));
+          !!(
+            cud &&
+            (cud.role === "teacher" ||
+              cud.role === "admin" ||
+              (cud.role === "coordinator" && ownsCurrentPlan))
+          );
         const approvalCopy =
           approvalKey === "approved"
             ? "This year plan was approved" +

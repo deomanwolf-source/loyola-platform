@@ -8287,12 +8287,21 @@ app.post("/api/edutrack/year-plans/:id/review", edutrackOversightOnly, async (re
       await conn.rollback();
       return res.status(404).json({ error: "Year plan not found" });
     }
+    if (
+      isEduTrackCoordinatorUser(req) &&
+      String(existing.teacher_user_id || "") === String(actor.id)
+    ) {
+      await conn.rollback();
+      return res
+        .status(403)
+        .json({ error: "Your own year plan must be reviewed by another admin." });
+    }
     await conn.query(
       `
         UPDATE edutrack_year_plans
         SET approval_status = ?, reviewed_at = NOW(), reviewed_by_user_id = ?,
             reviewed_by_name = ?, review_comment = ?, updated_at = NOW()
-        WHERE id = ?
+      WHERE id = ?
       `,
       [nextStatus, actor.id, shortText(actor.name, 190), comment || null, existing.id],
     );
