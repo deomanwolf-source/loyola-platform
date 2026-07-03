@@ -512,6 +512,7 @@ function publicUserPayload(user) {
     id: user.id,
     name: user.name,
     email: user.email,
+    nicNumber: user.nic_number || "",
     role: user.role,
     status: user.status,
     twoFactorEnabled: twoFactorEnabledForUser(user),
@@ -758,6 +759,10 @@ async function ensureAccessTables() {
   await ensureTableColumns("users", [
     { name: "external_staff_id", definition: "external_staff_id VARCHAR(80) NULL AFTER id" },
     {
+      name: "nic_number",
+      definition: "nic_number VARCHAR(20) NULL AFTER external_staff_id",
+    },
+    {
       name: "recovery_email",
       definition: "recovery_email VARCHAR(190) NULL AFTER email",
     },
@@ -790,6 +795,10 @@ async function ensureAccessTables() {
     {
       name: "idx_users_external_staff_id",
       sql: "CREATE INDEX idx_users_external_staff_id ON users (external_staff_id)",
+    },
+    {
+      name: "idx_users_nic_number",
+      sql: "CREATE INDEX idx_users_nic_number ON users (nic_number)",
     },
   ]);
   await db.query(`
@@ -2574,6 +2583,15 @@ async function sendTeacherPasswordResetEmail(user, recoveryEmail, token) {
 
 function normalizeAccountStatus(value) {
   return String(value || "Active").toLowerCase() === "active" ? "Active" : "Disabled";
+}
+
+// Sri Lankan NIC: old format 9 digits + V/X, new format 12 digits.
+function normalizeNicNumber(value) {
+  const nic = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  return /^(\d{9}[VX]|\d{12})$/.test(nic) ? nic : "";
 }
 
 function normalizePortalRole(value) {
@@ -4998,7 +5016,7 @@ app.use(async (req, res, next) => {
 async function readManagedPortalUsers() {
   await ensureAccessTables();
   const [rows] = await db.query(
-    "SELECT id, external_staff_id, name, email, role, status, two_factor_enabled, created_at FROM users ORDER BY created_at DESC",
+    "SELECT id, external_staff_id, nic_number, name, email, role, status, two_factor_enabled, created_at FROM users ORDER BY created_at DESC",
   );
 
   const users = rows.map((user) => ({
@@ -5129,11 +5147,16 @@ app.post("/api/users", masterAdminOnly, async (req, res) => {
       status = "Active",
       external_staff_id,
       externalStaffId,
+      nic,
+      nicNumber,
+      nic_number,
     } = req.body || {};
     const accountEmail = normalizeEmail(email);
     const accountName = compactText(name || accountEmail.split("@")[0], 150);
     const accountPassword = String(password || "");
     const staffId = compactText(external_staff_id || externalStaffId, 80);
+    const rawNic = String(nic || nicNumber || nic_number || "").trim();
+    const accountNic = normalizeNicNumber(rawNic);
 
     if (!accountName || !accountEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(accountEmail)) {
       return res.status(400).json({ error: "Name and a valid email are required" });
@@ -5141,12 +5164,26 @@ app.post("/api/users", masterAdminOnly, async (req, res) => {
     if (accountPassword.length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters" });
     }
+    if (rawNic && !accountNic) {
+      return res.status(400).json({
+        error: "NIC number must be 12 digits or 9 digits followed by V or X.",
+      });
+    }
 
     const [existing] = await db.query("SELECT id FROM users WHERE email = ? LIMIT 1", [
       accountEmail,
     ]);
     if (existing.length) {
       return res.status(409).json({ error: "A user with this email already exists" });
+    }
+    if (accountNic) {
+      const [nicMatches] = await db.query(
+        "SELECT id FROM users WHERE nic_number = ? LIMIT 1",
+        [accountNic],
+      );
+      if (nicMatches.length) {
+        return res.status(409).json({ error: "A user with this NIC number already exists" });
+      }
     }
 
     const accountId = compactText(id, 50) || syncAccountId("USR");
@@ -5159,12 +5196,16 @@ app.post("/api/users", masterAdminOnly, async (req, res) => {
       role,
       status,
     });
+    if (accountNic) {
+      await db.query("UPDATE users SET nic_number = ? WHERE id = ?", [accountNic, accountId]);
+    }
     if (normalizePortalRole(role) === ROLES.teacher || staffId) {
       await linkPortalUserToStaffRecords(db, accountId, staffId, accountEmail);
     }
     const savedUser = {
       id: accountId,
       external_staff_id: staffId,
+      nic_number: accountNic || null,
       name: accountName,
       email: accountEmail,
       role: normalizePortalRole(role),
@@ -5207,12 +5248,25 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
       typeof req.body?.password === "string" && req.body.password.length > 0
         ? req.body.password
         : "";
+    const nicProvided =
+      req.body?.nic !== undefined ||
+      req.body?.nicNumber !== undefined ||
+      req.body?.nic_number !== undefined;
+    const rawNextNic = nicProvided
+      ? String(req.body.nic ?? req.body.nicNumber ?? req.body.nic_number ?? "").trim()
+      : String(existing.nic_number || "");
+    const nextNic = rawNextNic ? normalizeNicNumber(rawNextNic) : "";
 
     if (!nextName || !nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
       return res.status(400).json({ error: "Name and a valid email are required" });
     }
     if (nextPassword && nextPassword.length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters" });
+    }
+    if (rawNextNic && !nextNic) {
+      return res.status(400).json({
+        error: "NIC number must be 12 digits or 9 digits followed by V or X.",
+      });
     }
 
     const [emailMatches] = await db.query(
@@ -5222,22 +5276,41 @@ app.put("/api/users/:id", masterAdminOnly, async (req, res) => {
     if (emailMatches.length) {
       return res.status(409).json({ error: "A user with this email already exists" });
     }
+    if (nextNic) {
+      const [nicMatches] = await db.query(
+        "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+        [nextNic, userId],
+      );
+      if (nicMatches.length) {
+        return res.status(409).json({ error: "A user with this NIC number already exists" });
+      }
+    }
 
     if (nextPassword) {
       const passwordHash = await bcrypt.hash(nextPassword, 12);
       await db.query(
-        "UPDATE users SET external_staff_id = NULLIF(?, ''), name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?",
-        [nextExternalStaffId, nextName, nextEmail, nextRole, nextStatus, passwordHash, userId],
+        "UPDATE users SET external_staff_id = NULLIF(?, ''), nic_number = NULLIF(?, ''), name = ?, email = ?, role = ?, status = ?, password_hash = ? WHERE id = ?",
+        [
+          nextExternalStaffId,
+          nextNic,
+          nextName,
+          nextEmail,
+          nextRole,
+          nextStatus,
+          passwordHash,
+          userId,
+        ],
       );
     } else {
       await db.query(
-        "UPDATE users SET external_staff_id = NULLIF(?, ''), name = ?, email = ?, role = ?, status = ? WHERE id = ?",
-        [nextExternalStaffId, nextName, nextEmail, nextRole, nextStatus, userId],
+        "UPDATE users SET external_staff_id = NULLIF(?, ''), nic_number = NULLIF(?, ''), name = ?, email = ?, role = ?, status = ? WHERE id = ?",
+        [nextExternalStaffId, nextNic, nextName, nextEmail, nextRole, nextStatus, userId],
       );
     }
     const savedUser = {
       id: userId,
       external_staff_id: nextExternalStaffId,
+      nic_number: nextNic || null,
       name: nextName,
       email: nextEmail,
       role: nextRole,
@@ -11192,12 +11265,22 @@ app.post(
   async (req, res) => {
     try {
       await ensureAccessTables();
-      const { email, password } = req.body || {};
-      const accountEmail = normalizeEmail(email);
+      const { email, nic, identifier, password } = req.body || {};
+      const rawIdentifier = String(nic || identifier || email || "").trim();
+      const nicNumber = normalizeNicNumber(rawIdentifier);
+      const accountEmail = nicNumber ? "" : normalizeEmail(rawIdentifier);
       const accountPassword = String(password || "");
 
-      const [users] = await db.query("SELECT * FROM users WHERE email = ?", [accountEmail]);
-      let user = users[0] || null;
+      let user = null;
+      if (nicNumber) {
+        const [users] = await db.query("SELECT * FROM users WHERE nic_number = ? LIMIT 1", [
+          nicNumber,
+        ]);
+        user = users[0] || null;
+      } else if (accountEmail) {
+        const [users] = await db.query("SELECT * FROM users WHERE email = ?", [accountEmail]);
+        user = users[0] || null;
+      }
 
       if (user && String(user.status || "").toLowerCase() !== "active") {
         return res.status(403).json({ error: "This account is not active." });
@@ -11207,7 +11290,7 @@ app.post(
         ? await bcrypt.compare(accountPassword, user.password_hash || "")
         : false;
 
-      if (!validPassword) {
+      if (!validPassword && accountEmail) {
         const eduTrackUser = await portalLoginUserFromEduTrack(accountEmail, accountPassword, user);
         if (eduTrackUser) {
           user = eduTrackUser;
@@ -11216,7 +11299,19 @@ app.post(
       }
 
       if (!user || !validPassword) {
-        return res.status(401).json({ error: "Invalid email or password" });
+        return res.status(401).json({ error: "Invalid NIC number or password" });
+      }
+
+      // When NIC-only sign-in is enforced, email login stays available for
+      // master and super admins so administrators are never locked out.
+      if (
+        !nicNumber &&
+        String(process.env.LOGIN_REQUIRE_NIC || "") === "1" &&
+        ![ROLES.master, ROLES.super].includes(user.role)
+      ) {
+        return res
+          .status(400)
+          .json({ error: "Please sign in with your NIC number instead of your email." });
       }
 
       if (String(user.status || "").toLowerCase() !== "active") {

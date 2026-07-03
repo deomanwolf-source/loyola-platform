@@ -8103,7 +8103,7 @@ function LoginPage() {
   const pageTitle = twoFactorChallenge ? "Verify sign in" : "Welcome back";
   const pageSubtitle = twoFactorChallenge
     ? `Enter the authentication code for ${twoFactorChallenge.email}.`
-    : "Enter your assigned email and password to continue.";
+    : "Enter your NIC number and password to continue.";
 
   const roleChips = [
     { label: "Student", color: "bg-sky-100 text-sky-800" },
@@ -8320,20 +8320,24 @@ function LoginPage() {
               <div className="mt-7">
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                    Email address
+                    NIC number
                   </span>
                   <div className="relative mt-2">
                     <Mail className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       id="login-email"
                       name="email"
-                      type="email"
+                      type="text"
                       required
                       autoComplete="username"
-                      placeholder="you@school.test"
+                      placeholder="200012345678 or 991234567V"
                       className="input-line pl-7"
                     />
                   </div>
+                  <span className="mt-2 block text-[11px] leading-4 text-slate-400">
+                    Use your National Identity Card number. Master and super admins may also sign
+                    in with email.
+                  </span>
                 </label>
               </div>
 

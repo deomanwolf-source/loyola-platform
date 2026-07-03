@@ -3973,6 +3973,7 @@ function MessagesPanel({ db }: { db: DB }) {
 type ManagedUser = {
   id: string;
   external_staff_id?: string | null;
+  nic_number?: string | null;
   name: string;
   email: string;
   role: Role;
@@ -3985,11 +3986,14 @@ type ManagedUser = {
 type UserFormState = {
   name: string;
   email: string;
+  nicNumber: string;
   password: string;
   role: Role;
   status: "Active" | "Disabled";
   externalStaffId: string;
 };
+
+const NIC_PATTERN = /^(\d{9}[VX]|\d{12})$/;
 
 const userRoleOptions: Role[] = [
   "masteradmin",
@@ -4019,6 +4023,7 @@ function emptyUserForm(): UserFormState {
   return {
     name: "",
     email: "",
+    nicNumber: "",
     password: "",
     role: "website_admin",
     status: "Active",
@@ -4034,6 +4039,7 @@ function normalizeManagedUser(row: Partial<ManagedUser> & Record<string, unknown
       typeof row.external_staff_id === "string"
         ? row.external_staff_id
         : row.external_staff_id || null,
+    nic_number: typeof row.nic_number === "string" ? row.nic_number : row.nic_number || null,
     name: String(row.name || ""),
     email: String(row.email || ""),
     role,
@@ -4103,6 +4109,7 @@ function UsersPanel({ db }: { db: DB }) {
     setForm({
       name: user.name,
       email: user.email,
+      nicNumber: user.nic_number || "",
       password: "",
       role: user.role,
       status: user.status === "Disabled" ? "Disabled" : "Active",
@@ -4129,6 +4136,11 @@ function UsersPanel({ db }: { db: DB }) {
       setError("New password must be at least 8 characters.");
       return;
     }
+    const trimmedNic = form.nicNumber.trim().toUpperCase().replace(/\s+/g, "");
+    if (trimmedNic && !NIC_PATTERN.test(trimmedNic)) {
+      setError("NIC number must be 12 digits or 9 digits followed by V or X.");
+      return;
+    }
 
     setSaving(true);
     setError("");
@@ -4138,6 +4150,7 @@ function UsersPanel({ db }: { db: DB }) {
         email: trimmedEmail,
         role: form.role,
         status: form.status,
+        nic_number: trimmedNic,
       };
       if (form.externalStaffId) payload.external_staff_id = form.externalStaffId;
       if (form.password) payload.password = form.password;
@@ -4310,6 +4323,13 @@ function UsersPanel({ db }: { db: DB }) {
               }
             />
             <TextInput
+              placeholder="NIC number (used for login) e.g. 200012345678"
+              value={form.nicNumber}
+              onChange={(event) =>
+                setForm((current) => ({ ...current, nicNumber: event.target.value }))
+              }
+            />
+            <TextInput
               placeholder={editingId ? "New password optional" : "Temporary password"}
               type="password"
               value={form.password}
@@ -4417,6 +4437,9 @@ function UsersPanel({ db }: { db: DB }) {
                         Staff ID: {user.external_staff_id}
                       </p>
                     )}
+                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
+                      NIC: {user.nic_number || "not set"}
+                    </p>
                   </div>
                   <span className="text-sm font-bold text-slate-700">{formatRole(user.role)}</span>
                   <span
