@@ -7123,7 +7123,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.2.0";
+      const APP_VERSION = "v6.2.1";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -8163,7 +8163,7 @@
             const yp = teacherYearPlanStats(t);
             total += yp.total;
             done += yp.done;
-            const pct = total ? Math.round((done / total) * 100) : 0;
+            const pct = total ? Math.min(100, Math.round((done / total) * 100)) : 0;
             const accentColor = teacherAccentColor(t);
             const accentVar = teacherAccentColorVar(t);
             const levelBadge = teacherLevelBadgeClass(t);
@@ -8193,7 +8193,7 @@
                 );
               })
               .join("");
-            const ypPct = yp.total ? Math.round((yp.done / yp.total) * 100) : 0;
+            const ypPct = yp.total ? Math.min(100, Math.round((yp.done / yp.total) * 100)) : 0;
             const ypRow = yp.total
               ? '<div class="dash-subject-row"><div class="dash-subject-name" title="Year Plan Progress">Year Plan (' +
                 yp.done +

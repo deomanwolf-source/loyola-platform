@@ -8016,7 +8016,7 @@ app.get("/api/edutrack/year-plans", teacherOrAdmin, async (req, res) => {
           COUNT(DISTINCT u.id) AS total_units,
           COUNT(DISTINCT mt.id) AS total_topics,
           COUNT(DISTINCT st.id) AS total_subtopics,
-          SUM(CASE WHEN st.is_completed = 1 THEN 1 ELSE 0 END) AS completed_subtopics
+          COUNT(DISTINCT CASE WHEN st.is_completed = 1 THEN st.id END) AS completed_subtopics
         FROM edutrack_year_plans p
         LEFT JOIN edutrack_year_plan_terms t ON t.year_plan_id = p.id
         LEFT JOIN edutrack_year_plan_units u ON u.year_plan_id = p.id
@@ -8329,7 +8329,7 @@ app.get("/api/edutrack/analytics/overview", edutrackOversightOnly, async (req, r
         SELECT p.id, p.teacher_id, p.teacher_user_id, p.teacher_name, p.subject_name, p.grade,
           p.section, p.academic_year, p.approval_status, p.updated_at,
           COUNT(DISTINCT st.id) AS total_subtopics,
-          SUM(CASE WHEN st.is_completed = 1 THEN 1 ELSE 0 END) AS completed_subtopics
+          COUNT(DISTINCT CASE WHEN st.is_completed = 1 THEN st.id END) AS completed_subtopics
         FROM edutrack_year_plans p
         LEFT JOIN edutrack_year_plan_subtopics st ON st.year_plan_id = p.id
         ${planWhere}
