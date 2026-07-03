@@ -7214,7 +7214,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.6.0";
+      const APP_VERSION = "v6.6.1";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -10914,15 +10914,39 @@
       }
       window.downloadTeacherCsvTemplate = function () {
         const rows = [
-          ["name", "email", "password", "teacher_id", "grades", "class_ids", "subject", "position", "status"],
+          [
+            "name",
+            "email",
+            "nic",
+            "password",
+            "teacher_id",
+            "grades",
+            "class_ids",
+            "subject",
+            "position",
+            "status",
+          ],
           [
             "Mrs Example Teacher",
             "teacher@example.lk",
+            "200012345678",
             "TempPass123",
             "T001",
             "6,7",
             "GRADE-6-A,GRADE-7-B",
             "Science",
+            "Subject Teacher",
+            "Active",
+          ],
+          [
+            "Mr Old NIC Example",
+            "teacher2@example.lk",
+            "991234567V",
+            "TempPass123",
+            "T002",
+            "10,11",
+            "GRADE-10-A",
+            "Mathematics",
             "Subject Teacher",
             "Active",
           ],
@@ -11966,7 +11990,7 @@
           return;
         }
         const rows = [
-          ["Name", "Email", "Teacher ID", "Grades", "Class IDs", "Level", "Subjects"],
+          ["Name", "Email", "NIC", "Teacher ID", "Grades", "Class IDs", "Level", "Subjects"],
           ...teachers.map((teacher) => {
             const subjectCount = allSubjects.filter(
               (subject) => subject.teacherId === teacher.id,
@@ -11974,6 +11998,7 @@
             return [
               teacher.name || "",
               teacher.email || "",
+              teacher.nicNumber || teacher.nic_number || "",
               teacherDisplayId(teacher, ""),
               gradesLabel(teacher),
               classIdsLabel(teacher),

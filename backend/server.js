@@ -10934,12 +10934,14 @@ function eduTrackTeacherPayloadFromCsvRow(row, index) {
   const password = String(
     eduTrackCsvField(row, "password", "temporary_password", "temp_password", "new_password"),
   ).trim();
-  const nicNumber = normalizeNicNumber(
-    eduTrackCsvField(row, "nic", "nic_number", "nic no", "national_id", "national id card"),
-  );
+  const nicRaw = String(
+    eduTrackCsvField(row, "nic", "nic_number", "nic no", "national_id", "national id card") || "",
+  ).trim();
+  const nicNumber = normalizeNicNumber(nicRaw);
 
   return {
     rowNumber: index + 2,
+    nicRaw,
     nicNumber,
     userId: compactText(eduTrackCsvField(row, "user_id", "account_user_id"), 50),
     staffId: teacherId,
@@ -10972,6 +10974,9 @@ function validateEduTrackTeacherImportPayload(payload) {
   if (!payload.teacherId) errors.push("teacher_id is required");
   if (!payload.email) errors.push("email is required");
   else if (!isValidEmail(payload.email)) errors.push("email is invalid");
+  if (payload.nicRaw && !payload.nicNumber) {
+    errors.push("nic is invalid (use 12 digits or 9 digits followed by V/X)");
+  }
   return errors;
 }
 
