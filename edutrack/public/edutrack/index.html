@@ -5665,15 +5665,18 @@
           <div class="accounts-shell">
             <div class="page-header accounts-head">
               <div>
-                <h2>User Accounts</h2>
-                <p>Create login accounts for teachers, coordinators, and students</p>
+                <h2>Account Management</h2>
+                <p>Create and manage teacher, coordinator, and EduTrack admin accounts</p>
                 <div class="accounts-meta" id="accounts-count">0 accounts</div>
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap">
-                <button class="btn secondary sm" onclick="openModal('add-coordinator-modal')">
-                  Add Coordinator
+                <button class="btn secondary sm" onclick="toggleAccountAudit()">
+                  Account Activity
                 </button>
-                <button class="btn sm" onclick="openAddTeacherModal()">Create Account</button>
+                <button class="btn secondary sm" onclick="openAddStaffModal()">
+                  Add Staff Account
+                </button>
+                <button class="btn sm" onclick="openAddTeacherModal()">Add Teacher</button>
               </div>
             </div>
             <div class="accounts-table-card">
@@ -5683,12 +5686,21 @@
                     <th>Name</th>
                     <th>Email</th>
                     <th>Role</th>
-                    <th>Class</th>
+                    <th>Status</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
                 <tbody id="accounts-tbody"></tbody>
               </table>
+            </div>
+            <div class="card" id="account-audit-card" style="display: none; margin-top: 18px">
+              <div class="section-title" style="margin-bottom: 4px">Account Activity</div>
+              <div class="page-meta-line" style="margin-bottom: 12px">
+                Recent account creations, password resets, status changes, and deletions.
+              </div>
+              <div id="account-audit-list" class="page-stack">
+                <div class="empty small">Loading activity...</div>
+              </div>
             </div>
           </div>
         </div>
@@ -6149,31 +6161,40 @@
     </div>
 
     <!-- ADD TEACHER MODAL -->
-    <div class="modal-overlay" id="add-coordinator-modal">
+    <div class="modal-overlay" id="add-staff-modal">
       <div class="modal" style="width: 480px">
-        <h3>Add Academic Coordinator</h3>
+        <h3>Add Staff Account</h3>
         <p class="msub">
-          Coordinators can review year plans, monitor school-wide progress, and view analytics.
+          Coordinators review year plans and monitor progress. EduTrack admins manage the full
+          system.
         </p>
         <div class="field">
+          <label>Account Role</label>
+          <select id="staff-role">
+            <option value="coordinator">Academic Coordinator</option>
+            <option value="admin" id="staff-role-admin-option">EduTrack Admin</option>
+          </select>
+          <div class="hint" id="staff-role-hint">
+            Only master admins can create EduTrack admin accounts.
+          </div>
+        </div>
+        <div class="field">
           <label>Full Name</label
-          ><input type="text" id="coord-name" placeholder="e.g. Rev. Fr. John Perera" />
+          ><input type="text" id="staff-name" placeholder="e.g. Rev. Fr. John Perera" />
         </div>
         <div class="field">
           <label>Email Address</label
-          ><input type="email" id="coord-email" placeholder="coordinator@school.edu" />
+          ><input type="email" id="staff-email" placeholder="name@school.edu" />
         </div>
         <div class="field">
           <label>Temporary Password</label
-          ><input type="password" id="coord-password" placeholder="Set a temporary password" />
+          ><input type="password" id="staff-password" placeholder="Set a temporary password" />
         </div>
-        <div id="coord-error" class="error-msg"></div>
+        <div id="staff-error" class="error-msg"></div>
         <div class="actions">
-          <button class="btn secondary sm" onclick="closeModal('add-coordinator-modal')">
-            Cancel
-          </button>
-          <button class="btn sm" id="coord-submit-btn" onclick="saveCoordinatorAccount()">
-            Create Coordinator
+          <button class="btn secondary sm" onclick="closeModal('add-staff-modal')">Cancel</button>
+          <button class="btn sm" id="staff-submit-btn" onclick="saveStaffAccount()">
+            Create Account
           </button>
         </div>
       </div>
@@ -6744,7 +6765,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v5.4.0";
+      const APP_VERSION = "v5.5.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -11391,11 +11412,22 @@
         if (key === "student") return 4;
         return 5;
       }
-      function renderUserAccounts() {
+      let managedAccounts = [];
+
+      async function renderUserAccounts() {
         const tbody = document.getElementById("accounts-tbody");
         const countEl = document.getElementById("accounts-count");
         if (!tbody || !countEl) return;
-        const users = [...allUsers].sort(
+        try {
+          managedAccounts = await apiFetch("/api/edutrack/accounts");
+        } catch (error) {
+          tbody.innerHTML =
+            '<tr><td colspan="5" style="text-align:center;padding:30px;">Could not load accounts: ' +
+            escapeHtml(error.message) +
+            "</td></tr>";
+          return;
+        }
+        const users = [...managedAccounts].sort(
           (a, b) =>
             accountSortWeight(a) - accountSortWeight(b) ||
             (a.name || "").localeCompare(b.name || ""),
@@ -11412,13 +11444,20 @@
             const displayEmail = user.email || "-";
             const roleLabel = accountRoleLabel(user);
             const roleClass = accountRoleClass(user);
-            const classText = accountClassLabel(user);
+            const isActive = String(user.status || "Active").toLowerCase() === "active";
             const escapedName = String(displayName).replace(/'/g, "\\'");
             const escapedEmail = String(user.email || "").replace(/'/g, "\\'");
             const resetDisabled = user.email ? "" : " disabled";
-            const deletingSelf = cud && cud.id === user.id;
-            const deleteDisabled = deletingSelf ? " disabled" : "";
-            const deleteTitle = deletingSelf ? ' title="You cannot delete your own account."' : "";
+            const isSelf = cud && cud.id === user.id;
+            const isMasterAccount =
+              user.platformRole === "masteradmin" || user.platformRole === "superadmin";
+            const deleteDisabled = isSelf || isMasterAccount ? " disabled" : "";
+            const deleteTitle = isSelf
+              ? ' title="You cannot delete your own account."'
+              : isMasterAccount
+                ? ' title="Master accounts cannot be deleted from EduTrack."'
+                : "";
+            const statusDisabled = isSelf || isMasterAccount ? " disabled" : "";
             return (
               "<tr>" +
               '<td><div class="account-name">' +
@@ -11432,8 +11471,12 @@
               '">' +
               escapeHtml(roleLabel) +
               "</span></td>" +
-              '<td><span class="account-class">' +
-              escapeHtml(classText) +
+              '<td><span class="badge" style="border-color:' +
+              (isActive ? "var(--accent2)" : "var(--warn)") +
+              ";color:" +
+              (isActive ? "var(--accent2)" : "var(--warn)") +
+              '">' +
+              (isActive ? "Active" : "Disabled") +
               "</span></td>" +
               '<td><div class="accounts-actions">' +
               '<button class="account-action reset" onclick="sendAccountReset(\'' +
@@ -11445,6 +11488,17 @@
               "')\"" +
               resetDisabled +
               ">Reset Password</button>" +
+              '<button class="account-action" onclick="toggleAccountStatus(\'' +
+              escapeInlineJsString(user.id) +
+              "','" +
+              (isActive ? "Disabled" : "Active") +
+              "','" +
+              escapedName +
+              "')\"" +
+              statusDisabled +
+              ">" +
+              (isActive ? "Disable" : "Enable") +
+              "</button>" +
               '<button class="account-action delete" onclick="deleteAccount(\'' +
               user.id +
               "','" +
@@ -11459,31 +11513,117 @@
           })
           .join("");
       }
-      window.saveCoordinatorAccount = async function () {
-        const errBox = document.getElementById("coord-error");
+
+      window.toggleAccountStatus = async function (id, nextStatus, name) {
+        const verb = nextStatus === "Active" ? "enable" : "disable";
+        if (!window.confirm("Are you sure you want to " + verb + " " + name + "'s account?"))
+          return;
+        try {
+          await apiFetch("/api/edutrack/accounts/" + encodeURIComponent(id) + "/status", {
+            method: "PATCH",
+            body: JSON.stringify({ status: nextStatus }),
+          });
+          showToast(
+            name + "'s account " + (nextStatus === "Active" ? "enabled." : "disabled."),
+            "success",
+          );
+          renderUserAccounts();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      let accountAuditVisible = false;
+      window.toggleAccountAudit = function () {
+        const card = document.getElementById("account-audit-card");
+        if (!card) return;
+        accountAuditVisible = !accountAuditVisible;
+        card.style.display = accountAuditVisible ? "" : "none";
+        if (accountAuditVisible) loadAccountAudit();
+      };
+
+      async function loadAccountAudit() {
+        const box = document.getElementById("account-audit-list");
+        if (!box) return;
+        try {
+          const rows = await apiFetch("/api/edutrack/accounts/audit?limit=100");
+          if (!rows.length) {
+            box.innerHTML = '<div class="empty small">No account activity recorded yet.</div>';
+            return;
+          }
+          const actionLabels = {
+            account_created: "Account created",
+            account_create_skipped_existing: "Create skipped (already exists)",
+            password_reset: "Password reset",
+            account_enabled: "Account enabled",
+            account_disabled: "Account disabled",
+            account_deleted: "Account deleted",
+          };
+          box.innerHTML = rows
+            .map(
+              (row) =>
+                '<div class="relief-card-row"><div><div class="relief-card-row-title">' +
+                escapeHtml(actionLabels[row.action] || row.action) +
+                " — " +
+                escapeHtml(row.target_name || row.target_email || row.target_user_id || "-") +
+                '</div><div class="relief-card-row-meta">By ' +
+                escapeHtml(row.actor_name || row.actor_user_id || "system") +
+                " | " +
+                escapeHtml(String(row.created_at || "").replace("T", " ").slice(0, 19)) +
+                (row.target_role ? " | Role: " + escapeHtml(row.target_role) : "") +
+                "</div></div></div>",
+            )
+            .join("");
+        } catch (error) {
+          box.innerHTML =
+            '<div class="empty small">Could not load activity: ' +
+            escapeHtml(error.message) +
+            "</div>";
+        }
+      }
+      window.openAddStaffModal = function () {
+        const adminOption = document.getElementById("staff-role-admin-option");
+        const hint = document.getElementById("staff-role-hint");
+        const isMaster = !!(cud && cud.isMasterAdmin);
+        if (adminOption) {
+          adminOption.disabled = !isMaster;
+          adminOption.style.display = isMaster ? "" : "none";
+        }
+        if (hint) hint.style.display = isMaster ? "none" : "";
+        const roleSelect = document.getElementById("staff-role");
+        if (roleSelect && !isMaster) roleSelect.value = "coordinator";
+        openModal("add-staff-modal");
+      };
+
+      window.saveStaffAccount = async function () {
+        const errBox = document.getElementById("staff-error");
         if (errBox) errBox.textContent = "";
-        const name = document.getElementById("coord-name")?.value.trim() || "";
-        const email = document.getElementById("coord-email")?.value.trim() || "";
-        const password = document.getElementById("coord-password")?.value || "";
+        const role = document.getElementById("staff-role")?.value || "coordinator";
+        const name = document.getElementById("staff-name")?.value.trim() || "";
+        const email = document.getElementById("staff-email")?.value.trim() || "";
+        const password = document.getElementById("staff-password")?.value || "";
         if (!name || !email || password.length < 6) {
           if (errBox)
             errBox.textContent = "Name, email, and a 6+ character password are required.";
           return;
         }
-        const btn = document.getElementById("coord-submit-btn");
+        const btn = document.getElementById("staff-submit-btn");
         if (btn) btn.disabled = true;
         try {
           await apiFetch("/api/edutrack/create-user", {
             method: "POST",
-            body: JSON.stringify({ name, email, password, role: "coordinator" }),
+            body: JSON.stringify({ name, email, password, role }),
           });
-          showToast("Coordinator account created.", "success");
-          ["coord-name", "coord-email", "coord-password"].forEach((id) => {
+          showToast(
+            (role === "admin" ? "EduTrack admin" : "Coordinator") + " account created.",
+            "success",
+          );
+          ["staff-name", "staff-email", "staff-password"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.value = "";
           });
-          closeModal("add-coordinator-modal");
-          await loadData();
+          closeModal("add-staff-modal");
+          renderUserAccounts();
         } catch (error) {
           if (errBox) errBox.textContent = error.message;
           showToast(error.message, "err");

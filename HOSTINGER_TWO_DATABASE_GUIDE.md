@@ -119,6 +119,26 @@ PUBLIC_API_URL=https://edutrack.loyolacollege.lk
 LOYOLA_PORTAL_PUBLIC_URL=https://loyolacollege.lk
 ```
 
+### Optional: Separate Account-Management Database
+
+EduTrack's Account Management system (account registry + account activity audit log) can live in
+its own third database. Create another MySQL database in Hostinger (for example
+`u414000991_accounts`), then add these values to the EduTrack app environment:
+
+```env
+ACCOUNTS_DB_HOST=localhost
+ACCOUNTS_DB_PORT=3306
+ACCOUNTS_DB_USER=u414000991_accounts
+ACCOUNTS_DB_PASSWORD=your_accounts_database_password
+ACCOUNTS_DB_NAME=u414000991_accounts
+```
+
+The tables `edutrack_account_registry` and `edutrack_account_audit_logs` are created there
+automatically on first use. If these variables are not set, the same tables are created inside the
+EduTrack database instead — both setups are safe and no existing data is moved or deleted. Login
+accounts themselves stay in the EduTrack `users` table either way, because authentication reads
+from it.
+
 Configure the SMTP values on the website app. The sender in `SMTP_FROM` must be verified in Brevo.
 Because the SMTP key was visible in a screenshot, revoke it in Brevo and create a new key before
 deployment. Never commit the real key to Git.

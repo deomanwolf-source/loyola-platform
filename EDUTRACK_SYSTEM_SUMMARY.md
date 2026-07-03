@@ -619,6 +619,35 @@ New API endpoints:
 
 The **Analytics** page in the sidebar (admins and coordinators) renders these aggregates with KPI tiles, bars, and a 30-day activity chart.
 
+## Account Management System (v5.5.0)
+
+The **Account Management** page (formerly User Accounts) lets admins manage every EduTrack login
+from one place:
+
+- **Add Teacher** — full teacher onboarding (teacher ID, classes, grades) as before.
+- **Add Staff Account** — creates an **Academic Coordinator** or an **EduTrack Admin**
+  (`eduzync_admin`). The EduTrack Admin option is only available to master-tier admins
+  (`masteradmin`, `superadmin`, `master_edutrack_admin`).
+- **Reset Password** — per-account temporary password reset; resetting an admin account requires a
+  master-tier admin.
+- **Enable / Disable** — deactivate or reactivate an account without deleting any data. You cannot
+  change your own status, and master accounts cannot be disabled from EduTrack.
+- **Account Activity** — an audit trail of account creations, password resets, status changes, and
+  deletions (who did what, to whom, when, from which IP).
+
+Account data lives in two additive tables — `edutrack_account_registry` (mirror of managed
+accounts) and `edutrack_account_audit_logs` (activity trail). By default they are created in the
+EduTrack database; setting the optional `ACCOUNTS_DB_*` environment variables stores them in a
+completely separate MySQL database (see `HOSTINGER_TWO_DATABASE_GUIDE.md`).
+
+Account management endpoints:
+
+- `GET /api/edutrack/accounts` — list managed accounts with role and status.
+- `POST /api/edutrack/create-user` — create teacher / coordinator / EduTrack admin (tier-guarded).
+- `POST /api/edutrack/reset-user-password` — audited password reset (tier-guarded for admins).
+- `PATCH /api/edutrack/accounts/:id/status` — enable or disable an account.
+- `GET /api/edutrack/accounts/audit` — recent account activity log.
+
 ## In Short
 
 EduTrack is not just a syllabus page. It is a full academic operations system for teacher assignment, teaching plan creation, daily progress tracking, reporting, separate teacher import, relief document control, and academic account management.

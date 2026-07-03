@@ -352,6 +352,123 @@ const db = mysql.createPool({
   database: process.env.DB_NAME,
 });
 
+// Optional dedicated account-management database. When ACCOUNTS_DB_NAME is set,
+// the account registry and account audit log live in that separate database;
+// otherwise they share the main pool. Login/auth users stay in the main DB.
+const accountsDb = process.env.ACCOUNTS_DB_NAME
+  ? mysql.createPool({
+      host: process.env.ACCOUNTS_DB_HOST || process.env.DB_HOST,
+      port: Number(process.env.ACCOUNTS_DB_PORT || process.env.DB_PORT),
+      user: process.env.ACCOUNTS_DB_USER || process.env.DB_USER,
+      password: process.env.ACCOUNTS_DB_PASSWORD || process.env.DB_PASSWORD,
+      database: process.env.ACCOUNTS_DB_NAME,
+    })
+  : db;
+
+let accountManagementSchemaReady = false;
+
+async function ensureAccountManagementTables() {
+  if (accountManagementSchemaReady) return;
+  await accountsDb.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_account_registry (
+      user_id VARCHAR(64) PRIMARY KEY,
+      external_staff_id VARCHAR(80) NULL,
+      name VARCHAR(190) NOT NULL,
+      email VARCHAR(190) NOT NULL,
+      role VARCHAR(50) NOT NULL,
+      status VARCHAR(20) NOT NULL DEFAULT 'Active',
+      created_by_user_id VARCHAR(64) NULL,
+      created_by_name VARCHAR(190) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      KEY idx_account_registry_email (email),
+      KEY idx_account_registry_role (role),
+      KEY idx_account_registry_status (status)
+    )
+  `);
+  await accountsDb.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_account_audit_logs (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      action VARCHAR(80) NOT NULL,
+      target_user_id VARCHAR(64) NULL,
+      target_email VARCHAR(190) NULL,
+      target_name VARCHAR(190) NULL,
+      target_role VARCHAR(50) NULL,
+      actor_user_id VARCHAR(64) NULL,
+      actor_name VARCHAR(190) NULL,
+      details_json LONGTEXT NULL,
+      ip_address VARCHAR(80) NULL,
+      user_agent TEXT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      KEY idx_account_audit_action (action),
+      KEY idx_account_audit_target (target_user_id),
+      KEY idx_account_audit_created (created_at)
+    )
+  `);
+  accountManagementSchemaReady = true;
+}
+
+async function upsertAccountRegistry(user, actor = {}) {
+  try {
+    await ensureAccountManagementTables();
+    await accountsDb.query(
+      `
+        INSERT INTO edutrack_account_registry
+          (user_id, external_staff_id, name, email, role, status, created_by_user_id, created_by_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE
+          external_staff_id = VALUES(external_staff_id),
+          name = VALUES(name),
+          email = VALUES(email),
+          role = VALUES(role),
+          status = VALUES(status)
+      `,
+      [
+        String(user.id || ""),
+        user.external_staff_id || user.externalStaffId || null,
+        String(user.name || "").slice(0, 190),
+        String(user.email || "").slice(0, 190),
+        String(user.role || "").slice(0, 50),
+        String(user.status || "Active").slice(0, 20),
+        actor.id ? String(actor.id) : null,
+        actor.name ? String(actor.name).slice(0, 190) : null,
+      ],
+    );
+  } catch (error) {
+    console.error("Account registry upsert failed:", error.message);
+  }
+}
+
+async function recordAccountAudit(req, action, target = {}, details = null) {
+  try {
+    await ensureAccountManagementTables();
+    await accountsDb.query(
+      `
+        INSERT INTO edutrack_account_audit_logs
+          (action, target_user_id, target_email, target_name, target_role,
+           actor_user_id, actor_name, details_json, ip_address, user_agent)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        String(action || "").slice(0, 80),
+        target.id ? String(target.id) : null,
+        target.email ? String(target.email).slice(0, 190) : null,
+        target.name ? String(target.name).slice(0, 190) : null,
+        target.role ? String(target.role).slice(0, 50) : null,
+        req?.user?.id ? String(req.user.id) : null,
+        req?.user?.name || req?.user?.email
+          ? String(req.user.name || req.user.email).slice(0, 190)
+          : null,
+        details ? JSON.stringify(details) : null,
+        String(req?.ip || req?.headers?.["x-forwarded-for"] || "").slice(0, 80),
+        String(req?.headers?.["user-agent"] || "").slice(0, 1000),
+      ],
+    );
+  } catch (error) {
+    console.error("Account audit write failed:", error.message);
+  }
+}
+
 const publicDbKeys = new Set([
   "contentVersion",
   "publishedAt",
@@ -10858,6 +10975,92 @@ app.get("/api/edutrack/session", teacherOrAdmin, async (req, res) => {
   }
 });
 
+app.get("/api/edutrack/accounts", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [users] = await db.query(`
+      SELECT id, external_staff_id, name, email, role, status, created_at
+      FROM users
+      WHERE role IN ('teacher','academic_coordinator','eduzync_admin','master_edutrack_admin','masteradmin','superadmin')
+      ORDER BY FIELD(role,'masteradmin','superadmin','master_edutrack_admin','eduzync_admin','academic_coordinator','teacher'), name
+    `);
+    res.json(
+      users.map((user) => ({
+        id: user.id,
+        external_staff_id: user.external_staff_id,
+        name: user.name,
+        email: user.email,
+        role: eduTrackRole(user.role),
+        platformRole: user.role,
+        status: normalizeAccountStatus(user.status),
+        created_at: user.created_at,
+      })),
+    );
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch("/api/edutrack/accounts/:id/status", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const targetId = compactText(req.params.id, 64);
+    const nextStatus = normalizeAccountStatus(req.body?.status);
+    if (targetId === String(req.user?.id)) {
+      return res.status(400).json({ error: "You cannot change your own account status." });
+    }
+    const [rows] = await db.query(
+      "SELECT id, external_staff_id, name, email, role, status FROM users WHERE id = ? LIMIT 1",
+      [targetId],
+    );
+    const target = rows[0];
+    if (!target) return res.status(404).json({ error: "User not found" });
+    const protectedRoles = [ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync];
+    if (protectedRoles.includes(target.role) && !isEduTrackMasterUser(req)) {
+      return res
+        .status(403)
+        .json({ error: "Only master admins can change an admin account status." });
+    }
+    if ([ROLES.master, ROLES.super].includes(target.role)) {
+      return res.status(403).json({ error: "Master accounts cannot be disabled from EduTrack." });
+    }
+    await db.query("UPDATE users SET status = ? WHERE id = ?", [nextStatus, target.id]);
+    const updated = { ...target, status: nextStatus };
+    await syncEduTrackUserAccountToPortal(
+      await storedEduTrackUserForPortalSync(target.id, {}, updated),
+    ).catch(() => null);
+    await upsertAccountRegistry(updated, req.user || {});
+    await recordAccountAudit(
+      req,
+      nextStatus === "Active" ? "account_enabled" : "account_disabled",
+      { id: target.id, email: target.email, name: target.name, role: target.role },
+      { previous_status: target.status },
+    );
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/accounts/audit", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureAccountManagementTables();
+    const limit = Math.min(Math.max(Number(req.query.limit || 100), 1), 500);
+    const [rows] = await accountsDb.query(
+      `
+        SELECT id, action, target_user_id, target_email, target_name, target_role,
+          actor_user_id, actor_name, details_json, created_at
+        FROM edutrack_account_audit_logs
+        ORDER BY id DESC
+        LIMIT ${limit}
+      `,
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureContentTables();
@@ -10884,6 +11087,18 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
     );
     if (!accountEmail || !password)
       return res.status(400).json({ error: "email and password are required" });
+    const creatableRoles = [ROLES.teacher, ROLES.coordinator, ROLES.eduzync, ROLES.masterEduTrack];
+    if (!creatableRoles.includes(accountRole)) {
+      return res.status(400).json({
+        error: "role must be teacher, coordinator, or an EduTrack admin role",
+      });
+    }
+    const adminTierRoles = [ROLES.eduzync, ROLES.masterEduTrack];
+    if (adminTierRoles.includes(accountRole) && !isEduTrackMasterUser(req)) {
+      return res
+        .status(403)
+        .json({ error: "Only master admins can create EduTrack admin accounts." });
+    }
 
     const [existing] = await db.query(
       "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE email = ?",
@@ -10894,6 +11109,13 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
         await storedEduTrackUserForPortalSync(existing[0].id, req.body || {}, existing[0]),
         { passwordHash: existing[0].password_hash },
       );
+      await upsertAccountRegistry(existing[0], req.user || {});
+      await recordAccountAudit(req, "account_create_skipped_existing", {
+        id: existing[0].id,
+        email: existing[0].email,
+        name: existing[0].name,
+        role: existing[0].role,
+      });
       return res.json({ success: true, user: existing[0], existing: true, portalSync });
     }
 
@@ -10918,9 +11140,16 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
       password,
       passwordHash,
     });
+    await upsertAccountRegistry(user, req.user || {});
+    await recordAccountAudit(req, "account_created", {
+      id,
+      email: accountEmail,
+      name: accountName,
+      role: accountRole,
+    });
     res.status(201).json({
       success: true,
-      user,
+      user: { ...user, passwordHash: undefined },
       portalSync,
     });
   } catch (error) {
@@ -10958,12 +11187,24 @@ app.post("/api/edutrack/reset-user-password", eduzyncAdminOnly, async (req, res)
     );
     const user = rows[0];
     if (!user) return res.status(404).json({ error: "User not found" });
+    const protectedRoles = [ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync];
+    if (protectedRoles.includes(user.role) && !isEduTrackMasterUser(req)) {
+      return res
+        .status(403)
+        .json({ error: "Only master admins can reset an admin account password." });
+    }
     const passwordHash = await bcrypt.hash(password, 12);
     await db.query("UPDATE users SET password_hash = ? WHERE id = ?", [passwordHash, user.id]);
     const portalSync = await syncEduTrackUserAccountToPortal(
       { ...user, passwordHash },
       { password, passwordHash },
     );
+    await recordAccountAudit(req, "password_reset", {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
     res.json({ success: true, user: { ...user, passwordHash: undefined }, portalSync });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -11119,7 +11360,21 @@ app.delete("/api/edutrack/compat/:collection/:id", eduzyncAdminOnly, async (req,
     await ensureContentTables();
     const collectionName = safePathSegment(req.params.collection).replace(/\//g, "-");
     if (collectionName === "users") {
-      const result = await deleteEduTrackTeacherAccount(String(req.params.id), req.user?.id);
+      const targetId = String(req.params.id);
+      const [targetRows] = await db.query(
+        "SELECT id, name, email, role FROM users WHERE id = ? LIMIT 1",
+        [targetId],
+      );
+      const result = await deleteEduTrackTeacherAccount(targetId, req.user?.id);
+      await recordAccountAudit(req, "account_deleted", {
+        id: targetId,
+        email: targetRows[0]?.email,
+        name: targetRows[0]?.name,
+        role: targetRows[0]?.role,
+      });
+      await accountsDb
+        .query("DELETE FROM edutrack_account_registry WHERE user_id = ?", [targetId])
+        .catch(() => null);
       return res.json({ success: true, ...result });
     }
     const idColumn = await getEduTrackDocumentIdColumn();
