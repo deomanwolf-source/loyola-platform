@@ -7665,7 +7665,7 @@ async function listYearPlanAssignments(req, actor, mineOnly = false) {
   const where = [];
   const params = [];
   if (mineOnly || !isEduTrackOversightUser(req)) {
-    where.push("(teacher_user_id = ? OR teacher_id = ?)");
+    where.push("(a.teacher_user_id = ? OR a.teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
   }
   const addEq = (column, value) => {
@@ -7673,17 +7673,17 @@ async function listYearPlanAssignments(req, actor, mineOnly = false) {
     where.push(`${column} = ?`);
     params.push(String(value).trim());
   };
-  addEq("teacher_id", req.query.teacher_id);
-  addEq("teacher_user_id", req.query.teacher_user_id);
-  addEq("subject_name", req.query.subject);
-  addEq("grade", req.query.grade);
-  addEq("section", req.query.section);
-  addEq("academic_year", req.query.academic_year);
-  addEq("status", req.query.status);
+  addEq("a.teacher_id", req.query.teacher_id);
+  addEq("a.teacher_user_id", req.query.teacher_user_id);
+  addEq("a.subject_name", req.query.subject);
+  addEq("a.grade", req.query.grade);
+  addEq("a.section", req.query.section);
+  addEq("a.academic_year", req.query.academic_year);
+  addEq("a.status", req.query.status);
   if (req.query.search) {
     const like = `%${String(req.query.search).trim()}%`;
     where.push(
-      "(teacher_name LIKE ? OR teacher_id LIKE ? OR subject_name LIKE ? OR grade LIKE ? OR section LIKE ? OR class_name LIKE ?)",
+      "(a.teacher_name LIKE ? OR a.teacher_id LIKE ? OR a.subject_name LIKE ? OR a.grade LIKE ? OR a.section LIKE ? OR a.class_name LIKE ?)",
     );
     params.push(like, like, like, like, like, like);
   }
