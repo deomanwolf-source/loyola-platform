@@ -11244,6 +11244,119 @@ app.post(
   },
 );
 
+app.patch("/api/edutrack/accounts/:id", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const targetId = compactText(req.params.id, 64);
+    const [rows] = await db.query(
+      "SELECT id, external_staff_id, nic_number, name, email, role, status FROM users WHERE id = ? LIMIT 1",
+      [targetId],
+    );
+    const target = rows[0];
+    if (!target) return res.status(404).json({ error: "User not found" });
+
+    const protectedRoles = [ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync];
+    if (protectedRoles.includes(target.role) && !isEduTrackMasterUser(req)) {
+      return res.status(403).json({ error: "Only master admins can edit an admin account." });
+    }
+
+    const nextName =
+      req.body?.name === undefined ? target.name : compactText(req.body.name, 150);
+    const nextEmail =
+      req.body?.email === undefined ? target.email : normalizeEmail(req.body.email);
+    if (!nextName || !nextEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(nextEmail)) {
+      return res.status(400).json({ error: "Name and a valid email are required." });
+    }
+    if (nextEmail !== normalizeEmail(target.email)) {
+      const [emailMatches] = await db.query(
+        "SELECT id FROM users WHERE email = ? AND id <> ? LIMIT 1",
+        [nextEmail, target.id],
+      );
+      if (emailMatches.length) {
+        return res.status(409).json({ error: "A user with this email already exists." });
+      }
+    }
+
+    const nicProvided = req.body?.nic !== undefined || req.body?.nic_number !== undefined;
+    const rawNic = nicProvided
+      ? String(req.body.nic ?? req.body.nic_number ?? "").trim()
+      : String(target.nic_number || "");
+    const nextNic = rawNic ? normalizeNicNumber(rawNic) : "";
+    if (rawNic && !nextNic) {
+      return res.status(400).json({
+        error: "NIC number must be 12 digits or 9 digits followed by V or X.",
+      });
+    }
+    if (nextNic && nextNic !== String(target.nic_number || "")) {
+      const [nicMatches] = await db.query(
+        "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+        [nextNic, target.id],
+      );
+      if (nicMatches.length) {
+        return res.status(409).json({ error: "This NIC number is already used by another account." });
+      }
+    }
+
+    let nextRole = target.role;
+    if (req.body?.role !== undefined && String(req.body.role || "").trim()) {
+      const requestedRole = portalRoleFromEduTrackRole(req.body.role);
+      const assignableRoles = [ROLES.teacher, ROLES.coordinator, ROLES.eduzync, ROLES.masterEduTrack];
+      if (!assignableRoles.includes(requestedRole)) {
+        return res.status(400).json({
+          error: "role must be teacher, coordinator, or an EduTrack admin role",
+        });
+      }
+      if (requestedRole !== target.role) {
+        if (targetId === String(req.user?.id)) {
+          return res.status(400).json({ error: "You cannot change your own role." });
+        }
+        const adminTierRoles = [ROLES.eduzync, ROLES.masterEduTrack];
+        if (
+          (adminTierRoles.includes(requestedRole) || adminTierRoles.includes(target.role)) &&
+          !isEduTrackMasterUser(req)
+        ) {
+          return res
+            .status(403)
+            .json({ error: "Only master admins can change admin-level roles." });
+        }
+        nextRole = requestedRole;
+      }
+    }
+
+    await db.query(
+      "UPDATE users SET name = ?, email = ?, nic_number = NULLIF(?, ''), role = ? WHERE id = ?",
+      [nextName, nextEmail, nextNic, nextRole, target.id],
+    );
+    const updated = {
+      ...target,
+      name: nextName,
+      email: nextEmail,
+      nic_number: nextNic || null,
+      role: nextRole,
+    };
+    await syncEduTrackUserAccountToPortal(
+      await storedEduTrackUserForPortalSync(target.id, {}, updated),
+    ).catch(() => null);
+    await upsertAccountRegistry(updated, req.user || {});
+    await recordAccountAudit(
+      req,
+      "account_updated",
+      { id: target.id, email: nextEmail, name: nextName, role: nextRole },
+      {
+        previous: {
+          name: target.name,
+          email: target.email,
+          nic_number: target.nic_number,
+          role: target.role,
+        },
+      },
+    );
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.patch("/api/edutrack/accounts/:id/status", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureContentTables();

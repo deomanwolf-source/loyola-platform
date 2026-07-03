@@ -6539,6 +6539,43 @@
       </div>
     </div>
 
+    <div class="modal-overlay" id="edit-account-modal">
+      <div class="modal" style="width: 460px">
+        <h3>Edit Account</h3>
+        <p class="msub" id="ea-sub">Update this account's details.</p>
+        <div class="field">
+          <label>Full Name</label><input type="text" id="ea-name" placeholder="Full name" />
+        </div>
+        <div class="field">
+          <label>Email Address</label
+          ><input type="email" id="ea-email" placeholder="name@school.edu" />
+        </div>
+        <div class="field">
+          <label>NIC Number</label
+          ><input type="text" id="ea-nic" placeholder="200012345678 or 991234567V" />
+          <div class="hint">Leave empty to remove the NIC from this account.</div>
+        </div>
+        <div class="field" id="ea-role-field">
+          <label>Role</label>
+          <select id="ea-role">
+            <option value="teacher">Subject Teacher</option>
+            <option value="coordinator">Academic Coordinator</option>
+            <option value="admin" id="ea-role-admin-option">EduTrack Admin</option>
+          </select>
+          <div class="hint" id="ea-role-hint">
+            Only master admins can change admin-level roles.
+          </div>
+        </div>
+        <div id="ea-error" class="error-msg"></div>
+        <div class="actions">
+          <button class="btn secondary sm" onclick="closeModal('edit-account-modal')">
+            Cancel
+          </button>
+          <button class="btn sm" id="ea-submit" onclick="saveAccountEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
     <div class="modal-overlay" id="add-staff-modal">
       <div class="modal" style="width: 480px">
         <h3>Add Staff Account</h3>
@@ -7171,7 +7208,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.4.1";
+      const APP_VERSION = "v6.5.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -12113,6 +12150,9 @@
               (isActive ? "Active" : "Disabled") +
               "</span></td>" +
               '<td><div class="accounts-actions">' +
+              '<button class="account-action" onclick="openEditAccount(\'' +
+              escapeInlineJsString(user.id) +
+              "')\">Edit</button>" +
               '<button class="account-action reset" onclick="sendAccountReset(\'' +
               escapeInlineJsString(user.id) +
               "','" +
@@ -12175,6 +12215,95 @@
           renderUserAccounts();
         } catch (error) {
           showToast(error.message, "err");
+        }
+      };
+
+      let editingAccountId = null;
+      let editingAccountRole = "";
+
+      window.openEditAccount = function (id) {
+        const user = managedAccounts.find((item) => String(item.id) === String(id));
+        if (!user) {
+          showToast("Account not found. Refresh and try again.", "err");
+          return;
+        }
+        editingAccountId = user.id;
+        editingAccountRole = ["teacher", "coordinator", "admin"].includes(user.role)
+          ? user.role
+          : "teacher";
+        const nameEl = document.getElementById("ea-name");
+        const emailEl = document.getElementById("ea-email");
+        const nicEl = document.getElementById("ea-nic");
+        const errBox = document.getElementById("ea-error");
+        const sub = document.getElementById("ea-sub");
+        if (nameEl) nameEl.value = user.name || "";
+        if (emailEl) emailEl.value = user.email || "";
+        if (nicEl) nicEl.value = user.nic_number || "";
+        if (errBox) errBox.textContent = "";
+        if (sub) sub.textContent = "Update details for " + (user.name || user.email || "-") + ".";
+        const roleField = document.getElementById("ea-role-field");
+        const roleSelect = document.getElementById("ea-role");
+        const adminOption = document.getElementById("ea-role-admin-option");
+        const roleHint = document.getElementById("ea-role-hint");
+        const isMasterAccount =
+          user.platformRole === "masteradmin" || user.platformRole === "superadmin";
+        const viewerIsMaster = !!(cud && cud.isMasterAdmin);
+        if (roleField) roleField.style.display = isMasterAccount ? "none" : "";
+        if (roleSelect) roleSelect.value = editingAccountRole;
+        if (adminOption) {
+          const showAdminOption = viewerIsMaster || editingAccountRole === "admin";
+          adminOption.style.display = showAdminOption ? "" : "none";
+          adminOption.disabled = !viewerIsMaster && editingAccountRole !== "admin";
+        }
+        if (roleHint) roleHint.style.display = viewerIsMaster ? "none" : "";
+        openModal("edit-account-modal");
+      };
+
+      window.saveAccountEdit = async function () {
+        if (!editingAccountId) return;
+        const errBox = document.getElementById("ea-error");
+        if (errBox) errBox.textContent = "";
+        const name = document.getElementById("ea-name")?.value.trim() || "";
+        const email = document.getElementById("ea-email")?.value.trim() || "";
+        const nic = (document.getElementById("ea-nic")?.value || "")
+          .trim()
+          .toUpperCase()
+          .replace(/\s+/g, "");
+        if (!name || !email) {
+          if (errBox) errBox.textContent = "Name and email are required.";
+          return;
+        }
+        if (nic && !/^(\d{9}[VX]|\d{12})$/.test(nic)) {
+          if (errBox)
+            errBox.textContent = "NIC number must be 12 digits or 9 digits followed by V or X.";
+          return;
+        }
+        const payload = { name, email, nic };
+        const roleField = document.getElementById("ea-role-field");
+        const roleValue = document.getElementById("ea-role")?.value || "";
+        if (
+          roleField &&
+          roleField.style.display !== "none" &&
+          roleValue &&
+          roleValue !== editingAccountRole
+        ) {
+          payload.role = roleValue;
+        }
+        const btn = document.getElementById("ea-submit");
+        if (btn) btn.disabled = true;
+        try {
+          await apiFetch("/api/edutrack/accounts/" + encodeURIComponent(editingAccountId), {
+            method: "PATCH",
+            body: JSON.stringify(payload),
+          });
+          closeModal("edit-account-modal");
+          showToast("Account updated.", "success");
+          editingAccountId = null;
+          renderUserAccounts();
+        } catch (error) {
+          if (errBox) errBox.textContent = error.message;
+        } finally {
+          if (btn) btn.disabled = false;
         }
       };
 
