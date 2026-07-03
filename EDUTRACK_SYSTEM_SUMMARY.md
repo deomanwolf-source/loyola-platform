@@ -668,6 +668,14 @@ account as contact information and a secondary identifier.
 - The `users.nic_number` column and its index are added automatically and additively at startup;
   no existing data is modified.
 
+## Professional UI Refresh (v6.0.0)
+
+The interface uses a calmer professional theme: neutral slate surfaces with a single restrained
+blue accent, flat solid buttons, a clear sidebar active state, consistent card/table/modal
+styling, one unified focus ring, and a crisp light mode. The theme is a CSS token layer loaded
+last in `edutrack/public/edutrack/index.html` (search for "EduTrack v6 — Professional Refresh"),
+so all functionality and data flows are unchanged — restyling only.
+
 ## In Short
 
 EduTrack is not just a syllabus page. It is a full academic operations system for teacher assignment, teaching plan creation, daily progress tracking, reporting, separate teacher import, relief document control, and academic account management.

@@ -4776,6 +4776,328 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* ═══════════════════════════════════════════════════════════════════
+         EduTrack v6 — Professional Refresh
+         A calmer, cleaner theme layer: neutral slate surfaces, one restrained
+         accent, flat components, quieter motion. Loaded last so it overrides
+         the layers above without touching any behaviour.
+      ═══════════════════════════════════════════════════════════════════ */
+      :root {
+        --bg: #0b1017;
+        --surface: #101722;
+        --surface2: #161f2d;
+        --surface3: #1d2838;
+        --border: rgba(148, 163, 184, 0.14);
+        --border-med: rgba(148, 163, 184, 0.26);
+
+        --accent: #4f7cff;
+        --accent-bright: #7195ff;
+        --accent-glow: rgba(79, 124, 255, 0.16);
+        --accent2: #2fbf8f;
+        --accent2-glow: rgba(47, 191, 143, 0.14);
+        --danger: #f47272;
+        --danger-glow: rgba(244, 114, 114, 0.14);
+        --warn: #e8b04b;
+
+        --text: #eef2f9;
+        --text-2: #c9d3e3;
+        --muted: #8b99b0;
+        --muted2: #5d6b82;
+
+        --ps: #2fbf8f;
+        --ms: #4f7cff;
+        --us: #a78bfa;
+        --al: #e8b04b;
+
+        --shadow: 0 1px 2px rgba(2, 6, 14, 0.5), 0 8px 24px rgba(2, 6, 14, 0.25);
+        --shadow-lg: 0 2px 4px rgba(2, 6, 14, 0.5), 0 16px 40px rgba(2, 6, 14, 0.35);
+        --ring: 0 0 0 3px rgba(79, 124, 255, 0.28);
+
+        --radius: 12px;
+        --radius-sm: 9px;
+        --radius-xs: 6px;
+      }
+
+      /* Quiet, near-invisible ambience instead of neon glows */
+      body::before {
+        background: radial-gradient(
+          ellipse 1000px 500px at 50% -10%,
+          rgba(79, 124, 255, 0.05) 0%,
+          transparent 70%
+        );
+      }
+
+      /* ── Buttons: flat, solid, consistent ── */
+      .btn {
+        background: var(--accent);
+        box-shadow: none;
+        font-weight: 600;
+        letter-spacing: 0;
+        border-radius: var(--radius-sm);
+      }
+      .btn:hover {
+        background: var(--accent-bright);
+        transform: none;
+        box-shadow: none;
+      }
+      .btn:active {
+        transform: none;
+        filter: brightness(0.94);
+      }
+      .btn:focus-visible {
+        outline: none;
+        box-shadow: var(--ring);
+      }
+      .btn.secondary {
+        background: var(--surface2);
+        border: 1px solid var(--border-med);
+        color: var(--text-2);
+      }
+      .btn.secondary:hover {
+        background: var(--surface3);
+        border-color: var(--border-med);
+        transform: none;
+      }
+      .btn.danger {
+        background: #d9534f;
+        box-shadow: none;
+      }
+      .btn.danger:hover {
+        background: #e46561;
+      }
+
+      /* ── Sidebar: flat surface, clear active state ── */
+      .sidebar {
+        background: var(--surface);
+        box-shadow: none;
+        border-right: 1px solid var(--border);
+      }
+      .sidebar-logo .icon {
+        background: var(--accent);
+        box-shadow: none;
+        border-radius: 9px;
+      }
+      .sidebar-logo span {
+        background: none;
+        -webkit-text-fill-color: currentColor;
+        color: var(--accent-bright);
+      }
+      .nav-label {
+        letter-spacing: 1.4px;
+        font-size: 10px;
+      }
+      .nav-item {
+        border-radius: 8px;
+        font-weight: 500;
+        border: none;
+        padding: 9px 12px;
+      }
+      .nav-item:hover {
+        background: var(--surface2);
+        border: none;
+        color: var(--text);
+      }
+      .nav-item.active {
+        background: var(--accent-glow);
+        color: var(--accent-bright);
+        border: none;
+        font-weight: 600;
+        box-shadow: inset 2px 0 0 var(--accent);
+      }
+
+      /* ── Cards & panels: solid surfaces, subtle depth ── */
+      .card,
+      .panel-card,
+      .stat-card,
+      .dash-teacher-card,
+      .page-tools,
+      .accounts-table-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        box-shadow: 0 1px 2px rgba(2, 6, 14, 0.35);
+      }
+      .stat-card:hover,
+      .dash-teacher-card:hover {
+        transform: none;
+        border-color: var(--border-med);
+      }
+      .stat-val {
+        font-family: "Plus Jakarta Sans", sans-serif;
+        letter-spacing: -0.8px;
+      }
+      .stat-ring {
+        background: conic-gradient(
+          var(--stat-color, var(--accent)) calc(var(--pct) * 1%),
+          var(--surface3) 0
+        );
+      }
+
+      /* ── Page rhythm ── */
+      .main {
+        padding: 26px 30px 40px;
+      }
+      .page-header h2 {
+        font-size: 24px;
+        letter-spacing: -0.4px;
+      }
+      .page.active.page-shell {
+        animation: none;
+      }
+
+      /* ── Forms: clear affordance, one focus style ── */
+      .field input,
+      .field select,
+      .field textarea,
+      .quick-input {
+        background: var(--surface2);
+        border: 1px solid var(--border-med);
+        border-radius: var(--radius-xs);
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      .field input:focus,
+      .field select:focus,
+      .field textarea:focus,
+      .quick-input:focus {
+        border-color: var(--accent);
+        box-shadow: var(--ring);
+        outline: none;
+      }
+
+      /* ── Tables ── */
+      .accounts-table thead th {
+        background: var(--surface2);
+        font-size: 11px;
+        letter-spacing: 0.8px;
+      }
+      .accounts-table tbody tr:hover td {
+        background: var(--surface2);
+      }
+
+      /* ── Modals ── */
+      .modal {
+        background: var(--surface);
+        border: 1px solid var(--border-med);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+      }
+
+      /* ── Rows & badges ── */
+      .relief-card-row {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+      }
+      .badge {
+        border-radius: 999px;
+        font-weight: 600;
+      }
+
+      /* ── Topbar ── */
+      .topbar {
+        background: rgba(11, 16, 23, 0.92);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+      .topbar-version {
+        background: var(--surface2);
+        border-color: var(--border-med);
+      }
+      .topbar-version .value {
+        color: var(--accent-bright);
+        font-family: "Plus Jakarta Sans", sans-serif;
+      }
+      body.light-mode .topbar {
+        background: rgba(255, 255, 255, 0.92);
+      }
+      body.light-mode .topbar-version {
+        background: var(--surface2);
+      }
+
+      /* ── Scrollbars ── */
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--surface3);
+        border-radius: 8px;
+        border: 2px solid var(--bg);
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--border-med);
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      /* ── Light mode: crisp neutral gray, same accent ── */
+      body.light-mode {
+        --bg: #f4f6fa;
+        --surface: #ffffff;
+        --surface2: #f1f4f9;
+        --surface3: #e6ebf3;
+        --border: rgba(15, 33, 66, 0.1);
+        --border-med: rgba(15, 33, 66, 0.18);
+        --text: #14203a;
+        --text-2: #33415e;
+        --muted: #64748b;
+        --muted2: #94a3b8;
+        --accent: #3660e8;
+        --accent-bright: #274dcc;
+        --accent-glow: rgba(54, 96, 232, 0.1);
+        --accent2: #0e9f6e;
+        --danger: #d92d20;
+        --warn: #b45309;
+        --shadow: 0 1px 2px rgba(15, 33, 66, 0.06), 0 8px 24px rgba(15, 33, 66, 0.06);
+        --shadow-lg: 0 2px 4px rgba(15, 33, 66, 0.08), 0 16px 40px rgba(15, 33, 66, 0.1);
+        --ring: 0 0 0 3px rgba(54, 96, 232, 0.22);
+      }
+      body.light-mode::before {
+        background: none;
+      }
+      body.light-mode .sidebar {
+        background: #ffffff;
+        box-shadow: none;
+      }
+      body.light-mode .nav-item:hover {
+        background: var(--surface2);
+        color: var(--text);
+      }
+      body.light-mode .nav-item.active {
+        background: var(--accent-glow);
+        color: var(--accent);
+        border: none;
+        box-shadow: inset 2px 0 0 var(--accent);
+      }
+      body.light-mode .card,
+      body.light-mode .panel-card,
+      body.light-mode .stat-card,
+      body.light-mode .dash-teacher-card,
+      body.light-mode .page-tools,
+      body.light-mode .accounts-table-card,
+      body.light-mode .modal {
+        background: #ffffff;
+        border-color: var(--border);
+      }
+      body.light-mode .btn.secondary {
+        background: #ffffff;
+        border: 1px solid var(--border-med);
+        color: var(--text-2);
+      }
+      body.light-mode .btn.secondary:hover {
+        background: var(--surface2);
+      }
+      body.light-mode .relief-card-row {
+        background: var(--surface2);
+      }
+      body.light-mode ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-color: var(--bg);
+      }
     </style>
   </head>
   <body>
@@ -6791,7 +7113,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v5.6.0";
+      const APP_VERSION = "v6.0.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
