@@ -7123,7 +7123,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.1.4";
+      const APP_VERSION = "v6.2.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -7751,6 +7751,7 @@
           }
           updateAuthActiveTermCard(allTerms);
           refreshMySyllabusClassOptions();
+          await loadYearPlanDashStats();
           renderDashboard();
           setupDailyProgressFormDefaults();
           loadDailyProgress();
@@ -8014,6 +8015,48 @@
       };
 
       // Dashboard
+      // Year-plan completion feeds the dashboard alongside legacy subject
+      // syllabus items, so ticks made in Year Plan Progress show up for admins.
+      let yearPlanDashStats = { byTeacherId: {}, byUserId: {} };
+      async function loadYearPlanDashStats() {
+        const next = { byTeacherId: {}, byUserId: {} };
+        try {
+          if (isOversightRole()) {
+            const overview = await apiFetch("/api/edutrack/analytics/overview");
+            (overview.teachers || []).forEach((t) => {
+              const entry = {
+                done: Number(t.completed_subtopics || 0),
+                total: Number(t.total_subtopics || 0),
+              };
+              if (!entry.total) return;
+              if (t.teacher_id) next.byTeacherId[String(t.teacher_id).toUpperCase()] = entry;
+            });
+          } else if (cud && cud.role === "teacher") {
+            const plans = await apiFetch("/api/edutrack/year-plans");
+            const entry = (plans || []).reduce(
+              (acc, plan) => {
+                acc.done += Number(plan.completed_subtopics || 0);
+                acc.total += Number(plan.total_subtopics || 0);
+                return acc;
+              },
+              { done: 0, total: 0 },
+            );
+            next.byUserId[String(cud.id)] = entry;
+          }
+        } catch (error) {
+          /* dashboard falls back to subject-doc stats */
+        }
+        yearPlanDashStats = next;
+      }
+      function teacherYearPlanStats(t) {
+        const byId =
+          t && t.teacherId
+            ? yearPlanDashStats.byTeacherId[String(t.teacherId).toUpperCase()]
+            : null;
+        const byUser = t && t.id ? yearPlanDashStats.byUserId[String(t.id)] : null;
+        return byId || byUser || { done: 0, total: 0 };
+      }
+
       function renderDashboard() {
         const today = new Date().toISOString().slice(0, 10);
         const isAdmin = isOversightRole();
@@ -8049,6 +8092,23 @@
           if (stats[l]) {
             stats[l].t += total;
             stats[l].d += done;
+          }
+        });
+        const ypLevelTeachers = isAdmin
+          ? allTeachers
+          : [
+              allTeachers.find((t) => t.id === cud.id) ||
+                normalizeTeacher({ ...cud, id: cud.id, role: "teacher" }),
+            ];
+        ypLevelTeachers.forEach((t) => {
+          if (!t) return;
+          const yp = teacherYearPlanStats(t);
+          if (!yp.total) return;
+          const levels = teacherLevelList(t);
+          const l = levels[0] || t.level || "middle";
+          if (stats[l]) {
+            stats[l].t += yp.total;
+            stats[l].d += yp.done;
           }
         });
         [
@@ -8100,6 +8160,9 @@
               total += st.total;
               done += st.done;
             });
+            const yp = teacherYearPlanStats(t);
+            total += yp.total;
+            done += yp.done;
             const pct = total ? Math.round((done / total) * 100) : 0;
             const accentColor = teacherAccentColor(t);
             const accentVar = teacherAccentColorVar(t);
@@ -8130,6 +8193,18 @@
                 );
               })
               .join("");
+            const ypPct = yp.total ? Math.round((yp.done / yp.total) * 100) : 0;
+            const ypRow = yp.total
+              ? '<div class="dash-subject-row"><div class="dash-subject-name" title="Year Plan Progress">Year Plan (' +
+                yp.done +
+                "/" +
+                yp.total +
+                ')</div><div class="dash-subject-bar"><span style="width:' +
+                ypPct +
+                '%;background:var(--accent-bright);"></span></div><div class="dash-subject-pct">' +
+                ypPct +
+                "%</div></div>"
+              : "";
             const emptyRow =
               '<div style="font-size:12px;color:var(--muted);">No subject assignments yet.</div>';
             return (
@@ -8160,7 +8235,7 @@
               "%;background:" +
               accentVar +
               ';"></div></div><div class="dash-teacher-breakdown">' +
-              (rows || emptyRow) +
+              (ypRow + rows || emptyRow) +
               "</div></div>"
             );
           })
@@ -11521,8 +11596,11 @@
         const accentVar = teacherAccentColorVar(teacher);
         const grades = teacherGradeList(teacher);
         const classIds = teacherClassList(teacher);
-        const totalItems = subjects.reduce((sum, s) => sum + subjStats(s).total, 0);
-        const doneItems = subjects.reduce((sum, s) => sum + subjStats(s).done, 0);
+        const profileYp = teacherYearPlanStats(teacher);
+        const totalItems =
+          subjects.reduce((sum, s) => sum + subjStats(s).total, 0) + profileYp.total;
+        const doneItems =
+          subjects.reduce((sum, s) => sum + subjStats(s).done, 0) + profileYp.done;
         const overallPct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
         document.getElementById("teacher-profile-title").textContent = "Teacher Profile";
         document.getElementById("teacher-profile-sub").textContent =
