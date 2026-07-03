@@ -912,6 +912,10 @@ async function ensureAccessTables() {
       definition: "must_change_password BOOLEAN DEFAULT 0 AFTER password_hash",
     },
     {
+      name: "teaches_subjects",
+      definition: "teaches_subjects TINYINT(1) NULL AFTER role",
+    },
+    {
       name: "two_factor_enabled",
       definition: "two_factor_enabled BOOLEAN DEFAULT 0 AFTER password_hash",
     },
@@ -9956,6 +9960,10 @@ function fromPlatformUser(row, extra = {}) {
       normalizeNicNumber(row.nic_number) ||
       normalizeNicNumber(extra.nicNumber || extra.nic_number || extra.nic) ||
       "",
+    teachesSubjects:
+      row.teaches_subjects === null || row.teaches_subjects === undefined
+        ? true
+        : Number(row.teaches_subjects) === 1,
     role: eduTrackRole(row.role),
     platformRole: row.role,
     isMasterAdmin: [ROLES.master, ROLES.super, ROLES.masterEduTrack].includes(row.role),
@@ -11134,7 +11142,7 @@ async function linkExistingEduTrackTeacherDocument(docId, data) {
 app.get("/api/edutrack/session", teacherOrAdmin, async (req, res) => {
   try {
     const [users] = await db.query(
-      "SELECT id, external_staff_id, nic_number, name, email, role, status, created_at FROM users WHERE id = ?",
+      "SELECT id, external_staff_id, nic_number, name, email, role, teaches_subjects, status, created_at FROM users WHERE id = ?",
       [req.user.id],
     );
     if (!users.length) return res.status(404).json({ error: "User not found" });
@@ -11157,7 +11165,7 @@ app.get("/api/edutrack/accounts", eduzyncAdminOnly, async (req, res) => {
       ? "'teacher','academic_coordinator','eduzync_admin','master_edutrack_admin','masteradmin','superadmin'"
       : "'teacher','academic_coordinator','eduzync_admin','master_edutrack_admin'";
     const [users] = await db.query(`
-      SELECT id, external_staff_id, nic_number, name, email, role, status, created_at
+      SELECT id, external_staff_id, nic_number, name, email, role, teaches_subjects, status, created_at
       FROM users
       WHERE role IN (${visibleRoles})
       ORDER BY FIELD(role,'masteradmin','superadmin','master_edutrack_admin','eduzync_admin','academic_coordinator','teacher'), name
@@ -11171,6 +11179,10 @@ app.get("/api/edutrack/accounts", eduzyncAdminOnly, async (req, res) => {
         email: user.email,
         role: eduTrackRole(user.role),
         platformRole: user.role,
+        teachesSubjects:
+          user.teaches_subjects === null || user.teaches_subjects === undefined
+            ? true
+            : Number(user.teaches_subjects) === 1,
         status: normalizeAccountStatus(user.status),
         created_at: user.created_at,
       })),
@@ -11184,7 +11196,8 @@ const DEFAULT_TEMP_PASSWORD = "TempPass123";
 
 app.post(
   "/api/edutrack/accounts/reset-all-passwords",
-  edutrackMasterOnly,
+  // Only master and super admins may run the bulk reset.
+  adminOnly,
   async (req, res) => {
     try {
       await ensureContentTables();
@@ -11323,10 +11336,37 @@ app.patch("/api/edutrack/accounts/:id", eduzyncAdminOnly, async (req, res) => {
       }
     }
 
-    await db.query(
-      "UPDATE users SET name = ?, email = ?, nic_number = NULLIF(?, ''), role = ? WHERE id = ?",
-      [nextName, nextEmail, nextNic, nextRole, target.id],
-    );
+    const teachesInput =
+      req.body?.teachesSubjects !== undefined
+        ? req.body.teachesSubjects
+        : req.body?.teaches_subjects;
+    let nextTeaches;
+    if (nextRole === ROLES.teacher) {
+      nextTeaches = 1;
+    } else if (nextRole === ROLES.coordinator) {
+      nextTeaches =
+        teachesInput === undefined
+          ? target.role === ROLES.coordinator
+            ? undefined // keep existing value when not provided
+            : 1
+          : teachesInput === true || String(teachesInput) === "1"
+            ? 1
+            : 0;
+    } else {
+      nextTeaches = null;
+    }
+
+    if (nextTeaches === undefined) {
+      await db.query(
+        "UPDATE users SET name = ?, email = ?, nic_number = NULLIF(?, ''), role = ? WHERE id = ?",
+        [nextName, nextEmail, nextNic, nextRole, target.id],
+      );
+    } else {
+      await db.query(
+        "UPDATE users SET name = ?, email = ?, nic_number = NULLIF(?, ''), role = ?, teaches_subjects = ? WHERE id = ?",
+        [nextName, nextEmail, nextNic, nextRole, nextTeaches, target.id],
+      );
+    }
     const updated = {
       ...target,
       name: nextName,
@@ -11487,6 +11527,8 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
       nic,
       nicNumber,
       nic_number,
+      teachesSubjects,
+      teaches_subjects,
     } = req.body || {};
     const accountEmail = normalizeEmail(email);
     const accountName = compactText(name || accountEmail.split("@")[0] || "Teacher", 150);
@@ -11557,8 +11599,19 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
 
     const id = `T-${Date.now()}`;
     const passwordHash = await bcrypt.hash(password, 12);
+    const teachesFlagInput = teachesSubjects !== undefined ? teachesSubjects : teaches_subjects;
+    const teachesValue =
+      accountRole === ROLES.teacher
+        ? 1
+        : accountRole === ROLES.coordinator
+          ? teachesFlagInput === undefined
+            ? 1
+            : teachesFlagInput === true || String(teachesFlagInput) === "1"
+              ? 1
+              : 0
+          : null;
     await db.query(
-      "INSERT INTO users (id, external_staff_id, nic_number, name, email, role, status, password_hash, must_change_password) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?, 1)",
+      "INSERT INTO users (id, external_staff_id, nic_number, name, email, role, teaches_subjects, status, password_hash, must_change_password) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?, ?, 1)",
       [
         id,
         staffIdentity,
@@ -11566,6 +11619,7 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
         accountName,
         accountEmail,
         accountRole,
+        teachesValue,
         accountStatus,
         passwordHash,
       ],
@@ -11742,7 +11796,7 @@ app.get("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, res)
     const docId = String(req.params.id);
     if (collectionName === "users") {
       const [users] = await db.query(
-        "SELECT id, external_staff_id, nic_number, name, email, role, status, created_at FROM users WHERE id = ?",
+        "SELECT id, external_staff_id, nic_number, name, email, role, teaches_subjects, status, created_at FROM users WHERE id = ?",
         [docId],
       );
       if (!users.length) return res.json({ exists: false, data: null });

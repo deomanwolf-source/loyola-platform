@@ -6559,7 +6559,10 @@
           <label>Role</label>
           <select id="ea-role">
             <option value="teacher">Subject Teacher</option>
-            <option value="coordinator">Academic Coordinator</option>
+            <option value="coordinator">Academic Coordinator (coordination only)</option>
+            <option value="coordinator_teacher">
+              Academic Coordinator + Subject Teacher
+            </option>
             <option value="admin" id="ea-role-admin-option">EduTrack Admin</option>
           </select>
           <div class="hint" id="ea-role-hint">
@@ -6586,7 +6589,10 @@
         <div class="field">
           <label>Account Role</label>
           <select id="staff-role">
-            <option value="coordinator">Academic Coordinator</option>
+            <option value="coordinator_teacher">
+              Academic Coordinator + Subject Teacher
+            </option>
+            <option value="coordinator">Academic Coordinator (coordination only)</option>
             <option value="admin" id="staff-role-admin-option">EduTrack Admin</option>
           </select>
           <div class="hint" id="staff-role-hint">
@@ -7208,7 +7214,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.5.0";
+      const APP_VERSION = "v6.6.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -7848,11 +7854,13 @@
         document.querySelectorAll(".admin-only-nav").forEach((item) => {
           item.style.display = isAdmin ? "" : "none";
         });
-        // Coordinators keep the teacher workflow (assigned subjects + year
-        // plan editor) because many coordinators also teach; admins do not.
+        // Coordinators who also teach keep the teacher workflow (assigned
+        // subjects + year plan editor); coordination-only coordinators and
+        // admins do not see it.
+        const coordinatorTeaches = !isCoordinator || cud.teachesSubjects !== false;
         ["nav-daily-progress", "nav-year-plan"].forEach((id) => {
           const item = document.getElementById(id);
-          if (item) item.style.display = isAdmin ? "none" : "";
+          if (item) item.style.display = isAdmin || !coordinatorTeaches ? "none" : "";
         });
         const myReportNav = document.getElementById("nav-year-plan-reports");
         if (myReportNav) myReportNav.style.display = isOversight ? "none" : "";
@@ -7891,7 +7899,11 @@
           // lists, pickers, and dashboard alongside regular teachers.
           allTeachers = allUsers
             .map((user) => normalizeTeacher(user))
-            .filter((u) => u.role === "teacher" || u.role === "coordinator");
+            .filter(
+              (u) =>
+                u.role === "teacher" ||
+                (u.role === "coordinator" && u.teachesSubjects !== false),
+            );
           allWarnings = ws ? ws.docs.map((d) => ({ id: d.id, ...d.data() })) : [];
           if (ts.exists()) {
             allTerms = { ...allTerms, ...ts.data() };
@@ -11106,6 +11118,7 @@
             name,
             email,
             role: accountRole,
+            teachesSubjects: true,
             teacherId: teacherIdValue,
             nic: nicValue,
             nicNumber: nicValue,
@@ -12054,7 +12067,10 @@
         if (!tbody || !countEl) return;
         const bulkResetBtn = document.getElementById("reset-all-passwords-btn");
         if (bulkResetBtn)
-          bulkResetBtn.style.display = cud && cud.isMasterAdmin ? "" : "none";
+          bulkResetBtn.style.display =
+            cud && (cud.platformRole === "masteradmin" || cud.platformRole === "superadmin")
+              ? ""
+              : "none";
         try {
           managedAccounts = await apiFetch("/api/edutrack/accounts");
         } catch (error) {
@@ -12228,9 +12244,14 @@
           return;
         }
         editingAccountId = user.id;
-        editingAccountRole = ["teacher", "coordinator", "admin"].includes(user.role)
-          ? user.role
-          : "teacher";
+        editingAccountRole =
+          user.role === "coordinator"
+            ? user.teachesSubjects === false
+              ? "coordinator"
+              : "coordinator_teacher"
+            : ["teacher", "admin"].includes(user.role)
+              ? user.role
+              : "teacher";
         const nameEl = document.getElementById("ea-name");
         const emailEl = document.getElementById("ea-email");
         const nicEl = document.getElementById("ea-nic");
@@ -12287,7 +12308,15 @@
           roleValue &&
           roleValue !== editingAccountRole
         ) {
-          payload.role = roleValue;
+          if (roleValue === "coordinator_teacher") {
+            payload.role = "coordinator";
+            payload.teachesSubjects = true;
+          } else if (roleValue === "coordinator") {
+            payload.role = "coordinator";
+            payload.teachesSubjects = false;
+          } else {
+            payload.role = roleValue;
+          }
         }
         const btn = document.getElementById("ea-submit");
         if (btn) btn.disabled = true;
@@ -12308,8 +12337,8 @@
       };
 
       window.resetAllPasswords = async function () {
-        if (!(cud && cud.isMasterAdmin)) {
-          showToast("Master admin access required.", "err");
+        if (!(cud && (cud.platformRole === "masteradmin" || cud.platformRole === "superadmin"))) {
+          showToast("Only master and super admins can reset all passwords.", "err");
           return;
         }
         if (
@@ -12414,14 +12443,17 @@
         }
         if (hint) hint.style.display = isMaster ? "none" : "";
         const roleSelect = document.getElementById("staff-role");
-        if (roleSelect && !isMaster) roleSelect.value = "coordinator";
+        if (roleSelect && !isMaster && roleSelect.value === "admin")
+          roleSelect.value = "coordinator_teacher";
         openModal("add-staff-modal");
       };
 
       window.saveStaffAccount = async function () {
         const errBox = document.getElementById("staff-error");
         if (errBox) errBox.textContent = "";
-        const role = document.getElementById("staff-role")?.value || "coordinator";
+        const roleSelection = document.getElementById("staff-role")?.value || "coordinator_teacher";
+        const role = roleSelection === "admin" ? "admin" : "coordinator";
+        const teachesSubjects = roleSelection === "coordinator_teacher";
         const name = document.getElementById("staff-name")?.value.trim() || "";
         const email = document.getElementById("staff-email")?.value.trim() || "";
         const nic = (document.getElementById("staff-nic")?.value || "")
@@ -12444,10 +12476,14 @@
         try {
           await apiFetch("/api/edutrack/create-user", {
             method: "POST",
-            body: JSON.stringify({ name, email, nic, password, role }),
+            body: JSON.stringify({ name, email, nic, password, role, teachesSubjects }),
           });
           showToast(
-            (role === "admin" ? "EduTrack admin" : "Coordinator") + " account created.",
+            (role === "admin"
+              ? "EduTrack admin"
+              : teachesSubjects
+                ? "Coordinator + teacher"
+                : "Coordinator") + " account created.",
             "success",
           );
           ["staff-name", "staff-nic", "staff-email", "staff-password"].forEach((id) => {
@@ -12473,15 +12509,17 @@
           showToast("No email found for " + name + ".", "err");
           return;
         }
-        const password = prompt("Enter a new temporary password for " + name + " (minimum 6 characters):");
-        if (!password) return;
-        if (password.length < 6) {
-          showToast("Password must be at least 6 characters.", "err");
+        if (
+          !window.confirm(
+            "Reset " +
+              name +
+              "'s password to the default TempPass123?\n\nThey must set a new password at their next sign-in.",
+          )
+        )
           return;
-        }
         try {
-          await sendPasswordResetEmail(auth, email, password, id);
-          showToast("Password updated for " + email + ".", "success");
+          await sendPasswordResetEmail(auth, email, "TempPass123", id);
+          showToast(name + "'s password reset to TempPass123.", "success");
         } catch (e) {
           const code = e && e.code ? e.code : "";
           if (code === "auth/user-not-found")
