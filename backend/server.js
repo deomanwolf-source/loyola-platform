@@ -373,6 +373,7 @@ async function ensureAccountManagementTables() {
     CREATE TABLE IF NOT EXISTS edutrack_account_registry (
       user_id VARCHAR(64) PRIMARY KEY,
       external_staff_id VARCHAR(80) NULL,
+      nic_number VARCHAR(20) NULL,
       name VARCHAR(190) NOT NULL,
       email VARCHAR(190) NOT NULL,
       role VARCHAR(50) NOT NULL,
@@ -405,6 +406,11 @@ async function ensureAccountManagementTables() {
       KEY idx_account_audit_created (created_at)
     )
   `);
+  await accountsDb
+    .query(
+      "ALTER TABLE edutrack_account_registry ADD COLUMN nic_number VARCHAR(20) NULL AFTER external_staff_id",
+    )
+    .catch(() => null);
   accountManagementSchemaReady = true;
 }
 
@@ -414,10 +420,11 @@ async function upsertAccountRegistry(user, actor = {}) {
     await accountsDb.query(
       `
         INSERT INTO edutrack_account_registry
-          (user_id, external_staff_id, name, email, role, status, created_by_user_id, created_by_name)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          (user_id, external_staff_id, nic_number, name, email, role, status, created_by_user_id, created_by_name)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE
           external_staff_id = VALUES(external_staff_id),
+          nic_number = VALUES(nic_number),
           name = VALUES(name),
           email = VALUES(email),
           role = VALUES(role),
@@ -426,6 +433,7 @@ async function upsertAccountRegistry(user, actor = {}) {
       [
         String(user.id || ""),
         user.external_staff_id || user.externalStaffId || null,
+        normalizeNicNumber(user.nic_number || user.nicNumber || user.nic) || null,
         String(user.name || "").slice(0, 190),
         String(user.email || "").slice(0, 190),
         String(user.role || "").slice(0, 50),
@@ -890,6 +898,10 @@ async function ensureAccessTables() {
   await ensureTableColumns("users", [
     { name: "external_staff_id", definition: "external_staff_id VARCHAR(80) NULL AFTER id" },
     {
+      name: "nic_number",
+      definition: "nic_number VARCHAR(20) NULL AFTER external_staff_id",
+    },
+    {
       name: "recovery_email",
       definition: "recovery_email VARCHAR(190) NULL AFTER email",
     },
@@ -922,6 +934,10 @@ async function ensureAccessTables() {
     {
       name: "idx_users_external_staff_id",
       sql: "CREATE INDEX idx_users_external_staff_id ON users (external_staff_id)",
+    },
+    {
+      name: "idx_users_nic_number",
+      sql: "CREATE INDEX idx_users_nic_number ON users (nic_number)",
     },
   ]);
   await db.query(`
@@ -2721,6 +2737,19 @@ async function sendTeacherPasswordResetEmail(user, recoveryEmail, token) {
 
 function normalizeAccountStatus(value) {
   return String(value || "Active").toLowerCase() === "active" ? "Active" : "Disabled";
+}
+
+// Sri Lankan NIC: old format 9 digits + V/X, new format 12 digits.
+function normalizeNicNumber(value) {
+  const nic = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  return /^(\d{9}[VX]|\d{12})$/.test(nic) ? nic : "";
+}
+
+function looksLikeNicNumber(value) {
+  return Boolean(normalizeNicNumber(value));
 }
 
 function normalizePortalRole(value) {
@@ -9815,6 +9844,10 @@ function fromPlatformUser(row, extra = {}) {
     name: row.name,
     email: row.email,
     ...extra,
+    nicNumber:
+      normalizeNicNumber(row.nic_number) ||
+      normalizeNicNumber(extra.nicNumber || extra.nic_number || extra.nic) ||
+      "",
     role: eduTrackRole(row.role),
     platformRole: row.role,
     isMasterAdmin: [ROLES.master, ROLES.super, ROLES.masterEduTrack].includes(row.role),
@@ -10585,6 +10618,7 @@ async function platformUsersForEduTrack() {
       SELECT
         u.id,
         COALESCE(NULLIF(u.external_staff_id, ''), linked.staff_id) AS external_staff_id,
+        u.nic_number,
         u.name,
         u.email,
         u.role,
@@ -10771,9 +10805,13 @@ function eduTrackTeacherPayloadFromCsvRow(row, index) {
   const password = String(
     eduTrackCsvField(row, "password", "temporary_password", "temp_password", "new_password"),
   ).trim();
+  const nicNumber = normalizeNicNumber(
+    eduTrackCsvField(row, "nic", "nic_number", "nic no", "national_id", "national id card"),
+  );
 
   return {
     rowNumber: index + 2,
+    nicNumber,
     userId: compactText(eduTrackCsvField(row, "user_id", "account_user_id"), 50),
     staffId: teacherId,
     teacherId,
@@ -10861,6 +10899,7 @@ async function writeEduTrackTeacherUserDocument(userId, payload) {
     name: payload.name,
     email: payload.email,
     role: "teacher",
+    nicNumber: payload.nicNumber || current.nicNumber || "",
     teacherId: payload.teacherId,
     teacher_id: payload.teacherId,
     staffId: payload.staffId,
@@ -10898,6 +10937,18 @@ async function importEduTrackTeacherCsvRow(row, index) {
   }
 
   const result = await runLocalEduTrackSync(db, payload, { markSync: false });
+  if (payload.nicNumber) {
+    const [dupes] = await db.query(
+      "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+      [payload.nicNumber, result.userId],
+    );
+    if (!dupes.length) {
+      await db.query("UPDATE users SET nic_number = ? WHERE id = ?", [
+        payload.nicNumber,
+        result.userId,
+      ]);
+    }
+  }
   await writeEduTrackTeacherUserDocument(result.userId, payload);
   return {
     action: existing.user || existing.teacher ? "updated" : "created",
@@ -10962,7 +11013,7 @@ async function linkExistingEduTrackTeacherDocument(docId, data) {
 app.get("/api/edutrack/session", teacherOrAdmin, async (req, res) => {
   try {
     const [users] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, created_at FROM users WHERE id = ?",
+      "SELECT id, external_staff_id, nic_number, name, email, role, status, created_at FROM users WHERE id = ?",
       [req.user.id],
     );
     if (!users.length) return res.status(404).json({ error: "User not found" });
@@ -10979,7 +11030,7 @@ app.get("/api/edutrack/accounts", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureContentTables();
     const [users] = await db.query(`
-      SELECT id, external_staff_id, name, email, role, status, created_at
+      SELECT id, external_staff_id, nic_number, name, email, role, status, created_at
       FROM users
       WHERE role IN ('teacher','academic_coordinator','eduzync_admin','master_edutrack_admin','masteradmin','superadmin')
       ORDER BY FIELD(role,'masteradmin','superadmin','master_edutrack_admin','eduzync_admin','academic_coordinator','teacher'), name
@@ -10988,6 +11039,7 @@ app.get("/api/edutrack/accounts", eduzyncAdminOnly, async (req, res) => {
       users.map((user) => ({
         id: user.id,
         external_staff_id: user.external_staff_id,
+        nic_number: user.nic_number || "",
         name: user.name,
         email: user.email,
         role: eduTrackRole(user.role),
@@ -11042,6 +11094,58 @@ app.patch("/api/edutrack/accounts/:id/status", eduzyncAdminOnly, async (req, res
   }
 });
 
+app.patch("/api/edutrack/accounts/:id/nic", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const targetId = compactText(req.params.id, 64);
+    const rawNic = String(req.body?.nic || req.body?.nic_number || "").trim();
+    const nicNumber = rawNic ? normalizeNicNumber(rawNic) : "";
+    if (rawNic && !nicNumber) {
+      return res.status(400).json({
+        error: "NIC number must be 12 digits or 9 digits followed by V or X.",
+      });
+    }
+    const [rows] = await db.query(
+      "SELECT id, nic_number, name, email, role, status FROM users WHERE id = ? LIMIT 1",
+      [targetId],
+    );
+    const target = rows[0];
+    if (!target) return res.status(404).json({ error: "User not found" });
+    const protectedRoles = [ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync];
+    if (protectedRoles.includes(target.role) && !isEduTrackMasterUser(req)) {
+      return res
+        .status(403)
+        .json({ error: "Only master admins can change an admin account NIC." });
+    }
+    if (nicNumber) {
+      const [dupes] = await db.query(
+        "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+        [nicNumber, target.id],
+      );
+      if (dupes.length) {
+        return res
+          .status(409)
+          .json({ error: "This NIC number is already used by another account." });
+      }
+    }
+    await db.query("UPDATE users SET nic_number = ? WHERE id = ?", [
+      nicNumber || null,
+      target.id,
+    ]);
+    const updated = { ...target, nic_number: nicNumber || null };
+    await upsertAccountRegistry(updated, req.user || {});
+    await recordAccountAudit(
+      req,
+      nicNumber ? "nic_updated" : "nic_cleared",
+      { id: target.id, email: target.email, name: target.name, role: target.role },
+      { previous_nic: target.nic_number || null },
+    );
+    res.json({ success: true, user: updated });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get("/api/edutrack/accounts/audit", eduzyncAdminOnly, async (req, res) => {
   try {
     await ensureAccountManagementTables();
@@ -11076,6 +11180,9 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
       staff_id,
       externalStaffId,
       external_staff_id,
+      nic,
+      nicNumber,
+      nic_number,
     } = req.body || {};
     const accountEmail = normalizeEmail(email);
     const accountName = compactText(name || accountEmail.split("@")[0] || "Teacher", 150);
@@ -11087,6 +11194,24 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
     );
     if (!accountEmail || !password)
       return res.status(400).json({ error: "email and password are required" });
+    const rawNic = String(nic || nicNumber || nic_number || "").trim();
+    const accountNic = normalizeNicNumber(rawNic);
+    if (rawNic && !accountNic) {
+      return res.status(400).json({
+        error: "NIC number must be 12 digits or 9 digits followed by V or X.",
+      });
+    }
+    if (accountNic) {
+      const [nicRows] = await db.query(
+        "SELECT id, email FROM users WHERE nic_number = ? LIMIT 1",
+        [accountNic],
+      );
+      if (nicRows.length && normalizeEmail(nicRows[0].email) !== accountEmail) {
+        return res
+          .status(409)
+          .json({ error: "This NIC number is already used by another account." });
+      }
+    }
     const creatableRoles = [ROLES.teacher, ROLES.coordinator, ROLES.eduzync, ROLES.masterEduTrack];
     if (!creatableRoles.includes(accountRole)) {
       return res.status(400).json({
@@ -11105,6 +11230,13 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
       [accountEmail],
     );
     if (existing.length > 0) {
+      if (accountNic && !normalizeNicNumber(existing[0].nic_number)) {
+        await db.query("UPDATE users SET nic_number = ? WHERE id = ?", [
+          accountNic,
+          existing[0].id,
+        ]);
+        existing[0].nic_number = accountNic;
+      }
       const portalSync = await syncEduTrackUserAccountToPortal(
         await storedEduTrackUserForPortalSync(existing[0].id, req.body || {}, existing[0]),
         { passwordHash: existing[0].password_hash },
@@ -11122,12 +11254,22 @@ app.post("/api/edutrack/create-user", eduzyncAdminOnly, async (req, res) => {
     const id = `T-${Date.now()}`;
     const passwordHash = await bcrypt.hash(password, 12);
     await db.query(
-      "INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash) VALUES (?, NULLIF(?, ''), ?, ?, ?, ?, ?)",
-      [id, staffIdentity, accountName, accountEmail, accountRole, accountStatus, passwordHash],
+      "INSERT INTO users (id, external_staff_id, nic_number, name, email, role, status, password_hash) VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?)",
+      [
+        id,
+        staffIdentity,
+        accountNic,
+        accountName,
+        accountEmail,
+        accountRole,
+        accountStatus,
+        passwordHash,
+      ],
     );
     const user = {
       id,
       external_staff_id: staffIdentity,
+      nic_number: accountNic || null,
       name: accountName,
       email: accountEmail,
       role: accountRole,
@@ -11171,20 +11313,29 @@ app.post("/api/edutrack/reset-user-password", eduzyncAdminOnly, async (req, res)
     await ensureContentTables();
     const userId = compactText(req.body?.id || req.body?.userId || "", 50);
     const email = normalizeEmail(req.body?.email || "");
+    const nicNumber = normalizeNicNumber(req.body?.nic || req.body?.nic_number || "");
     const password = String(req.body?.password || "");
-    if ((!userId && !email) || password.length < 6) {
+    if ((!userId && !email && !nicNumber) || password.length < 6) {
       return res.status(400).json({ error: "User identity and a 6+ character password are required" });
     }
-    const [rows] = await db.query(
-      `
-        SELECT id, external_staff_id, name, email, role, status
-        FROM users
-        WHERE ${userId ? "id = ? OR" : ""} ${email ? "email = ?" : "1 = 0"}
-        ORDER BY ${userId ? "(id = ?) DESC," : ""} id
-        LIMIT 1
-      `,
-      userId && email ? [userId, email, userId] : userId ? [userId, userId] : [email],
-    );
+    let rows;
+    if (nicNumber && !userId && !email) {
+      [rows] = await db.query(
+        "SELECT id, external_staff_id, name, email, role, status FROM users WHERE nic_number = ? LIMIT 1",
+        [nicNumber],
+      );
+    } else {
+      [rows] = await db.query(
+        `
+          SELECT id, external_staff_id, name, email, role, status
+          FROM users
+          WHERE ${userId ? "id = ? OR" : ""} ${email ? "email = ?" : "1 = 0"}
+          ORDER BY ${userId ? "(id = ?) DESC," : ""} id
+          LIMIT 1
+        `,
+        userId && email ? [userId, email, userId] : userId ? [userId, userId] : [email],
+      );
+    }
     const user = rows[0];
     if (!user) return res.status(404).json({ error: "User not found" });
     const protectedRoles = [ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync];
@@ -11283,7 +11434,7 @@ app.get("/api/edutrack/compat/:collection/:id", teacherOrAdmin, async (req, res)
     const docId = String(req.params.id);
     if (collectionName === "users") {
       const [users] = await db.query(
-        "SELECT id, external_staff_id, name, email, role, status, created_at FROM users WHERE id = ?",
+        "SELECT id, external_staff_id, nic_number, name, email, role, status, created_at FROM users WHERE id = ?",
         [docId],
       );
       if (!users.length) return res.json({ exists: false, data: null });
@@ -11782,12 +11933,28 @@ app.post(
   async (req, res) => {
     try {
       await ensureAccessTables();
-      const { email, password } = req.body || {};
-      const accountEmail = normalizeEmail(email);
+      const { email, nic, identifier, password } = req.body || {};
+      const rawIdentifier = String(nic || identifier || email || "").trim();
+      const nicNumber = normalizeNicNumber(rawIdentifier);
+      const accountEmail = nicNumber ? "" : normalizeEmail(rawIdentifier);
       const accountPassword = String(password || "");
 
-      const [users] = await db.query("SELECT * FROM users WHERE email = ?", [accountEmail]);
-      let user = users[0] || null;
+      if (!nicNumber && accountEmail && String(process.env.LOGIN_REQUIRE_NIC || "") === "1") {
+        return res
+          .status(400)
+          .json({ error: "Please sign in with your NIC number instead of your email." });
+      }
+
+      let user = null;
+      if (nicNumber) {
+        const [users] = await db.query("SELECT * FROM users WHERE nic_number = ? LIMIT 1", [
+          nicNumber,
+        ]);
+        user = users[0] || null;
+      } else if (accountEmail) {
+        const [users] = await db.query("SELECT * FROM users WHERE email = ?", [accountEmail]);
+        user = users[0] || null;
+      }
 
       if (user && String(user.status || "").toLowerCase() !== "active") {
         return res.status(403).json({ error: "This account is not active." });
@@ -11797,7 +11964,7 @@ app.post(
         ? await bcrypt.compare(accountPassword, user.password_hash || "")
         : false;
 
-      if (!validPassword) {
+      if (!validPassword && accountEmail) {
         const eduTrackUser = await portalLoginUserFromEduTrack(accountEmail, accountPassword, user);
         if (eduTrackUser) {
           user = eduTrackUser;
@@ -11806,7 +11973,7 @@ app.post(
       }
 
       if (!user || !validPassword) {
-        return res.status(401).json({ error: "Invalid email or password" });
+        return res.status(401).json({ error: "Invalid NIC number or password" });
       }
 
       if (String(user.status || "").toLowerCase() !== "active") {

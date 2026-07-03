@@ -4811,8 +4811,17 @@
           <h2>Welcome back</h2>
           <p>Sign in to your teacher account</p>
           <div class="field">
-            <label>Email Address</label
-            ><input type="email" id="login-email" placeholder="teacher@school.edu" />
+            <label>NIC Number</label
+            ><input
+              type="text"
+              id="login-email"
+              placeholder="200012345678 or 991234567V"
+              autocomplete="username"
+              inputmode="text"
+            />
+            <div class="hint" style="margin-top: 4px">
+              Use your National Identity Card number. Admins may also sign in with email.
+            </div>
           </div>
           <div class="field">
             <label>Password</label
@@ -6183,6 +6192,14 @@
           ><input type="text" id="staff-name" placeholder="e.g. Rev. Fr. John Perera" />
         </div>
         <div class="field">
+          <label
+            >NIC Number
+            <span style="color: var(--accent2); font-size: 10px; font-weight: 700"
+              >USED FOR LOGIN</span
+            ></label
+          ><input type="text" id="staff-nic" placeholder="200012345678 or 991234567V" />
+        </div>
+        <div class="field">
           <label>Email Address</label
           ><input type="email" id="staff-email" placeholder="name@school.edu" />
         </div>
@@ -6248,6 +6265,15 @@
               disabled
             />
           </div>
+        </div>
+        <div class="field">
+          <label
+            >NIC Number
+            <span style="color: var(--accent2); font-size: 10px; font-weight: 700"
+              >USED FOR LOGIN</span
+            ></label
+          ><input type="text" id="t-nic" placeholder="200012345678 or 991234567V" />
+          <div class="hint">12 digits (new NIC) or 9 digits followed by V/X (old NIC).</div>
         </div>
         <div class="field">
           <label>Email Address</label
@@ -6765,7 +6791,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v5.5.0";
+      const APP_VERSION = "v5.6.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -7264,7 +7290,9 @@
             window.location.href = "/login?next=%2Fportal%2Fedutrack";
             return;
           }
-          setLoginError(friendlyErr(e.code));
+          const serverMessage =
+            e && e.message && ["400", "401", "403"].includes(String(e.code)) ? e.message : "";
+          setLoginError(serverMessage || friendlyErr(e.code));
           setLoginButtonLoading(false);
         }
       };
@@ -10381,6 +10409,7 @@
         [
           "t-name",
           "t-teacher-id",
+          "t-nic",
           "t-class-id",
           "t-email",
           "t-password",
@@ -10419,6 +10448,7 @@
             ? teacher.classIds.join(", ")
             : teacher.classId || "";
         document.getElementById("t-grade").value = teacherGradeList(teacher).join(", ");
+        document.getElementById("t-nic").value = teacher.nicNumber || teacher.nic_number || "";
         document.getElementById("t-email").value = teacher.email || "";
         document.getElementById("t-email").disabled = true;
         document.getElementById("t-email-note").style.display = "block";
@@ -10433,6 +10463,10 @@
         const gradesValue = parseGrades(document.getElementById("t-grade").value);
         const level = gradesValue.length ? gradeToLevel(gradesValue[gradesValue.length - 1]) : "";
         const email = document.getElementById("t-email").value.trim();
+        const nicValue = (document.getElementById("t-nic")?.value || "")
+          .trim()
+          .toUpperCase()
+          .replace(/\s+/g, "");
         const pass = document.getElementById("t-password").value;
         const err = document.getElementById("t-error");
         if (!name || !teacherIdValue || !classIdsValue.length || !gradesValue.length) {
@@ -10442,6 +10476,10 @@
         }
         if (teacherCodeExists(teacherIdValue, editingTeacherId)) {
           err.textContent = "Teacher ID already exists.";
+          return;
+        }
+        if (nicValue && !/^(\d{9}[VX]|\d{12})$/.test(nicValue)) {
+          err.textContent = "NIC number must be 12 digits or 9 digits followed by V or X.";
           return;
         }
         err.textContent = "";
@@ -10454,9 +10492,18 @@
             grades: gradesValue,
             grade: gradesValue[0] || "",
             level,
+            nicNumber: nicValue,
             updatedAt: new Date().toISOString(),
           };
           await updateDoc(doc(db, "users", editingTeacherId), payload);
+          try {
+            await apiFetch(
+              "/api/edutrack/accounts/" + encodeURIComponent(editingTeacherId) + "/nic",
+              { method: "PATCH", body: JSON.stringify({ nic: nicValue }) },
+            );
+          } catch (nicError) {
+            showToast("NIC not saved: " + nicError.message, "err");
+          }
           allUsers = allUsers.map((user) =>
             user.id === editingTeacherId ? { ...user, ...payload } : user,
           );
@@ -10488,6 +10535,8 @@
             email,
             role: "teacher",
             teacherId: teacherIdValue,
+            nic: nicValue,
+            nicNumber: nicValue,
             classIds: classIdsValue,
             classId: classIdsValue[0] || "",
             grades: gradesValue,
@@ -11465,6 +11514,8 @@
               "</div></td>" +
               '<td><div class="account-email">' +
               escapeHtml(displayEmail) +
+              '</div><div style="font-size:11px;color:var(--muted);font-family:\'DM Mono\',monospace">NIC: ' +
+              escapeHtml(user.nic_number || "not set") +
               "</div></td>" +
               '<td><span class="role-pill ' +
               roleClass +
@@ -11488,6 +11539,13 @@
               "')\"" +
               resetDisabled +
               ">Reset Password</button>" +
+              '<button class="account-action" onclick="setAccountNic(\'' +
+              escapeInlineJsString(user.id) +
+              "','" +
+              escapedName +
+              "','" +
+              escapeInlineJsString(user.nic_number || "") +
+              "')\">Set NIC</button>" +
               '<button class="account-action" onclick="toggleAccountStatus(\'' +
               escapeInlineJsString(user.id) +
               "','" +
@@ -11513,6 +11571,29 @@
           })
           .join("");
       }
+
+      window.setAccountNic = async function (id, name, currentNic) {
+        const input = window.prompt(
+          "Enter the NIC number for " + name + " (12 digits or 9 digits + V/X). Leave empty to remove:",
+          currentNic || "",
+        );
+        if (input === null) return;
+        const nic = input.trim().toUpperCase().replace(/\s+/g, "");
+        if (nic && !/^(\d{9}[VX]|\d{12})$/.test(nic)) {
+          showToast("NIC number must be 12 digits or 9 digits followed by V or X.", "err");
+          return;
+        }
+        try {
+          await apiFetch("/api/edutrack/accounts/" + encodeURIComponent(id) + "/nic", {
+            method: "PATCH",
+            body: JSON.stringify({ nic }),
+          });
+          showToast(nic ? "NIC saved for " + name + "." : "NIC removed for " + name + ".", "success");
+          renderUserAccounts();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
 
       window.toggleAccountStatus = async function (id, nextStatus, name) {
         const verb = nextStatus === "Active" ? "enable" : "disable";
@@ -11601,10 +11682,19 @@
         const role = document.getElementById("staff-role")?.value || "coordinator";
         const name = document.getElementById("staff-name")?.value.trim() || "";
         const email = document.getElementById("staff-email")?.value.trim() || "";
+        const nic = (document.getElementById("staff-nic")?.value || "")
+          .trim()
+          .toUpperCase()
+          .replace(/\s+/g, "");
         const password = document.getElementById("staff-password")?.value || "";
         if (!name || !email || password.length < 6) {
           if (errBox)
             errBox.textContent = "Name, email, and a 6+ character password are required.";
+          return;
+        }
+        if (nic && !/^(\d{9}[VX]|\d{12})$/.test(nic)) {
+          if (errBox)
+            errBox.textContent = "NIC number must be 12 digits or 9 digits followed by V or X.";
           return;
         }
         const btn = document.getElementById("staff-submit-btn");
@@ -11612,13 +11702,13 @@
         try {
           await apiFetch("/api/edutrack/create-user", {
             method: "POST",
-            body: JSON.stringify({ name, email, password, role }),
+            body: JSON.stringify({ name, email, nic, password, role }),
           });
           showToast(
             (role === "admin" ? "EduTrack admin" : "Coordinator") + " account created.",
             "success",
           );
-          ["staff-name", "staff-email", "staff-password"].forEach((id) => {
+          ["staff-name", "staff-nic", "staff-email", "staff-password"].forEach((id) => {
             const el = document.getElementById(id);
             if (el) el.value = "";
           });

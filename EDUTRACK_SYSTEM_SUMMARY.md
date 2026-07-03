@@ -648,6 +648,26 @@ Account management endpoints:
 - `PATCH /api/edutrack/accounts/:id/status` — enable or disable an account.
 - `GET /api/edutrack/accounts/audit` — recent account activity log.
 
+## NIC Number Login (v5.6.0)
+
+EduTrack sign-in uses the **National Identity Card number + password**. Email stays on each
+account as contact information and a secondary identifier.
+
+- The login screen asks for the NIC number (12 digits for new NICs, or 9 digits followed by V/X
+  for old NICs) and password. `/api/login` looks the account up by `users.nic_number` first.
+- Email login still works as a fallback so existing accounts are never locked out. Once every
+  account has a NIC assigned, set `LOGIN_REQUIRE_NIC=1` in the EduTrack environment to reject
+  email sign-in entirely.
+- NIC numbers are set when creating accounts (Add Teacher and Add Staff Account modals both have
+  a NIC field), via the **Set NIC** action on each row of Account Management, when editing a
+  teacher, or in bulk through the teacher CSV import (`nic` / `nic_number` / `national_id`
+  column). NIC changes are validated, checked for duplicates, and written to the account audit
+  log.
+- `PATCH /api/edutrack/accounts/:id/nic` sets or clears a NIC (changing an admin's NIC requires
+  a master-tier admin). `POST /api/edutrack/reset-user-password` also accepts a `nic` identity.
+- The `users.nic_number` column and its index are added automatically and additively at startup;
+  no existing data is modified.
+
 ## In Short
 
 EduTrack is not just a syllabus page. It is a full academic operations system for teacher assignment, teaching plan creation, daily progress tracking, reporting, separate teacher import, relief document control, and academic account management.
