@@ -6559,6 +6559,17 @@
           <label>Full Name</label
           ><input type="text" id="t-name" placeholder="e.g. Ms. Ayesha Fernando" />
         </div>
+        <div class="field" id="t-account-role-field">
+          <label>Account Type</label>
+          <select id="t-role">
+            <option value="teacher">Subject Teacher</option>
+            <option value="coordinator">Teacher + Academic Coordinator</option>
+          </select>
+          <div class="hint">
+            Coordinators teach their own subjects and can also review other teachers' year plans
+            and analytics.
+          </div>
+        </div>
         <div class="form-grid-2">
           <div class="field">
             <label
@@ -7123,7 +7134,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.3.0";
+      const APP_VERSION = "v6.3.1";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -10835,6 +10846,10 @@
         document.getElementById("t-email").disabled = false;
         document.getElementById("t-email-note").style.display = "none";
         document.getElementById("t-password-field").style.display = "";
+        const roleField = document.getElementById("t-account-role-field");
+        if (roleField) roleField.style.display = "";
+        const roleSelect = document.getElementById("t-role");
+        if (roleSelect) roleSelect.value = "teacher";
         document.getElementById("teacher-modal-title").textContent = "Add Teacher Account";
         document.getElementById("teacher-modal-sub").textContent =
           "Create login credentials for a teacher";
@@ -10866,6 +10881,8 @@
         document.getElementById("t-email").disabled = true;
         document.getElementById("t-email-note").style.display = "block";
         document.getElementById("t-password-field").style.display = "none";
+        const editRoleField = document.getElementById("t-account-role-field");
+        if (editRoleField) editRoleField.style.display = "none";
         syncTeacherGrade();
         openModal("add-teacher-modal");
       };
@@ -10943,10 +10960,12 @@
         try {
           const sec = initializeApp({ ...FIREBASE_CONFIG }, "sec-" + Date.now());
           const secAuth = getAuth(sec);
+          const accountRole =
+            document.getElementById("t-role")?.value === "coordinator" ? "coordinator" : "teacher";
           const newTeacher = {
             name,
             email,
-            role: "teacher",
+            role: accountRole,
             teacherId: teacherIdValue,
             nic: nicValue,
             nicNumber: nicValue,
@@ -10969,7 +10988,12 @@
           renderProgress();
           populateTeacherSelect();
           closeModal("add-teacher-modal");
-          showToast("Teacher created!", "success");
+          showToast(
+            accountRole === "coordinator"
+              ? "Teacher + coordinator account created!"
+              : "Teacher created!",
+            "success",
+          );
         } catch (e) {
           err.textContent = e.message.includes("email-already")
             ? "Email already in use."
@@ -11868,14 +11892,19 @@
         if (user.grade) return "Grade " + user.grade;
         return "-";
       }
+      // Tier ladder order: subject teachers, then academic coordinators,
+      // then EduTrack admins, then master/super admins.
       function accountSortWeight(user) {
+        const platform = String((user && user.platformRole) || "").toLowerCase();
+        if (platform === "masteradmin" || platform === "superadmin") return 3;
+        if (platform === "master_edutrack_admin" || platform === "eduzync_admin") return 2;
         const key = accountRoleKey(user);
-        if (key === "admin") return 0;
+        if (key === "teacher") return 0;
         if (key === "coordinator") return 1;
-        if (key === "teacher") return 2;
-        if (key === "student-monitor") return 3;
-        if (key === "student") return 4;
-        return 5;
+        if (key === "admin") return 2;
+        if (key === "student-monitor") return 4;
+        if (key === "student") return 5;
+        return 6;
       }
       let managedAccounts = [];
 
