@@ -117,6 +117,7 @@ const EDUTRACK_ROLES: Role[] = [
   "superadmin",
   "master_edutrack_admin",
   "eduzync_admin",
+  "academic_coordinator",
   "viewadmin",
   "teacher",
 ];
@@ -8467,7 +8468,7 @@ function CentralPortal() {
       icon: BookOpen,
       roles: EDUTRACK_ROLES,
       meta: "Full syllabus tracking workspace",
-      lockedMeta: "Teachers and EduTrack admins",
+      lockedMeta: "Teachers, coordinators, and EduTrack admins",
     },
     {
       title: "ELMS",

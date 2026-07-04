@@ -69,6 +69,7 @@ export type Role =
   | "website_admin"
   | "eduzync_admin"
   | "master_edutrack_admin"
+  | "academic_coordinator"
   | "staff_admin"
   | "viewadmin"
   | "teacher"

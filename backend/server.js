@@ -556,6 +556,7 @@ const ROLE_ENUM_SQL = `
     'website_admin',
     'eduzync_admin',
     'master_edutrack_admin',
+    'academic_coordinator',
     'staff_admin',
     'viewadmin',
     'teacher',
@@ -571,6 +572,7 @@ const ROLE_ENUM_MIGRATION_SQL = `
     'website_admin',
     'eduzync_admin',
     'master_edutrack_admin',
+    'academic_coordinator',
     'staff_admin',
     'viewadmin',
     'teacher',
@@ -586,6 +588,7 @@ const ROLES = {
   website: "website_admin",
   eduzync: "eduzync_admin",
   masterEduTrack: "master_edutrack_admin",
+  coordinator: "academic_coordinator",
   staff: "staff_admin",
   view: "viewadmin",
   teacher: "teacher",
@@ -602,6 +605,7 @@ const SCHOOL_DATA_READ_ROLES = [
   ROLES.super,
   ROLES.masterEduTrack,
   ROLES.eduzync,
+  ROLES.coordinator,
   ROLES.view,
   ROLES.teacher,
 ];
@@ -610,6 +614,7 @@ const EDUTRACK_ROLES = [
   ROLES.super,
   ROLES.masterEduTrack,
   ROLES.eduzync,
+  ROLES.coordinator,
   ROLES.view,
   ROLES.teacher,
 ];
@@ -638,6 +643,7 @@ const MAINTENANCE_BYPASS_ROLES = [
   ROLES.website,
   ROLES.eduzync,
   ROLES.masterEduTrack,
+  ROLES.coordinator,
   ROLES.staff,
   ROLES.view,
 ];
@@ -686,6 +692,11 @@ const rolePermissionsSeed = [
   [ROLES.eduzync, "subjects", 1, 1, 1, 1],
   [ROLES.eduzync, "edutrack", 1, 1, 1, 0],
   [ROLES.eduzync, "report_cards", 1, 1, 1, 0],
+  [ROLES.coordinator, "edutrack", 1, 1, 1, 0],
+  [ROLES.coordinator, "eduzync", 1, 0, 0, 0],
+  [ROLES.coordinator, "teachers", 1, 0, 0, 0],
+  [ROLES.coordinator, "subjects", 1, 0, 0, 0],
+  [ROLES.coordinator, "students", 1, 0, 0, 0],
   [ROLES.teacher, "edutrack", 1, 1, 1, 0],
   [ROLES.teacher, "elms", 0, 0, 0, 0],
   [ROLES.teacher, "report_cards", 1, 1, 1, 0],
@@ -3111,7 +3122,8 @@ function eduTrackPortalAccountSyncConfig() {
 function portalRoleFromEduTrackRole(value) {
   const role = String(value || "").trim();
   if (!role || role === "teacher") return ROLES.teacher;
-  if (role === "admin" || role === "coordinator" || role === "edutrack_admin") {
+  if (role === "coordinator" || role === "academic_coordinator") return ROLES.coordinator;
+  if (role === "admin" || role === "edutrack_admin") {
     return ROLES.eduzync;
   }
   if (role === "student") return ROLES.student;
@@ -9528,6 +9540,7 @@ app.delete("/api/edutrack/relief-assignments/:id", edutrackMasterOnly, async (re
 function eduTrackRole(role) {
   if ([ROLES.master, ROLES.super, ROLES.masterEduTrack, ROLES.eduzync, ROLES.view].includes(role))
     return "admin";
+  if (role === ROLES.coordinator) return "coordinator";
   if (role === "teacher") return "teacher";
   return role || "teacher";
 }
@@ -10320,7 +10333,7 @@ async function platformUsersForEduTrack() {
         WHERE NULLIF(account_user_id, '') IS NOT NULL
         GROUP BY account_user_id
       ) linked ON linked.account_user_id = u.id
-      WHERE u.role IN ('eduzync_admin','master_edutrack_admin','superadmin','masteradmin')
+      WHERE u.role IN ('eduzync_admin','master_edutrack_admin','superadmin','masteradmin','academic_coordinator')
          OR (
            u.role = 'teacher'
            AND LOWER(COALESCE(u.status, '')) = 'active'
