@@ -5271,13 +5271,17 @@
         </div>
         <div class="nav-section" id="admin-nav" style="display: none">
           <div class="nav-label" id="admin-nav-label">Admin</div>
-          <div class="nav-item" onclick="showPage('analytics')">
+          <div class="nav-item admin-only-nav" onclick="showPage('analytics')">
             <span class="nav-icon"><i data-lucide="activity"></i></span
             ><span class="nav-text"> Analytics</span>
           </div>
           <div class="nav-item admin-only-nav" onclick="showPage('teacher-assignments')">
             <span class="nav-icon"><i data-lucide="clipboard-list"></i></span
             ><span class="nav-text"> Teacher Assignments</span>
+          </div>
+          <div class="nav-item admin-only-nav" onclick="showPage('coordination')">
+            <span class="nav-icon"><i data-lucide="users-round"></i></span
+            ><span class="nav-text"> Coordination</span>
           </div>
           <div class="nav-item" onclick="showPage('year-plans')">
             <span class="nav-icon"><i data-lucide="list-checks"></i></span
@@ -5287,7 +5291,7 @@
             <span class="nav-icon"><i data-lucide="bar-chart-3"></i></span
             ><span class="nav-text"> Progress Reports</span>
           </div>
-          <div class="nav-item" onclick="showPage('staff-attendance')">
+          <div class="nav-item admin-only-nav" onclick="showPage('staff-attendance')">
             <span class="nav-icon"><i data-lucide="calendar-check"></i></span
             ><span class="nav-text"> Staff Attendance</span>
           </div>
@@ -5591,6 +5595,59 @@
             <div class="section-title" style="margin-bottom: 12px">Assignments</div>
             <div id="teacher-assignments-list" class="page-stack">
               <div class="empty">Loading assignments...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- COORDINATION (ADMIN) -->
+        <div class="page page-shell" id="page-coordination">
+          <div class="page-header page-header-row">
+            <div>
+              <h2>Coordination</h2>
+              <p>Assign teachers to each academic coordinator's supervision.</p>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap">
+              <button class="btn secondary sm" onclick="downloadCoordinationCsvTemplate()">
+                <i data-lucide="file-down" style="width: 14px; height: 14px"></i> CSV Template
+              </button>
+              <button class="btn secondary sm" onclick="openCoordinationCsvImport()">
+                <i data-lucide="upload" style="width: 14px; height: 14px"></i> Import CSV
+              </button>
+              <button class="btn secondary sm" onclick="loadCoordination()">
+                <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <input
+            type="file"
+            id="coordination-csv-input"
+            accept=".csv"
+            style="display: none"
+            onchange="importCoordinationCsv(this)"
+          />
+          <div class="card" style="margin-bottom: 18px">
+            <div class="section-title">Assign Teacher To Coordinator</div>
+            <div class="form-grid-2" style="margin-top: 12px">
+              <div class="field">
+                <label>Academic Coordinator</label>
+                <select id="coord-assign-coordinator"></select>
+              </div>
+              <div class="field">
+                <label>Teacher</label>
+                <select id="coord-assign-teacher"></select>
+              </div>
+            </div>
+            <div id="coordination-error" class="error-msg"></div>
+            <div style="display: flex; justify-content: flex-end">
+              <button class="btn sm" onclick="saveCoordinationAssignment()">
+                <i data-lucide="save" style="width: 14px; height: 14px"></i> Assign Teacher
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="section-title" style="margin-bottom: 12px">Coordination Assignments</div>
+            <div id="coordination-list" class="page-stack">
+              <div class="empty">Loading coordination assignments...</div>
             </div>
           </div>
         </div>
@@ -7214,7 +7271,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v6.6.1";
+      const APP_VERSION = "v7.0.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -7862,6 +7919,9 @@
           const item = document.getElementById(id);
           if (item) item.style.display = isAdmin || !coordinatorTeaches ? "none" : "";
         });
+        const reliefNav = document.getElementById("nav-relief");
+        if (reliefNav)
+          reliefNav.style.display = isCoordinator && !coordinatorTeaches ? "none" : "";
         const myReportNav = document.getElementById("nav-year-plan-reports");
         if (myReportNav) myReportNav.style.display = isOversight ? "none" : "";
         const mobileNav = document.getElementById("mobile-bottom-nav");
@@ -7920,6 +7980,7 @@
           }
           updateAuthActiveTermCard(allTerms);
           refreshMySyllabusClassOptions();
+          await loadCoordinationScope();
           await loadYearPlanDashStats();
           renderDashboard();
           setupDailyProgressFormDefaults();
@@ -8184,6 +8245,33 @@
       };
 
       // Dashboard
+      // Coordinators only see the teachers assigned to their coordination.
+      let coordinationScope = null;
+      async function loadCoordinationScope() {
+        coordinationScope = null;
+        if (!(cud && cud.role === "coordinator")) return;
+        try {
+          const rows = await apiFetch("/api/edutrack/coordination-assignments");
+          const ids = new Set();
+          rows.forEach((row) => {
+            if (row.teacher_user_id) ids.add(String(row.teacher_user_id));
+            if (row.teacher_id) ids.add(String(row.teacher_id).toUpperCase());
+          });
+          ids.add(String(cud.id));
+          if (cud.teacherId) ids.add(String(cud.teacherId).toUpperCase());
+          coordinationScope = ids;
+        } catch (error) {
+          coordinationScope = new Set([String(cud.id)]);
+        }
+      }
+      function inCoordinationScope(teacher) {
+        if (!coordinationScope || !teacher) return true;
+        return (
+          coordinationScope.has(String(teacher.id)) ||
+          (teacher.teacherId && coordinationScope.has(String(teacher.teacherId).toUpperCase()))
+        );
+      }
+
       // Year-plan completion feeds the dashboard alongside legacy subject
       // syllabus items, so ticks made in Year Plan Progress show up for admins.
       let yearPlanDashStats = { byTeacherId: {}, byUserId: {} };
@@ -8254,7 +8342,11 @@
           upper: { d: 0, t: 0 },
           advanced: { d: 0, t: 0 },
         };
-        const mine = isAdmin ? allSubjects : allSubjects.filter((s) => s.teacherId === cud.id);
+        const mine = isAdmin
+          ? coordinationScope
+            ? allSubjects.filter((s) => coordinationScope.has(String(s.teacherId)))
+            : allSubjects
+          : allSubjects.filter((s) => s.teacherId === cud.id);
         mine.forEach((s) => {
           const { total, done } = subjStats(s);
           const l = s.level || "primary";
@@ -8264,7 +8356,7 @@
           }
         });
         const ypLevelTeachers = isAdmin
-          ? allTeachers
+          ? allTeachers.filter(inCoordinationScope)
           : [
               allTeachers.find((t) => t.id === cud.id) ||
                 normalizeTeacher({ ...cud, id: cud.id, role: "teacher" }),
@@ -8308,7 +8400,7 @@
 
         const el = document.getElementById("dash-subjects-list");
         let displayTeachers = isAdmin
-          ? allTeachers
+          ? allTeachers.filter(inCoordinationScope)
           : [
               allTeachers.find((t) => t.id === cud.id) ||
                 normalizeTeacher({ ...cud, id: cud.id, role: "teacher" }),
@@ -13342,6 +13434,7 @@
           "accounts",
           "teachers",
           "teacher-assignments",
+          "coordination",
           "year-plans",
           "staff-attendance",
           "terms",
@@ -13350,16 +13443,12 @@
           "progress",
           "analytics",
         ];
-        const coordinatorPages = [
-          "dashboard",
-          "analytics",
-          "year-plans",
-          "year-plan-reports",
-          "staff-attendance",
-          "relief",
-          "assigned-subjects",
-          "year-plan",
-        ];
+        // Coordinators: Dashboard, Year Plans, Progress Reports. Teaching
+        // coordinators also get the teacher workflow pages.
+        const coordinatorPages = ["dashboard", "year-plans", "year-plan-reports"];
+        if (cud && cud.teachesSubjects !== false) {
+          coordinatorPages.push("relief", "assigned-subjects", "year-plan");
+        }
         const teacherOnlyPages = ["assigned-subjects", "year-plan", "my-subjects"];
         const openingPlanForReview = name === "year-plan" && !!currentYearPlan;
         if (cud && cud.role === "admin" && teacherOnlyPages.includes(name) && !openingPlanForReview)
@@ -13407,6 +13496,7 @@
         if (name === "assigned-subjects") loadYearPlanAssignments();
         if (name === "year-plan") renderYearPlanEditor();
         if (name === "teacher-assignments" && cud && cud.role === "admin") loadTeacherAssignments();
+        if (name === "coordination" && cud && cud.role === "admin") loadCoordination();
         if (name === "year-plans" && isOversightRole()) loadYearPlans();
         if (name === "year-plan-reports") loadYearPlanReports();
         if (name === "staff-attendance" && isOversightRole()) loadEduTrackStaffAttendance();
@@ -15803,6 +15893,207 @@
         } catch (error) {
           showToast(error.message, "err");
           renderYearPlanEditor();
+        }
+      };
+
+      let coordinationAssignments = [];
+
+      window.loadCoordination = async function () {
+        const box = document.getElementById("coordination-list");
+        if (box) box.innerHTML = '<div class="empty">Loading coordination assignments...</div>';
+        const coordinatorSelect = document.getElementById("coord-assign-coordinator");
+        const teacherSelect = document.getElementById("coord-assign-teacher");
+        if (coordinatorSelect) {
+          const coordinators = allUsers.filter((u) => u.role === "coordinator");
+          coordinatorSelect.innerHTML = coordinators.length
+            ? coordinators
+                .map(
+                  (u) =>
+                    '<option value="' +
+                    escapeHtml(String(u.id)) +
+                    '">' +
+                    escapeHtml(u.name || u.email || u.id) +
+                    "</option>",
+                )
+                .join("")
+            : '<option value="">No coordinator accounts yet</option>';
+        }
+        if (teacherSelect) {
+          const teachers = allUsers.filter(
+            (u) => u.role === "teacher" || u.role === "coordinator",
+          );
+          teacherSelect.innerHTML = teachers.length
+            ? teachers
+                .map(
+                  (u) =>
+                    '<option value="' +
+                    escapeHtml(String(u.id)) +
+                    '">' +
+                    escapeHtml(u.name || u.email || u.id) +
+                    (u.role === "coordinator" ? " (coordinator)" : "") +
+                    "</option>",
+                )
+                .join("")
+            : '<option value="">No teacher accounts yet</option>';
+        }
+        try {
+          coordinationAssignments = await apiFetch("/api/edutrack/coordination-assignments");
+          renderCoordination();
+        } catch (error) {
+          if (box)
+            box.innerHTML =
+              '<div class="empty">Could not load coordination: ' +
+              escapeHtml(error.message) +
+              "</div>";
+        }
+      };
+
+      function renderCoordination() {
+        const box = document.getElementById("coordination-list");
+        if (!box) return;
+        if (!coordinationAssignments.length) {
+          box.innerHTML =
+            '<div class="empty">No teachers assigned to coordinators yet. Use the form above or import a CSV.</div>';
+          return;
+        }
+        const grouped = new Map();
+        coordinationAssignments.forEach((row) => {
+          const key = String(row.coordinator_user_id);
+          if (!grouped.has(key))
+            grouped.set(key, { name: row.coordinator_name || key, rows: [] });
+          grouped.get(key).rows.push(row);
+        });
+        box.innerHTML = [...grouped.values()]
+          .map(
+            (group) =>
+              '<div class="card" style="box-shadow:none"><div class="section-title" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+              escapeHtml(group.name) +
+              '<span class="badge">' +
+              group.rows.length +
+              " teacher" +
+              (group.rows.length !== 1 ? "s" : "") +
+              '</span></div><div class="page-stack" style="margin-top:10px">' +
+              group.rows
+                .map(
+                  (row) =>
+                    '<div class="relief-card-row"><div><div class="relief-card-row-title">' +
+                    escapeHtml(row.teacher_name || row.teacher_user_id || "-") +
+                    '</div><div class="relief-card-row-meta">Teacher ID: ' +
+                    escapeHtml(row.teacher_id || "-") +
+                    (row.assigned_by_name
+                      ? " | Assigned by " + escapeHtml(row.assigned_by_name)
+                      : "") +
+                    '</div></div><div class="relief-card-actions"><button class="btn secondary sm" onclick="deleteCoordinationAssignment(' +
+                    Number(row.id) +
+                    ", '" +
+                    escapeInlineJsString(row.teacher_name || "") +
+                    "')\">Remove</button></div></div>",
+                )
+                .join("") +
+              "</div></div>",
+          )
+          .join("");
+      }
+
+      window.saveCoordinationAssignment = async function () {
+        const errBox = document.getElementById("coordination-error");
+        if (errBox) errBox.textContent = "";
+        const coordinatorId = document.getElementById("coord-assign-coordinator")?.value || "";
+        const teacherId = document.getElementById("coord-assign-teacher")?.value || "";
+        if (!coordinatorId || !teacherId) {
+          if (errBox) errBox.textContent = "Select a coordinator and a teacher.";
+          return;
+        }
+        try {
+          await apiFetch("/api/edutrack/coordination-assignments", {
+            method: "POST",
+            body: JSON.stringify({
+              coordinator_user_id: coordinatorId,
+              teacher_user_id: teacherId,
+            }),
+          });
+          showToast("Teacher assigned to coordinator.", "success");
+          await loadCoordination();
+        } catch (error) {
+          if (errBox) errBox.textContent = error.message;
+          showToast(error.message, "err");
+        }
+      };
+
+      window.deleteCoordinationAssignment = async function (id, teacherName) {
+        if (
+          !window.confirm(
+            "Remove " + (teacherName || "this teacher") + " from this coordinator's list?",
+          )
+        )
+          return;
+        try {
+          await apiFetch("/api/edutrack/coordination-assignments/" + Number(id), {
+            method: "DELETE",
+          });
+          showToast("Coordination assignment removed.", "success");
+          await loadCoordination();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.downloadCoordinationCsvTemplate = function () {
+        const rows = [
+          ["coordinator_email", "teacher_email"],
+          ["coordinator@example.lk", "teacher1@example.lk"],
+          ["coordinator@example.lk", "teacher2@example.lk"],
+        ];
+        const csv = rows.map((row) => row.join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "edutrack-coordination-template.csv";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
+
+      window.openCoordinationCsvImport = function () {
+        const input = document.getElementById("coordination-csv-input");
+        if (!input) return;
+        input.value = "";
+        input.click();
+      };
+
+      window.importCoordinationCsv = async function (input) {
+        const file = input && input.files && input.files[0];
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith(".csv")) {
+          showToast("Please select a .csv file.", "err");
+          input.value = "";
+          return;
+        }
+        try {
+          showToast("Importing coordination CSV...", "");
+          const csv = await file.text();
+          const result = await apiFetch("/api/edutrack/coordination-assignments/import-csv", {
+            method: "POST",
+            body: JSON.stringify({ csv, fileName: file.name }),
+          });
+          showToast(
+            "Coordination import finished: " +
+              Number(result.created || 0) +
+              " assigned" +
+              (result.skipped ? ", " + Number(result.skipped) + " skipped" : "") +
+              ".",
+            result.errors && result.errors.length ? "" : "success",
+          );
+          if (result.errors && result.errors.length) {
+            window.alert("Some rows were skipped:\n\n" + result.errors.join("\n"));
+          }
+          await loadCoordination();
+        } catch (error) {
+          showToast((error && error.message) || "Coordination CSV import failed.", "err");
+        } finally {
+          input.value = "";
         }
       };
 

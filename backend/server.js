@@ -2225,6 +2225,23 @@ async function ensureContentTables() {
   `);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_coordinator_teachers (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      coordinator_user_id VARCHAR(64) NOT NULL,
+      coordinator_name VARCHAR(190) NULL,
+      teacher_user_id VARCHAR(64) NOT NULL,
+      teacher_id VARCHAR(80) NULL,
+      teacher_name VARCHAR(190) NULL,
+      assigned_by_user_id VARCHAR(64) NULL,
+      assigned_by_name VARCHAR(190) NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uniq_coordinator_teacher (coordinator_user_id, teacher_user_id),
+      KEY idx_coord_teachers_coordinator (coordinator_user_id),
+      KEY idx_coord_teachers_teacher (teacher_user_id)
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS edutrack_year_plans (
       id INT AUTO_INCREMENT PRIMARY KEY,
       assignment_id INT NULL,
@@ -7187,6 +7204,47 @@ function isEduTrackOversightUser(req) {
   return isEduTrackAdminUser(req) || isEduTrackCoordinatorUser(req);
 }
 
+// Coordinators only see the teachers assigned to their coordination
+// (plus their own records). Returns null for non-coordinators, meaning
+// no extra scoping applies.
+async function coordinatorTeacherScope(req, actor) {
+  if (!isEduTrackCoordinatorUser(req)) return null;
+  const [rows] = await db.query(
+    "SELECT teacher_user_id, teacher_id FROM edutrack_coordinator_teachers WHERE coordinator_user_id = ?",
+    [String(actor.id || "")],
+  );
+  const userIds = new Set();
+  const teacherIds = new Set();
+  rows.forEach((row) => {
+    if (row.teacher_user_id) userIds.add(String(row.teacher_user_id));
+    if (row.teacher_id) teacherIds.add(String(row.teacher_id));
+  });
+  if (actor.id) userIds.add(String(actor.id));
+  if (actor.teacherId) teacherIds.add(String(actor.teacherId));
+  return { userIds: [...userIds], teacherIds: [...teacherIds] };
+}
+
+function pushCoordinatorScopeSql(scope, alias, where, params) {
+  const parts = [];
+  if (scope.userIds.length) {
+    parts.push(`${alias}teacher_user_id IN (${scope.userIds.map(() => "?").join(", ")})`);
+    params.push(...scope.userIds);
+  }
+  if (scope.teacherIds.length) {
+    parts.push(`${alias}teacher_id IN (${scope.teacherIds.map(() => "?").join(", ")})`);
+    params.push(...scope.teacherIds);
+  }
+  where.push(parts.length ? `(${parts.join(" OR ")})` : "1 = 0");
+}
+
+function coordinatorScopeIncludes(scope, row) {
+  if (!scope) return true;
+  return (
+    scope.userIds.includes(String(row.teacher_user_id || "")) ||
+    scope.teacherIds.includes(String(row.teacher_id || ""))
+  );
+}
+
 function isEduTrackMasterUser(req) {
   return [ROLES.master, ROLES.super, ROLES.masterEduTrack].includes(req.user?.role);
 }
@@ -7335,12 +7393,14 @@ async function insertDailySyllabusAudit(conn, req, recordId, action, oldValue, n
   );
 }
 
-function dailyProgressWhere(query, req, actor) {
+function dailyProgressWhere(query, req, actor, coordinatorScope = null) {
   const conditions = [];
   const params = [];
   if (!isEduTrackOversightUser(req)) {
     conditions.push("(teacher_user_id = ? OR teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
+  } else if (coordinatorScope) {
+    pushCoordinatorScopeSql(coordinatorScope, "", conditions, params);
   }
   const addEq = (column, value) => {
     if (value == null || String(value).trim() === "") return;
@@ -7380,7 +7440,8 @@ function dailyProgressWhere(query, req, actor) {
 }
 
 async function listDailyProgressRecords(req, actor) {
-  const { sql, params } = dailyProgressWhere(req.query || {}, req, actor);
+  const coordinatorScope = await coordinatorTeacherScope(req, actor);
+  const { sql, params } = dailyProgressWhere(req.query || {}, req, actor, coordinatorScope);
   const limit = Math.min(Math.max(Number(req.query.limit || 300), 1), 1000);
   const [rows] = await db.query(
     `
@@ -7692,6 +7753,9 @@ async function listYearPlanAssignments(req, actor, mineOnly = false) {
   if (mineOnly || !isEduTrackOversightUser(req)) {
     where.push("(a.teacher_user_id = ? OR a.teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
+  } else {
+    const coordinatorScope = await coordinatorTeacherScope(req, actor);
+    if (coordinatorScope) pushCoordinatorScopeSql(coordinatorScope, "a.", where, params);
   }
   const addEq = (column, value) => {
     if (value == null || String(value).trim() === "") return;
@@ -7999,12 +8063,14 @@ app.delete("/api/edutrack/teacher-assignments/:id", edutrackMasterOnly, async (r
   }
 });
 
-function yearPlanListWhere(query, req, actor) {
+function yearPlanListWhere(query, req, actor, coordinatorScope = null) {
   const where = [];
   const params = [];
   if (!isEduTrackOversightUser(req)) {
     where.push("(p.teacher_user_id = ? OR p.teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
+  } else if (coordinatorScope) {
+    pushCoordinatorScopeSql(coordinatorScope, "p.", where, params);
   }
   const addEq = (column, value) => {
     if (value == null || String(value).trim() === "") return;
@@ -8033,7 +8099,8 @@ app.get("/api/edutrack/year-plans", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
     const actor = await eduTrackActor(req);
-    const { sql, params } = yearPlanListWhere(req.query || {}, req, actor);
+    const coordinatorScope = await coordinatorTeacherScope(req, actor);
+    const { sql, params } = yearPlanListWhere(req.query || {}, req, actor, coordinatorScope);
     const [rows] = await db.query(
       `
         SELECT p.*,
@@ -8173,6 +8240,10 @@ app.get("/api/edutrack/year-plans/:id", teacherOrAdmin, async (req, res) => {
     if (!plan) return res.status(404).json({ error: "Year plan not found" });
     if (!canAccessYearPlan(req, actor, plan, "read"))
       return res.status(403).json({ error: "Access denied" });
+    const coordinatorScope = await coordinatorTeacherScope(req, actor);
+    if (!coordinatorScopeIncludes(coordinatorScope, plan)) {
+      return res.status(403).json({ error: "This teacher is not in your coordination." });
+    }
     res.json(plan);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -8321,6 +8392,11 @@ app.post("/api/edutrack/year-plans/:id/review", edutrackOversightOnly, async (re
         .status(403)
         .json({ error: "Your own year plan must be reviewed by another admin." });
     }
+    const reviewScope = await coordinatorTeacherScope(req, actor);
+    if (!coordinatorScopeIncludes(reviewScope, existing)) {
+      await conn.rollback();
+      return res.status(403).json({ error: "This teacher is not in your coordination." });
+    }
     await conn.query(
       `
         UPDATE edutrack_year_plans
@@ -8351,6 +8427,204 @@ app.post("/api/edutrack/year-plans/:id/review", edutrackOversightOnly, async (re
   }
 });
 
+async function findUserForCoordination(identifier) {
+  const value = compactText(identifier, 190);
+  if (!value) return null;
+  const nic = normalizeNicNumber(value);
+  const email = normalizeEmail(value);
+  const [rows] = await db.query(
+    `
+      SELECT id, external_staff_id, name, email, role
+      FROM users
+      WHERE id = ? OR external_staff_id = ? OR email = ? OR nic_number = ?
+      LIMIT 1
+    `,
+    [value, value, email || "__none__", nic || "__none__"],
+  );
+  return rows[0] || null;
+}
+
+async function insertCoordinationAssignment(coordinator, teacher, actorInfo) {
+  if (String(coordinator.id) === String(teacher.id)) {
+    return { skipped: true, reason: "coordinator and teacher are the same account" };
+  }
+  const [existing] = await db.query(
+    "SELECT id FROM edutrack_coordinator_teachers WHERE coordinator_user_id = ? AND teacher_user_id = ? LIMIT 1",
+    [String(coordinator.id), String(teacher.id)],
+  );
+  if (existing.length) return { skipped: true, reason: "already assigned" };
+  await db.query(
+    `
+      INSERT INTO edutrack_coordinator_teachers
+        (coordinator_user_id, coordinator_name, teacher_user_id, teacher_id, teacher_name,
+         assigned_by_user_id, assigned_by_name)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      String(coordinator.id),
+      compactText(coordinator.name, 190),
+      String(teacher.id),
+      compactText(teacher.external_staff_id || teacher.id, 80),
+      compactText(teacher.name, 190),
+      actorInfo?.id ? String(actorInfo.id) : null,
+      actorInfo?.name ? compactText(actorInfo.name, 190) : null,
+    ],
+  );
+  return { created: true };
+}
+
+app.get("/api/edutrack/coordination-assignments", edutrackOversightOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const where = [];
+    const params = [];
+    if (isEduTrackCoordinatorUser(req)) {
+      where.push("coordinator_user_id = ?");
+      params.push(String(actor.id));
+    } else if (String(req.query.coordinator_user_id || "").trim()) {
+      where.push("coordinator_user_id = ?");
+      params.push(String(req.query.coordinator_user_id).trim());
+    }
+    const [rows] = await db.query(
+      `
+        SELECT id, coordinator_user_id, coordinator_name, teacher_user_id, teacher_id,
+          teacher_name, assigned_by_name, created_at
+        FROM edutrack_coordinator_teachers
+        ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
+        ORDER BY coordinator_name ASC, teacher_name ASC
+        LIMIT 2000
+      `,
+      params,
+    );
+    res.json(rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/edutrack/coordination-assignments", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await eduTrackActor(req);
+    const coordinator = await findUserForCoordination(
+      req.body?.coordinator_user_id || req.body?.coordinator,
+    );
+    const teacher = await findUserForCoordination(req.body?.teacher_user_id || req.body?.teacher);
+    if (!coordinator) return res.status(404).json({ error: "Coordinator account not found" });
+    if (!teacher) return res.status(404).json({ error: "Teacher account not found" });
+    if (coordinator.role !== ROLES.coordinator) {
+      return res
+        .status(400)
+        .json({ error: `${coordinator.name} is not an academic coordinator account.` });
+    }
+    const result = await insertCoordinationAssignment(coordinator, teacher, actor);
+    if (result.skipped) {
+      return res.status(409).json({ error: `Skipped: ${result.reason}.` });
+    }
+    await recordAccountAudit(
+      req,
+      "coordination_assigned",
+      { id: teacher.id, email: teacher.email, name: teacher.name, role: teacher.role },
+      { coordinator_user_id: coordinator.id, coordinator_name: coordinator.name },
+    );
+    res.status(201).json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete("/api/edutrack/coordination-assignments/:id", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_coordinator_teachers WHERE id = ? LIMIT 1",
+      [Number(req.params.id)],
+    );
+    const existing = rows[0];
+    if (!existing) return res.status(404).json({ error: "Coordination assignment not found" });
+    await db.query("DELETE FROM edutrack_coordinator_teachers WHERE id = ?", [existing.id]);
+    await recordAccountAudit(
+      req,
+      "coordination_removed",
+      { id: existing.teacher_user_id, name: existing.teacher_name },
+      { coordinator_user_id: existing.coordinator_user_id, coordinator_name: existing.coordinator_name },
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post(
+  "/api/edutrack/coordination-assignments/import-csv",
+  eduzyncAdminOnly,
+  async (req, res) => {
+    try {
+      await ensureContentTables();
+      const actor = await eduTrackActor(req);
+      const csv = String(req.body?.csv || "");
+      if (!csv.trim()) return res.status(400).json({ error: "CSV content is required" });
+      if (Buffer.byteLength(csv, "utf8") > EDUTRACK_TEACHER_CSV_MAX_BYTES) {
+        return res.status(400).json({ error: "CSV file is too large (limit 2 MB)" });
+      }
+      const rows = parseEduTrackTeacherCsv(csv);
+      if (!rows.length) return res.status(400).json({ error: "No data rows found in the CSV" });
+      let created = 0;
+      let skipped = 0;
+      const errors = [];
+      for (let index = 0; index < rows.length; index += 1) {
+        const row = rows[index];
+        const rowNumber = index + 2;
+        const coordinatorKey = eduTrackCsvField(
+          row,
+          "coordinator",
+          "coordinator_email",
+          "coordinator_id",
+          "coordinator_nic",
+        );
+        const teacherKey = eduTrackCsvField(
+          row,
+          "teacher",
+          "teacher_email",
+          "teacher_id",
+          "teacher_nic",
+        );
+        if (!coordinatorKey || !teacherKey) {
+          errors.push(`Row ${rowNumber}: coordinator and teacher are required`);
+          continue;
+        }
+        const coordinator = await findUserForCoordination(coordinatorKey);
+        const teacher = await findUserForCoordination(teacherKey);
+        if (!coordinator) {
+          errors.push(`Row ${rowNumber}: coordinator "${coordinatorKey}" not found`);
+          continue;
+        }
+        if (coordinator.role !== ROLES.coordinator) {
+          errors.push(`Row ${rowNumber}: ${coordinator.name} is not an academic coordinator`);
+          continue;
+        }
+        if (!teacher) {
+          errors.push(`Row ${rowNumber}: teacher "${teacherKey}" not found`);
+          continue;
+        }
+        const result = await insertCoordinationAssignment(coordinator, teacher, actor);
+        if (result.created) created += 1;
+        else skipped += 1;
+      }
+      await recordAccountAudit(
+        req,
+        "coordination_csv_import",
+        {},
+        { created, skipped, errors: errors.length },
+      );
+      res.json({ success: true, created, skipped, errors });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  },
+);
+
 app.get("/api/edutrack/analytics/overview", edutrackOversightOnly, async (req, res) => {
   try {
     await ensureContentTables();
@@ -8358,7 +8632,7 @@ app.get("/api/edutrack/analytics/overview", edutrackOversightOnly, async (req, r
     const planWhere = academicYear ? "WHERE p.academic_year = ?" : "";
     const planParams = academicYear ? [academicYear] : [];
 
-    const [planRows] = await db.query(
+    let [planRows] = await db.query(
       `
         SELECT p.id, p.teacher_id, p.teacher_user_id, p.teacher_name, p.subject_name, p.grade,
           p.section, p.academic_year, p.approval_status, p.updated_at,
@@ -8372,6 +8646,11 @@ app.get("/api/edutrack/analytics/overview", edutrackOversightOnly, async (req, r
       `,
       planParams,
     );
+    const analyticsActor = await eduTrackActor(req);
+    const analyticsScope = await coordinatorTeacherScope(req, analyticsActor);
+    if (analyticsScope) {
+      planRows = planRows.filter((row) => coordinatorScopeIncludes(analyticsScope, row));
+    }
 
     const [activityRows] = await db.query(`
       SELECT record_date, COUNT(*) AS records,
@@ -8896,12 +9175,14 @@ app.post(
   },
 );
 
-function yearPlanReportWhere(query, req, actor) {
+function yearPlanReportWhere(query, req, actor, coordinatorScope = null) {
   const where = [];
   const params = [];
   if (!isEduTrackOversightUser(req)) {
     where.push("(p.teacher_user_id = ? OR p.teacher_id = ?)");
     params.push(actor.id, actor.teacherId);
+  } else if (coordinatorScope) {
+    pushCoordinatorScopeSql(coordinatorScope, "p.", where, params);
   }
   const addEq = (column, value) => {
     if (value == null || String(value).trim() === "") return;
@@ -8929,7 +9210,8 @@ function yearPlanReportWhere(query, req, actor) {
 
 async function yearPlanReportPayload(req, actor, extraQuery = {}) {
   const query = { ...(req.query || {}), ...extraQuery };
-  const { sql, params } = yearPlanReportWhere(query, req, actor);
+  const coordinatorScope = await coordinatorTeacherScope(req, actor);
+  const { sql, params } = yearPlanReportWhere(query, req, actor, coordinatorScope);
   const [rows] = await db.query(
     `
       SELECT
