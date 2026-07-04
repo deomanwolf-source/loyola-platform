@@ -8356,7 +8356,15 @@ app.post("/api/edutrack/year-plans/:id/submit", teacherOrAdmin, async (req, res)
   }
 });
 
-app.post("/api/edutrack/year-plans/:id/review", edutrackOversightOnly, async (req, res) => {
+// Year plan approval is reserved for the master admin and for academic
+// coordinators (over the teachers in their coordination, including their
+// own plan when the coordinator also teaches). Super admins and EduTrack
+// admins cannot approve.
+function yearPlanReviewOnly(req, res, next) {
+  return authRole(ROLES.master, ROLES.coordinator)(req, res, next);
+}
+
+app.post("/api/edutrack/year-plans/:id/review", yearPlanReviewOnly, async (req, res) => {
   const conn = await db.getConnection();
   try {
     await ensureContentTables();
@@ -8383,15 +8391,6 @@ app.post("/api/edutrack/year-plans/:id/review", edutrackOversightOnly, async (re
     if (!existing) {
       await conn.rollback();
       return res.status(404).json({ error: "Year plan not found" });
-    }
-    if (
-      isEduTrackCoordinatorUser(req) &&
-      String(existing.teacher_user_id || "") === String(actor.id)
-    ) {
-      await conn.rollback();
-      return res
-        .status(403)
-        .json({ error: "Your own year plan must be reviewed by another admin." });
     }
     const reviewScope = await coordinatorTeacherScope(req, actor);
     if (!coordinatorScopeIncludes(reviewScope, existing)) {

@@ -7271,7 +7271,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.1.1";
+      const APP_VERSION = "v7.2.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -16343,7 +16343,11 @@
       }
 
       function renderYearPlanCard(plan) {
-        const canReview = isOversightRole();
+        // Only the master admin and coordinators can approve or request changes.
+        const canReview = !!(
+          cud &&
+          (cud.platformRole === "masteradmin" || cud.role === "coordinator")
+        );
         const reviewInfo =
               plan.reviewed_by_name && String(plan.approval_status || "") !== "submitted"
                 ? '<div class="page-meta-line" style="margin-top:4px">Reviewed by ' +
