@@ -7271,7 +7271,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.1.0";
+      const APP_VERSION = "v7.1.1";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -16257,6 +16257,14 @@
         return yearPlanBadge("Draft", "muted");
       }
 
+      const expandedYearPlanTeachers = new Set();
+      window.toggleYearPlanTeacher = function (key) {
+        const id = String(key);
+        if (expandedYearPlanTeachers.has(id)) expandedYearPlanTeachers.delete(id);
+        else expandedYearPlanTeachers.add(id);
+        renderYearPlans();
+      };
+
       function renderYearPlans() {
         const box = document.getElementById("year-plans-list");
         if (!box) return;
@@ -16264,10 +16272,79 @@
           box.innerHTML = '<div class="empty">No year plans created yet.</div>';
           return;
         }
+        // Admins and coordinators see plans grouped by teacher: click a
+        // teacher to expand their plans.
+        const groups = new Map();
+        yearPlans.forEach((plan) => {
+          const key = String(plan.teacher_user_id || plan.teacher_id || plan.teacher_name || "-");
+          if (!groups.has(key)) {
+            groups.set(key, {
+              key,
+              name: plan.teacher_name || plan.teacher_id || "Unknown teacher",
+              teacherId: plan.teacher_id || "",
+              plans: [],
+              done: 0,
+              total: 0,
+            });
+          }
+          const group = groups.get(key);
+          group.plans.push(plan);
+          group.done += Number(plan.completed_subtopics || 0);
+          group.total += Number(plan.total_subtopics || 0);
+        });
+        const sortedGroups = [...groups.values()].sort((a, b) =>
+          String(a.name).localeCompare(String(b.name)),
+        );
+        box.innerHTML = sortedGroups
+          .map((group) => {
+            const expanded = expandedYearPlanTeachers.has(group.key);
+            const pct = group.total ? Math.round((group.done / group.total) * 100) : 0;
+            const pending = group.plans.filter(
+              (plan) => String(plan.approval_status || "") === "submitted",
+            ).length;
+            const header =
+              '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><strong style="font-size:15px">' +
+              escapeHtml(group.name) +
+              "</strong>" +
+              (group.teacherId
+                ? '<span style="font-size:12px;color:var(--muted);font-family:\'DM Mono\',monospace">' +
+                  escapeHtml(group.teacherId) +
+                  "</span>"
+                : "") +
+              '<span class="badge">' +
+              group.plans.length +
+              " plan" +
+              (group.plans.length !== 1 ? "s" : "") +
+              "</span>" +
+              (pending
+                ? '<span class="badge" style="border-color:var(--warn);color:var(--warn)">' +
+                  pending +
+                  " awaiting review</span>"
+                : "") +
+              '<span style="margin-left:auto;display:inline-flex;align-items:center;gap:10px"><strong style="font-family:\'DM Mono\',monospace;color:var(--accent-bright)">' +
+              pct +
+              '%</strong><button class="btn secondary sm" onclick="toggleYearPlanTeacher(\'' +
+              escapeInlineJsString(group.key) +
+              "')\">" +
+              (expanded ? "Collapse" : "Expand") +
+              "</button></span></div>";
+            if (!expanded) {
+              return '<div class="card">' + header + "</div>";
+            }
+            return (
+              '<div class="card">' +
+              header +
+              '<div class="page-stack" style="margin-top:14px">' +
+              group.plans.map(renderYearPlanCard).join("") +
+              "</div></div>"
+            );
+          })
+          .join("");
+      }
+
+      function renderYearPlanCard(plan) {
         const canReview = isOversightRole();
-        box.innerHTML = yearPlans
-          .map((plan) => {
-            const reviewInfo =
+        const reviewInfo =
               plan.reviewed_by_name && String(plan.approval_status || "") !== "submitted"
                 ? '<div class="page-meta-line" style="margin-top:4px">Reviewed by ' +
                   escapeHtml(plan.reviewed_by_name) +
@@ -16310,9 +16387,7 @@
               ')">Open</button>' +
               reviewButtons +
               "</div></div></div></div>"
-            );
-          })
-          .join("");
+        );
       }
 
       window.reviewYearPlan = async function (planId, decision) {
