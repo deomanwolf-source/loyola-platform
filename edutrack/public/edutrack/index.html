@@ -7271,7 +7271,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.2.0";
+      const APP_VERSION = "v7.2.1";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -16671,37 +16671,102 @@
           tbody.innerHTML = '<tr><td colspan="10">No report records found.</td></tr>';
           return;
         }
-        tbody.innerHTML = rows
-          .map(
-            (row) =>
-              "<tr><td><strong>" +
-              escapeHtml(row.teacher_name || "-") +
-              "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
-              escapeHtml(row.teacher_id || "-") +
-              "</span></td><td>" +
-              escapeHtml(yearPlanClassLabel(row) || "-") +
-              "</td><td>" +
-              escapeHtml(row.subject_name || "-") +
-              "</td><td>" +
-              escapeHtml(row.term_name || "-") +
-              "</td><td>" +
-              escapeHtml(row.unit_number || "-") +
-              "<br><span style=\"color:var(--muted);font-size:12px\">" +
-              escapeHtml(row.unit_title || "") +
-              "</span></td><td>" +
-              escapeHtml(row.main_topic || "-") +
-              "</td><td>" +
-              escapeHtml(row.subtopic_title || "-") +
-              "</td><td>" +
-              (Number(row.is_completed || 0) === 1 ? yearPlanBadge("Completed", "good") : yearPlanBadge("Pending", "warn")) +
-              "</td><td>" +
-              escapeHtml(row.completed_at ? String(row.completed_at).slice(0, 10) : "-") +
-              "</td><td>" +
-              escapeHtml(row.completion_note || "") +
-              "</td></tr>",
-          )
+        // Group the records by teacher; each teacher starts minimized and
+        // expands to show their rows.
+        const groups = new Map();
+        rows.forEach((row) => {
+          const key = String(row.teacher_user_id || row.teacher_id || row.teacher_name || "-");
+          if (!groups.has(key)) {
+            groups.set(key, {
+              key,
+              name: row.teacher_name || row.teacher_id || "Unknown teacher",
+              teacherId: row.teacher_id || "",
+              rows: [],
+              completed: 0,
+              pending: 0,
+            });
+          }
+          const group = groups.get(key);
+          group.rows.push(row);
+          if (row.subtopic_id) {
+            if (Number(row.is_completed || 0) === 1) group.completed += 1;
+            else group.pending += 1;
+          }
+        });
+        const sortedGroups = [...groups.values()].sort((a, b) =>
+          String(a.name).localeCompare(String(b.name)),
+        );
+        const autoExpand = sortedGroups.length === 1;
+        tbody.innerHTML = sortedGroups
+          .map((group) => {
+            const expanded = autoExpand || expandedReportTeachers.has(group.key);
+            const headerRow =
+              '<tr style="background:var(--surface2)"><td colspan="10"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:2px 0"><strong>' +
+              escapeHtml(group.name) +
+              "</strong>" +
+              (group.teacherId
+                ? '<span style="font-size:12px;color:var(--muted);font-family:\'DM Mono\',monospace">' +
+                  escapeHtml(group.teacherId) +
+                  "</span>"
+                : "") +
+              '<span class="badge" style="border-color:var(--accent2);color:var(--accent2)">' +
+              group.completed +
+              ' completed</span><span class="badge" style="border-color:var(--warn);color:var(--warn)">' +
+              group.pending +
+              " pending</span>" +
+              (autoExpand
+                ? ""
+                : '<button class="btn secondary sm" style="margin-left:auto" onclick="toggleReportTeacher(\'' +
+                  escapeInlineJsString(group.key) +
+                  "')\">" +
+                  (expanded ? "Collapse" : "Expand") +
+                  "</button>") +
+              "</div></td></tr>";
+            if (!expanded) return headerRow;
+            return (
+              headerRow +
+              group.rows
+                .map(
+                  (row) =>
+                    "<tr><td><strong>" +
+                    escapeHtml(row.teacher_name || "-") +
+                    "</strong><br><span style=\"color:var(--muted);font-size:12px\">" +
+                    escapeHtml(row.teacher_id || "-") +
+                    "</span></td><td>" +
+                    escapeHtml(yearPlanClassLabel(row) || "-") +
+                    "</td><td>" +
+                    escapeHtml(row.subject_name || "-") +
+                    "</td><td>" +
+                    escapeHtml(row.term_name || "-") +
+                    "</td><td>" +
+                    escapeHtml(row.unit_number || "-") +
+                    "<br><span style=\"color:var(--muted);font-size:12px\">" +
+                    escapeHtml(row.unit_title || "") +
+                    "</span></td><td>" +
+                    escapeHtml(row.main_topic || "-") +
+                    "</td><td>" +
+                    escapeHtml(row.subtopic_title || "-") +
+                    "</td><td>" +
+                    (Number(row.is_completed || 0) === 1 ? yearPlanBadge("Completed", "good") : yearPlanBadge("Pending", "warn")) +
+                    "</td><td>" +
+                    escapeHtml(row.completed_at ? String(row.completed_at).slice(0, 10) : "-") +
+                    "</td><td>" +
+                    escapeHtml(row.completion_note || "") +
+                    "</td></tr>",
+                )
+                .join("")
+            );
+          })
           .join("");
       }
+
+      const expandedReportTeachers = new Set();
+      window.toggleReportTeacher = function (key) {
+        const id = String(key);
+        if (expandedReportTeachers.has(id)) expandedReportTeachers.delete(id);
+        else expandedReportTeachers.add(id);
+        renderYearPlanReport();
+      };
 
       window.exportYearPlanReportCSV = async function () {
         try {
