@@ -8583,19 +8583,27 @@ app.post(
           "coordinator_id",
           "coordinator_nic",
         );
-        const teacherKey = eduTrackCsvField(
+        // One row can assign many teachers to the coordinator:
+        // teacher IDs (or emails/NICs) separated by commas, semicolons, or |.
+        const teacherKeysRaw = eduTrackCsvField(
           row,
+          "teachers",
+          "teacher_ids",
+          "teacher ids",
           "teacher",
           "teacher_email",
           "teacher_id",
           "teacher_nic",
         );
-        if (!coordinatorKey || !teacherKey) {
-          errors.push(`Row ${rowNumber}: coordinator and teacher are required`);
+        const teacherKeys = String(teacherKeysRaw || "")
+          .split(/[,;|]+/)
+          .map((item) => item.trim())
+          .filter(Boolean);
+        if (!coordinatorKey || !teacherKeys.length) {
+          errors.push(`Row ${rowNumber}: coordinator and at least one teacher are required`);
           continue;
         }
         const coordinator = await findUserForCoordination(coordinatorKey);
-        const teacher = await findUserForCoordination(teacherKey);
         if (!coordinator) {
           errors.push(`Row ${rowNumber}: coordinator "${coordinatorKey}" not found`);
           continue;
@@ -8604,13 +8612,16 @@ app.post(
           errors.push(`Row ${rowNumber}: ${coordinator.name} is not an academic coordinator`);
           continue;
         }
-        if (!teacher) {
-          errors.push(`Row ${rowNumber}: teacher "${teacherKey}" not found`);
-          continue;
+        for (const teacherKey of teacherKeys) {
+          const teacher = await findUserForCoordination(teacherKey);
+          if (!teacher) {
+            errors.push(`Row ${rowNumber}: teacher "${teacherKey}" not found`);
+            continue;
+          }
+          const result = await insertCoordinationAssignment(coordinator, teacher, actor);
+          if (result.created) created += 1;
+          else skipped += 1;
         }
-        const result = await insertCoordinationAssignment(coordinator, teacher, actor);
-        if (result.created) created += 1;
-        else skipped += 1;
       }
       await recordAccountAudit(
         req,

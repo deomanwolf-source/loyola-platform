@@ -7271,7 +7271,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.2.2";
+      const APP_VERSION = "v7.2.3";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -16104,10 +16104,12 @@
       };
 
       window.downloadCoordinationCsvTemplate = function () {
+        // coordinator_id: the coordinator's Teacher ID (email or NIC also work).
+        // teacher_ids: one or many Teacher IDs separated by commas.
         const rows = [
-          ["coordinator_email", "teacher_email"],
-          ["coordinator@example.lk", "teacher1@example.lk"],
-          ["coordinator@example.lk", "teacher2@example.lk"],
+          ["coordinator_id", "teacher_ids"],
+          ["T010", '"T001,T002,T003"'],
+          ["T011", "T004"],
         ];
         const csv = rows.map((row) => row.join(",")).join("\n");
         const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
