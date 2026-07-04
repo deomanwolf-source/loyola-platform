@@ -5488,7 +5488,7 @@
               </button>
             </div>
           </div>
-          <div class="card" style="margin-bottom: 18px">
+          <div class="card" style="margin-bottom: 18px" id="year-plan-generate-card">
             <div class="section-title">Generate Term Units</div>
             <p class="relief-copy">Enter the number of units for each term. Existing unit details are kept.</p>
             <div class="form-grid-2">
@@ -7271,7 +7271,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.0.0";
+      const APP_VERSION = "v7.1.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -15561,6 +15561,26 @@
         }
       };
 
+      // Only the owning teacher can edit a year plan; everyone else
+      // (admins, coordinators) gets a read-only view for reviewing.
+      function canEditCurrentYearPlan() {
+        if (!cud || !currentYearPlan) return false;
+        const teacherId = String(cud.teacherId || "").toUpperCase();
+        return (
+          String(currentYearPlan.teacher_user_id || "") === String(cud.id) ||
+          (Boolean(teacherId) &&
+            String(currentYearPlan.teacher_id || "").toUpperCase() === teacherId)
+        );
+      }
+
+      const expandedYearPlanUnits = new Set();
+      window.toggleYearPlanUnit = function (unitId) {
+        const id = Number(unitId);
+        if (expandedYearPlanUnits.has(id)) expandedYearPlanUnits.delete(id);
+        else expandedYearPlanUnits.add(id);
+        renderYearPlanEditor();
+      };
+
       function renderYearPlanEditor() {
         const box = document.getElementById("year-plan-editor");
         if (!box) return;
@@ -15568,6 +15588,8 @@
           box.innerHTML = '<div class="empty">Open an assigned subject to begin.</div>';
           return;
         }
+        const generateCard = document.getElementById("year-plan-generate-card");
+        if (generateCard) generateCard.style.display = canEditCurrentYearPlan() ? "" : "none";
         const subtitle = document.getElementById("year-plan-subtitle");
         if (subtitle) {
           subtitle.textContent =
@@ -15585,16 +15607,9 @@
           if (input && term) input.value = term.unit_count || 0;
         });
         const approvalKey = String(currentYearPlan.approval_status || "draft").toLowerCase();
-        const ownsCurrentPlan =
-          !!cud && String(currentYearPlan.teacher_user_id || "") === String(cud.id);
         const canSubmitPlan =
           (approvalKey === "draft" || approvalKey === "changes_requested") &&
-          !!(
-            cud &&
-            (cud.role === "teacher" ||
-              cud.role === "admin" ||
-              (cud.role === "coordinator" && ownsCurrentPlan))
-          );
+          canEditCurrentYearPlan();
         const approvalCopy =
           approvalKey === "approved"
             ? "This year plan was approved" +
@@ -15618,6 +15633,11 @@
           approvalStatusBadge(currentYearPlan.approval_status) +
           '<span style="font-size:13px;color:var(--text-2)">' +
           approvalCopy +
+          (!canEditCurrentYearPlan()
+            ? ' <span style="color:var(--muted)">View only — only ' +
+              escapeHtml(currentYearPlan.teacher_name || "the teacher") +
+              " can edit this plan.</span>"
+            : "") +
           "</span></div>" +
           (canSubmitPlan
             ? '<button class="btn sm" onclick="submitYearPlanForReview()">Submit for Review</button>'
@@ -15657,45 +15677,84 @@
 
       function renderYearPlanUnit(unit) {
         const safeId = Number(unit.id);
+        const canEdit = canEditCurrentYearPlan();
+        const expanded = expandedYearPlanUnits.has(safeId);
+        const topicCount = (unit.topics || []).length;
+        const header =
+          '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><strong>' +
+          escapeHtml(unit.unit_number || "Unit") +
+          "</strong>" +
+          (expanded && canEdit
+            ? '<input class="quick-input" id="yp-unit-title-' +
+              safeId +
+              '" value="' +
+              escapeHtml(unit.unit_title || "") +
+              '" placeholder="Unit title" style="max-width:360px"><button class="btn secondary sm" onclick="saveUnitTitle(' +
+              safeId +
+              ')">Save Title</button>'
+            : '<span style="color:var(--text-2)">' +
+              escapeHtml(unit.unit_title || "Untitled unit") +
+              "</span>") +
+          '<span class="badge">' +
+          Math.round(Number(unit.progress_percentage || 0)) +
+          '%</span><span style="font-size:12px;color:var(--muted)">' +
+          topicCount +
+          " topic" +
+          (topicCount !== 1 ? "s" : "") +
+          '</span><button class="btn secondary sm" style="margin-left:auto" onclick="toggleYearPlanUnit(' +
+          safeId +
+          ')">' +
+          (expanded ? "Collapse" : "Expand") +
+          "</button></div>";
+        if (!expanded) {
+          return (
+            '<div class="relief-card-row" style="align-items:flex-start"><div style="width:100%">' +
+            header +
+            "</div></div>"
+          );
+        }
         const topicsHtml = (unit.topics || []).map(renderYearPlanTopic).join("");
         return (
-          '<div class="relief-card-row" style="align-items:flex-start"><div style="width:100%"><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><strong>' +
-          escapeHtml(unit.unit_number || "Unit") +
-          '</strong><input class="quick-input" id="yp-unit-title-' +
-          safeId +
-          '" value="' +
-          escapeHtml(unit.unit_title || "") +
-          '" placeholder="Unit title" style="max-width:360px"><button class="btn secondary sm" onclick="saveUnitTitle(' +
-          safeId +
-          ')">Save Title</button><span class="badge">' +
-          Math.round(Number(unit.progress_percentage || 0)) +
-          '%</span></div><div class="page-stack">' +
+          '<div class="relief-card-row" style="align-items:flex-start"><div style="width:100%">' +
+          header +
+          '<div class="page-stack" style="margin-top:12px">' +
           (topicsHtml || '<div class="empty small">No main topics yet.</div>') +
-          '</div><div class="card" style="margin-top:12px;background:rgba(255,255,255,.55)"><div class="form-grid-2"><div class="field"><label>Main Topic</label><input id="yp-topic-' +
-          safeId +
-          '" placeholder="Laws of Boolean Algebra"></div><div class="field"><label>Subtopics, one per line</label><textarea id="yp-subtopics-' +
-          safeId +
-          '" placeholder="Introduction to Boolean Laws&#10;Commutative Law"></textarea></div></div><button class="btn sm" onclick="addYearPlanTopic(' +
-          safeId +
-          ')">Add Topic & Subtopics</button></div></div></div>'
+          "</div>" +
+          (canEdit
+            ? '<div class="card" style="margin-top:12px"><div class="form-grid-2"><div class="field"><label>Main Topic</label><input id="yp-topic-' +
+              safeId +
+              '" placeholder="Laws of Boolean Algebra"></div><div class="field"><label>Subtopics, one per line</label><textarea id="yp-subtopics-' +
+              safeId +
+              '" placeholder="Introduction to Boolean Laws&#10;Commutative Law"></textarea></div></div><button class="btn sm" onclick="addYearPlanTopic(' +
+              safeId +
+              ')">Add Topic & Subtopics</button></div>'
+            : "") +
+          "</div></div>"
         );
       }
 
       function renderYearPlanTopic(topic) {
         const subtopics = topic.subtopics || [];
+        const canEdit = canEditCurrentYearPlan();
         return (
           '<div class="card" style="box-shadow:none"><div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><strong>' +
           escapeHtml(topic.main_topic || "Main topic") +
-          '</strong><span style="display:inline-flex;align-items:center;gap:8px"><button class="btn secondary sm" onclick="editYearPlanTopic(' +
-          Number(topic.id) +
-          ')">Edit</button><span class="badge">' +
+          '</strong><span style="display:inline-flex;align-items:center;gap:8px">' +
+          (canEdit
+            ? '<button class="btn secondary sm" onclick="editYearPlanTopic(' +
+              Number(topic.id) +
+              ')">Edit</button>'
+            : "") +
+          '<span class="badge">' +
           Math.round(Number(topic.progress_percentage || 0)) +
           '%</span></span></div><div style="display:grid;gap:8px;margin-top:10px">' +
           (subtopics.length
             ? subtopics.map(renderYearPlanSubtopic).join("")
-            : '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 10px;border:1px dashed rgba(148,163,184,.35);border-radius:10px"><span style="font-size:13px;color:var(--muted)">No subtopics yet — add subtopics below to tick them one by one, or mark the whole topic done.</span><button class="btn secondary sm" onclick="markTopicComplete(' +
-              Number(topic.id) +
-              ')">Mark Topic Complete</button></div>') +
+            : canEdit
+              ? '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:9px 10px;border:1px dashed rgba(148,163,184,.35);border-radius:10px"><span style="font-size:13px;color:var(--muted)">No subtopics yet — add subtopics below to tick them one by one, or mark the whole topic done.</span><button class="btn secondary sm" onclick="markTopicComplete(' +
+                Number(topic.id) +
+                ')">Mark Topic Complete</button></div>'
+              : '<div class="empty small">No subtopics yet.</div>') +
           "</div></div>"
         );
       }
@@ -15743,20 +15802,26 @@
 
       function renderYearPlanSubtopic(subtopic) {
         const checked = Number(subtopic.is_completed || 0) === 1;
+        const canEdit = canEditCurrentYearPlan();
         return (
           '<label style="display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border:1px solid rgba(148,163,184,.25);border-radius:10px;background:var(--card)"><input type="checkbox" ' +
           (checked ? "checked" : "") +
-          " onchange=\"toggleYearPlanSubtopic(" +
-          Number(subtopic.id) +
-          ', this.checked)\"><span style="flex:1"><strong style="' +
+          (canEdit
+            ? " onchange=\"toggleYearPlanSubtopic(" + Number(subtopic.id) + ', this.checked)"'
+            : " disabled") +
+          '><span style="flex:1"><strong style="' +
           (checked ? "text-decoration:line-through;color:var(--muted)" : "") +
           '">' +
           escapeHtml(subtopic.subtopic_title || "") +
           '</strong><small style="display:block;color:var(--muted)">' +
           (checked ? "Completed " + escapeHtml(String(subtopic.completed_at || "").slice(0, 10)) : "Pending") +
-          '</small></span><button type="button" class="btn secondary sm" onclick="event.preventDefault(); event.stopPropagation(); editYearPlanSubtopic(' +
-          Number(subtopic.id) +
-          ')">Edit</button></label>'
+          "</small></span>" +
+          (canEdit
+            ? '<button type="button" class="btn secondary sm" onclick="event.preventDefault(); event.stopPropagation(); editYearPlanSubtopic(' +
+              Number(subtopic.id) +
+              ')">Edit</button>'
+            : "") +
+          "</label>"
         );
       }
 

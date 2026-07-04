@@ -7493,14 +7493,15 @@ function currentAcademicYear() {
 }
 
 function canAccessYearPlan(req, actor, plan, action = "read") {
-  if (isEduTrackAdminUser(req)) return true;
-  if (action === "read" && isEduTrackCoordinatorUser(req)) return true;
   const ownsPlan =
     String(plan.teacher_user_id || "") === actor.id ||
     String(plan.teacher_id || "") === actor.teacherId;
-  if (!ownsPlan) return false;
-  if (action === "delete") return false;
-  return true;
+  if (action === "read") return ownsPlan || isEduTrackOversightUser(req);
+  // A year plan's content belongs to its teacher: only the owning teacher
+  // can change it. Admins and coordinators review through the approval
+  // workflow instead of editing.
+  if (action === "edit") return ownsPlan;
+  return false;
 }
 
 function canAccessAssignment(req, actor, assignment) {
