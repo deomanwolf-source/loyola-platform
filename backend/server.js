@@ -3050,15 +3050,19 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}, options = {}) {
   }
   const userId = existingUsers[0]?.id || requestedUserId || syncAccountId();
   const password = typeof payload.password === "string" ? payload.password : "";
+  // Bulk imports pre-hash each unique password once and pass it here, so a
+  // 140-row CSV does not run 140 slow bcrypt hashes inside one request.
+  const providedHash = String(payload.passwordHash || payload.password_hash || "").trim();
+  const readyHash = looksLikeBcryptHash(providedHash) ? providedHash : "";
 
   if (existingUsers.length) {
-    if (password) {
-      const passwordHash = await bcrypt.hash(password, 12);
+    if (password || readyHash) {
+      const passwordHash = readyHash || (await bcrypt.hash(password, 12));
       await runner.query(
         `
           UPDATE users
           SET external_staff_id = ?, name = ?, email = ?, role = 'teacher',
-            status = ?, password_hash = ?
+            status = ?, password_hash = ?, must_change_password = 1
           WHERE id = ?
         `,
         [staffId, name, email, status, passwordHash, userId],
@@ -3074,11 +3078,11 @@ async function upsertLocalEduTrackTeacher(runner, payload = {}, options = {}) {
       );
     }
   } else {
-    const passwordHash = await bcrypt.hash(password || syncSetupPassword(), 12);
+    const passwordHash = readyHash || (await bcrypt.hash(password || syncSetupPassword(), 12));
     await runner.query(
       `
-        INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash)
-        VALUES (?, ?, ?, ?, 'teacher', ?, ?)
+        INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash, must_change_password)
+        VALUES (?, ?, ?, ?, 'teacher', ?, ?, 1)
       `,
       [userId, staffId, name, email, status, passwordHash],
     );
@@ -11348,7 +11352,7 @@ async function writeEduTrackTeacherUserDocument(userId, payload) {
   });
 }
 
-async function importEduTrackTeacherCsvRow(row, index) {
+async function importEduTrackTeacherCsvRow(row, index, passwordHashCache = null) {
   const payload = eduTrackTeacherPayloadFromCsvRow(row, index);
   const validationErrors = validateEduTrackTeacherImportPayload(payload);
   if (validationErrors.length) {
@@ -11358,6 +11362,15 @@ async function importEduTrackTeacherCsvRow(row, index) {
   const existing = await findEduTrackTeacherImportTarget(payload);
   if (!existing.user && !payload.password) {
     throw new Error("password is required for a new teacher account");
+  }
+  // Hash each distinct password once per import instead of once per row;
+  // bulk files usually share one temporary password and 140 bcrypt runs
+  // in a single request exceed the hosting time limit.
+  if (payload.password && passwordHashCache) {
+    if (!passwordHashCache.has(payload.password)) {
+      passwordHashCache.set(payload.password, await bcrypt.hash(payload.password, 12));
+    }
+    payload.passwordHash = passwordHashCache.get(payload.password);
   }
   if (existing.user?.role && existing.user.role !== ROLES.teacher) {
     throw new Error("email or user_id belongs to a non-teacher account");
@@ -12046,9 +12059,10 @@ app.post("/api/edutrack/teachers/import-csv", eduzyncAdminOnly, async (req, res)
       errors: [],
     };
 
+    const passwordHashCache = new Map();
     for (let index = 0; index < rows.length; index += 1) {
       try {
-        const imported = await importEduTrackTeacherCsvRow(rows[index], index);
+        const imported = await importEduTrackTeacherCsvRow(rows[index], index, passwordHashCache);
         if (imported.action === "created") results.created += 1;
         else results.updated += 1;
       } catch (error) {
