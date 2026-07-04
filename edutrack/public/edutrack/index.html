@@ -6035,16 +6035,27 @@
               <div id="relief-summary" class="relief-summary"></div>
             </div>
           </div>
-          <div class="card" style="margin-top: 18px">
-            <div class="section-title" style="margin-bottom: 12px">Relief Assignments</div>
+          <div style="margin-top: 18px">
             <input
               id="relief-search"
               class="quick-input"
-              style="margin-bottom: 12px"
+              style="margin-bottom: 14px; width: 100%; max-width: 520px"
               placeholder="Search by teacher, teacher ID, subject, grade, section, or date"
               oninput="setReliefSearch(this.value)"
             />
-            <div id="relief-list" class="page-stack"></div>
+            <div
+              style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 18px"
+            >
+              <div class="card">
+                <div class="section-title" style="margin-bottom: 12px">Awaiting Download</div>
+                <div id="relief-list-pending" class="page-stack"></div>
+              </div>
+              <div class="card">
+                <div class="section-title" style="margin-bottom: 12px">Downloaded &amp; Locked</div>
+                <div id="relief-list-done" class="page-stack"></div>
+              </div>
+            </div>
+            <div id="relief-list" style="display: none"></div>
           </div>
         </div>
 
@@ -7271,7 +7282,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.2.3";
+      const APP_VERSION = "v7.3.0";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -17347,9 +17358,13 @@
       }
 
       function renderReliefAssignments() {
-        const list = document.getElementById("relief-list");
-        if (!list) return;
+        const pendingList = document.getElementById("relief-list-pending");
+        const doneList = document.getElementById("relief-list-done");
+        if (!pendingList || !doneList) return;
         renderReliefSummary();
+        // Teachers upload relief PDFs; admins only download and control them.
+        const uploadCard = document.querySelector(".relief-upload-card");
+        if (uploadCard) uploadCard.style.display = cud && cud.role === "admin" ? "none" : "";
         const visibleAssignments = reliefSearchQuery
           ? reliefAssignments.filter((item) =>
               [
@@ -17370,13 +17385,27 @@
                 .includes(reliefSearchQuery),
             )
           : reliefAssignments;
-        if (!visibleAssignments.length) {
-          list.innerHTML = '<div class="empty">No relief assignments uploaded yet.</div>';
-          return;
+        const pendingItems = visibleAssignments.filter(
+          (item) =>
+            !(item.isDownloadLocked || item.isLocked) && Number(item.download_count || 0) === 0,
+        );
+        const doneItems = visibleAssignments.filter(
+          (item) =>
+            (item.isDownloadLocked || item.isLocked) || Number(item.download_count || 0) > 0,
+        );
+        pendingList.innerHTML = pendingItems.length
+          ? pendingItems.map(reliefRowHtml).join("")
+          : '<div class="empty small">Nothing awaiting download.</div>';
+        doneList.innerHTML = doneItems.length
+          ? doneItems.map(reliefRowHtml).join("")
+          : '<div class="empty small">No downloaded or locked assignments yet.</div>';
+        if (window.lucide && typeof window.lucide.createIcons === "function") {
+          setTimeout(() => window.lucide.createIcons(), 0);
         }
-        list.innerHTML = visibleAssignments
-          .map((item) => {
-            const locked = item.isDownloadLocked || item.isLocked;
+      }
+
+      function reliefRowHtml(item) {
+        const locked = item.isDownloadLocked || item.isLocked;
             const downloadCount = Number(item.download_count || 0);
             const allowedDownloads = 1 + Number(item.allowed_extra_downloads || 0);
             const officialDownloadAction =
@@ -17445,12 +17474,7 @@
               '</div></div><div class="relief-card-actions">' +
               adminActions +
               "</div></div>"
-            );
-          })
-          .join("");
-        if (window.lucide && typeof window.lucide.createIcons === "function") {
-          setTimeout(() => window.lucide.createIcons(), 0);
-        }
+        );
       }
 
       window.setReliefSearch = function (value) {
@@ -17459,14 +17483,17 @@
       };
 
       window.loadReliefAssignments = async function () {
-        const list = document.getElementById("relief-list");
-        if (list) list.innerHTML = '<div class="empty">Loading relief assignments...</div>';
+        const pendingList = document.getElementById("relief-list-pending");
+        const doneList = document.getElementById("relief-list-done");
+        if (pendingList)
+          pendingList.innerHTML = '<div class="empty">Loading relief assignments...</div>';
+        if (doneList) doneList.innerHTML = "";
         try {
           reliefAssignments = await apiFetch("/api/edutrack/relief-assignments");
           renderReliefAssignments();
         } catch (error) {
-          if (list)
-            list.innerHTML =
+          if (pendingList)
+            pendingList.innerHTML =
               '<div class="empty">Could not load relief assignments: ' +
               escapeHtml(error.message) +
               "</div>";
