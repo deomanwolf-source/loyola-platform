@@ -7271,7 +7271,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.2.1";
+      const APP_VERSION = "v7.2.2";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -16696,10 +16696,9 @@
         const sortedGroups = [...groups.values()].sort((a, b) =>
           String(a.name).localeCompare(String(b.name)),
         );
-        const autoExpand = sortedGroups.length === 1;
         tbody.innerHTML = sortedGroups
           .map((group) => {
-            const expanded = autoExpand || expandedReportTeachers.has(group.key);
+            const expanded = expandedReportTeachers.has(group.key);
             const headerRow =
               '<tr style="background:var(--surface2)"><td colspan="10"><div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:2px 0"><strong>' +
               escapeHtml(group.name) +
@@ -16714,13 +16713,11 @@
               ' completed</span><span class="badge" style="border-color:var(--warn);color:var(--warn)">' +
               group.pending +
               " pending</span>" +
-              (autoExpand
-                ? ""
-                : '<button class="btn secondary sm" style="margin-left:auto" onclick="toggleReportTeacher(\'' +
-                  escapeInlineJsString(group.key) +
-                  "')\">" +
-                  (expanded ? "Collapse" : "Expand") +
-                  "</button>") +
+              '<button class="btn secondary sm" style="margin-left:auto" onclick="toggleReportTeacher(\'' +
+              escapeInlineJsString(group.key) +
+              "')\">" +
+              (expanded ? "Collapse" : "Expand") +
+              "</button>" +
               "</div></td></tr>";
             if (!expanded) return headerRow;
             return (
