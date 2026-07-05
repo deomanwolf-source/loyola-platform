@@ -5099,7 +5099,7 @@
         border-color: var(--bg);
       }
 
-      /* ── App footer: slim fixed bar, one expanded row ── */
+      /* ── App footer: slim fixed bar, one centered line ── */
       .app-footer {
         position: fixed;
         left: 0;
@@ -5108,9 +5108,9 @@
         z-index: 90;
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         flex-wrap: wrap;
-        gap: 2px 18px;
+        gap: 2px 14px;
         padding: 7px 20px 7px 272px;
         background: rgba(11, 16, 23, 0.94);
         backdrop-filter: blur(10px);
@@ -7373,7 +7373,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.3.4";
+      const APP_VERSION = "v7.3.5";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
