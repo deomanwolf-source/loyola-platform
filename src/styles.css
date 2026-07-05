@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800;900&family=UnifrakturMaguntia&family=Cormorant+Garamond:wght@600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
@@ -6,14 +6,14 @@
 @custom-variant dark (&:is(.dark *));
 
 /* Premium Editorial design system — Loyola College Negombo
- * Deep navy + warm gold, serif headlines (Fraunces), Inter body.
+ * Deep navy + warm gold, Poppins across the whole site.
  */
 
 @theme inline {
-  --font-serif: "Fraunces", ui-serif, Georgia, serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Instrument Serif", "Times New Roman", serif;
-  --font-hero: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-hero: "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
@@ -584,7 +584,7 @@
   display: grid;
   place-items: center start;
   color: #a00008;
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
   font-size: clamp(2rem, 5vw, 4.5rem);
   font-weight: 800;
   line-height: 1;

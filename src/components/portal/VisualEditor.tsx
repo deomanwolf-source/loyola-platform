@@ -251,7 +251,7 @@ const CANVAS_STYLES = `
   h1, h2, h3, h4 {
     margin: 0;
     color: var(--loyola-navy);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     line-height: 1.08;
   }
 
@@ -320,7 +320,7 @@ const CANVAS_STYLES = `
   .stat-tile strong {
     display: block;
     color: var(--loyola-navy);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     font-size: 2.1rem;
     line-height: 1;
   }
@@ -499,7 +499,7 @@ const CANVAS_STYLES = `
     border-radius: 999px;
     background: var(--loyola-gold);
     color: var(--loyola-navy);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     font-size: 1.4rem;
     font-weight: 900;
   }
@@ -575,7 +575,7 @@ const CANVAS_STYLES = `
   .quote {
     border-left: 4px solid var(--loyola-gold);
     padding-left: 24px;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(1.5rem, 3vw, 2.25rem);
     color: var(--loyola-navy);
   }

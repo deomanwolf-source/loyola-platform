@@ -21,7 +21,7 @@ import{A as me,c as be,j as e,_ as ga,a as St,u as At,g as ha,s as B,b as q,d as
   h1, h2, h3, h4 {
     margin: 0;
     color: var(--loyola-navy);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     line-height: 1.08;
   }
 
@@ -90,7 +90,7 @@ import{A as me,c as be,j as e,_ as ga,a as St,u as At,g as ha,s as B,b as q,d as
   .stat-tile strong {
     display: block;
     color: var(--loyola-navy);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     font-size: 2.1rem;
     line-height: 1;
   }
@@ -269,7 +269,7 @@ import{A as me,c as be,j as e,_ as ga,a as St,u as At,g as ha,s as B,b as q,d as
     border-radius: 999px;
     background: var(--loyola-gold);
     color: var(--loyola-navy);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     font-size: 1.4rem;
     font-weight: 900;
   }
@@ -345,7 +345,7 @@ import{A as me,c as be,j as e,_ as ga,a as St,u as At,g as ha,s as B,b as q,d as
   .quote {
     border-left: 4px solid var(--loyola-gold);
     padding-left: 24px;
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: "Poppins", ui-sans-serif, system-ui, sans-serif;
     font-size: clamp(1.5rem, 3vw, 2.25rem);
     color: var(--loyola-navy);
   }
