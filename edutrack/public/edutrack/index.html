@@ -5099,47 +5099,68 @@
         border-color: var(--bg);
       }
 
-      /* ── App footer ── */
+      /* ── App footer: fixed bar, always visible ── */
       .app-footer {
-        margin-top: 34px;
-        padding: 18px 12px 6px;
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 90;
+        padding: 8px 16px 8px 272px;
+        background: rgba(11, 16, 23, 0.94);
+        backdrop-filter: blur(10px);
         border-top: 1px solid var(--border);
         text-align: center;
       }
+      body.light-mode .app-footer {
+        background: rgba(255, 255, 255, 0.94);
+      }
       .app-footer-line {
-        font-size: 12px;
+        font-size: 11.5px;
         font-weight: 600;
         color: var(--muted);
         letter-spacing: 0.2px;
       }
       .app-footer-credit {
-        margin-top: 5px;
-        font-size: 11.5px;
+        margin-top: 2px;
+        font-size: 11px;
         color: var(--muted2);
       }
       .app-footer-credit strong {
         color: var(--text-2);
         font-weight: 700;
       }
+      .app-footer-meta {
+        margin-top: 2px;
+        font-size: 10.5px;
+        color: var(--muted2);
+        letter-spacing: 0.2px;
+      }
       .app-footer-sep {
         margin: 0 6px;
         color: var(--muted2);
+      }
+      /* Keep page content clear of the fixed bar */
+      .main {
+        padding-bottom: 110px;
       }
       .auth-footer {
         position: absolute;
         left: 0;
         right: 0;
-        bottom: 14px;
+        bottom: 10px;
         border-top: none;
-        margin-top: 0;
+        background: none;
+        backdrop-filter: none;
         padding: 0 16px;
+        z-index: 5;
       }
       @media (max-width: 768px) {
         .app-footer {
-          padding-bottom: 76px;
+          padding-left: 16px;
         }
-        .auth-footer {
-          padding-bottom: 0;
+        body.has-mobile-nav .app-footer {
+          bottom: 64px;
         }
       }
     </style>
@@ -5218,7 +5239,12 @@
         <div class="app-footer-credit">
           Designed &amp; Developed by <strong>Hasintha Arunalu Niroshan</strong>
           <span class="app-footer-sep">&bull;</span> Grade 12 &ndash; Technology Stream
-          <span class="app-footer-sep">&bull;</span> Class of 2027
+          <span class="app-footer-sep">&bull;</span> 2027 Batch
+        </div>
+        <div class="app-footer-meta">
+          School Management System <span class="app-footer-sep">|</span> Version 1.0.0
+          <span class="app-footer-sep">|</span> Built with
+          <span class="app-footer-heart">&#10084;&#65039;</span> in Sri Lanka
         </div>
       </footer>
     </div>
@@ -6622,7 +6648,12 @@
           <div class="app-footer-credit">
             Designed &amp; Developed by <strong>Hasintha Arunalu Niroshan</strong>
             <span class="app-footer-sep">&bull;</span> Grade 12 &ndash; Technology Stream
-            <span class="app-footer-sep">&bull;</span> Class of 2027
+            <span class="app-footer-sep">&bull;</span> 2027 Batch
+          </div>
+          <div class="app-footer-meta">
+            School Management System <span class="app-footer-sep">|</span> Version 1.0.0
+            <span class="app-footer-sep">|</span> Built with
+            <span class="app-footer-heart">&#10084;&#65039;</span> in Sri Lanka
           </div>
         </footer>
       </div>
@@ -7347,7 +7378,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.3.2";
+      const APP_VERSION = "v7.3.3";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
@@ -8002,6 +8033,7 @@
         if (myReportNav) myReportNav.style.display = isOversight ? "none" : "";
         const mobileNav = document.getElementById("mobile-bottom-nav");
         if (mobileNav) mobileNav.style.display = isOversight ? "none" : "";
+        document.body.classList.toggle("has-mobile-nav", !isOversight);
         document.getElementById("sidebar-name").textContent = cud.name;
         document.getElementById("sidebar-role").textContent = isAdmin
           ? "Admin"
