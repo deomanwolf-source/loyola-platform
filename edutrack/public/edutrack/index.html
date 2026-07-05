@@ -5098,6 +5098,50 @@
         background: #cbd5e1;
         border-color: var(--bg);
       }
+
+      /* ── App footer ── */
+      .app-footer {
+        margin-top: 34px;
+        padding: 18px 12px 6px;
+        border-top: 1px solid var(--border);
+        text-align: center;
+      }
+      .app-footer-line {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
+        letter-spacing: 0.2px;
+      }
+      .app-footer-credit {
+        margin-top: 5px;
+        font-size: 11.5px;
+        color: var(--muted2);
+      }
+      .app-footer-credit strong {
+        color: var(--text-2);
+        font-weight: 700;
+      }
+      .app-footer-sep {
+        margin: 0 6px;
+        color: var(--muted2);
+      }
+      .auth-footer {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 14px;
+        border-top: none;
+        margin-top: 0;
+        padding: 0 16px;
+      }
+      @media (max-width: 768px) {
+        .app-footer {
+          padding-bottom: 76px;
+        }
+        .auth-footer {
+          padding-bottom: 0;
+        }
+      }
     </style>
   </head>
   <body>
@@ -5167,6 +5211,16 @@
           </div>
         </div>
       </div>
+      <footer class="app-footer auth-footer">
+        <div class="app-footer-line">
+          &copy; 2026 Loyola College, Negombo. All Rights Reserved.
+        </div>
+        <div class="app-footer-credit">
+          Designed &amp; Developed by <strong>Hasintha Arunalu Niroshan</strong>
+          <span class="app-footer-sep">&bull;</span> Grade 12 &ndash; Technology Stream
+          <span class="app-footer-sep">&bull;</span> Class of 2027
+        </div>
+      </footer>
     </div>
 
     <div id="app" style="display: none">
@@ -6560,6 +6614,17 @@
           </div>
           <div id="progress-list" class="page-stack"></div>
         </div>
+
+        <footer class="app-footer">
+          <div class="app-footer-line">
+            &copy; 2026 Loyola College, Negombo. All Rights Reserved.
+          </div>
+          <div class="app-footer-credit">
+            Designed &amp; Developed by <strong>Hasintha Arunalu Niroshan</strong>
+            <span class="app-footer-sep">&bull;</span> Grade 12 &ndash; Technology Stream
+            <span class="app-footer-sep">&bull;</span> Class of 2027
+          </div>
+        </footer>
       </div>
       <div class="mobile-bottom-nav" id="mobile-bottom-nav">
         <button class="mnav-item active" data-page="dashboard" onclick="showPage('dashboard')">
@@ -7282,7 +7347,7 @@
       /* EduTrack is now connected to Loyola Digital Platform backend.
    No Firebase is used here. Auth comes from the HttpOnly Loyola session cookie.
    Data is stored through /api/edutrack/compat/* in MySQL. */
-      const APP_VERSION = "v7.3.1";
+      const APP_VERSION = "v7.3.2";
       const FIREBASE_CONFIG = {};
       const PLATFORM_TOKEN_KEY = "loyola_token";
       const PLATFORM_USER_KEY = "loyola_user";
