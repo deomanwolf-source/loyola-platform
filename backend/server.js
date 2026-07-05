@@ -3035,6 +3035,7 @@ function portalUserEduTrackSyncPayload(user, password = "", statusOverride = "")
   return {
     id: compactText(user?.id, 50),
     externalStaffId: compactText(user?.external_staff_id || user?.externalStaffId, 80),
+    nicNumber: normalizeNicNumber(user?.nic_number || user?.nicNumber || user?.nic || ""),
     name: compactText(user?.name, 150),
     email: normalizeEmail(user?.email),
     role,
@@ -3150,6 +3151,7 @@ function eduTrackUserPortalSyncPayload(user = {}, options = {}) {
   return {
     id,
     externalStaffId,
+    nicNumber: normalizeNicNumber(user.nic_number || user.nicNumber || user.nic || ""),
     name: compactText(user.name || user.displayName || email.split("@")[0] || "Teacher", 150),
     email,
     role: portalRoleFromEduTrackRole(user.platformRole || user.role),
@@ -3298,7 +3300,7 @@ async function storedEduTrackUserForPortalSync(userId, extra = {}, fallback = {}
   let stored = {};
   if (id) {
     const [rows] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, external_staff_id, nic_number, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
       [id],
     );
     stored = rows[0] || {};
@@ -3318,6 +3320,10 @@ async function storedEduTrackUserForPortalSync(userId, extra = {}, fallback = {}
       fallback.external_staff_id ||
       fallback.externalStaffId ||
       stored.external_staff_id,
+    nic_number:
+      normalizeNicNumber(extra.nic_number || extra.nicNumber || extra.nic || "") ||
+      normalizeNicNumber(fallback.nic_number || fallback.nicNumber || "") ||
+      stored.nic_number,
     passwordHash: stored.password_hash || fallback.passwordHash || extra.passwordHash,
   };
 }
@@ -3342,6 +3348,9 @@ async function upsertWebsiteUserFromEduTrack(payload = {}) {
   const status = normalizeAccountStatus(payload.status);
   const password = typeof payload.password === "string" ? payload.password : "";
   const passwordHash = String(payload.passwordHash || payload.password_hash || "").trim();
+  const nicNumber = normalizeNicNumber(
+    payload.nicNumber || payload.nic_number || payload.nic || "",
+  );
 
   if (!email || !isValidEmail(email) || !name) {
     const error = new Error("name and a valid email are required");
@@ -3419,6 +3428,21 @@ async function upsertWebsiteUserFromEduTrack(payload = {}) {
       `,
       [userId, externalStaffId, name, email, role, status, insertPasswordHash],
     );
+  }
+
+  if (nicNumber) {
+    // Mirror the NIC so NIC + password login works on this app too.
+    // Skip silently if another account already owns this NIC.
+    const [nicOwner] = await db.query(
+      "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+      [nicNumber, userId],
+    );
+    if (!nicOwner.length) {
+      await db.query(
+        "UPDATE users SET nic_number = COALESCE(NULLIF(?, ''), nic_number) WHERE id = ?",
+        [nicNumber, userId],
+      );
+    }
   }
 
   if (role === ROLES.teacher || externalStaffId) {
@@ -5506,6 +5530,9 @@ async function upsertPortalUserForEduTrack(payload = {}) {
     ? normalizeAccountStatus(payload.status)
     : "Disabled";
   const password = typeof payload.password === "string" ? payload.password : "";
+  const nicNumber = normalizeNicNumber(
+    payload.nicNumber || payload.nic_number || payload.nic || "",
+  );
 
   if (!requestedId || !name || !isValidEmail(email)) {
     const error = new Error("id, name, and a valid email are required");
@@ -5569,6 +5596,19 @@ async function upsertPortalUserForEduTrack(payload = {}) {
       `,
       [userId, externalStaffId, name, email, role, status, passwordHash],
     );
+  }
+
+  if (nicNumber) {
+    const [nicOwner] = await db.query(
+      "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+      [nicNumber, userId],
+    );
+    if (!nicOwner.length) {
+      await db.query(
+        "UPDATE users SET nic_number = COALESCE(NULLIF(?, ''), nic_number) WHERE id = ?",
+        [nicNumber, userId],
+      );
+    }
   }
 
   const now = new Date().toISOString();
