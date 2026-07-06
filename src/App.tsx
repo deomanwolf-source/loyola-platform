@@ -2064,7 +2064,9 @@ function HomePhotoTile({
         <div className={`absolute inset-0 ${toneStyles.overlay}`} />
         <div className="absolute inset-x-0 bottom-0 p-4">
           {caption && (
-            <p className={`text-[10px] font-black uppercase tracking-[0.28em] ${toneStyles.accent}`}>
+            <p
+              className={`text-[10px] font-black uppercase italic tracking-[0.28em] ${toneStyles.accent}`}
+            >
               {caption}
             </p>
           )}
@@ -2855,7 +2857,11 @@ function HomeVisionMissionIdentity() {
                         ))}
                       </ul>
                     ) : (
-                      <p className="text-sm leading-[1.9] text-white/72">{p.body}</p>
+                      <p
+                        className={`text-sm leading-[1.9] text-white/72 ${p.key === "motto" ? "italic" : ""}`}
+                      >
+                        {p.body}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -3669,7 +3675,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
               className="mx-auto h-24 w-24 rounded-full border-4 border-gold bg-white object-contain p-2"
             />
             <p className="mt-5 font-serif text-3xl font-bold">Loyola College</p>
-            <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
+            <p className="mt-2 text-xs font-bold uppercase italic tracking-[0.2em] text-gold-light">
               {db.websiteContent.tagline}
             </p>
           </aside>
@@ -3685,7 +3691,11 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-border bg-background p-5">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">{label}</p>
-              <p className="mt-2 font-serif text-2xl font-bold text-navy">{value}</p>
+              <p
+                className={`mt-2 font-serif text-2xl font-bold text-navy ${label === "Motto" ? "italic" : ""}`}
+              >
+                {value}
+              </p>
             </div>
           ))}
         </div>
@@ -8181,7 +8191,7 @@ function LoginPage() {
             <p className="font-serif text-2xl font-bold text-white leading-tight">
               {db.websiteContent.schoolName}
             </p>
-            <p className="mt-0.5 text-xs font-bold uppercase tracking-[0.22em] text-amber-300">
+            <p className="mt-0.5 text-xs font-bold uppercase italic tracking-[0.22em] text-amber-300">
               {db.websiteContent.tagline}
             </p>
           </div>
@@ -8244,7 +8254,7 @@ function LoginPage() {
           />
           <div>
             <p className="font-serif text-xl font-bold text-navy">{db.websiteContent.schoolName}</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#d4a017]">
+            <p className="text-[10px] font-bold uppercase italic tracking-[0.18em] text-[#d4a017]">
               {db.websiteContent.tagline}
             </p>
           </div>

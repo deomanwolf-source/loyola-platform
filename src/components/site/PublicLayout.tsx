@@ -141,7 +141,7 @@ export const SiteHeader = memo(function SiteHeader() {
             <span className="block truncate font-serif text-[17px] font-bold leading-tight text-navy transition-smooth group-hover:text-navy/80 xl:text-[19px]">
               {db.websiteContent.schoolName}
             </span>
-            <span className="mt-0.5 block text-[9px] font-bold uppercase tracking-[0.2em] text-crimson xl:tracking-[0.24em]">
+            <span className="mt-0.5 block text-[9px] font-bold uppercase italic tracking-[0.2em] text-crimson xl:tracking-[0.24em]">
               {db.websiteContent.tagline}
             </span>
           </span>
@@ -369,7 +369,7 @@ export const SiteFooter = memo(function SiteFooter() {
                 <p className="font-serif text-xl font-bold leading-snug text-white transition-smooth group-hover:text-gold/90">
                   {db.websiteContent.schoolName}
                 </p>
-                <p className="mt-0.5 text-[9px] font-bold uppercase tracking-[0.2em] text-gold/80">
+                <p className="mt-0.5 text-[9px] font-bold uppercase italic tracking-[0.2em] text-gold/80">
                   {db.websiteContent.tagline}
                 </p>
               </div>

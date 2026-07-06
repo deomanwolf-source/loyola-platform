@@ -3229,11 +3229,13 @@ async function deleteEduTrackUserAccountFromPortal(user) {
   }
 }
 
-async function verifyEduTrackLoginFromPortal(email, password) {
+async function verifyEduTrackLoginFromPortal(identifier, password) {
   if (process.env.APP_NAME === "edutrack") return null;
-  const accountEmail = normalizeEmail(email);
+  const rawIdentifier = String(identifier || "").trim();
+  const accountNic = normalizeNicNumber(rawIdentifier);
+  const accountEmail = accountNic ? "" : normalizeEmail(rawIdentifier);
   const accountPassword = String(password || "");
-  if (!accountEmail || !accountPassword) return null;
+  if ((!accountEmail && !accountNic) || !accountPassword) return null;
 
   const { base, secret } = portalEduTrackAccountSyncConfig();
   if (!base || !secret) return null;
@@ -3249,7 +3251,12 @@ async function verifyEduTrackLoginFromPortal(email, password) {
         "Content-Type": "application/json",
         "x-edutrack-sync-secret": secret,
       },
-      body: JSON.stringify({ email: accountEmail, password: accountPassword }),
+      body: JSON.stringify({
+        email: accountEmail,
+        nic: accountNic,
+        identifier: rawIdentifier,
+        password: accountPassword,
+      }),
       signal: controller.signal,
     });
   } catch (error) {
@@ -3272,19 +3279,20 @@ async function verifyEduTrackLoginFromPortal(email, password) {
   return data?.user || null;
 }
 
-async function portalLoginUserFromEduTrack(email, password, localUser = null) {
+async function portalLoginUserFromEduTrack(identifier, password, localUser = null) {
   if (localUser) {
     if (String(localUser.status || "").toLowerCase() !== "active") return null;
     if (!EDUTRACK_SSO_ROLES.has(String(localUser.role || ""))) return null;
   }
 
-  const verifiedUser = await verifyEduTrackLoginFromPortal(email, password);
+  const verifiedUser = await verifyEduTrackLoginFromPortal(identifier, password);
   if (!verifiedUser) return null;
 
+  const fallbackEmail = looksLikeNicNumber(identifier) ? "" : normalizeEmail(identifier);
   try {
     const syncedUser = await upsertWebsiteUserFromEduTrack({
       ...verifiedUser,
-      email: verifiedUser.email || email,
+      email: verifiedUser.email || fallbackEmail,
       password,
     });
     const [[user]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [syncedUser.id]);
@@ -5693,15 +5701,20 @@ app.post("/api/internal/verify-edutrack-login", async (req, res) => {
 
   try {
     await ensureContentTables();
-    const email = normalizeEmail(req.body?.email);
+    const rawIdentifier = String(
+      req.body?.nic || req.body?.identifier || req.body?.email || "",
+    ).trim();
+    const nicNumber = normalizeNicNumber(rawIdentifier);
+    const email = nicNumber ? "" : normalizeEmail(rawIdentifier);
     const password = String(req.body?.password || "");
-    if (!isValidEmail(email) || !password) {
+    if ((!nicNumber && !isValidEmail(email)) || !password) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const [users] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE email = ? LIMIT 1",
-      [email],
+      `SELECT id, external_staff_id, nic_number, name, email, role, status, password_hash
+       FROM users WHERE ${nicNumber ? "nic_number" : "email"} = ? LIMIT 1`,
+      [nicNumber || email],
     );
     const user = users[0];
     if (!user || String(user.status || "").toLowerCase() !== "active") {
@@ -11343,8 +11356,12 @@ app.post(
         ? await bcrypt.compare(accountPassword, user.password_hash || "")
         : false;
 
-      if (!validPassword && accountEmail) {
-        const eduTrackUser = await portalLoginUserFromEduTrack(accountEmail, accountPassword, user);
+      if (!validPassword && (accountEmail || nicNumber)) {
+        const eduTrackUser = await portalLoginUserFromEduTrack(
+          nicNumber || accountEmail,
+          accountPassword,
+          user,
+        );
         if (eduTrackUser) {
           user = eduTrackUser;
           validPassword = true;
