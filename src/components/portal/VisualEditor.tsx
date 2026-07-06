@@ -577,6 +577,7 @@ const CANVAS_STYLES = `
     padding-left: 24px;
     font-family: Georgia, "Times New Roman", serif;
     font-size: clamp(1.5rem, 3vw, 2.25rem);
+    font-style: italic;
     color: var(--loyola-navy);
   }
   .anthem-media-section {
@@ -1134,7 +1135,7 @@ export function VisualEditor({
           content: blockContent(
             "loyola-footer-editor",
             ["footer", "site-footer", "bottom"],
-            `<footer class="footer-editor" style="padding:64px 40px;"><div class="container grid-3"><div><p class="eyebrow">Loyola College Negombo</p><h2 style="margin-top:12px;">Veritate ad Lumen et Vitam</h2><p style="margin-top:16px;">Faith, Learning, Discipline, and Service</p></div><div><h3>Quick Links</h3><div class="footer-link-list"><a href="/about">About</a><a href="/news">News & Notices</a><a href="/calendar">Calendar</a></div></div><div><h3>Contact</h3><p style="margin-top:14px;">0312 277 258</p><p style="margin-top:8px;">loyolacollege.negombo@hotmail.com</p><p style="margin-top:18px;">Copyright line goes here.</p></div></div></footer>`,
+            `<footer class="footer-editor" style="padding:64px 40px;"><div class="container grid-3"><div><p class="eyebrow">Loyola College Negombo</p><h2 style="margin-top:12px;font-style:italic;">Veritate ad Lumen et Vitam</h2><p style="margin-top:16px;">Faith, Learning, Discipline, and Service</p></div><div><h3>Quick Links</h3><div class="footer-link-list"><a href="/about">About</a><a href="/news">News & Notices</a><a href="/calendar">Calendar</a></div></div><div><h3>Contact</h3><p style="margin-top:14px;">0312 277 258</p><p style="margin-top:8px;">loyolacollege.negombo@hotmail.com</p><p style="margin-top:18px;">Copyright line goes here.</p></div></div></footer>`,
           ),
         });
 

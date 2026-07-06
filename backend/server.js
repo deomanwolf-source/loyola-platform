@@ -3228,6 +3228,7 @@ function portalUserEduTrackSyncPayload(user, password = "", statusOverride = "")
   return {
     id: compactText(user?.id, 50),
     externalStaffId: compactText(user?.external_staff_id || user?.externalStaffId, 80),
+    nicNumber: normalizeNicNumber(user?.nic_number || user?.nicNumber || user?.nic || ""),
     name: compactText(user?.name, 150),
     email: normalizeEmail(user?.email),
     role,
@@ -3343,6 +3344,7 @@ function eduTrackUserPortalSyncPayload(user = {}, options = {}) {
   return {
     id,
     externalStaffId,
+    nicNumber: normalizeNicNumber(user.nic_number || user.nicNumber || user.nic || ""),
     name: compactText(user.name || user.displayName || email.split("@")[0] || "Teacher", 150),
     email,
     role: portalRoleFromEduTrackRole(user.platformRole || user.role),
@@ -3420,11 +3422,13 @@ async function deleteEduTrackUserAccountFromPortal(user) {
   }
 }
 
-async function verifyEduTrackLoginFromPortal(email, password) {
+async function verifyEduTrackLoginFromPortal(identifier, password) {
   if (process.env.APP_NAME === "edutrack") return null;
-  const accountEmail = normalizeEmail(email);
+  const rawIdentifier = String(identifier || "").trim();
+  const accountNic = normalizeNicNumber(rawIdentifier);
+  const accountEmail = accountNic ? "" : normalizeEmail(rawIdentifier);
   const accountPassword = String(password || "");
-  if (!accountEmail || !accountPassword) return null;
+  if ((!accountEmail && !accountNic) || !accountPassword) return null;
 
   const { base, secret } = portalEduTrackAccountSyncConfig();
   if (!base || !secret) return null;
@@ -3440,7 +3444,12 @@ async function verifyEduTrackLoginFromPortal(email, password) {
         "Content-Type": "application/json",
         "x-edutrack-sync-secret": secret,
       },
-      body: JSON.stringify({ email: accountEmail, password: accountPassword }),
+      body: JSON.stringify({
+        email: accountEmail,
+        nic: accountNic,
+        identifier: rawIdentifier,
+        password: accountPassword,
+      }),
       signal: controller.signal,
     });
   } catch (error) {
@@ -3463,19 +3472,20 @@ async function verifyEduTrackLoginFromPortal(email, password) {
   return data?.user || null;
 }
 
-async function portalLoginUserFromEduTrack(email, password, localUser = null) {
+async function portalLoginUserFromEduTrack(identifier, password, localUser = null) {
   if (localUser) {
     if (String(localUser.status || "").toLowerCase() !== "active") return null;
     if (!EDUTRACK_SSO_ROLES.has(String(localUser.role || ""))) return null;
   }
 
-  const verifiedUser = await verifyEduTrackLoginFromPortal(email, password);
+  const verifiedUser = await verifyEduTrackLoginFromPortal(identifier, password);
   if (!verifiedUser) return null;
 
+  const fallbackEmail = looksLikeNicNumber(identifier) ? "" : normalizeEmail(identifier);
   try {
     const syncedUser = await upsertWebsiteUserFromEduTrack({
       ...verifiedUser,
-      email: verifiedUser.email || email,
+      email: verifiedUser.email || fallbackEmail,
       password,
     });
     const [[user]] = await db.query("SELECT * FROM users WHERE id = ? LIMIT 1", [syncedUser.id]);
@@ -3491,7 +3501,7 @@ async function storedEduTrackUserForPortalSync(userId, extra = {}, fallback = {}
   let stored = {};
   if (id) {
     const [rows] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
+      "SELECT id, external_staff_id, nic_number, name, email, role, status, password_hash FROM users WHERE id = ? LIMIT 1",
       [id],
     );
     stored = rows[0] || {};
@@ -3511,6 +3521,10 @@ async function storedEduTrackUserForPortalSync(userId, extra = {}, fallback = {}
       fallback.external_staff_id ||
       fallback.externalStaffId ||
       stored.external_staff_id,
+    nic_number:
+      normalizeNicNumber(extra.nic_number || extra.nicNumber || extra.nic || "") ||
+      normalizeNicNumber(fallback.nic_number || fallback.nicNumber || "") ||
+      stored.nic_number,
     passwordHash: stored.password_hash || fallback.passwordHash || extra.passwordHash,
   };
 }
@@ -3535,6 +3549,9 @@ async function upsertWebsiteUserFromEduTrack(payload = {}) {
   const status = normalizeAccountStatus(payload.status);
   const password = typeof payload.password === "string" ? payload.password : "";
   const passwordHash = String(payload.passwordHash || payload.password_hash || "").trim();
+  const nicNumber = normalizeNicNumber(
+    payload.nicNumber || payload.nic_number || payload.nic || "",
+  );
 
   if (!email || !isValidEmail(email) || !name) {
     const error = new Error("name and a valid email are required");
@@ -3566,6 +3583,15 @@ async function upsertWebsiteUserFromEduTrack(payload = {}) {
   const nextPasswordHash = password
     ? await bcrypt.hash(password, 12)
     : passwordHash || "";
+  // Keep NIC sign-in working: mirror the NIC unless another account already owns it.
+  let syncedNic = nicNumber;
+  if (syncedNic) {
+    const [nicOwners] = await db.query(
+      "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+      [syncedNic, userId],
+    );
+    if (nicOwners.length) syncedNic = "";
+  }
 
   if (matches.length && SYSTEM_OWNER_ROLES.includes(matches[0].role) && !SYSTEM_OWNER_ROLES.includes(role)) {
     const error = new Error("Refusing to downgrade a system owner account from EduTrack sync");
@@ -3579,6 +3605,7 @@ async function upsertWebsiteUserFromEduTrack(payload = {}) {
         `
           UPDATE users
           SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              nic_number = COALESCE(NULLIF(?, ''), nic_number),
               name = ?,
               email = ?,
               role = ?,
@@ -3586,20 +3613,21 @@ async function upsertWebsiteUserFromEduTrack(payload = {}) {
               password_hash = ?
           WHERE id = ?
         `,
-        [externalStaffId, name, email, role, status, nextPasswordHash, userId],
+        [externalStaffId, syncedNic, name, email, role, status, nextPasswordHash, userId],
       );
     } else {
       await db.query(
         `
           UPDATE users
           SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              nic_number = COALESCE(NULLIF(?, ''), nic_number),
               name = ?,
               email = ?,
               role = ?,
               status = ?
           WHERE id = ?
         `,
-        [externalStaffId, name, email, role, status, userId],
+        [externalStaffId, syncedNic, name, email, role, status, userId],
       );
     }
   } else {
@@ -3607,10 +3635,10 @@ async function upsertWebsiteUserFromEduTrack(payload = {}) {
       nextPasswordHash || (await bcrypt.hash(syncSetupPassword(), 12));
     await db.query(
       `
-        INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash)
-        VALUES (?, NULLIF(?, ''), ?, ?, ?, ?, ?)
+        INSERT INTO users (id, external_staff_id, nic_number, name, email, role, status, password_hash)
+        VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?)
       `,
-      [userId, externalStaffId, name, email, role, status, insertPasswordHash],
+      [userId, externalStaffId, syncedNic, name, email, role, status, insertPasswordHash],
     );
   }
 
@@ -5557,6 +5585,9 @@ async function upsertPortalUserForEduTrack(payload = {}) {
     ? normalizeAccountStatus(payload.status)
     : "Disabled";
   const password = typeof payload.password === "string" ? payload.password : "";
+  const nicNumber = normalizeNicNumber(
+    payload.nicNumber || payload.nic_number || payload.nic || "",
+  );
 
   if (!requestedId || !name || !isValidEmail(email)) {
     const error = new Error("id, name, and a valid email are required");
@@ -5580,6 +5611,15 @@ async function upsertPortalUserForEduTrack(payload = {}) {
     [requestedId, email, requestedId],
   );
   const userId = matches[0]?.id || requestedId;
+  // Keep NIC sign-in working: mirror the NIC unless another account already owns it.
+  let syncedNic = nicNumber;
+  if (syncedNic) {
+    const [nicOwners] = await db.query(
+      "SELECT id FROM users WHERE nic_number = ? AND id <> ? LIMIT 1",
+      [syncedNic, userId],
+    );
+    if (nicOwners.length) syncedNic = "";
+  }
 
   if (matches.length) {
     if (password) {
@@ -5588,6 +5628,7 @@ async function upsertPortalUserForEduTrack(payload = {}) {
         `
           UPDATE users
           SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              nic_number = COALESCE(NULLIF(?, ''), nic_number),
               name = ?,
               email = ?,
               role = ?,
@@ -5595,30 +5636,31 @@ async function upsertPortalUserForEduTrack(payload = {}) {
               password_hash = ?
           WHERE id = ?
         `,
-        [externalStaffId, name, email, role, status, passwordHash, userId],
+        [externalStaffId, syncedNic, name, email, role, status, passwordHash, userId],
       );
     } else {
       await db.query(
         `
           UPDATE users
           SET external_staff_id = COALESCE(NULLIF(?, ''), external_staff_id),
+              nic_number = COALESCE(NULLIF(?, ''), nic_number),
               name = ?,
               email = ?,
               role = ?,
               status = ?
           WHERE id = ?
         `,
-        [externalStaffId, name, email, role, status, userId],
+        [externalStaffId, syncedNic, name, email, role, status, userId],
       );
     }
   } else {
     const passwordHash = await bcrypt.hash(password || crypto.randomBytes(48).toString("hex"), 12);
     await db.query(
       `
-        INSERT INTO users (id, external_staff_id, name, email, role, status, password_hash)
-        VALUES (?, NULLIF(?, ''), ?, ?, ?, ?, ?)
+        INSERT INTO users (id, external_staff_id, nic_number, name, email, role, status, password_hash)
+        VALUES (?, NULLIF(?, ''), NULLIF(?, ''), ?, ?, ?, ?, ?)
       `,
-      [userId, externalStaffId, name, email, role, status, passwordHash],
+      [userId, externalStaffId, syncedNic, name, email, role, status, passwordHash],
     );
   }
 
@@ -5704,15 +5746,20 @@ app.post("/api/internal/verify-edutrack-login", async (req, res) => {
 
   try {
     await ensureContentTables();
-    const email = normalizeEmail(req.body?.email);
+    const rawIdentifier = String(
+      req.body?.nic || req.body?.identifier || req.body?.email || "",
+    ).trim();
+    const nicNumber = normalizeNicNumber(rawIdentifier);
+    const email = nicNumber ? "" : normalizeEmail(rawIdentifier);
     const password = String(req.body?.password || "");
-    if (!isValidEmail(email) || !password) {
+    if ((!nicNumber && !isValidEmail(email)) || !password) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
 
     const [users] = await db.query(
-      "SELECT id, external_staff_id, name, email, role, status, password_hash FROM users WHERE email = ? LIMIT 1",
-      [email],
+      `SELECT id, external_staff_id, nic_number, name, email, role, status, password_hash
+       FROM users WHERE ${nicNumber ? "nic_number" : "email"} = ? LIMIT 1`,
+      [nicNumber || email],
     );
     const user = users[0];
     if (!user || String(user.status || "").toLowerCase() !== "active") {
@@ -12650,8 +12697,12 @@ app.post(
         ? await bcrypt.compare(accountPassword, user.password_hash || "")
         : false;
 
-      if (!validPassword && accountEmail) {
-        const eduTrackUser = await portalLoginUserFromEduTrack(accountEmail, accountPassword, user);
+      if (!validPassword && (accountEmail || nicNumber)) {
+        const eduTrackUser = await portalLoginUserFromEduTrack(
+          nicNumber || accountEmail,
+          accountPassword,
+          user,
+        );
         if (eduTrackUser) {
           user = eduTrackUser;
           validPassword = true;

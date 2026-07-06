@@ -15,6 +15,7 @@ import {
   Film,
   FileText,
   GraduationCap,
+  IdCard,
   Images,
   Landmark,
   Lock,
@@ -2035,7 +2036,7 @@ function HomeRequiredSections() {
             <article className="grid min-h-[210px] place-items-center rounded-lg border border-[#e6e9ef] bg-white p-8 text-center shadow-sm">
               <div>
                 <h2 className="font-serif text-2xl font-bold text-navy">Motto</h2>
-                <p className="mt-3 font-serif text-xl font-bold text-navy">
+                <p className="mt-3 font-serif text-xl font-bold italic text-navy">
                   Veritate ad Lumen et Vitam
                 </p>
                 <p className="mt-2 text-sm font-semibold text-slate-500">
@@ -2298,7 +2299,9 @@ function HomeVisionMissionIdentity() {
             />
           </div>
           <div className="border-t border-border bg-white p-6 text-center">
-            <p className="font-serif text-2xl font-bold text-navy">Veritate Ad Lumen Et Vitam</p>
+            <p className="font-serif text-2xl font-bold italic text-navy">
+              Veritate Ad Lumen Et Vitam
+            </p>
             <p className="mt-2 text-sm font-semibold text-muted-foreground">
               In Truth to Light and Life
             </p>
@@ -2350,7 +2353,7 @@ function HomePage() {
             <h1 className="home-hero-title mx-auto mt-5 max-w-5xl text-balance font-serif text-5xl font-bold leading-[1.03] sm:text-6xl md:text-7xl lg:mt-7 lg:text-8xl">
               {heroTitle}
             </h1>
-            <p className="home-hero-motto mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/82 sm:text-lg md:text-xl lg:mt-7">
+            <p className="home-hero-motto mx-auto mt-5 max-w-2xl text-base italic leading-relaxed text-white/82 sm:text-lg md:text-xl lg:mt-7">
               {heroText}
             </p>
           </div>
@@ -2585,7 +2588,7 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
               className="mx-auto h-24 w-24 rounded-full border-4 border-gold bg-white object-contain p-2"
             />
             <p className="mt-5 font-serif text-3xl font-bold">Loyola College</p>
-            <p className="mt-2 text-xs font-bold uppercase tracking-[0.2em] text-gold-light">
+            <p className="mt-2 text-xs font-bold uppercase italic tracking-[0.2em] text-gold-light">
               {db.websiteContent.tagline}
             </p>
           </aside>
@@ -2601,7 +2604,11 @@ function CollegeAnthemHymnPage({ pageId = "about/college-anthem-hymn" }: { pageI
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg border border-border bg-background p-5">
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-crimson">{label}</p>
-              <p className="mt-2 font-serif text-2xl font-bold text-navy">{value}</p>
+              <p
+                className={`mt-2 font-serif text-2xl font-bold text-navy ${label === "Motto" ? "italic" : ""}`}
+              >
+                {value}
+              </p>
             </div>
           ))}
         </div>
@@ -6465,7 +6472,7 @@ function LoginPage() {
   const pageTitle = twoFactorChallenge ? "Verify sign in" : "Welcome back";
   const pageSubtitle = twoFactorChallenge
     ? `Enter the authentication code for ${twoFactorChallenge.email}.`
-    : "Enter your assigned email and password to continue.";
+    : "Enter your NIC number and password to continue.";
 
   const roleChips = [
     { label: "Student", color: "bg-sky-100 text-sky-800" },
@@ -6542,7 +6549,7 @@ function LoginPage() {
             <p className="font-serif text-2xl font-bold text-white leading-tight">
               {db.websiteContent.schoolName}
             </p>
-            <p className="mt-0.5 text-xs font-bold uppercase tracking-[0.22em] text-amber-300">
+            <p className="mt-0.5 text-xs font-bold uppercase italic tracking-[0.22em] text-amber-300">
               {db.websiteContent.tagline}
             </p>
           </div>
@@ -6605,7 +6612,7 @@ function LoginPage() {
           />
           <div>
             <p className="font-serif text-xl font-bold text-navy">{db.websiteContent.schoolName}</p>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#d4a017]">
+            <p className="text-[10px] font-bold uppercase italic tracking-[0.18em] text-[#d4a017]">
               {db.websiteContent.tagline}
             </p>
           </div>
@@ -6682,20 +6689,24 @@ function LoginPage() {
               <div className="mt-7">
                 <label className="block">
                   <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                    Email address
+                    NIC number
                   </span>
                   <div className="relative mt-2">
-                    <Mail className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <IdCard className="absolute top-1/2 left-0 h-4 w-4 -translate-y-1/2 text-slate-400" />
                     <input
                       id="login-email"
                       name="email"
-                      type="email"
+                      type="text"
                       required
                       autoComplete="username"
-                      placeholder="you@school.test"
+                      placeholder="200012345678 or 991234567V"
                       className="input-line pl-7"
                     />
                   </div>
+                  <p className="mt-2 text-xs text-slate-400">
+                    Use your National Identity Card number. Master and super admins may also sign
+                    in with email.
+                  </p>
                 </label>
               </div>
 
