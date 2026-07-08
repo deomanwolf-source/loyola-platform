@@ -42,8 +42,10 @@ import {
   type PageBlockType,
   type PageBlock,
   type FacilityItem,
+  type HomeContentCard,
   type PastRectorProfile,
 } from "@/lib/store";
+import { CONTENT_ICON_NAMES, resolveContentIcon } from "@/lib/content-icons";
 import { uploadFileToBackend, uploadFileToBackendWithProgress } from "@/lib/backend-upload";
 import { createPublishRequest } from "@/lib/publish-requests";
 import {
@@ -174,6 +176,128 @@ function Field({
       <div className="mt-2">{children}</div>
       {hint && <span className="mt-1 block text-xs leading-5 text-slate-500">{hint}</span>}
     </label>
+  );
+}
+
+function IconSelect({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange: (name: string) => void;
+}) {
+  const Preview = resolveContentIcon(value);
+  return (
+    <div className="flex items-center gap-2">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-navy">
+        <Preview className="h-4 w-4" />
+      </span>
+      <select
+        value={value && CONTENT_ICON_NAMES.includes(value) ? value : ""}
+        onChange={(e) => onChange(e.target.value)}
+        className="input-line flex-1"
+      >
+        {(!value || !CONTENT_ICON_NAMES.includes(value)) && <option value="">Choose icon…</option>}
+        {CONTENT_ICON_NAMES.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+}
+
+function HomeCardListEditor({
+  cards,
+  showBody = false,
+  showHref = false,
+  onUpdate,
+  onRemove,
+  onAdd,
+}: {
+  cards: HomeContentCard[];
+  showBody?: boolean;
+  showHref?: boolean;
+  onUpdate: (id: string, patch: Partial<HomeContentCard>) => void;
+  onRemove: (id: string) => void;
+  onAdd: () => void;
+}) {
+  const ordered = [...cards].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs font-black uppercase tracking-[0.18em] text-slate-500">Cards</span>
+        <button
+          type="button"
+          onClick={onAdd}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-bold text-navy hover:bg-slate-50"
+        >
+          <Plus className="h-3.5 w-3.5" /> Add card
+        </button>
+      </div>
+      {ordered.length === 0 && (
+        <p className="rounded-xl border border-dashed border-slate-200 bg-slate-50/40 px-3 py-4 text-center text-xs text-slate-400">
+          No cards yet. This section is hidden on the site until you add one.
+        </p>
+      )}
+      {ordered.map((card) => (
+        <div key={card.id} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-3">
+          <Field label="Title">
+            <input
+              value={card.title}
+              onChange={(e) => onUpdate(card.id, { title: e.target.value })}
+              className="input-line"
+            />
+          </Field>
+          {showBody && (
+            <Field label="Description">
+              <textarea
+                value={card.body || ""}
+                onChange={(e) => onUpdate(card.id, { body: e.target.value })}
+                rows={2}
+                className="input-line resize-none"
+              />
+            </Field>
+          )}
+          {showHref && (
+            <Field label="Link">
+              <input
+                value={card.href || ""}
+                onChange={(e) => onUpdate(card.id, { href: e.target.value })}
+                placeholder="/sports-clubs"
+                className="input-line"
+              />
+            </Field>
+          )}
+          <Field label="Icon">
+            <IconSelect value={card.icon} onChange={(name) => onUpdate(card.id, { icon: name })} />
+          </Field>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Field label="Order">
+              <input
+                type="number"
+                value={card.order ?? 0}
+                onChange={(e) => onUpdate(card.id, { order: Number(e.target.value) || 0 })}
+                className="input-line"
+              />
+            </Field>
+            <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-navy">
+              <input
+                type="checkbox"
+                checked={card.visible !== false}
+                onChange={(e) => onUpdate(card.id, { visible: e.target.checked })}
+                className="accent-[#d4a017]"
+              />
+              Show
+            </label>
+          </div>
+          <StudioButton onClick={() => onRemove(card.id)}>
+            <Trash2 className="h-4 w-4" /> Remove card
+          </StudioButton>
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -2039,6 +2163,40 @@ export function WebsiteEditor() {
     }));
   };
 
+  type HomeCardKey = "quickActions" | "extraCurricularCards" | "academicCards";
+  const patchHomeCards = (
+    key: HomeCardKey,
+    updater: (cards: HomeContentCard[]) => HomeContentCard[],
+  ) => {
+    setDb((current) => {
+      const cards = Array.isArray(current.homeSections[key])
+        ? (current.homeSections[key] as HomeContentCard[])
+        : [];
+      return {
+        ...current,
+        homeSections: { ...current.homeSections, [key]: updater(cards) },
+      };
+    });
+  };
+  const updateHomeCard = (key: HomeCardKey, id: string, patch: Partial<HomeContentCard>) =>
+    patchHomeCards(key, (cards) =>
+      cards.map((card) => (card.id === id ? { ...card, ...patch } : card)),
+    );
+  const addHomeCard = (key: HomeCardKey, defaults: Partial<HomeContentCard> = {}) =>
+    patchHomeCards(key, (cards) => [
+      ...cards,
+      {
+        id: makeId(key),
+        title: "New item",
+        icon: "Sparkles",
+        visible: true,
+        order: Math.max(0, ...cards.map((card) => card.order ?? 0)) + 1,
+        ...defaults,
+      },
+    ]);
+  const removeHomeCard = (key: HomeCardKey, id: string) =>
+    patchHomeCards(key, (cards) => cards.filter((card) => card.id !== id));
+
   const updateLeadershipCard = (
     id: string,
     patch: Partial<DB["homeSections"]["leadershipCards"][number]>,
@@ -3342,6 +3500,118 @@ export function WebsiteEditor() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Quick Actions ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Quick Actions")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Sparkles className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Quick Actions</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Quick Actions") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Quick Actions") && (
+                  <div className="border-t border-slate-100 p-5">
+                    <HomeCardListEditor
+                      cards={db.homeSections.quickActions || []}
+                      showBody
+                      showHref
+                      onUpdate={(id, patch) => updateHomeCard("quickActions", id, patch)}
+                      onRemove={(id) => removeHomeCard("quickActions", id)}
+                      onAdd={() => addHomeCard("quickActions", { title: "New quick action", href: "/" })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ── Extra Curriculars ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Extra Curriculars")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Users className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Extra Curriculars</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Extra Curriculars") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Extra Curriculars") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <Field label="Eyebrow">
+                      <input value={db.homeSections.extraCurricularEyebrow || ""} onChange={(e) => updateHomeSection({ extraCurricularEyebrow: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Title">
+                      <input value={db.homeSections.extraCurricularTitle || ""} onChange={(e) => updateHomeSection({ extraCurricularTitle: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Subtitle">
+                      <textarea value={db.homeSections.extraCurricularSubtitle || ""} onChange={(e) => updateHomeSection({ extraCurricularSubtitle: e.target.value })} rows={2} className="input-line resize-none" />
+                    </Field>
+                    <HomeCardListEditor
+                      cards={db.homeSections.extraCurricularCards || []}
+                      showHref
+                      onUpdate={(id, patch) => updateHomeCard("extraCurricularCards", id, patch)}
+                      onRemove={(id) => removeHomeCard("extraCurricularCards", id)}
+                      onAdd={() => addHomeCard("extraCurricularCards", { title: "New activity", href: "/sports-clubs" })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ── Academic Composition ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Academic Composition")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <BookOpen className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Academic Composition</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Academic Composition") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Academic Composition") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <Field label="Eyebrow">
+                      <input value={db.homeSections.academicEyebrow || ""} onChange={(e) => updateHomeSection({ academicEyebrow: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Title">
+                      <input value={db.homeSections.academicTitle || ""} onChange={(e) => updateHomeSection({ academicTitle: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Subtitle">
+                      <textarea value={db.homeSections.academicSubtitle || ""} onChange={(e) => updateHomeSection({ academicSubtitle: e.target.value })} rows={2} className="input-line resize-none" />
+                    </Field>
+                    <HomeCardListEditor
+                      cards={db.homeSections.academicCards || []}
+                      showBody
+                      onUpdate={(id, patch) => updateHomeCard("academicCards", id, patch)}
+                      onRemove={(id) => removeHomeCard("academicCards", id)}
+                      onAdd={() => addHomeCard("academicCards", { title: "New section", body: "" })}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* ── Office Structure ── */}
+              <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
+                <button type="button" onClick={() => toggleHomePanel("Office Structure")} className="flex w-full items-center justify-between px-5 py-4 text-left transition-colors hover:bg-slate-50/60">
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="h-4 w-4 text-[#d4a017]" />
+                    <span className="text-xs font-black uppercase tracking-[0.18em] text-navy">Office Structure</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${homeOpenPanels.has("Office Structure") ? "rotate-180" : ""}`} />
+                </button>
+                {homeOpenPanels.has("Office Structure") && (
+                  <div className="border-t border-slate-100 p-5 space-y-4">
+                    <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                      The facility tiles below this heading are managed from the College departments (coming in a later phase). You can edit the heading here now.
+                    </p>
+                    <Field label="Eyebrow">
+                      <input value={db.homeSections.officeEyebrow || ""} onChange={(e) => updateHomeSection({ officeEyebrow: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Title">
+                      <input value={db.homeSections.officeTitle || ""} onChange={(e) => updateHomeSection({ officeTitle: e.target.value })} className="input-line" />
+                    </Field>
+                    <Field label="Description">
+                      <textarea value={db.homeSections.officeDescription || ""} onChange={(e) => updateHomeSection({ officeDescription: e.target.value })} rows={3} className="input-line resize-none" />
+                    </Field>
                   </div>
                 )}
               </div>

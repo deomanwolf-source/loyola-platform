@@ -64,11 +64,13 @@ import {
   type GalleryItem,
   type GalleryVideo,
   type FacilityItem,
+  type HomeContentCard,
   type HomeLeadershipCard,
   type PastRectorProfile,
   type Role,
   type Teacher,
 } from "@/lib/store";
+import { resolveContentIcon } from "@/lib/content-icons";
 import {
   API_URL,
   TwoFactorRequiredError,
@@ -2156,62 +2158,29 @@ function HomeRequiredSections() {
   const db = useDb();
   const home = db.homeSections;
   const leadershipCards = mergedHomeLeadershipCards(home.leadershipCards || []);
-  const quickActions = [
-    {
-      title: "Explore College",
-      body: "Discover campus spaces, sections, and student services.",
-      href: "/the-college/facilities-services",
-      icon: Landmark,
-    },
-    {
-      title: "View Gallery",
-      body: "Step into Loyola through photos and video highlights.",
-      href: "/gallery/photo-gallery",
-      icon: Images,
-    },
-    {
-      title: "News & Notices",
-      body: "Latest announcements, circulars, and updates.",
-      href: "/news",
-      icon: FileText,
-    },
-    {
-      title: "Events & Calendar",
-      body: "Important dates, celebrations, and the school schedule.",
-      href: "/calendar",
-      icon: Calendar,
-    },
-  ];
-  const clubs = [
-    { title: "Media Unit", icon: Camera, href: "/sports-clubs/photography-and-media-unit" },
-    { title: "Science Society", icon: Award, href: "/sports-clubs#clubs-and-societies" },
-    { title: "ICT Society", icon: Film, href: "/sports-clubs#clubs-and-societies" },
-    { title: "Prefects Board", icon: ShieldCheck, href: "/sports-clubs/teachers-in-charge-of-prefects-senior" },
-    { title: "English Literary Association", icon: GraduationCap, href: "/sports-clubs/english-literary-union-secondary" },
-    { title: "Religious Society", icon: Landmark, href: "/sports-clubs/bible-association" },
-  ];
-  const academicPreviews = [
-    {
-      title: "Primary Section",
-      body: "Foundational learning, language growth, values, and classroom confidence.",
-      icon: Users,
-    },
-    {
-      title: "Middle School",
-      body: "Structured study habits, co-curricular discovery, and personal formation.",
-      icon: BookOpen,
-    },
-    {
-      title: "Upper School",
-      body: "Exam preparation, leadership, clubs, sports, and disciplined academic focus.",
-      icon: Award,
-    },
-    {
-      title: "Advanced Level",
-      body: "Technology, Science, Commerce, and Arts pathways for senior students.",
-      icon: GraduationCap,
-    },
-  ];
+  const sortByOrder = (a: { order?: number }, b: { order?: number }) =>
+    (a.order ?? 0) - (b.order ?? 0);
+  const visibleHomeCards = (cards: HomeContentCard[] = []) =>
+    cards.filter((card) => card.visible !== false).slice().sort(sortByOrder);
+  const quickActions = visibleHomeCards(home.quickActions).map((card) => ({
+    id: card.id,
+    title: card.title,
+    body: card.body || "",
+    href: card.href || "#",
+    icon: resolveContentIcon(card.icon),
+  }));
+  const clubs = visibleHomeCards(home.extraCurricularCards).map((card) => ({
+    id: card.id,
+    title: card.title,
+    href: card.href || "#",
+    icon: resolveContentIcon(card.icon),
+  }));
+  const academicPreviews = visibleHomeCards(home.academicCards).map((card) => ({
+    id: card.id,
+    title: card.title,
+    body: card.body || "",
+    icon: resolveContentIcon(card.icon),
+  }));
   const facilities = visibleCollegeDepartments.map((department) => ({
     title: department.title,
     body: department.cardBody,
@@ -2316,7 +2285,7 @@ function HomeRequiredSections() {
               const style = quickActionStyles[index % quickActionStyles.length];
               return (
                 <a
-                  key={item.title}
+                  key={item.id}
                   href={item.href}
                   className={`group relative overflow-hidden rounded-[28px] border border-white/70 px-6 py-7 shadow-[0_18px_48px_-34px_rgba(10,22,40,0.48)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
                 >
@@ -2345,13 +2314,13 @@ function HomeRequiredSections() {
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="reveal-from-left text-xs font-bold uppercase tracking-[0.22em] text-crimson">
-                Academic journey
+                {home.academicEyebrow}
               </p>
               <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy" style={{ transitionDelay: "0.1s" }}>
-                Academic Composition
+                {home.academicTitle}
               </h2>
               <p className="mt-2 text-sm text-slate-500">
-                Guiding students from foundation to advanced studies.
+                {home.academicSubtitle}
               </p>
             </div>
             {pageIsLive("/academics") && (
@@ -2369,7 +2338,7 @@ function HomeRequiredSections() {
               const style = academicStyles[index % academicStyles.length];
               return (
                 <article
-                  key={item.title}
+                  key={item.id}
                   className={`group card-glow rounded-[28px] border border-white/70 p-6 shadow-[0_18px_48px_-34px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
                 >
                   <span className={`grid h-11 w-11 place-items-center rounded-2xl ${style.icon}`}>
@@ -2385,11 +2354,11 @@ function HomeRequiredSections() {
           <div className="mt-14 flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="reveal-from-left text-xs font-bold uppercase tracking-[0.22em] text-crimson">
-                Student life
+                {home.extraCurricularEyebrow}
               </p>
-              <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy" style={{ transitionDelay: "0.1s" }}>Extra Curriculars</h2>
+              <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy" style={{ transitionDelay: "0.1s" }}>{home.extraCurricularTitle}</h2>
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Teacher-in-charge highlights from the current college activity list.
+                {home.extraCurricularSubtitle}
               </p>
             </div>
           </div>
@@ -2399,7 +2368,7 @@ function HomeRequiredSections() {
               const style = clubStyles[index % clubStyles.length];
               return (
                 <a
-                  key={club.title}
+                  key={club.id}
                   href={club.href}
                   className={`group relative overflow-hidden rounded-[28px] border border-white/70 p-5 text-left shadow-[0_18px_48px_-34px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
                 >
@@ -2422,14 +2391,13 @@ function HomeRequiredSections() {
             <div className="flex flex-wrap items-end justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-gold-light">
-                  Office structure
+                  {home.officeEyebrow}
                 </p>
                 <h2 className="mt-3 font-serif text-4xl font-bold md:text-5xl">
-                  Facilities and student services
+                  {home.officeTitle}
                 </h2>
                 <p className="mt-3 max-w-2xl text-sm leading-6 text-white/72">
-                  Each office and facility has a clear role in daily school life, public
-                  information, and internal system work.
+                  {home.officeDescription}
                 </p>
               </div>
             </div>

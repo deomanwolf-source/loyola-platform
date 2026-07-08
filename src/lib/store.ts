@@ -173,6 +173,20 @@ export interface HomeLeadershipCard {
   order: number;
   visible: boolean;
 }
+/**
+ * A generic, editable card used by several Home sections (quick actions,
+ * extra-curricular highlights, academic composition). `icon` stores an icon
+ * NAME from the content-icons registry; unused fields per section stay empty.
+ */
+export interface HomeContentCard {
+  id: string;
+  title: string;
+  body?: string;
+  href?: string;
+  icon?: string;
+  order?: number;
+  visible?: boolean;
+}
 export interface AdmissionStep {
   id: string;
   number: string;
@@ -529,6 +543,18 @@ export interface DB {
     visionImage: string;
     missionImage: string;
     mottoImage: string;
+    quickActions: HomeContentCard[];
+    extraCurricularEyebrow: string;
+    extraCurricularTitle: string;
+    extraCurricularSubtitle: string;
+    extraCurricularCards: HomeContentCard[];
+    academicEyebrow: string;
+    academicTitle: string;
+    academicSubtitle: string;
+    academicCards: HomeContentCard[];
+    officeEyebrow: string;
+    officeTitle: string;
+    officeDescription: string;
   };
   aboutSections: {
     storyKicker: string;
@@ -885,6 +911,68 @@ export const seed: DB = {
     visionImage: "",
     missionImage: "",
     mottoImage: "",
+    quickActions: [
+      {
+        id: "LC-QA-EXPLORE",
+        title: "Explore College",
+        body: "Discover campus spaces, sections, and student services.",
+        href: "/the-college/facilities-services",
+        icon: "Landmark",
+        order: 1,
+        visible: true,
+      },
+      {
+        id: "LC-QA-GALLERY",
+        title: "View Gallery",
+        body: "Step into Loyola through photos and video highlights.",
+        href: "/gallery/photo-gallery",
+        icon: "Images",
+        order: 2,
+        visible: true,
+      },
+      {
+        id: "LC-QA-NEWS",
+        title: "News & Notices",
+        body: "Latest announcements, circulars, and updates.",
+        href: "/news",
+        icon: "FileText",
+        order: 3,
+        visible: true,
+      },
+      {
+        id: "LC-QA-EVENTS",
+        title: "Events & Calendar",
+        body: "Important dates, celebrations, and the school schedule.",
+        href: "/calendar",
+        icon: "Calendar",
+        order: 4,
+        visible: true,
+      },
+    ],
+    extraCurricularEyebrow: "Student life",
+    extraCurricularTitle: "Extra Curriculars",
+    extraCurricularSubtitle: "Teacher-in-charge highlights from the current college activity list.",
+    extraCurricularCards: [
+      { id: "LC-EC-MEDIA", title: "Media Unit", href: "/sports-clubs/photography-and-media-unit", icon: "Camera", order: 1, visible: true },
+      { id: "LC-EC-SCIENCE", title: "Science Society", href: "/sports-clubs#clubs-and-societies", icon: "Award", order: 2, visible: true },
+      { id: "LC-EC-ICT", title: "ICT Society", href: "/sports-clubs#clubs-and-societies", icon: "Film", order: 3, visible: true },
+      { id: "LC-EC-PREFECTS", title: "Prefects Board", href: "/sports-clubs/teachers-in-charge-of-prefects-senior", icon: "ShieldCheck", order: 4, visible: true },
+      { id: "LC-EC-ENGLISH", title: "English Literary Association", href: "/sports-clubs/english-literary-union-secondary", icon: "GraduationCap", order: 5, visible: true },
+      { id: "LC-EC-RELIGIOUS", title: "Religious Society", href: "/sports-clubs/bible-association", icon: "Landmark", order: 6, visible: true },
+    ],
+    academicEyebrow: "Academic journey",
+    academicTitle: "Academic Composition",
+    academicSubtitle: "Guiding students from foundation to advanced studies.",
+    academicCards: [
+      { id: "LC-AC-PRIMARY", title: "Primary Section", body: "Foundational learning, language growth, values, and classroom confidence.", icon: "Users", order: 1, visible: true },
+      { id: "LC-AC-MIDDLE", title: "Middle School", body: "Structured study habits, co-curricular discovery, and personal formation.", icon: "BookOpen", order: 2, visible: true },
+      { id: "LC-AC-UPPER", title: "Upper School", body: "Exam preparation, leadership, clubs, sports, and disciplined academic focus.", icon: "Award", order: 3, visible: true },
+      { id: "LC-AC-AL", title: "Advanced Level", body: "Technology, Science, Commerce, and Arts pathways for senior students.", icon: "GraduationCap", order: 4, visible: true },
+    ],
+    officeEyebrow: "Office structure",
+    officeTitle: "Facilities and student services",
+    officeDescription:
+      "Each office and facility has a clear role in daily school life, public information, and internal system work.",
     leadershipKicker: "Administration Board",
     leadershipTitle: "Leadership guiding Loyola College.",
     leadershipBody:
@@ -1925,6 +2013,18 @@ function ensureRequiredHomeSections(db: DB): DB {
       Array.isArray(db.homeSections?.leadershipCards) && db.homeSections.leadershipCards.length > 0
         ? db.homeSections.leadershipCards
         : seed.homeSections.leadershipCards,
+    // Seed the editable Home card collections when a database predates them.
+    // Once the key exists (even as an empty array from an intentional edit) we
+    // preserve it, so admin changes are never overwritten on reload.
+    quickActions: Array.isArray(db.homeSections?.quickActions)
+      ? db.homeSections.quickActions
+      : seed.homeSections.quickActions,
+    extraCurricularCards: Array.isArray(db.homeSections?.extraCurricularCards)
+      ? db.homeSections.extraCurricularCards
+      : seed.homeSections.extraCurricularCards,
+    academicCards: Array.isArray(db.homeSections?.academicCards)
+      ? db.homeSections.academicCards
+      : seed.homeSections.academicCards,
   };
 
   return { ...db, homeSections };
