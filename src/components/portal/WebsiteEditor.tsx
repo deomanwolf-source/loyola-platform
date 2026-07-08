@@ -3107,14 +3107,14 @@ export function WebsiteEditor() {
       </div>
 
       <div
-        className={
+        className={`rounded-3xl bg-slate-100/70 p-3 ring-1 ring-slate-200/60 sm:p-4 ${
           widePreview || visualEditorOpen
             ? "grid gap-5"
-            : "grid gap-5 xl:grid-cols-[268px_minmax(0,1fr)]"
-        }
+            : "grid gap-5 xl:grid-cols-[280px_minmax(0,1fr)]"
+        }`}
       >
         {!widePreview && (
-          <aside className="space-y-4">
+          <aside className="space-y-4 xl:sticky xl:top-[84px] xl:self-start xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto xl:pr-1">
             {/* Pages Panel */}
             <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
               <div className="flex items-center gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-4 py-3">
