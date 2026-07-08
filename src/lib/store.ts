@@ -47,7 +47,7 @@ const THE_COLLEGE_DEPARTMENT_PAGES = [
     id: "the-college/departments/it-department",
     label: "IT Department",
     order: 5,
-    body: "The IT Department manages the college's digital infrastructure, systems, websites, networks, user accounts, cybersecurity, devices, software, backups, and technical support.",
+    body: "The IT Department manages the college's digital infrastructure, systems, websites, networks, user accounts, devices, software, backups, and technical support.",
   },
   {
     id: "the-college/departments/sports-department",

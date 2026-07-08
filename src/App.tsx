@@ -770,7 +770,7 @@ const collegeDepartments: CollegeDepartment[] = [
     kicker: "The College",
     icon: ShieldCheck,
     summary:
-      "The IT Department manages the college's digital infrastructure, systems, websites, networks, user accounts, cybersecurity, devices, software, backups, and technical support.",
+      "The IT Department manages the college's digital infrastructure, systems, websites, networks, user accounts, devices, software, backups, and technical support.",
     responsibilities: [
       "Maintain the college website and portals.",
       "Manage servers, networks, internet access, and Wi-Fi.",
@@ -778,13 +778,11 @@ const collegeDepartments: CollegeDepartment[] = [
       "Assign approved roles and access permissions.",
       "Maintain computers, printers, projectors, and digital devices.",
       "Install and update software.",
-      "Protect systems against malware and unauthorized access.",
       "Maintain backups and recovery procedures.",
       "Monitor system performance and availability.",
       "Provide technical support to staff and departments.",
       "Maintain IT asset and licence records.",
       "Manage domains, hosting, SSL certificates, and email services.",
-      "Investigate security incidents.",
       "Train users in safe system usage.",
       "Coordinate with developers and service providers.",
     ],
@@ -798,7 +796,6 @@ const collegeDepartments: CollegeDepartment[] = [
       "Manage technical-support requests.",
       "Record devices, repairs, warranties, and licences.",
       "Publish maintenance and technical notices.",
-      "Monitor security issues.",
       "Generate IT asset and incident reports.",
       "Assist departments with technical publishing.",
     ],
@@ -806,7 +803,6 @@ const collegeDepartments: CollegeDepartment[] = [
       "User Access",
       "Website Support",
       "Network Services",
-      "Cybersecurity",
       "Backups",
       "Technical Support",
       "Devices",
@@ -836,7 +832,7 @@ const collegeDepartments: CollegeDepartment[] = [
       {
         name: "Manager - IT",
         role: "Technical Lead",
-        note: "Systems, hosting, security, and support planning",
+        note: "Systems, hosting, and support planning",
       },
       {
         name: "Assistant IT",
@@ -2338,41 +2334,6 @@ function HomeRequiredSections() {
             })}
           </div>
 
-          <div className="mt-14 flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="reveal-from-left text-xs font-bold uppercase tracking-[0.22em] text-crimson">
-                Student life
-              </p>
-              <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy" style={{ transitionDelay: "0.1s" }}>Extra Curriculars</h2>
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Teacher-in-charge highlights from the current college activity list.
-              </p>
-            </div>
-          </div>
-          <div className="stagger-fast mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {clubs.map((club, index) => {
-              const Icon = club.icon;
-              const style = clubStyles[index % clubStyles.length];
-              return (
-                <a
-                  key={club.title}
-                  href={club.href}
-                  className={`group relative overflow-hidden rounded-[28px] border border-white/70 p-5 text-left shadow-[0_18px_48px_-34px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
-                >
-                  <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${style.bar}`} />
-                  <span className={`grid h-12 w-12 place-items-center rounded-2xl ${style.icon}`}>
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-slate-500">
-                    {club.title}
-                  </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">
-                    A creative and active space for Loyola students.
-                  </p>
-                </a>
-              );
-            })}
-          </div>
         </div>
       </section>
 
@@ -2417,6 +2378,42 @@ function HomeRequiredSections() {
                   <h3 className="mt-5 font-serif text-xl font-bold text-navy">{item.title}</h3>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{item.body}</p>
                 </article>
+              );
+            })}
+          </div>
+
+          <div className="mt-14 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="reveal-from-left text-xs font-bold uppercase tracking-[0.22em] text-crimson">
+                Student life
+              </p>
+              <h2 className="reveal-from-left mt-3 font-serif text-4xl font-bold text-navy" style={{ transitionDelay: "0.1s" }}>Extra Curriculars</h2>
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                Teacher-in-charge highlights from the current college activity list.
+              </p>
+            </div>
+          </div>
+          <div className="stagger-fast mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {clubs.map((club, index) => {
+              const Icon = club.icon;
+              const style = clubStyles[index % clubStyles.length];
+              return (
+                <a
+                  key={club.title}
+                  href={club.href}
+                  className={`group relative overflow-hidden rounded-[28px] border border-white/70 p-5 text-left shadow-[0_18px_48px_-34px_rgba(10,22,40,0.45)] transition-smooth hover:-translate-y-1 hover:shadow-elegant ${style.card}`}
+                >
+                  <span className={`absolute inset-x-0 top-0 h-1 bg-gradient-to-r ${style.bar}`} />
+                  <span className={`grid h-12 w-12 place-items-center rounded-2xl ${style.icon}`}>
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <p className="mt-5 text-sm font-black uppercase tracking-[0.14em] text-slate-500">
+                    {club.title}
+                  </p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">
+                    A creative and active space for Loyola students.
+                  </p>
+                </a>
               );
             })}
           </div>

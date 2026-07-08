@@ -2096,6 +2096,16 @@
   box-shadow: 0 7px 0 -6px color-mix(in oklab, var(--gold) 58%, transparent);
 }
 
+/* The .input-line shorthand zeroes horizontal padding, which would sit the text
+   under the leading/trailing icons. Restore the icon spacing on login inputs. */
+.login-card .input-line.pl-7 {
+  padding-left: 1.75rem;
+}
+
+.login-card .input-line.pr-10 {
+  padding-right: 2.5rem;
+}
+
 .login-submit {
   position: relative;
   overflow: hidden;
