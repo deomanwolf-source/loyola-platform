@@ -50,9 +50,13 @@ export default defineConfig({
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
-        entryFileNames: "assets/[name].js",
-        chunkFileNames: "assets/[name].js",
-        assetFileNames: "assets/[name].[ext]",
+        // Content-hashed filenames so each deploy produces fresh URLs. Without a
+        // hash, a browser could keep a cached old `index.js` while fetching a new
+        // lazy chunk (e.g. AdminPortal), and the mismatched module boundary would
+        // render an undefined component (React error #130) after a deploy.
+        entryFileNames: "assets/[name]-[hash].js",
+        chunkFileNames: "assets/[name]-[hash].js",
+        assetFileNames: "assets/[name]-[hash].[ext]",
         manualChunks(id) {
           // Split grapesjs (visual builder) into its own chunk, only loaded when editor opens
           if (id.includes("node_modules/grapesjs")) return "vendor-grapesjs";
