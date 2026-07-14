@@ -3467,7 +3467,7 @@ export function WebsiteEditor() {
                     {inspectorLeadershipCards.map((card) => (
                       <div key={card.id} className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/40 p-3">
                         {card.image && (
-                          <img src={card.image} alt="" className="aspect-[4/5] w-full rounded-lg object-cover" />
+                          <img src={card.image} alt="" className="a-thumb" />
                         )}
                         <Field label="Name">
                           <input value={card.name} onChange={(e) => updateLeadershipCard(card.id, { name: e.target.value })} className="input-line" />
@@ -3791,9 +3791,9 @@ export function WebsiteEditor() {
                     <button
                       type="button"
                       onClick={selectedPageUsesLiveRenderer ? openFullVisualBuilder : openVisualBuilder}
-                      className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
+                      className="a-btn a-btn-accent a-btn-sm mt-2 w-full"
                     >
-                      <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />
+                      <Wand2 className="h-3.5 w-3.5" />
                       {selectedPageUsesLiveRenderer
                         ? selectedPageUsesVisualOverride ? "Edit Full Visual Page" : "Open Full Visual Builder"
                         : "Open Visual Builder"}
@@ -3802,9 +3802,9 @@ export function WebsiteEditor() {
                       <button
                         type="button"
                         onClick={openSafeVisualEditor}
-                        className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-navy transition hover:bg-slate-50"
+                        className="a-btn a-btn-outline a-btn-sm mt-2 w-full"
                       >
-                        <Wand2 className="h-4 w-4" />
+                        <Wand2 className="h-3.5 w-3.5" />
                         {safeVisualEditorActive ? "Safe editor active" : "Open safe field editor"}
                       </button>
                     )}
@@ -3831,7 +3831,7 @@ export function WebsiteEditor() {
                     <div className="border-t border-slate-100 p-5 space-y-3">
                       {inspectorPastRectorProfiles.map((profile, index) => (
                         <div key={`${profile.name}-${index}`} className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
-                          {profile.image && <img src={profile.image} alt="" className="max-h-72 w-full rounded-lg bg-slate-100 object-contain" />}
+                          {profile.image && <img src={profile.image} alt="" className="a-thumb" />}
                           <Field label="Name">
                             <input value={profile.name} onChange={(e) => updatePastRectorProfile(index, { name: e.target.value })} className="input-line" />
                           </Field>
@@ -3878,7 +3878,7 @@ export function WebsiteEditor() {
                     <div className="border-t border-slate-100 p-5 space-y-3">
                       {inspectorFacilityItems.map((facility, index) => (
                         <div key={`${facility.title}-${index}`} className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
-                          {facility.image && <img src={facility.image} alt="" className="max-h-56 w-full rounded-lg bg-slate-100 object-cover" />}
+                          {facility.image && <img src={facility.image} alt="" className="a-thumb" />}
                           <Field label="Title">
                             <input value={facility.title} onChange={(e) => updateFacilityItem(index, { title: e.target.value })} className="input-line" />
                           </Field>
@@ -4278,7 +4278,7 @@ export function WebsiteEditor() {
                               <img
                                 src={card.image}
                                 alt=""
-                                className="aspect-[4/5] w-full rounded-lg object-cover"
+                                className="a-thumb"
                               />
                             )}
                             <Field label="Name">
@@ -4388,7 +4388,7 @@ export function WebsiteEditor() {
                               <img
                                 src={profile.image}
                                 alt=""
-                                className="max-h-72 w-full rounded-lg bg-slate-100 object-contain"
+                                className="a-thumb"
                               />
                             )}
                             <Field label="Name">
@@ -4464,7 +4464,7 @@ export function WebsiteEditor() {
                               <img
                                 src={facility.image}
                                 alt=""
-                                className="max-h-56 w-full rounded-lg bg-slate-100 object-cover"
+                                className="a-thumb"
                               />
                             )}
                             <Field label="Title">
@@ -4651,21 +4651,14 @@ export function WebsiteEditor() {
                 <button
                   type="button"
                   onClick={selectedPageUsesLiveRenderer ? openFullVisualBuilder : openVisualBuilder}
-                  className="group mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#d4a017] to-[#f7d96b] px-4 py-4 text-sm font-black text-[#0a1628] shadow-[0_8px_28px_-8px_rgba(212,160,23,0.62)] transition-all duration-200 hover:shadow-[0_12px_34px_-8px_rgba(212,160,23,0.75)] hover:scale-[1.02] active:scale-[0.98]"
+                  className="a-btn a-btn-accent a-btn-sm mt-2 w-full"
                 >
-                  {selectedPageUsesLiveRenderer ? (
-                    <>
-                      <Wand2 className="h-4 w-4" />{" "}
-                      {selectedPageUsesVisualOverride
-                        ? "Edit Full Visual Page"
-                        : "Open Full Visual Builder"}
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 className="h-4 w-4 transition-transform duration-300 group-hover:rotate-12" />{" "}
-                      Open Visual Builder
-                    </>
-                  )}
+                  <Wand2 className="h-3.5 w-3.5" />
+                  {selectedPageUsesLiveRenderer
+                    ? selectedPageUsesVisualOverride
+                      ? "Edit Full Visual Page"
+                      : "Open Full Visual Builder"
+                    : "Open Visual Builder"}
                 </button>
                 {selectedPageUsesLiveRenderer && (
                   <button

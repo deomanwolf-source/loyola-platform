@@ -2534,3 +2534,545 @@ article:hover .dept-bar { width: 36px; }
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * ADMIN DESIGN SYSTEM v2
+ * One token set + primitive styles shared by every admin panel and portal.
+ * Purely presentational — it changes how panels look, never what they store.
+ * Declared last so it wins over the legacy [data-admin-panel] patch block.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+[data-admin-panel] {
+  /* Ink & surface ramp */
+  --a-ink: #0d1b2f;
+  --a-ink-soft: #46587a;
+  --a-ink-faint: #7c8db0;
+  --a-canvas: #eef2f9;
+  --a-surface: #ffffff;
+  --a-surface-2: #f6f8fc;
+  --a-line: #e2e8f3;
+  --a-line-strong: #cbd6e8;
+
+  /* Brand */
+  --a-brand: #0b2b6b;
+  --a-brand-deep: #071c48;
+  --a-brand-soft: #eaf0fd;
+  --a-accent: #c9a227;
+  --a-accent-soft: #fdf6e0;
+
+  /* Semantic */
+  --a-ok: #0f8a5f;
+  --a-ok-soft: #e6f6ef;
+  --a-warn: #b57505;
+  --a-warn-soft: #fdf3e2;
+  --a-danger: #c02434;
+  --a-danger-soft: #fdecee;
+
+  /* Elevation — soft, single light source */
+  --a-shadow-1: 0 1px 2px rgb(13 27 47 / 0.05), 0 1px 3px rgb(13 27 47 / 0.04);
+  --a-shadow-2: 0 2px 4px rgb(13 27 47 / 0.04), 0 8px 20px -10px rgb(13 27 47 / 0.16);
+  --a-shadow-3: 0 4px 8px rgb(13 27 47 / 0.05), 0 20px 44px -18px rgb(13 27 47 / 0.24);
+
+  --a-r-sm: 6px;
+  --a-r-md: 8px;
+  --a-r-lg: 10px;
+
+  --a-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Surfaces ───────────────────────────────────────────────────────────── */
+.a-card {
+  background: var(--a-surface);
+  border: 1px solid var(--a-line);
+  border-radius: var(--a-r-lg);
+  box-shadow: var(--a-shadow-1);
+  transition:
+    box-shadow 200ms var(--a-ease),
+    border-color 200ms var(--a-ease),
+    transform 200ms var(--a-ease);
+}
+.a-card-hover:hover {
+  border-color: var(--a-line-strong);
+  box-shadow: var(--a-shadow-2);
+  transform: translateY(-1px);
+}
+
+/* ── Buttons ────────────────────────────────────────────────────────────── */
+.a-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: var(--a-r-sm);
+  border: 1px solid transparent;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 160ms var(--a-ease),
+    border-color 160ms var(--a-ease),
+    box-shadow 160ms var(--a-ease),
+    color 160ms var(--a-ease),
+    transform 120ms var(--a-ease);
+}
+.a-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.a-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.a-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--a-brand) 22%, transparent);
+}
+.a-btn-sm {
+  height: 27px;
+  padding: 0 9px;
+  font-size: 11.5px;
+}
+.a-btn-icon {
+  width: 32px;
+  padding: 0;
+}
+.a-btn-icon.a-btn-sm {
+  width: 27px;
+}
+
+.a-btn-primary {
+  background: var(--a-brand);
+  color: #fff;
+  box-shadow: var(--a-shadow-1);
+}
+.a-btn-primary:hover:not(:disabled) {
+  background: var(--a-brand-deep);
+  box-shadow: var(--a-shadow-2);
+}
+
+.a-btn-accent {
+  background: var(--a-accent);
+  color: #2a2100;
+  box-shadow: 0 2px 10px -2px color-mix(in srgb, var(--a-accent) 55%, transparent);
+}
+.a-btn-accent:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--a-accent) 88%, #000);
+  box-shadow: 0 4px 16px -2px color-mix(in srgb, var(--a-accent) 60%, transparent);
+}
+
+.a-btn-ghost {
+  background: transparent;
+  color: var(--a-ink-soft);
+}
+.a-btn-ghost:hover:not(:disabled) {
+  background: var(--a-brand-soft);
+  color: var(--a-brand);
+}
+
+.a-btn-outline {
+  background: var(--a-surface);
+  border-color: var(--a-line-strong);
+  color: var(--a-ink);
+}
+.a-btn-outline:hover:not(:disabled) {
+  border-color: var(--a-brand);
+  color: var(--a-brand);
+  box-shadow: var(--a-shadow-1);
+}
+
+.a-btn-danger {
+  background: var(--a-danger);
+  color: #fff;
+}
+.a-btn-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--a-danger) 86%, #000);
+}
+
+.a-btn-danger-ghost {
+  background: transparent;
+  color: var(--a-danger);
+}
+.a-btn-danger-ghost:hover:not(:disabled) {
+  background: var(--a-danger-soft);
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────────── */
+.a-field {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: var(--a-r-sm);
+  border: 1px solid var(--a-line-strong);
+  background: var(--a-surface);
+  color: var(--a-ink);
+  font-size: 12.5px;
+  transition:
+    border-color 160ms var(--a-ease),
+    box-shadow 160ms var(--a-ease),
+    background-color 160ms var(--a-ease);
+}
+.a-field::placeholder {
+  color: var(--a-ink-faint);
+}
+.a-field:hover:not(:focus):not(:disabled) {
+  border-color: var(--a-ink-faint);
+}
+.a-field:focus {
+  outline: none;
+  border-color: var(--a-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--a-brand) 14%, transparent);
+}
+.a-field:disabled {
+  background: var(--a-surface-2);
+  color: var(--a-ink-faint);
+  cursor: not-allowed;
+}
+textarea.a-field {
+  min-height: 68px;
+  resize: vertical;
+  line-height: 1.55;
+}
+
+.a-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--a-ink-soft);
+}
+
+/* ── Badges ─────────────────────────────────────────────────────────────── */
+.a-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.a-badge-neutral {
+  background: var(--a-surface-2);
+  color: var(--a-ink-soft);
+  box-shadow: inset 0 0 0 1px var(--a-line);
+}
+.a-badge-brand {
+  background: var(--a-brand-soft);
+  color: var(--a-brand);
+}
+.a-badge-accent {
+  background: var(--a-accent-soft);
+  color: #7a6210;
+}
+.a-badge-ok {
+  background: var(--a-ok-soft);
+  color: var(--a-ok);
+}
+.a-badge-warn {
+  background: var(--a-warn-soft);
+  color: var(--a-warn);
+}
+.a-badge-danger {
+  background: var(--a-danger-soft);
+  color: var(--a-danger);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+.a-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12.5px;
+}
+.a-table thead th {
+  padding: 7px 11px;
+  background: var(--a-surface-2);
+  border-bottom: 1px solid var(--a-line);
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--a-ink-faint);
+  white-space: nowrap;
+}
+.a-table tbody td {
+  padding: 8px 11px;
+  border-bottom: 1px solid var(--a-line);
+  color: var(--a-ink);
+  vertical-align: middle;
+}
+.a-table tbody tr {
+  transition: background-color 120ms var(--a-ease);
+}
+.a-table tbody tr:hover {
+  background: var(--a-brand-soft);
+}
+.a-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* ── Sidebar nav ────────────────────────────────────────────────────────── */
+.a-nav-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--a-r-sm);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgb(255 255 255 / 0.58);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color 150ms var(--a-ease),
+    color 150ms var(--a-ease);
+}
+.a-nav-item:hover {
+  background: rgb(255 255 255 / 0.07);
+  color: rgb(255 255 255 / 0.92);
+}
+.a-nav-item[data-active="true"] {
+  background: rgb(255 255 255 / 0.11);
+  color: #fff;
+  font-weight: 600;
+}
+.a-nav-item[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: -11px;
+  top: 50%;
+  width: 3px;
+  height: 22px;
+  transform: translateY(-50%);
+  border-radius: 0 3px 3px 0;
+  background: var(--a-accent);
+}
+.a-nav-icon {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  opacity: 0.75;
+}
+.a-nav-item[data-active="true"] .a-nav-icon {
+  opacity: 1;
+  color: var(--a-accent);
+}
+
+/* Collapsed rail: hide labels, centre icons, reveal hover tooltip */
+.a-sidebar[data-collapsed="true"] .a-nav-label,
+.a-sidebar[data-collapsed="true"] .a-nav-group-label,
+.a-sidebar[data-collapsed="true"] .a-collapse-hide {
+  display: none;
+}
+.a-sidebar[data-collapsed="true"] .a-nav-item {
+  justify-content: center;
+  padding-inline: 0;
+}
+.a-sidebar[data-collapsed="true"] .a-nav-item[data-active="true"]::before {
+  left: -7px;
+}
+
+.a-tip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) scale(0.94);
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: var(--a-ink);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 140ms var(--a-ease),
+    transform 140ms var(--a-ease);
+  z-index: 60;
+}
+.a-sidebar[data-collapsed="true"] .a-nav-item:hover .a-tip {
+  opacity: 1;
+  transform: translateY(-50%) scale(1);
+}
+
+/* ── Skeleton ───────────────────────────────────────────────────────────── */
+.a-skeleton {
+  border-radius: var(--a-r-sm);
+  background: linear-gradient(90deg, var(--a-surface-2) 25%, #eaeff7 37%, var(--a-surface-2) 63%);
+  background-size: 400% 100%;
+  animation: aShimmer 1.4s ease-in-out infinite;
+}
+@keyframes aShimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+/* ── Entrance ───────────────────────────────────────────────────────────── */
+.a-enter {
+  animation: aEnter 0.32s var(--a-ease) both;
+}
+@keyframes aEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.a-stagger > * {
+  animation: aEnter 0.34s var(--a-ease) both;
+}
+.a-stagger > *:nth-child(1) {
+  animation-delay: 0.02s;
+}
+.a-stagger > *:nth-child(2) {
+  animation-delay: 0.06s;
+}
+.a-stagger > *:nth-child(3) {
+  animation-delay: 0.1s;
+}
+.a-stagger > *:nth-child(4) {
+  animation-delay: 0.14s;
+}
+.a-stagger > *:nth-child(5) {
+  animation-delay: 0.18s;
+}
+.a-stagger > *:nth-child(6) {
+  animation-delay: 0.22s;
+}
+.a-stagger > *:nth-child(n + 7) {
+  animation-delay: 0.26s;
+}
+
+/* ── Admin scrollbars ───────────────────────────────────────────────────── */
+[data-admin-panel] .a-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+[data-admin-panel] .a-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--a-ink-faint) 45%, transparent);
+}
+[data-admin-panel] .a-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+
+/* ── Compact density ──────────────────────────────────────────────────────
+ * The admin is a work tool, not a landing page: keep cards, media previews and
+ * headings tight so more fits on screen without scrolling.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+/* Media preview thumbnails inside the admin never grow tall. */
+[data-admin-panel] .a-thumb {
+  height: 104px;
+  width: 100%;
+  border-radius: var(--a-r-sm);
+  object-fit: cover;
+  background: var(--a-surface-2);
+}
+[data-admin-panel] .a-thumb-empty {
+  display: grid;
+  place-items: center;
+  height: 104px;
+  width: 100%;
+  border-radius: var(--a-r-sm);
+  border: 1px dashed var(--a-line-strong);
+  background: var(--a-surface-2);
+  color: var(--a-ink-faint);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Legacy panels still carry their own oversized Tailwind sizes. Clamp the
+ * worst offenders rather than rewriting several thousand lines of markup. */
+[data-admin-panel] .max-h-72 {
+  max-height: 10rem;
+}
+[data-admin-panel] .max-h-56 {
+  max-height: 9rem;
+}
+[data-admin-panel] img.aspect-\[4\/5\] {
+  aspect-ratio: auto;
+  height: 8.5rem;
+  object-fit: cover;
+}
+
+/* Headings in legacy panels were display-sized; bring them back to UI scale. */
+[data-admin-panel] main h1 {
+  font-size: 17px;
+  line-height: 1.3;
+}
+[data-admin-panel] main h2 {
+  font-size: 15px;
+  line-height: 1.35;
+}
+[data-admin-panel] main h3 {
+  font-size: 13.5px;
+  line-height: 1.4;
+}
+
+
+/* ── Website Studio density ───────────────────────────────────────────────
+ * The Studio is built on `.input-line` (a tall, airy underline field) and on
+ * large hero-sized buttons and image previews. Inside the admin panel it is a
+ * data-entry tool, so re-point those to the compact field/button scale rather
+ * than editing several thousand lines of Studio markup.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+[data-admin-panel] .input-line {
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid var(--a-line-strong);
+  border-radius: var(--a-r-sm);
+  background: var(--a-surface);
+  color: var(--a-ink);
+  font-size: 12.5px;
+  transition:
+    border-color 160ms var(--a-ease),
+    box-shadow 160ms var(--a-ease);
+}
+[data-admin-panel] .input-line:focus {
+  border-color: var(--a-brand);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--a-brand) 14%, transparent);
+}
+[data-admin-panel] textarea.input-line {
+  min-height: 62px;
+  line-height: 1.55;
+}
+
+/* Field captions (KICKER / TITLE / BODY …) were tracked-out display labels. */
+[data-admin-panel] .studio-label,
+[data-admin-panel] label.text-\[10px\],
+[data-admin-panel] label.text-xs {
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+}
+
+/* Studio image previews: thumbnails, not hero banners. */
+[data-admin-panel] .studio-card img,
+[data-admin-panel] .studio-media-preview {
+  max-height: 8.5rem;
+  object-fit: cover;
+}
+
+/* The full-width gold "Open Full Visual Builder" / "Safe Field Editor" bars. */
+[data-admin-panel] .studio-launch {
+  height: 34px;
+  font-size: 12.5px;
+}

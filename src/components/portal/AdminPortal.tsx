@@ -81,6 +81,23 @@ import {
   extraCurricularActivitySlug,
   extraCurricularActivitiesByGroup,
 } from "@/lib/extracurricular-activities";
+import { toast } from "sonner";
+import { AdminShell } from "./AdminShell";
+import {
+  Badge,
+  Btn,
+  DataTable,
+  EmptyState,
+  Field,
+  Modal,
+  Panel,
+  SearchInput,
+  SectionHead,
+  SelectInput,
+  StatCard as StatTile,
+  useConfirm,
+  type Column,
+} from "./admin-kit";
 
 const adminRoles: Role[] = ["website_admin", "superadmin", "masteradmin", "viewadmin"];
 const IMAGE_TYPES = ["image/jpeg", "image/png"];
@@ -287,6 +304,20 @@ async function compressImage(file: File, maxWidth = 1600, quality = 0.82) {
   };
 }
 
+/** Drop-in for `window.alert` on failure paths: same void return, toast UI. */
+function fail(message: string) {
+  toast.error(message);
+}
+
+/** Drop-in for `window.alert` on success paths. */
+function notify(message: string) {
+  toast.success(message);
+}
+
+/* The four legacy primitives below are the ones every panel in this file already
+ * calls. They now delegate to the shared admin kit, so the whole panel set picks
+ * up the new design system without each panel having to be rewritten. */
+
 function StatCard({
   icon: Icon,
   label,
@@ -301,23 +332,13 @@ function StatCard({
   accent?: boolean;
 }) {
   return (
-    <div
-      className={`group relative overflow-hidden rounded-[1.6rem] border p-6 shadow-[0_4px_24px_-8px_rgba(10,22,40,0.12)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-8px_rgba(10,22,40,0.18)] ${accent ? "border-gold/30 bg-gradient-to-br from-[#fffbef] to-[#fff8e0]" : "border-slate-100 bg-white"}`}
-    >
-      <span className={`absolute inset-x-0 top-0 h-0.5 ${accent ? "bg-gradient-to-r from-gold via-[#f7d96b] to-gold/40" : "bg-gradient-to-r from-navy/30 via-navy/10 to-transparent"}`} />
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-400">{label}</p>
-          <p className="mt-3 font-serif text-3xl font-bold text-navy">{value}</p>
-          {hint && <p className="mt-1.5 text-xs font-semibold text-slate-400">{hint}</p>}
-        </div>
-        <span
-          className={`grid h-11 w-11 flex-shrink-0 place-items-center rounded-2xl ${accent ? "bg-gold text-navy" : "bg-navy/8 text-navy"}`}
-        >
-          <Icon className="h-5 w-5" />
-        </span>
-      </div>
-    </div>
+    <StatTile
+      icon={Icon}
+      label={label}
+      value={value}
+      hint={hint}
+      tone={accent ? "accent" : "brand"}
+    />
   );
 }
 
@@ -333,29 +354,18 @@ function PanelShell({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="animate-panel-entry overflow-hidden rounded-[1.6rem] border border-slate-100 bg-white shadow-[0_2px_16px_-4px_rgba(10,22,40,0.10)]">
-      <div className="border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white px-6 py-5">
-        <div className="flex flex-col justify-between gap-3 md:flex-row md:items-center">
-          <div>
-            {kicker && (
-              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-crimson">{kicker}</p>
-            )}
-            <h2 className={`font-serif text-2xl font-bold text-navy ${kicker ? "mt-0.5" : ""}`}>{title}</h2>
-          </div>
-          {action}
-        </div>
-      </div>
-      <div className="p-6">{children}</div>
-    </div>
+    <Panel title={title} description={kicker} action={action}>
+      {children}
+    </Panel>
   );
 }
 
-function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={`input-line ${props.className || ""}`} />;
+function TextInput({ className, ...rest }: React.InputHTMLAttributes<HTMLInputElement>) {
+  return <input {...rest} className={`a-field ${className || ""}`} />;
 }
 
-function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={`input-line resize-none ${props.className || ""}`} />;
+function TextArea({ className, ...rest }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...rest} className={`a-field ${className || ""}`} />;
 }
 
 function adminSearchKey(value: string) {
@@ -429,6 +439,59 @@ function collectPageTreeIds(nav: DB["navigation"], id: string): Set<string> {
   return ids;
 }
 
+function relativeTime(iso?: string) {
+  if (!iso) return "never";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "never";
+  const seconds = Math.round((Date.now() - then) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+/** Icon tile in the quick-actions grid. */
+function QuickAction({
+  label,
+  description,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="a-card a-card-hover group flex w-full items-start gap-3 p-4 text-left"
+    >
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[var(--a-r-sm)] bg-[var(--a-brand-soft)] text-[var(--a-brand)] transition-colors group-hover:bg-[var(--a-brand)] group-hover:text-white">
+        <Icon className="h-[18px] w-[18px]" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[13.5px] font-bold text-[var(--a-ink)]">{label}</span>
+        <span className="mt-0.5 block text-[12px] leading-snug text-[var(--a-ink-soft)]">
+          {description}
+        </span>
+      </span>
+    </button>
+  );
+}
+
 function DashboardPanel({
   db,
   setActive,
@@ -440,201 +503,243 @@ function DashboardPanel({
   availablePanels: PanelId[];
   role?: Role;
 }) {
+  const auth = useAuth();
+  const viewOnly = role === "viewadmin";
+
   const mediaCount =
     db.gallery.length +
     db.videoGallery.length +
     db.downloads.length +
     (db.websiteContent.logoImage ? 1 : 0) +
     (db.websiteContent.heroImage ? 1 : 0);
-  const viewOnly = role === "viewadmin";
-  const staffCount = db.teachers.length;
-  const latestPublish = db.publishedAt ? new Date(db.publishedAt).toLocaleString() : "Not recorded";
+  const newMessages = db.messages.filter((message) => message.status !== "read").length;
+  const recentLogs = [...db.auditLogs]
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    .slice(0, 6);
 
-  if (viewOnly) {
-    const overviewCards: {
-      title: string;
-      href: string;
-      icon: React.ComponentType<{ className?: string }>;
-      meta: string;
-    }[] = [
-      {
-        title: "Website",
-        href: "/",
-        icon: Globe,
-        meta: "Published pages, news, notices, media, and public content.",
-      },
-      {
-        title: "EduTrack",
-        href: EDUTRACK_LAUNCH_URL,
-        icon: GraduationCap,
-        meta: "Academic terms, syllabus coverage, progress, warnings, and reports.",
-      },
-      {
-        title: "Staff Management",
-        href: "/staff",
-        icon: Briefcase,
-        meta: "Staff profiles, departments, attendance summaries, documents, and notices.",
-      },
-    ];
+  const firstName = (auth.user?.name || "there").split(" ")[0];
 
-    return (
-      <div className="space-y-6">
-        <PanelShell title="System Overview" kicker="View Admin">
-          <div className="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-900">
-            This account is view-only. It can inspect website, EduTrack, and staff summaries, but
-            cannot save, publish, upload, import, or delete data.
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 stagger-children">
-            <StatCard
-              icon={FileText}
-              label="Website pages"
-              value={Object.keys(db.pages).length}
-              hint="Readable page records"
-              accent
-            />
-            <StatCard
-              icon={Bell}
-              label="News / Notices"
-              value={db.news.length}
-              hint="Published content"
-            />
-            <StatCard
-              icon={Users}
-              label="Staff profiles"
-              value={staffCount}
-              hint="Live staff rows"
-            />
-            <StatCard icon={ImageIcon} label="Media" value={mediaCount} hint="Images / downloads" />
-          </div>
-        </PanelShell>
+  const stats: {
+    label: string;
+    value: number;
+    hint: string;
+    icon: React.ComponentType<{ className?: string }>;
+    tone: "brand" | "accent" | "ok" | "warn";
+    panel: PanelId;
+  }[] = [
+    {
+      label: "Pages",
+      value: Object.keys(db.pages).length,
+      hint: "Live website pages",
+      icon: FileText,
+      tone: "brand",
+      panel: "pages",
+    },
+    {
+      label: "News & Notices",
+      value: db.news.length,
+      hint: "Published records",
+      icon: Newspaper,
+      tone: "accent",
+      panel: "content",
+    },
+    {
+      label: "Events",
+      value: db.events.length,
+      hint: "Calendar items",
+      icon: CalendarDays,
+      tone: "ok",
+      panel: "content",
+    },
+    {
+      label: "Media",
+      value: mediaCount,
+      hint: "Images, videos, downloads",
+      icon: ImageIcon,
+      tone: "warn",
+      panel: "media",
+    },
+  ];
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-          <PanelShell title="Read-only apps" kicker="Open summary views">
-            <div className="grid gap-3 md:grid-cols-3 stagger-children">
-              {overviewCards.map(({ title, href, icon: Icon, meta }) => (
-                <a
-                  key={href}
-                  href={href}
-                  className="rounded-2xl border border-border bg-secondary/45 p-5 text-left transition-smooth hover:-translate-y-1 hover:border-gold hover:bg-white hover:shadow-soft"
-                >
-                  <Icon className="h-7 w-7 text-gold" />
-                  <p className="mt-3 font-bold text-navy">{title}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">{meta}</p>
-                  <span className="mt-4 inline-flex rounded-full border border-border bg-white px-3 py-1 text-xs font-black text-navy">
-                    View only
-                  </span>
+  const quickActionDefs: {
+    label: string;
+    description: string;
+    icon: React.ComponentType<{ className?: string }>;
+    panel: PanelId;
+  }[] = [
+    {
+      label: "Edit the website",
+      description: "Open the visual Website Studio",
+      icon: Globe,
+      panel: "studio",
+    },
+    {
+      label: "Post news",
+      description: "Add a notice or news article",
+      icon: Newspaper,
+      panel: "content",
+    },
+    {
+      label: "Upload media",
+      description: "Add photos, videos or files",
+      icon: Upload,
+      panel: "media",
+    },
+    {
+      label: "Manage pages",
+      description: "Add, rename or reorder pages",
+      icon: FileText,
+      panel: "pages",
+    },
+    {
+      label: "Design system",
+      description: "Colours, logo and branding",
+      icon: Palette,
+      panel: "design",
+    },
+    {
+      label: "Users & roles",
+      description: "Who can sign in and edit",
+      icon: Users,
+      panel: "users",
+    },
+  ];
+  const quickActions = quickActionDefs.filter((action) => availablePanels.includes(action.panel));
+
+  return (
+    <div className="space-y-5">
+      {/* Greeting */}
+      <div className="a-enter flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-[22px] font-bold tracking-tight text-[var(--a-ink)]">
+            {greeting()}, {firstName}
+          </h2>
+          <p className="mt-1 text-[13px] text-[var(--a-ink-soft)]">
+            {viewOnly
+              ? "You have read-only access to the website, EduTrack and staff records."
+              : "Here is what is happening across the Loyola website today."}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {viewOnly && <Badge tone="ok">View only</Badge>}
+          <Badge tone="neutral">Last published {relativeTime(db.publishedAt)}</Badge>
+          {newMessages > 0 && availablePanels.includes("messages") && (
+            <button type="button" onClick={() => setActive("messages")}>
+              <Badge tone="danger" icon={MessageSquare}>
+                {newMessages} new {newMessages === 1 ? "message" : "messages"}
+              </Badge>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Metrics */}
+      <div className="a-stagger grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {stats.map((stat) => (
+          <StatTile
+            key={stat.label}
+            label={stat.label}
+            value={stat.value}
+            hint={stat.hint}
+            icon={stat.icon}
+            tone={stat.tone}
+            onClick={availablePanels.includes(stat.panel) ? () => setActive(stat.panel) : undefined}
+          />
+        ))}
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+        {viewOnly ? (
+          <Panel title="Read-only apps" description="Open a summary view of each system">
+            <div className="a-stagger grid gap-3 sm:grid-cols-3">
+              {[
+                {
+                  title: "Website",
+                  href: "/",
+                  icon: Globe,
+                  meta: "Pages, news, notices and media.",
+                },
+                {
+                  title: "EduTrack",
+                  href: EDUTRACK_LAUNCH_URL,
+                  icon: GraduationCap,
+                  meta: "Terms, syllabus coverage and reports.",
+                },
+                {
+                  title: "Staff",
+                  href: "/staff",
+                  icon: Briefcase,
+                  meta: "Profiles, attendance and notices.",
+                },
+              ].map(({ title, href, icon: Icon, meta }) => (
+                <a key={href} href={href} className="a-card a-card-hover block p-4">
+                  <Icon className="h-6 w-6 text-[var(--a-brand)]" />
+                  <p className="mt-3 text-[13.5px] font-bold text-[var(--a-ink)]">{title}</p>
+                  <p className="mt-1 text-[12px] leading-snug text-[var(--a-ink-soft)]">{meta}</p>
                 </a>
               ))}
             </div>
-          </PanelShell>
-
-          <PanelShell title="System health" kicker="Read only">
-            <div className="space-y-4">
-              {[
-                ["Permission mode", "View only"],
-                ["Database", "Connected"],
-                ["Last publish", latestPublish],
-                ["Website editor", "Locked"],
-                ["Write actions", "Blocked"],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/50 px-4 py-3"
-                >
-                  <span className="text-sm font-semibold text-muted-foreground">{label}</span>
-                  <span className="max-w-[170px] truncate rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
-                    {value}
-                  </span>
-                </div>
+          </Panel>
+        ) : (
+          <Panel title="Quick actions" description="Jump straight to the job you came here to do">
+            <div className="a-stagger grid gap-3 sm:grid-cols-2">
+              {quickActions.map((action) => (
+                <QuickAction
+                  key={action.panel + action.label}
+                  label={action.label}
+                  description={action.description}
+                  icon={action.icon}
+                  onClick={() => setActive(action.panel)}
+                />
               ))}
             </div>
-          </PanelShell>
-        </div>
-      </div>
-    );
-  }
+          </Panel>
+        )}
 
-  return (
-    <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 stagger-children">
-        <StatCard
-          icon={FileText}
-          label="Pages"
-          value={Object.keys(db.pages).length}
-          hint="Main website pages"
-          accent
-        />
-        <StatCard
-          icon={Bell}
-          label="News & Notices"
-          value={db.news.length}
-          hint="Published records"
-        />
-        <StatCard
-          icon={CalendarDays}
-          label="Events"
-          value={db.events.length}
-          hint="Calendar items"
-        />
-        <StatCard icon={ImageIcon} label="Media" value={mediaCount} hint="Images / downloads" />
-      </div>
-      <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <PanelShell title="Quick actions" kicker="User friendly">
-          <div className="grid gap-3 md:grid-cols-3 stagger-children">
-            {[
-              ["Edit website", "studio", Globe],
-              ["Add news", "content", Newspaper],
-              ["Upload image", "media", Upload],
-              ["Storage status", "storage", Database],
-              ["Edit pages", "pages", FileText],
-              ["Design system", "design", Palette],
-              ["Create backup", "backup", Database],
-            ]
-              .filter(([, id]) => availablePanels.includes(id as PanelId))
-              .map(([label, id, Icon]) => (
-                <button
-                  key={String(label)}
-                  type="button"
-                  onClick={() => setActive(id as PanelId)}
-                  className="rounded-2xl border border-border bg-secondary/45 p-5 text-left transition-smooth hover:-translate-y-1 hover:border-gold hover:bg-white hover:shadow-soft"
-                >
-                  <Icon className="h-7 w-7 text-gold" />
-                  <p className="mt-3 font-bold text-navy">{String(label)}</p>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Open this working management panel.
-                  </p>
-                </button>
+        <Panel
+          title="Recent activity"
+          icon={ClipboardList}
+          action={
+            availablePanels.includes("activity") ? (
+              <Btn variant="ghost" size="sm" onClick={() => setActive("activity")}>
+                View all
+              </Btn>
+            ) : undefined
+          }
+          flush
+        >
+          {recentLogs.length === 0 ? (
+            <EmptyState
+              icon={ClipboardList}
+              title="No activity yet"
+              description="Saves, publishes and edits will be listed here as they happen."
+            />
+          ) : (
+            <ul className="divide-y divide-[var(--a-line)]">
+              {recentLogs.map((log) => (
+                <li key={log.id} className="flex items-start gap-3 px-5 py-3">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--a-brand)]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-medium text-[var(--a-ink)]">
+                      {log.action}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11.5px] text-[var(--a-ink-faint)]">
+                      {log.actorName || log.actorEmail || log.user || "System"} ·{" "}
+                      {relativeTime(log.createdAt)}
+                    </p>
+                  </div>
+                </li>
               ))}
-          </div>
-        </PanelShell>
-
-        <PanelShell title="System health" kicker="Clean build">
-          <div className="space-y-4">
-            {[
-              ["Duplicate portal buttons", "Fixed"],
-              ["Image upload limit", "5 MB"],
-              ["Video upload limit", "500 MB"],
-              ["Admin UI", "Simplified"],
-              ["Website editor", "Connected"],
-            ].map(([label, value]) => (
-              <div
-                key={label}
-                className="flex items-center justify-between rounded-2xl bg-secondary/50 px-4 py-3"
-              >
-                <span className="text-sm font-semibold text-muted-foreground">{label}</span>
-                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700">
-                  {value}
-                </span>
-              </div>
-            ))}
-          </div>
-        </PanelShell>
+            </ul>
+          )}
+        </Panel>
       </div>
     </div>
   );
 }
 
 function PagesPanel({ db }: { db: DB }) {
+  const confirm = useConfirm();
   const [newPageTitle, setNewPageTitle] = useState("");
   const [newPageParent, setNewPageParent] = useState("");
 
@@ -740,9 +845,14 @@ function PagesPanel({ db }: { db: DB }) {
     setNewPageParent("");
   };
 
-  const deletePage = (id: string) => {
+  const deletePage = async (id: string) => {
     if (id === "home") return;
-    if (!window.confirm(`Delete "${pageLabel(id)}" and any subpages under it?`)) return;
+    const ok = await confirm({
+      title: `Delete "${pageLabel(id)}"?`,
+      description: "Any subpages under it will be removed from the website too.",
+      confirmLabel: "Delete page",
+    });
+    if (!ok) return;
     setDb((current) => {
       const toDelete = collectPageTreeIds(current.navigation, id);
       const pages = { ...current.pages };
@@ -766,7 +876,7 @@ function PagesPanel({ db }: { db: DB }) {
       updatePage(id, { image: imageUrl });
       audit(`Page photo uploaded: ${id}`, "Admin");
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Page photo upload failed.");
+      fail(error instanceof Error ? error.message : "Page photo upload failed.");
     }
   };
 
@@ -1022,6 +1132,7 @@ const emptyVacancyForm = {
 };
 
 function VacanciesPanel() {
+  const confirm = useConfirm();
   const [vacancies, setVacancies] = useState<AdminJobVacancy[]>([]);
   const [form, setForm] = useState(emptyVacancyForm);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -1040,7 +1151,7 @@ function VacanciesPanel() {
       if (!response.ok) throw new Error(payload?.error || "Could not load vacancies.");
       setVacancies(Array.isArray(payload) ? payload : []);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Could not load vacancies.");
+      fail(error instanceof Error ? error.message : "Could not load vacancies.");
     } finally {
       setLoading(false);
     }
@@ -1074,7 +1185,7 @@ function VacanciesPanel() {
   const uploadAttachment = async (file?: File) => {
     if (!file) return;
     const supported = file.type === "application/pdf" || file.type.startsWith("image/");
-    if (!supported) return window.alert("Upload a PDF, JPG, PNG, or WebP file.");
+    if (!supported) return fail("Upload a PDF, JPG, PNG, or WebP file.");
     setUploading(true);
     try {
       const uploaded = await uploadFileToBackendInfo("job-vacancies", file);
@@ -1084,7 +1195,7 @@ function VacanciesPanel() {
         attachment_type: uploaded.file?.type || file.type,
       }));
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Attachment upload failed.");
+      fail(error instanceof Error ? error.message : "Attachment upload failed.");
     } finally {
       setUploading(false);
     }
@@ -1092,7 +1203,7 @@ function VacanciesPanel() {
 
   const saveVacancy = async () => {
     if (!form.title.trim() || !form.description.trim()) {
-      return window.alert("Title and description are required.");
+      return fail("Title and description are required.");
     }
     setSaving(true);
     try {
@@ -1111,21 +1222,26 @@ function VacanciesPanel() {
       resetForm();
       await loadVacancies();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Could not save vacancy.");
+      fail(error instanceof Error ? error.message : "Could not save vacancy.");
     } finally {
       setSaving(false);
     }
   };
 
   const deleteVacancy = async (vacancy: AdminJobVacancy) => {
-    if (!window.confirm(`Delete "${vacancy.title}"? The record will be hidden, not erased.`)) return;
+    const ok = await confirm({
+      title: `Delete "${vacancy.title}"?`,
+      description: "The vacancy is hidden from the website. The record itself is not erased.",
+      confirmLabel: "Delete vacancy",
+    });
+    if (!ok) return;
     const response = await fetch(`${API_URL}/api/admin/job-vacancies/${vacancy.id}`, {
       method: "DELETE",
       credentials: "include",
       headers: authHeaders(),
     });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) return window.alert(payload.error || "Could not delete vacancy.");
+    if (!response.ok) return fail(payload.error || "Could not delete vacancy.");
     audit(`Job vacancy hidden and deleted: ${vacancy.title}`, "Admin");
     if (editingId === vacancy.id) resetForm();
     await loadVacancies();
@@ -1326,7 +1442,7 @@ function ContentPanel({ db }: { db: DB }) {
       const imageUrl = await uploadFileToBackend("news-images", file);
       setNewsImage(imageUrl);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Image upload failed.");
+      fail(error instanceof Error ? error.message : "Image upload failed.");
     } finally {
       setNewsImageUploading(false);
     }
@@ -1340,7 +1456,7 @@ function ContentPanel({ db }: { db: DB }) {
       const imageUrl = await uploadFileToBackend("event-images", file);
       setEventImage(imageUrl);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Image upload failed.");
+      fail(error instanceof Error ? error.message : "Image upload failed.");
     } finally {
       setEventImageUploading(false);
     }
@@ -1465,11 +1581,7 @@ function ContentPanel({ db }: { db: DB }) {
           <div className="rounded-2xl border border-border bg-white p-3">
             {newsImage ? (
               <div className="mb-3 relative">
-                <img
-                  src={newsImage}
-                  alt="News preview"
-                  className="aspect-[16/7] w-full rounded-xl object-cover"
-                />
+                <img src={newsImage} alt="News preview" className="a-thumb" />
                 <button
                   type="button"
                   onClick={() => {
@@ -1483,7 +1595,7 @@ function ContentPanel({ db }: { db: DB }) {
                 </button>
               </div>
             ) : (
-              <div className="mb-3 grid aspect-[16/7] place-items-center rounded-xl bg-secondary text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              <div className="a-thumb-empty mb-3">
                 {newsImageUploading ? "Uploading…" : "No photo attached"}
               </div>
             )}
@@ -1591,11 +1703,7 @@ function ContentPanel({ db }: { db: DB }) {
           <div className="rounded-2xl border border-border bg-white p-3">
             {eventImage ? (
               <div className="mb-3 relative">
-                <img
-                  src={eventImage}
-                  alt="Event preview"
-                  className="aspect-[16/7] w-full rounded-xl object-cover"
-                />
+                <img src={eventImage} alt="Event preview" className="a-thumb" />
                 <button
                   type="button"
                   onClick={() => {
@@ -1609,7 +1717,7 @@ function ContentPanel({ db }: { db: DB }) {
                 </button>
               </div>
             ) : (
-              <div className="mb-3 grid aspect-[16/7] place-items-center rounded-xl bg-secondary text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground">
+              <div className="a-thumb-empty mb-3">
                 {eventImageUploading ? "Uploading…" : "No event photo"}
               </div>
             )}
@@ -1951,6 +2059,7 @@ function GalleryVideoPreview({
 }
 
 function MediaPanel({ db }: { db: DB }) {
+  const confirm = useConfirm();
   const [message, setMessage] = useState("Create an album, then upload up to 10 JPG/PNG images.");
   const [videoPreview, setVideoPreview] = useState<{
     name: string;
@@ -2041,8 +2150,13 @@ function MediaPanel({ db }: { db: DB }) {
     }));
   };
 
-  const deleteAlbum = (id: string) => {
-    if (!window.confirm("Delete this album and its media?")) return;
+  const deleteAlbum = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete this album?",
+      description: "The album and the media inside it are removed from the website.",
+      confirmLabel: "Delete album",
+    });
+    if (!ok) return;
     setDb((current) => ({
       ...current,
       deletedContentIds: rememberDeletedContentId(current, "gallery", id),
@@ -2052,8 +2166,13 @@ function MediaPanel({ db }: { db: DB }) {
     audit(`Album deleted: ${id}`, "Admin");
   };
 
-  const deleteVideoAlbum = (id: string) => {
-    if (!window.confirm("Delete this video album and its videos?")) return;
+  const deleteVideoAlbum = async (id: string) => {
+    const ok = await confirm({
+      title: "Delete this video album?",
+      description: "The album and the videos inside it are removed from the website.",
+      confirmLabel: "Delete album",
+    });
+    if (!ok) return;
     setDb((current) => ({
       ...current,
       videoGallery: current.videoGallery.filter((item) => item.id !== id),
@@ -2749,6 +2868,7 @@ function activityDisplayLabel(activity: {
 }
 
 function ClubsSocietiesPanel({ db }: { db: DB }) {
+  const confirm = useConfirm();
   const [title, setTitle] = useState("");
   const [groupId, setGroupId] = useState("clubs-and-societies");
   const [note, setNote] = useState("");
@@ -2836,12 +2956,14 @@ function ClubsSocietiesPanel({ db }: { db: DB }) {
     }
   };
 
-  const deleteCustomActivity = (activity: DB["customActivities"][number]) => {
-    if (
-      !window.confirm(
-        `Delete "${activity.title}"? Linked media albums will move to Media Library, not be erased.`,
-      )
-    ) {
+  const deleteCustomActivity = async (activity: DB["customActivities"][number]) => {
+    const ok = await confirm({
+      title: `Delete "${activity.title}"?`,
+      description:
+        "Linked media albums are not erased — they move back to the Media Library.",
+      confirmLabel: "Delete activity",
+    });
+    if (!ok) {
       return;
     }
 
@@ -3024,6 +3146,7 @@ function ClubsSocietiesPanel({ db }: { db: DB }) {
 }
 
 function ActivityMediaPanel({ db }: { db: DB }) {
+  const confirm = useConfirm();
   const activityOptions = EXTRA_CURRICULAR_GROUPS.flatMap((group) =>
     extraCurricularActivitiesByGroup(group.id, db.customActivities).map((activity) => ({
       id: activity.id,
@@ -3098,12 +3221,13 @@ function ActivityMediaPanel({ db }: { db: DB }) {
     setMessage(`Activity album created for ${selectedActivity.label}.`);
   };
 
-  const deleteActivityAlbum = (album: DB["gallery"][number]) => {
-    if (
-      !window.confirm(
-        `Delete "${album.label}" from Activity Media? Uploaded files stay on the server.`,
-      )
-    ) {
+  const deleteActivityAlbum = async (album: DB["gallery"][number]) => {
+    const ok = await confirm({
+      title: `Remove "${album.label}" from Activity Media?`,
+      description: "The uploaded files stay on the server — only the album listing is removed.",
+      confirmLabel: "Remove album",
+    });
+    if (!ok) {
       return;
     }
 
@@ -4069,6 +4193,7 @@ function userStatusTone(status: string) {
 }
 
 function UsersPanel({ db }: { db: DB }) {
+  const confirm = useConfirm();
   const auth = useAuth();
   const [users, setUsers] = useState<ManagedUser[]>(() =>
     db.users.map((user) => normalizeManagedUser(user as ManagedUser & Record<string, unknown>)),
@@ -4243,8 +4368,12 @@ function UsersPanel({ db }: { db: DB }) {
       setError("This staff profile has no login account to delete.");
       return;
     }
-    if (!confirm(`Delete login account ${user.email} from the database? Staff profile data stays.`))
-      return;
+    const ok = await confirm({
+      title: `Delete the login account for ${user.email}?`,
+      description: "The staff profile and its data are kept — only the sign-in account is removed.",
+      confirmLabel: "Delete account",
+    });
+    if (!ok) return;
     setSaving(true);
     setError("");
     try {
@@ -4637,6 +4766,22 @@ function LocalUsersPanel({ db }: { db: DB }) {
 
 function BackupPanel({ db }: { db: DB }) {
   const importRef = useRef<HTMLInputElement>(null);
+  const confirm = useConfirm();
+
+  const resetLocalData = async () => {
+    const ok = await confirm({
+      title: "Reset local data on this browser?",
+      description:
+        "This clears the copy of the database stored in this browser and reloads it from the server. Published website content and anything already saved to the cloud are not affected. Download a backup first if you have unsaved drafts.",
+      confirmLabel: "Reset local data",
+    });
+    if (!ok) return;
+    resetDb();
+    toast.success("Local data reset", {
+      description: "This browser reloaded its copy from the server.",
+    });
+  };
+
   const exportBackup = () => {
     const backupFile = new File([JSON.stringify(db, null, 2)], "loyola-backup.json", {
       type: "application/json",
@@ -4656,7 +4801,7 @@ function BackupPanel({ db }: { db: DB }) {
       setDb(() => parsed);
       audit("Backup imported", "Admin");
     } catch {
-      alert("Invalid backup file.");
+      fail("Invalid backup file.");
     }
   };
   return (
@@ -4672,31 +4817,41 @@ function BackupPanel({ db }: { db: DB }) {
         <button
           type="button"
           onClick={exportBackup}
-          className="rounded-2xl border border-border bg-secondary/40 p-6 text-left transition-smooth hover:border-gold hover:bg-white"
+          className="a-card a-card-hover p-5 text-left"
         >
-          <Download className="h-8 w-8 text-gold" />
-          <p className="mt-4 font-bold text-navy">Download backup</p>
-          <p className="mt-1 text-sm text-muted-foreground">Export full local database.</p>
+          <span className="grid h-10 w-10 place-items-center rounded-[var(--a-r-sm)] bg-[var(--a-brand-soft)] text-[var(--a-brand)]">
+            <Download className="h-[18px] w-[18px]" />
+          </span>
+          <p className="mt-3 text-[13.5px] font-bold text-[var(--a-ink)]">Download backup</p>
+          <p className="mt-1 text-[12px] leading-snug text-[var(--a-ink-soft)]">
+            Export the full local database as a JSON file.
+          </p>
         </button>
         <button
           type="button"
           onClick={() => importRef.current?.click()}
-          className="rounded-2xl border border-border bg-secondary/40 p-6 text-left transition-smooth hover:border-gold hover:bg-white"
+          className="a-card a-card-hover p-5 text-left"
         >
-          <Upload className="h-8 w-8 text-gold" />
-          <p className="mt-4 font-bold text-navy">Restore backup</p>
-          <p className="mt-1 text-sm text-muted-foreground">Import JSON backup file.</p>
+          <span className="grid h-10 w-10 place-items-center rounded-[var(--a-r-sm)] bg-[var(--a-brand-soft)] text-[var(--a-brand)]">
+            <Upload className="h-[18px] w-[18px]" />
+          </span>
+          <p className="mt-3 text-[13.5px] font-bold text-[var(--a-ink)]">Restore backup</p>
+          <p className="mt-1 text-[12px] leading-snug text-[var(--a-ink-soft)]">
+            Import a JSON backup file you downloaded earlier.
+          </p>
         </button>
         <button
           type="button"
-          onClick={() => {
-            if (confirm("Reset the local demo database?")) resetDb();
-          }}
-          className="rounded-2xl border border-red-200 bg-red-50 p-6 text-left text-red-700 transition-smooth hover:bg-red-100"
+          onClick={() => void resetLocalData()}
+          className="a-card a-card-hover border-[color-mix(in_srgb,var(--a-danger)_28%,transparent)] bg-[var(--a-danger-soft)] p-5 text-left"
         >
-          <Trash2 className="h-8 w-8" />
-          <p className="mt-4 font-bold">Reset local data</p>
-          <p className="mt-1 text-sm">Use only if the demo data is broken.</p>
+          <span className="grid h-10 w-10 place-items-center rounded-[var(--a-r-sm)] bg-white text-[var(--a-danger)]">
+            <Trash2 className="h-[18px] w-[18px]" />
+          </span>
+          <p className="mt-3 text-[13.5px] font-bold text-[var(--a-danger)]">Reset local data</p>
+          <p className="mt-1 text-[12px] leading-snug text-[var(--a-danger)]/80">
+            Clears this browser&rsquo;s copy only. Published content is untouched.
+          </p>
         </button>
       </div>
     </PanelShell>
@@ -4903,7 +5058,7 @@ function SettingsPanel({ db }: { db: DB }) {
       update({ anthemVideoCoverImage: url });
       audit("Anthem cover photo updated", "Admin");
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Upload failed.");
+      fail(error instanceof Error ? error.message : "Upload failed.");
     } finally {
       setUploading(false);
     }
@@ -5691,12 +5846,9 @@ export function AdminPortal() {
   const auth = useAuth();
   const [active, setActive] = useState<PanelId>(() => getInitialAdminPanel());
   const lastLoggedPanel = useRef<PanelId>("dashboard");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "publishing" | "submitting">(
     "idle",
   );
-  const [saveMessage, setSaveMessage] = useState("Ready");
-  const [saveMessageTone, setSaveMessageTone] = useState<"info" | "error">("info");
   const visibleNavGroups = navGroupsForRole(auth.user?.role);
   const visiblePanelIds = visibleNavGroups.flatMap((group) => group.items.map((item) => item.id));
   const fallbackPanel = visiblePanelIds[0] || "dashboard";
@@ -5778,20 +5930,17 @@ export function AdminPortal() {
     audit("Admin draft saved", auth.user?.email || "admin");
     const result = await saveDbNow();
     if (result.remote) {
-      setSaveMessageTone("info");
-      setSaveMessage(
-        result.contentVersion
-          ? `Saved to cloud as version ${result.contentVersion}`
-          : "Saved to cloud",
+      toast.success(
+        result.contentVersion ? `Saved to cloud as version ${result.contentVersion}` : "Saved to cloud",
       );
     } else if (result.localOnly) {
-      setSaveMessageTone("info");
-      setSaveMessage("Draft saved locally. Submit for approval when ready.");
+      toast.success("Draft saved locally", {
+        description: "Submit it for approval when you are ready to go live.",
+      });
     } else {
-      setSaveMessageTone("error");
-      setSaveMessage(
-        `Cloud save failed${result.error ? `: ${result.error}` : "."} Local draft kept on this device.`,
-      );
+      toast.error("Cloud save failed", {
+        description: `${result.error || "The server did not respond."} Your local draft is safe on this device.`,
+      });
     }
     setSavingState("idle");
   };
@@ -5803,15 +5952,14 @@ export function AdminPortal() {
       await saveDbNow();
       try {
         const request = await createPublishRequest(db);
-        setSaveMessageTone("info");
-        setSaveMessage(`Submitted for approval as request #${request.id}`);
+        toast.success(`Submitted for approval as request #${request.id}`, {
+          description: "A super or master admin will review it.",
+        });
       } catch (caught) {
-        setSaveMessageTone("error");
-        setSaveMessage(
-          `Approval submit failed: ${
-            caught instanceof Error ? caught.message : "Request could not be created."
-          }`,
-        );
+        toast.error("Approval submit failed", {
+          description:
+            caught instanceof Error ? caught.message : "The request could not be created.",
+        });
       }
       setSavingState("idle");
       return;
@@ -5821,248 +5969,92 @@ export function AdminPortal() {
     audit("Admin published changes", auth.user?.email || "admin");
     const result = await publishDbNow();
     if (result.remote) {
-      setSaveMessageTone("info");
-      setSaveMessage(
+      toast.success(
         result.contentVersion
           ? `Published to cloud as version ${result.contentVersion}`
           : "Published to cloud",
+        { description: "The public website is now up to date." },
       );
     } else {
-      setSaveMessageTone("error");
-      setSaveMessage(
-        `Server publish failed${result.error ? `: ${result.error}` : "."} Public website was not updated.`,
-      );
+      toast.error("Publish failed", {
+        description: `${result.error || "The server did not respond."} The public website was not updated.`,
+      });
     }
     setSavingState("idle");
   };
 
-  const activeNavItem = visibleNavGroups.flatMap((g) => g.items).find((i) => i.id === activePanel);
-  const ActiveIcon = activeNavItem?.icon;
-  const userInitials = auth.user.email
-    ? auth.user.email.slice(0, 2).toUpperCase()
-    : "A";
-
   return (
-    <div data-admin-panel className="flex min-h-screen bg-[#f0f4f8] text-slate-900" style={{ backgroundImage: "radial-gradient(circle at 20% 10%, rgba(10,22,40,0.04) 0%, transparent 50%), radial-gradient(circle at 80% 90%, rgba(212,160,23,0.05) 0%, transparent 45%)" }}>
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-navy/60 backdrop-blur-sm lg:hidden"
-          onClick={() => setSidebarOpen(false)}
+    <AdminShell
+      brandTitle="Loyola Studio"
+      brandSubtitle="Website CMS"
+      groups={visibleNavGroups}
+      active={activePanel}
+      onActiveChange={(id) => {
+        const next = id as PanelId;
+        setActive(next);
+        replaceAdminPanelUrl(next);
+      }}
+      user={{ name: auth.user.name, email: auth.user.email, role: auth.user.role }}
+      roleLabel={formatRole(auth.user.role)}
+      onSignOut={() => void logout()}
+      actions={
+        isViewAdmin ? (
+          <Badge tone="ok">View only</Badge>
+        ) : (
+          <>
+            <Btn
+              variant="outline"
+              size="sm"
+              icon={Save}
+              loading={savingState === "saving"}
+              onClick={() => void saveDraft()}
+              disabled={savingState !== "idle"}
+              className="hidden sm:inline-flex"
+            >
+              Save
+            </Btn>
+            <Btn
+              variant="accent"
+              size="sm"
+              icon={needsApproval ? Send : CheckCircle2}
+              loading={savingState === "publishing" || savingState === "submitting"}
+              onClick={() => void publish()}
+              disabled={savingState !== "idle"}
+            >
+              {needsApproval ? "Submit" : "Publish"}
+            </Btn>
+          </>
+        )
+      }
+    >
+      {activePanel === "dashboard" && (
+        <DashboardPanel
+          db={db}
+          setActive={setActive}
+          availablePanels={visiblePanelIds}
+          role={auth.user.role}
         />
       )}
-
-      {/* Sidebar */}
-      <aside
-        className={`fixed inset-y-0 left-0 z-40 flex w-[260px] flex-col shadow-[4px_0_32px_-8px_rgba(10,22,40,0.35)] transition-transform lg:static lg:translate-x-0 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
-        style={{ background: "linear-gradient(180deg, #071430 0%, #0a1e48 60%, #0a1628 100%)" }}
-      >
-        {/* Logo area */}
-        <div className="relative overflow-hidden border-b border-white/8 px-5 py-5">
-          <div className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gold/12 blur-2xl" />
-          <a
-            href="/"
-            aria-label="Open public website"
-            title="Open public website"
-            className="relative flex items-center gap-3 rounded-2xl outline-none transition hover:bg-white/5 focus-visible:ring-2 focus-visible:ring-gold"
-          >
-            <div className="relative">
-              <div className="absolute inset-0 rounded-full bg-gold/30 blur-md" />
-              <img
-                src="/loyola-crest.jpg"
-                alt="Loyola crest"
-                className="relative h-11 w-11 rounded-full border-2 border-gold/70 bg-white object-contain p-1 shadow-[0_0_16px_rgba(212,160,23,0.35)]"
-              />
-            </div>
-            <div>
-              <p className="font-serif text-xl font-bold text-white leading-tight">Loyola Studio</p>
-              <p className="text-[9px] font-black uppercase tracking-[0.26em] text-gold/60">
-                Website CMS
-              </p>
-            </div>
-          </a>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {visibleNavGroups.map((group) => (
-            <div key={group.label} className="mb-3">
-              <p className="mb-1 px-3 pb-1 pt-2 text-[9px] font-black uppercase tracking-[0.30em] text-white/30">
-                {group.label}
-              </p>
-              <div className="space-y-0.5">
-                {group.items.map((item) => {
-                  const active = activePanel === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => {
-                        setActive(item.id);
-                        replaceAdminPanelUrl(item.id);
-                        setSidebarOpen(false);
-                      }}
-                      className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold transition-all ${
-                        active
-                          ? "bg-white/12 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-                          : "text-white/50 hover:bg-white/6 hover:text-white/85"
-                      }`}
-                    >
-                      {active && (
-                        <span className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-gold" />
-                      )}
-                      <span className={`grid h-7 w-7 flex-shrink-0 place-items-center rounded-lg ${active ? "bg-gold text-navy" : "bg-white/6 text-white/40 group-hover:bg-white/10 group-hover:text-white/70"}`}>
-                        <item.icon className="h-4 w-4" />
-                      </span>
-                      <span className="truncate">{item.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-
-        {/* User + sign out */}
-        <div className="border-t border-white/8 p-4 space-y-2">
-          <div className="flex items-center gap-3 rounded-xl bg-white/6 px-3 py-2.5">
-            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-gold text-[11px] font-black text-navy">
-              {userInitials}
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-bold text-white/85">{auth.user.email}</p>
-              <p className="text-[9px] font-black uppercase tracking-[0.18em] text-white/35">
-                {formatRole(auth.user.role)}
-              </p>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={logout}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-white/6 px-4 py-2.5 text-xs font-black text-white/55 transition hover:bg-white/12 hover:text-white"
-          >
-            <LogOut className="h-3.5 w-3.5" /> Sign out
-          </button>
-        </div>
-      </aside>
-
-      <div className="min-w-0 flex-1">
-        {/* Top gold accent line */}
-        <div className="h-0.5 bg-gradient-to-r from-navy via-gold to-crimson" />
-        <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/92 px-4 py-3.5 shadow-[0_1px_12px_rgba(10,22,40,0.08)] backdrop-blur-md md:px-6">
-          <div className="flex flex-col justify-between gap-3 xl:flex-row xl:items-center">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(true)}
-                className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm lg:hidden"
-              >
-                <Menu className="h-5 w-5 text-slate-600" />
-              </button>
-              <div className="flex items-center gap-3">
-                {ActiveIcon && (
-                  <span className="hidden h-9 w-9 place-items-center rounded-xl bg-navy text-gold sm:grid">
-                    <ActiveIcon className="h-4.5 w-4.5" />
-                  </span>
-                )}
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.24em] text-slate-400">
-                    {formatRole(auth.user.role)} · Admin Panel
-                  </p>
-                  <h1 className="font-serif text-2xl font-bold text-navy leading-tight">
-                    {activeNavItem?.label || "Dashboard"}
-                  </h1>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => window.open("/", "_blank", "noopener,noreferrer")}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-600 shadow-sm transition hover:border-navy/20 hover:text-navy"
-              >
-                <MonitorSmartphone className="h-4 w-4" /> Preview
-              </button>
-              {!isViewAdmin && (
-                <>
-                  <button
-                    type="button"
-                    disabled={savingState !== "idle"}
-                    onClick={() => void saveDraft()}
-                    className="inline-flex items-center gap-2 rounded-xl border border-navy/20 bg-navy px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-navy-mid disabled:opacity-50"
-                  >
-                    <Save className="h-4 w-4" /> {savingState === "saving" ? "Saving…" : "Save"}
-                  </button>
-                  <button
-                    type="button"
-                    disabled={savingState !== "idle"}
-                    onClick={() => void publish()}
-                    className="inline-flex items-center gap-2 rounded-xl bg-gold px-4 py-2 text-sm font-bold text-navy shadow-[0_4px_14px_rgba(212,160,23,0.35)] transition hover:shadow-[0_6px_20px_rgba(212,160,23,0.5)] disabled:opacity-50"
-                  >
-                    {needsApproval ? (
-                      <Send className="h-4 w-4" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4" />
-                    )}{" "}
-                    {savingState === "publishing"
-                      ? "Publishing…"
-                      : savingState === "submitting"
-                        ? "Submitting…"
-                        : needsApproval
-                          ? "Submit for Approval"
-                          : "Publish"}
-                  </button>
-                </>
-              )}
-              {saveMessage && (
-                <span
-                  className={`inline-flex items-center rounded-xl border px-3 py-2 text-xs font-bold ${
-                    saveMessageTone === "error"
-                      ? "border-red-200 bg-red-50 text-red-700"
-                      : "border-emerald-200 bg-emerald-50 text-emerald-700"
-                  }`}
-                >
-                  {saveMessage}
-                </span>
-              )}
-            </div>
-          </div>
-        </header>
-        <main className="p-4 md:p-6">
-          {activePanel === "dashboard" && (
-            <DashboardPanel
-              db={db}
-              setActive={setActive}
-              availablePanels={visiblePanelIds}
-              role={auth.user.role}
-            />
-          )}
-          {activePanel === "studio" && <WebsiteEditor />}
-          {activePanel === "approvals" &&
-            (auth.user.role === "website_admin" ? (
-              <MyPublishRequestsPanel />
-            ) : (
-              <PublishApprovalsPanel />
-            ))}
-          {activePanel === "pages" && <PagesPanel db={db} />}
-          {activePanel === "content" && <ContentPanel db={db} />}
-          {activePanel === "vacancies" && <VacanciesPanel />}
-          {activePanel === "media" && <MediaPanel db={db} />}
-          {activePanel === "activityMedia" && <ActivityMediaPanel db={db} />}
-          {activePanel === "clubsSocieties" && <ClubsSocietiesPanel db={db} />}
-          {activePanel === "departmentMedia" && <DepartmentMediaPanel db={db} />}
-          {activePanel === "storage" && <StoragePanel />}
-          {activePanel === "design" && <DesignPanel db={db} />}
-          {activePanel === "messages" && <MessagesPanel db={db} />}
-          {activePanel === "users" && <UsersPanel db={db} />}
-          {activePanel === "security" && <SecurityPanel db={db} />}
-          {activePanel === "activity" && <ActivityPanel db={db} />}
-          {activePanel === "backup" && <BackupPanel db={db} />}
-          {activePanel === "maintenance" && <MaintenancePanel />}
-          {activePanel === "settings" && <SettingsPanel db={db} />}
-        </main>
-      </div>
-    </div>
+      {activePanel === "studio" && <WebsiteEditor />}
+      {activePanel === "approvals" &&
+        (auth.user.role === "website_admin" ? <MyPublishRequestsPanel /> : <PublishApprovalsPanel />)}
+      {activePanel === "pages" && <PagesPanel db={db} />}
+      {activePanel === "content" && <ContentPanel db={db} />}
+      {activePanel === "vacancies" && <VacanciesPanel />}
+      {activePanel === "media" && <MediaPanel db={db} />}
+      {activePanel === "activityMedia" && <ActivityMediaPanel db={db} />}
+      {activePanel === "clubsSocieties" && <ClubsSocietiesPanel db={db} />}
+      {activePanel === "departmentMedia" && <DepartmentMediaPanel db={db} />}
+      {activePanel === "storage" && <StoragePanel />}
+      {activePanel === "design" && <DesignPanel db={db} />}
+      {activePanel === "messages" && <MessagesPanel db={db} />}
+      {activePanel === "users" && <UsersPanel db={db} />}
+      {activePanel === "security" && <SecurityPanel db={db} />}
+      {activePanel === "activity" && <ActivityPanel db={db} />}
+      {activePanel === "backup" && <BackupPanel db={db} />}
+      {activePanel === "maintenance" && <MaintenancePanel />}
+      {activePanel === "settings" && <SettingsPanel db={db} />}
+    </AdminShell>
   );
 }
 
@@ -6226,6 +6218,7 @@ function loadImage(src: string) {
 }
 
 function StaffPanel({ db }: { db: DB }) {
+  const confirm = useConfirm();
   const [activeTab, setActiveTab] = useState<
     | "dashboard"
     | "profiles"
@@ -6485,7 +6478,7 @@ function StaffPanel({ db }: { db: DB }) {
       setFormImage(imageUrl);
       setCropFile(null);
     } catch (err) {
-      window.alert("Upload failed.");
+      fail("Upload failed.");
     }
   };
 
@@ -6534,7 +6527,7 @@ function StaffPanel({ db }: { db: DB }) {
   };
 
   const saveStaff = async () => {
-    if (!formName) return window.alert("Name is required");
+    if (!formName) return fail("Name is required");
     const category = getAutoCategory(formPosition);
     const fullName = `${formNameTitle ? formNameTitle + " " : ""}${formName}`.trim();
     const staffId = editingId || generateStaffId(db.teachers);
@@ -6613,7 +6606,7 @@ function StaffPanel({ db }: { db: DB }) {
       resetForm();
       setActiveTab("profiles");
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Could not save staff member.");
+      fail(error instanceof Error ? error.message : "Could not save staff member.");
     } finally {
       setSavingStaff(false);
     }
@@ -6665,7 +6658,12 @@ function StaffPanel({ db }: { db: DB }) {
   };
 
   const deleteStaff = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this staff member?")) return;
+    const ok = await confirm({
+      title: "Delete this staff member?",
+      description: "Their profile is removed from the staff directory.",
+      confirmLabel: "Delete staff member",
+    });
+    if (!ok) return;
     try {
       await fetch(`${API_URL}/api/staff-accounts/${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -6698,7 +6696,7 @@ function StaffPanel({ db }: { db: DB }) {
   const staffOptions = db.teachers.filter((teacher) => teacher.status !== "Inactive");
 
   const saveAttendance = () => {
-    if (!attendanceForm.staffId) return window.alert("Select a staff member.");
+    if (!attendanceForm.staffId) return fail("Select a staff member.");
     setDb((current) => ({
       ...current,
       staffAttendance: [
@@ -6714,7 +6712,7 @@ function StaffPanel({ db }: { db: DB }) {
   };
 
   const saveLeaveRequest = () => {
-    if (!leaveForm.staffId) return window.alert("Select a staff member.");
+    if (!leaveForm.staffId) return fail("Select a staff member.");
     setDb((current) => ({
       ...current,
       staffLeaveRequests: [
@@ -6740,9 +6738,9 @@ function StaffPanel({ db }: { db: DB }) {
   };
 
   const uploadStaffDocument = async (file?: File) => {
-    if (!documentForm.staffId) return window.alert("Select a staff member.");
-    if (!documentForm.title.trim()) return window.alert("Document title is required.");
-    if (!file) return window.alert("Choose a document or image file.");
+    if (!documentForm.staffId) return fail("Select a staff member.");
+    if (!documentForm.title.trim()) return fail("Document title is required.");
+    if (!file) return fail("Choose a document or image file.");
 
     setUploadingDocument(true);
     try {
@@ -6764,14 +6762,14 @@ function StaffPanel({ db }: { db: DB }) {
       audit(`Staff document uploaded: ${documentForm.title}`, "Admin");
       setDocumentForm({ ...documentForm, title: "" });
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Document upload failed.");
+      fail(error instanceof Error ? error.message : "Document upload failed.");
     } finally {
       setUploadingDocument(false);
     }
   };
 
   const saveStaffNotice = () => {
-    if (!noticeForm.title.trim()) return window.alert("Notice title is required.");
+    if (!noticeForm.title.trim()) return fail("Notice title is required.");
     setDb((current) => ({
       ...current,
       staffNotices: [
@@ -6791,8 +6789,8 @@ function StaffPanel({ db }: { db: DB }) {
   };
 
   const saveRoleAssignment = () => {
-    if (!roleForm.staffId) return window.alert("Select a staff member.");
-    if (!roleForm.role.trim()) return window.alert("Role title is required.");
+    if (!roleForm.staffId) return fail("Select a staff member.");
+    if (!roleForm.role.trim()) return fail("Role title is required.");
     setDb((current) => ({
       ...current,
       staffRoles: [
@@ -6902,7 +6900,7 @@ function StaffPanel({ db }: { db: DB }) {
         })
         .filter(Boolean) as Teacher[];
 
-      if (imported.length === 0) return window.alert("No staff rows found in the CSV file.");
+      if (imported.length === 0) return fail("No staff rows found in the CSV file.");
       setDb((current) => {
         const byId = new Map(current.teachers.map((teacher) => [teacher.id, teacher]));
         imported.forEach((teacher) =>
@@ -6914,7 +6912,7 @@ function StaffPanel({ db }: { db: DB }) {
         `Imported ${imported.length} staff CSV row${imported.length === 1 ? "" : "s"}`,
         "Admin",
       );
-      window.alert(`Imported ${imported.length} staff row${imported.length === 1 ? "" : "s"}.`);
+      notify(`Imported ${imported.length} staff row${imported.length === 1 ? "" : "s"}.`);
     };
     reader.readAsText(file);
   };
