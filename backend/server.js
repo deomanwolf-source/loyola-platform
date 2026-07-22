@@ -233,7 +233,10 @@ function safeFileName(value) {
   return cleaned || "media";
 }
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Photo uploads are no longer capped at 5 MB — images share the same 500 MB
+// platform ceiling as video. The client still downscales images before upload,
+// so stored files stay small regardless of the original size.
+const MAX_IMAGE_BYTES = 500 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 const MAX_DOCUMENT_BYTES = 25 * 1024 * 1024;
 const MAX_SHORT_VIDEO_SECONDS = 120;
@@ -340,7 +343,7 @@ function handleSingleUpload(req, res, next) {
     if (!error) return next();
     const message =
       error.code === "LIMIT_FILE_SIZE"
-        ? "File is too large. Images are limited to 5 MB and short videos to 500 MB."
+        ? "File is too large. Uploads are limited to 500 MB."
         : error.message || "Upload failed.";
     return res.status(400).json({ error: message });
   });

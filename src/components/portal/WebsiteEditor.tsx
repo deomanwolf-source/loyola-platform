@@ -57,7 +57,10 @@ import { VisualEditor } from "./VisualEditor";
 
 const IMAGE_TYPES = ["image/jpeg", "image/png"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Photo uploads are no longer capped at 5 MB — images share the 500 MB
+// platform ceiling. Images are downscaled before upload, so stored files
+// stay small regardless of the original size.
+const MAX_IMAGE_BYTES = 500 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 
 function formatBytes(bytes: number) {
@@ -102,7 +105,7 @@ async function compressImage(
   file: File,
 ): Promise<{ url: string; original: string; optimized: string }> {
   if (!IMAGE_TYPES.includes(file.type)) throw new Error("Only JPG and PNG images are allowed.");
-  if (file.size > MAX_IMAGE_BYTES) throw new Error("Image is too large. Maximum size is 5 MB.");
+  if (file.size > MAX_IMAGE_BYTES) throw new Error("Image is too large. Maximum size is 500 MB.");
 
   const objectUrl = URL.createObjectURL(file);
   const image = new Image();

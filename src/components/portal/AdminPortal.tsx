@@ -102,7 +102,10 @@ import {
 const adminRoles: Role[] = ["website_admin", "superadmin", "masteradmin", "viewadmin"];
 const IMAGE_TYPES = ["image/jpeg", "image/png"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm"];
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+// Photo uploads are no longer capped at 5 MB — images use the same 500 MB
+// ceiling as video. Images are downscaled below before upload, so the stored
+// file stays small no matter how large the original is.
+const MAX_IMAGE_BYTES = 500 * 1024 * 1024;
 const MAX_VIDEO_BYTES = 500 * 1024 * 1024;
 const MAX_SHORT_VIDEO_SECONDS = 120;
 const DEPARTMENT_MEDIA_PAGES = [
@@ -280,7 +283,7 @@ async function compressImage(file: File, maxWidth = 1600, quality = 0.82) {
   if (!IMAGE_TYPES.includes(file.type))
     throw new Error("Only JPG and PNG image files are allowed.");
   if (file.size > MAX_IMAGE_BYTES)
-    throw new Error("Image is too large. Maximum image upload is 5 MB.");
+    throw new Error("Image is too large. Maximum image upload is 500 MB.");
   const objectUrl = URL.createObjectURL(file);
   const image = new Image();
   image.src = objectUrl;
@@ -5473,7 +5476,7 @@ function SecurityPanel({ db }: { db: DB }) {
             ],
             [
               "Upload validation",
-              "Images are JPG/PNG up to 5 MB. Videos are MP4/MOV/WebM up to 500 MB.",
+              "Images are JPG/PNG and videos are MP4/MOV/WebM, each up to 500 MB.",
             ],
             [
               "Protected controls",
