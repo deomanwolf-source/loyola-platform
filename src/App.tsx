@@ -5318,7 +5318,6 @@ function AdmissionsPage() {
 function EventsPage() {
   const db = useDb();
   const page = db.pages.events;
-  const eventVisuals = collectEventVisuals(db, page.image);
   const categories = [
     "Upcoming Events",
     "Past Events",
@@ -5336,13 +5335,13 @@ function EventsPage() {
         kicker={page.kicker || "Events"}
         title={page.title || ""}
         subtitle={page.body}
-        image={eventVisuals[0]}
+        image={page.image}
       />
       <section className="relative overflow-hidden bg-[linear-gradient(180deg,#f8faff_0%,#ffffff_42%,#fff8f0_100%)] py-20">
         <div className="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-gold/15 blur-[100px]" />
         <div className="pointer-events-none absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-crimson/12 blur-[110px]" />
         <div className="mx-auto max-w-7xl px-6">
-        {/* Section heading */}
+          {/* Section heading */}
           <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between" data-scroll-reveal>
             <div>
               <p className="section-kicker text-crimson">Browse Events</p>
@@ -5351,37 +5350,6 @@ function EventsPage() {
             <p className="text-sm text-muted-foreground">
               {db.events.length} event{db.events.length === 1 ? "" : "s"}
             </p>
-          </div>
-
-          <div className="mb-10 grid gap-4 md:grid-cols-3" data-scroll-reveal data-reveal-dir="up">
-            {eventVisuals.slice(0, 3).map((image, index) => (
-              <article
-                key={`${image}-${index}`}
-                className={`group relative overflow-hidden rounded-3xl border border-border bg-white shadow-soft transition duration-500 hover:-translate-y-1 hover:shadow-[0_24px_60px_-30px_rgba(13,21,43,0.28)] ${index === 0 ? "md:col-span-2" : ""}`}
-              >
-                <img
-                  src={image}
-                  alt=""
-                  className={`h-full w-full object-cover transition duration-700 group-hover:scale-105 ${
-                    index === 0 ? "aspect-[16/9]" : "aspect-[16/10]"
-                  }`}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/18 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between gap-4 text-white">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold/90">
-                      Campus photo
-                    </p>
-                    <h3 className="mt-1 font-serif text-2xl font-bold">
-                      {index === 0 ? "Featured event imagery" : "More college moments"}
-                    </h3>
-                  </div>
-                  <span className="rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] backdrop-blur">
-                    {index === 0 ? "Featured" : `Photo 0${index + 1}`}
-                  </span>
-                </div>
-              </article>
-            ))}
           </div>
 
           {/* Category chips */}
@@ -5402,12 +5370,8 @@ function EventsPage() {
             data-scroll-reveal
             data-reveal-dir="scale"
           >
-            {db.events.map((event, index) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                fallbackImage={eventVisuals[index % eventVisuals.length]}
-              />
+            {db.events.map((event) => (
+              <EventCard key={event.id} event={event} />
             ))}
           </div>
 
@@ -9555,33 +9519,8 @@ function PortalRouter({ role }: { role: Role }) {
   return <Suspense fallback={loading}>{portals[role] || <LoginPage />}</Suspense>;
 }
 
-const EVENT_FALLBACK_IMAGES = [
-  "/uploads/site-images/1779128706818-80c5ef0e484f-31012021-001-3_4x.webp",
-  "/uploads/gallery-images/1779094164339-lc-tech-union.webp",
-  "/loyola-crest.jpg",
-];
-
-function collectEventVisuals(db: ReturnType<typeof useDb>, primaryImage?: string) {
-  const galleryImages = db.gallery
-    .filter((item) => item.visible !== false && item.image)
-    .map((item) => item.image);
-
-  return Array.from(
-    new Set(
-      [primaryImage, db.media.campusImage, db.websiteContent.heroImage, ...galleryImages, ...EVENT_FALLBACK_IMAGES]
-        .map((value) => value?.trim())
-        .filter((value): value is string => Boolean(value)),
-    ),
-  );
-}
-
-function resolveEventImage(event: EventItem, fallbackImage?: string) {
-  return event.image || event.posterUrl || event.poster_url || fallbackImage || EVENT_FALLBACK_IMAGES[0];
-}
-
 function NewsAndEventsPreview() {
   const db = useDb();
-  const eventVisuals = collectEventVisuals(db);
   return (
     <section className="border-y border-border bg-[linear-gradient(180deg,#ffffff_0%,#f8faff_100%)] py-20">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 lg:grid-cols-2">
@@ -9606,13 +9545,8 @@ function NewsAndEventsPreview() {
             </a>
           </div>
           <div className="mt-6 grid gap-4">
-            {db.events.slice(0, 3).map((event, index) => (
-              <EventCard
-                key={event.id}
-                event={event}
-                compact
-                fallbackImage={eventVisuals[index % eventVisuals.length]}
-              />
+            {db.events.slice(0, 3).map((event) => (
+              <EventCard key={event.id} event={event} compact />
             ))}
           </div>
         </div>
@@ -9675,83 +9609,125 @@ function NewsCard({
 function EventCard({
   event,
   compact = false,
-  fallbackImage,
 }: {
   event: EventItem;
   compact?: boolean;
-  fallbackImage?: string;
 }) {
   const date = new Date(event.date);
   const hasValidDate = !Number.isNaN(date.getTime());
   const dayLabel = hasValidDate ? String(date.getDate()).padStart(2, "0") : "TBA";
   const monthLabel = hasValidDate ? date.toLocaleString("en", { month: "short" }).toUpperCase() : "DATE";
-  const image = resolveEventImage(event, fallbackImage);
+  const image = event.image || event.posterUrl || event.poster_url || "";
+  const hasImage = Boolean(image);
   const description = event.description?.trim();
 
   if (compact) {
     return (
       <article className="group overflow-hidden rounded-2xl border border-border bg-white shadow-soft transition duration-500 hover:-translate-y-1 hover:shadow-[0_24px_60px_-32px_rgba(13,21,43,0.25)]">
-        <div className="grid grid-cols-[104px_1fr]">
-          <div className="relative min-h-36 overflow-hidden bg-slate-100">
-            <img
-              src={image}
-              alt={event.title}
-              className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-            />
-            <div className="absolute inset-0 bg-gradient-to-tr from-navy/75 via-navy/20 to-transparent" />
-            <div className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-navy backdrop-blur">
-              {event.type}
+        {hasImage ? (
+          <div className="grid grid-cols-[104px_1fr]">
+            <div className="relative min-h-36 overflow-hidden bg-slate-100">
+              <img
+                src={image}
+                alt={event.title}
+                className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-tr from-navy/75 via-navy/20 to-transparent" />
+              <div className="absolute left-3 top-3 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-navy backdrop-blur">
+                {event.type}
+              </div>
+              <div className="absolute bottom-3 left-3 rounded-2xl bg-white/90 px-3 py-2 text-navy shadow-lg backdrop-blur">
+                <p className="font-serif text-2xl font-black leading-none">{dayLabel}</p>
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-crimson">
+                  {monthLabel}
+                </p>
+              </div>
             </div>
-            <div className="absolute bottom-3 left-3 rounded-2xl bg-white/90 px-3 py-2 text-navy shadow-lg backdrop-blur">
-              <p className="font-serif text-2xl font-black leading-none">{dayLabel}</p>
-              <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-crimson">
-                {monthLabel}
+            <div className="p-4 sm:p-5">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                {event.location}
+              </p>
+              <h3 className="mt-2 text-base font-bold leading-snug text-ink">{event.title}</h3>
+              <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                {description || "Event details and campus highlights will appear here."}
               </p>
             </div>
           </div>
-          <div className="p-4 sm:p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
-              {event.location}
-            </p>
-            <h3 className="mt-2 text-base font-bold leading-snug text-ink">{event.title}</h3>
-            <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
-              {description || "Event details and campus highlights will appear here."}
-            </p>
+        ) : (
+          <div className="p-5 sm:p-6">
+            <div className="flex items-start gap-4">
+              <div className="shrink-0 rounded-2xl bg-navy/6 px-4 py-3 text-center text-navy">
+                <p className="font-serif text-3xl font-black leading-none">{dayLabel}</p>
+                <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.18em] text-crimson">
+                  {monthLabel}
+                </p>
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-crimson">
+                  {event.type}
+                </p>
+                <h3 className="mt-2 text-base font-bold leading-snug text-ink">{event.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{event.location}</p>
+                <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+                  {description || "Event details will appear here."}
+                </p>
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </article>
     );
   }
 
   return (
-    <article
-      className="group overflow-hidden rounded-3xl border border-border bg-white shadow-soft transition duration-500 hover:-translate-y-1 hover:shadow-[0_28px_72px_-36px_rgba(13,21,43,0.3)]"
-    >
-      <div className="relative aspect-[16/10] overflow-hidden bg-slate-100">
-        <img
-          src={image}
-          alt={event.title}
-          className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/25 to-transparent" />
-        <div className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-navy shadow-lg backdrop-blur">
-          {event.type}
-        </div>
-        <div className="absolute bottom-4 left-4 right-4 flex items-end gap-4 text-white">
-          <div className="rounded-3xl bg-white/15 px-4 py-3 shadow-[0_14px_32px_-18px_rgba(0,0,0,0.85)] backdrop-blur-md">
-            <p className="font-serif text-4xl font-black leading-none">{dayLabel}</p>
-            <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
-              {monthLabel}
-            </p>
+    <article className="group overflow-hidden rounded-3xl border border-border bg-white shadow-soft transition duration-500 hover:-translate-y-1 hover:shadow-[0_28px_72px_-36px_rgba(13,21,43,0.3)]">
+      {hasImage ? (
+        <div className="group relative aspect-[16/10] overflow-hidden bg-slate-100">
+          <img
+            src={image}
+            alt={event.title}
+            className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/25 to-transparent" />
+          <div className="absolute left-4 top-4 rounded-full bg-white/90 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-navy shadow-lg backdrop-blur">
+            {event.type}
           </div>
-          <div className="min-w-0">
-            <h3 className="truncate font-serif text-2xl font-bold leading-tight drop-shadow">
-              {event.title}
-            </h3>
-            <p className="mt-1 text-sm text-white/85">{event.location}</p>
+          <div className="absolute bottom-4 left-4 right-4 flex items-end gap-4 text-white">
+            <div className="rounded-3xl bg-white/15 px-4 py-3 shadow-[0_14px_32px_-18px_rgba(0,0,0,0.85)] backdrop-blur-md">
+              <p className="font-serif text-4xl font-black leading-none">{dayLabel}</p>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.2em] text-gold">
+                {monthLabel}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <h3 className="truncate font-serif text-2xl font-bold leading-tight drop-shadow">
+                {event.title}
+              </h3>
+              <p className="mt-1 text-sm text-white/85">{event.location}</p>
+            </div>
           </div>
         </div>
-      </div>
+      ) : (
+        <div className="border-b border-border bg-page-soft/70 p-6">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 rounded-3xl bg-navy/6 px-4 py-3 text-center text-navy">
+              <p className="font-serif text-4xl font-black leading-none">{dayLabel}</p>
+              <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.2em] text-crimson">
+                {monthLabel}
+              </p>
+            </div>
+            <div className="min-w-0">
+              <p className="rounded-full bg-crimson/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-crimson">
+                {event.type}
+              </p>
+              <h3 className="mt-3 font-serif text-2xl font-bold leading-tight text-navy">
+                {event.title}
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">{event.location}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="space-y-4 p-6">
         <div className="flex flex-wrap gap-2">
