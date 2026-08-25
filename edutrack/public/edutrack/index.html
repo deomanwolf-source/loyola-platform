@@ -5298,7 +5298,7 @@
             <span class="notif-dot" id="notif-dot"></span>
           </button>
           <div class="topbar-version" id="topbar-version" title="Application version">
-            <span class="value" id="app-version-label">v5.3.1</span>
+            <span class="value" id="app-version-label">v5.4.0</span>
           </div>
           <div class="topbar-testing" id="topbar-testing" title="Current system status">
             <span class="dot" aria-hidden="true"></span>
@@ -5345,6 +5345,10 @@
           <div class="nav-item" onclick="showPage('relief')" id="nav-relief">
             <span class="nav-icon"><i data-lucide="file-up"></i></span
             ><span class="nav-text"> Relief Assignments</span>
+          </div>
+          <div class="nav-item" onclick="showPage('exam-papers')" id="nav-exam-papers">
+            <span class="nav-icon"><i data-lucide="file-text"></i></span
+            ><span class="nav-text"> Exam Papers</span>
           </div>
         </div>
         <div class="nav-section" id="admin-nav" style="display: none">
@@ -6137,6 +6141,118 @@
           </div>
         </div>
 
+        <!-- EXAM PAPERS -->
+        <div class="page page-shell" id="page-exam-papers">
+          <div class="page-header">
+            <div>
+              <h2>Exam Paper System</h2>
+              <p>
+                Teachers can upload up to 3 exam papers. Admins can review, download, and lock
+                each paper after the official download.
+              </p>
+            </div>
+            <button class="btn secondary sm" onclick="loadExamPapers()">
+              <i data-lucide="refresh-cw" style="width: 14px; height: 14px"></i> Refresh
+            </button>
+          </div>
+          <div class="relief-grid">
+            <div class="card relief-upload-card" id="exam-upload-card">
+              <div class="section-title" id="exam-role-card-title">Upload Exam Paper</div>
+              <p class="relief-copy" id="exam-role-card-copy">
+                Upload one paper at a time. Each teacher can keep only 3 active papers before the
+                upload form locks.
+              </p>
+              <div
+                id="exam-admin-note"
+                class="hint"
+                style="
+                  display: none;
+                  background: rgba(74, 127, 203, 0.08);
+                  border: 1px solid rgba(74, 127, 203, 0.2);
+                  border-radius: 8px;
+                  padding: 8px 12px;
+                  color: var(--text-2);
+                  margin-bottom: 14px;
+                "
+              >
+                Admin review mode: use the paper list below to download the official copy and
+                track which papers are locked.
+              </div>
+              <div id="exam-upload-form">
+                <div class="form-grid-2">
+                  <div class="field">
+                    <label>Title</label>
+                    <input id="exam-title" placeholder="e.g. Grade 10 Maths Midterm Paper" />
+                  </div>
+                  <div class="field">
+                    <label>Date</label>
+                    <input id="exam-date" type="date" />
+                  </div>
+                  <div class="field">
+                    <label>Grade</label>
+                    <input id="exam-grade" placeholder="Grade 10" />
+                  </div>
+                  <div class="field">
+                    <label>Section</label>
+                    <input id="exam-section" placeholder="A / bio-eng-a" />
+                  </div>
+                  <div class="field">
+                    <label>Subject</label>
+                    <input id="exam-subject" placeholder="Mathematics" />
+                  </div>
+                  <div class="field">
+                    <label>Paper Type</label>
+                    <select id="exam-type">
+                      <option>Exam Paper</option>
+                      <option>Model Paper</option>
+                      <option>Revision Paper</option>
+                      <option>Past Paper</option>
+                      <option>Assignment Paper</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label>Notes</label>
+                  <textarea
+                    id="exam-note"
+                    placeholder="Optional notes for the admin team or subject head"
+                  ></textarea>
+                </div>
+                <div class="field">
+                  <label>PDF File</label>
+                  <input id="exam-pdf" type="file" accept="application/pdf" />
+                  <div class="hint">PDF only. Maximum 25 MB. Teachers can upload 3 papers total.</div>
+                </div>
+                <div id="exam-form-error" class="error-msg"></div>
+                <button class="btn sm" onclick="submitExamPaper()">
+                  <i data-lucide="upload" style="width: 14px; height: 14px"></i> Upload Exam Paper
+                </button>
+                <div id="exam-upload-message" class="hint" style="margin-top: 10px"></div>
+              </div>
+            </div>
+            <div class="card relief-admin-card">
+              <div class="section-title">Download Tracker</div>
+              <p class="relief-copy">
+                Review how many papers have been uploaded, which ones are locked, and which
+                teachers still have upload space left.
+              </p>
+              <div id="exam-summary" class="relief-summary"></div>
+              <div id="exam-teacher-breakdown" class="page-stack" style="margin-top: 14px"></div>
+            </div>
+          </div>
+          <div class="card" style="margin-top: 18px">
+            <div class="section-title" style="margin-bottom: 12px">Exam Papers</div>
+            <input
+              id="exam-search"
+              class="quick-input"
+              style="margin-bottom: 12px"
+              placeholder="Search by title, teacher, subject, grade, section, type, or date"
+              oninput="setExamPaperSearch(this.value)"
+            />
+            <div id="exam-list" class="page-stack"></div>
+          </div>
+        </div>
+
         <!-- USER ACCOUNTS -->
         <div class="page page-shell" id="page-accounts">
           <div class="accounts-shell">
@@ -6661,6 +6777,9 @@
         </button>
         <button class="mnav-item" data-page="year-plan" onclick="showPage('year-plan')">
           <i data-lucide="list-checks"></i><span>Plan</span>
+        </button>
+        <button class="mnav-item" data-page="exam-papers" onclick="showPage('exam-papers')">
+          <i data-lucide="file-text"></i><span>Papers</span>
         </button>
         <button class="mnav-item" data-page="profile" onclick="openMyProfile()">
           <i data-lucide="user-round"></i><span>Profile</span>
@@ -13582,7 +13701,10 @@
           const teacherMode = !!(cud && cud.role === "teacher");
           mobileNav.style.display = teacherMode ? "" : "none";
           const pageKey =
-            name === "dashboard" || name === "assigned-subjects" || name === "year-plan"
+            name === "dashboard" ||
+            name === "assigned-subjects" ||
+            name === "year-plan" ||
+            name === "exam-papers"
               ? name
               : "profile";
           mobileNav.querySelectorAll(".mnav-item").forEach((btn) => btn.classList.remove("active"));
@@ -13605,6 +13727,7 @@
         if (name === "staff-attendance" && isOversightRole()) loadEduTrackStaffAttendance();
         if (name === "analytics" && isOversightRole()) loadAnalyticsOverview();
         if (name === "relief") loadReliefAssignments();
+        if (name === "exam-papers") loadExamPapers();
         if (name === "daily-progress") loadDailyProgress();
         closeSidebar();
       };
@@ -17367,6 +17490,8 @@
 
       let reliefAssignments = [];
       let reliefSearchQuery = "";
+      let examPapers = [];
+      let examPaperSearchQuery = "";
 
       function isReliefAdmin() {
         return !!(cud && cud.role === "admin");
@@ -17592,6 +17717,454 @@
         }
       };
 
+      function isExamPaperAdmin() {
+        return !!(cud && cud.role === "admin");
+      }
+
+      function isExamPaperMaster() {
+        return !!(
+          cud &&
+          cud.role === "admin" &&
+          (cud.isMasterAdmin ||
+            cud.platformRole === "masteradmin" ||
+            cud.platformRole === "superadmin" ||
+            cud.platformRole === "master_edutrack_admin")
+        );
+      }
+
+      function examPaperTeacherKey(item) {
+        return (
+          item.uploaded_teacher_id || item.teacher_id || item.uploaded_by_user_id || ""
+        ).toString();
+      }
+
+      function configureExamPaperLayout() {
+        const form = document.getElementById("exam-upload-form");
+        const adminNote = document.getElementById("exam-admin-note");
+        const title = document.getElementById("exam-role-card-title");
+        const copy = document.getElementById("exam-role-card-copy");
+
+        if (isExamPaperAdmin()) {
+          if (form) form.style.display = "none";
+          if (adminNote) adminNote.style.display = "";
+          if (title) title.textContent = "Paper Review";
+          if (copy)
+            copy.textContent =
+              "Admin review mode: download official papers and monitor lock status from this panel.";
+          return;
+        }
+
+        if (form) form.style.display = "";
+        if (adminNote) adminNote.style.display = "none";
+        if (title) title.textContent = "Upload Exam Paper";
+        if (copy)
+          copy.textContent =
+            "Upload one paper at a time. Each teacher can keep only 3 active papers before the upload form locks.";
+      }
+
+      function updateExamPaperUploadControls(locked, remaining) {
+        const form = document.getElementById("exam-upload-form");
+        const message = document.getElementById("exam-upload-message");
+        const title = document.getElementById("exam-role-card-title");
+        if (form) {
+          form.querySelectorAll("input, textarea, select, button").forEach((el) => {
+            el.disabled = !!locked;
+          });
+        }
+        if (message) {
+          if (isExamPaperAdmin()) {
+            message.textContent = "";
+          } else if (locked) {
+            message.textContent =
+              "Upload limit reached. Ask a master admin to remove one paper before uploading again.";
+          } else {
+            message.textContent = `${remaining} upload${remaining === 1 ? "" : "s"} left.`;
+          }
+        }
+        if (title && !isExamPaperAdmin()) {
+          title.textContent = locked ? "Upload Locked" : "Upload Exam Paper";
+        }
+      }
+
+      function renderExamPaperSummary() {
+        const box = document.getElementById("exam-summary");
+        if (!box) return;
+
+        const total = examPapers.length;
+        const downloaded = examPapers.filter((item) => Number(item.download_count || 0) > 0).length;
+        const locked = examPapers.filter((item) => item.isLocked).length;
+
+        const tiles = isExamPaperAdmin()
+          ? [
+              ["Total Papers", total],
+              ["Downloaded", downloaded],
+              ["Locked", locked],
+              [
+                "Teachers",
+                new Set(examPapers.map((item) => examPaperTeacherKey(item)).filter(Boolean))
+                  .size,
+              ],
+            ]
+          : [
+              ["Uploaded", total],
+              ["Downloaded", downloaded],
+              ["Locked", locked],
+              ["Slots Left", Math.max(0, 3 - total)],
+            ];
+
+        box.innerHTML = tiles
+          .map(
+            ([label, value]) =>
+              '<div class="relief-summary-tile"><small>' +
+              escapeHtml(label) +
+              '</small><strong>' +
+              escapeHtml(String(value)) +
+              "</strong></div>",
+          )
+          .join("");
+      }
+
+      function renderExamPaperBreakdown() {
+        const box = document.getElementById("exam-teacher-breakdown");
+        if (!box) return;
+        if (!isExamPaperAdmin()) {
+          box.innerHTML = "";
+          return;
+        }
+
+        const grouped = new Map();
+        examPapers.forEach((paper) => {
+          const key = examPaperTeacherKey(paper) || paper.uploaded_by_user_id || "";
+          if (!grouped.has(key)) {
+            grouped.set(key, {
+              key,
+              name:
+                paper.uploaded_teacher_name ||
+                paper.teacher_name ||
+                paper.uploaded_by_name ||
+                key ||
+                "Unknown",
+              count: 0,
+              locked: 0,
+            });
+          }
+          const entry = grouped.get(key);
+          entry.count += 1;
+          if (paper.isLocked) entry.locked += 1;
+        });
+
+        const rows = [...grouped.values()].sort(
+          (a, b) => b.count - a.count || a.name.localeCompare(b.name),
+        );
+        box.innerHTML = rows.length
+          ? rows
+              .map(
+                (row) =>
+                  '<div class="relief-summary-tile"><small>' +
+                  escapeHtml(row.name) +
+                  '</small><strong>' +
+                  row.count +
+                  '</strong><div style="margin-top:6px;font-size:11px;color:var(--muted);">Locked: ' +
+                  row.locked +
+                  " | Remaining slots: " +
+                  Math.max(0, 3 - row.count) +
+                  "</div></div>",
+              )
+              .join("")
+          : '<div class="empty">No teachers have uploaded exam papers yet.</div>';
+      }
+
+      function renderExamPapers() {
+        const list = document.getElementById("exam-list");
+        if (!list) return;
+
+        configureExamPaperLayout();
+
+        const visiblePapers = examPaperSearchQuery
+          ? examPapers.filter((item) =>
+              [
+                item.title,
+                item.teacher_id,
+                item.teacher_name,
+                item.uploaded_teacher_id,
+                item.uploaded_teacher_name,
+                item.subject_name,
+                item.grade,
+                item.section,
+                item.paper_type,
+                item.exam_date,
+              ]
+                .join(" ")
+                .toLowerCase()
+                .includes(examPaperSearchQuery),
+            )
+          : examPapers;
+
+        renderExamPaperSummary();
+        renderExamPaperBreakdown();
+
+        const uploadLocked = !isExamPaperAdmin() && examPapers.length >= 3;
+        updateExamPaperUploadControls(uploadLocked, Math.max(0, 3 - examPapers.length));
+
+        if (!visiblePapers.length) {
+          list.innerHTML = '<div class="empty">No exam papers uploaded yet.</div>';
+          return;
+        }
+
+        list.innerHTML = visiblePapers
+          .map((item) => {
+            const locked = item.isDownloadLocked || item.isLocked;
+            const downloadCount = Number(item.download_count || 0);
+            const allowedDownloads = 1 + Number(item.allowed_extra_downloads || 0);
+            const statusLabel =
+              item.status === "deleted"
+                ? "DELETED"
+                : locked
+                  ? "LOCKED"
+                  : downloadCount > 0
+                    ? "DOWNLOADED"
+                    : "PENDING DOWNLOAD";
+            const adminActions = isExamPaperAdmin()
+              ? (locked
+                  ? '<button class="btn secondary sm" disabled><i data-lucide="lock" style="width:13px;height:13px"></i> Locked</button>'
+                  : '<button class="btn sm" onclick="officialDownloadExamPaper(' +
+                    item.id +
+                    ')"><i data-lucide="download" style="width:13px;height:13px"></i> Official Download</button>') +
+                (isExamPaperMaster() && locked
+                  ? '<button class="btn secondary sm" onclick="unlockExamPaper(' +
+                    item.id +
+                    ')"><i data-lucide="unlock" style="width:13px;height:13px"></i> Unlock Download</button>'
+                  : "") +
+                (isExamPaperMaster()
+                  ? '<button class="btn secondary sm" onclick="deleteExamPaper(' +
+                    item.id +
+                    ')"><i data-lucide="trash-2" style="width:13px;height:13px"></i> Delete</button>'
+                  : "")
+              : "";
+
+            return (
+              '<div class="relief-card-row"><div><div class="relief-card-row-title">' +
+              escapeHtml(item.title || "Exam Paper") +
+              ' <span class="relief-lock ' +
+              (locked ? "locked" : "") +
+              '">' +
+              statusLabel +
+              '</span></div><div class="relief-card-row-meta">Date: ' +
+              escapeHtml(reliefDate(item.exam_date)) +
+              " | Grade: " +
+              escapeHtml(item.grade || "-") +
+              " | Section: " +
+              escapeHtml(item.section || "-") +
+              " | Subject: " +
+              escapeHtml(item.subject_name || "-") +
+              " | Type: " +
+              escapeHtml(item.paper_type || "Exam Paper") +
+              "<br>Uploaded by " +
+              escapeHtml(item.uploaded_teacher_name || item.teacher_name || item.uploaded_by_name || "-") +
+              (item.uploaded_teacher_id ? " (" + escapeHtml(item.uploaded_teacher_id) + ")" : "") +
+              " | File: " +
+              escapeHtml(item.original_file_name || "-") +
+              " | Downloads: " +
+              downloadCount +
+              " / " +
+              allowedDownloads +
+              (item.downloaded_at
+                ? " | Downloaded: " + escapeHtml(reliefDate(item.downloaded_at))
+                : "") +
+              (item.last_unlock_reason
+                ? "<br>Last unlock reason: " + escapeHtml(item.last_unlock_reason)
+                : "") +
+              (item.note ? "<br>Note: " + escapeHtml(item.note) : "") +
+              "</div></div><div class=\"relief-card-actions\">" +
+              adminActions +
+              "</div></div>"
+            );
+          })
+          .join("");
+
+        if (window.lucide && typeof window.lucide.createIcons === "function") {
+          setTimeout(() => window.lucide.createIcons(), 0);
+        }
+      }
+
+      window.setExamPaperSearch = function (value) {
+        examPaperSearchQuery = String(value || "").trim().toLowerCase();
+        renderExamPapers();
+      };
+
+      window.loadExamPapers = async function () {
+        const list = document.getElementById("exam-list");
+        if (list) list.innerHTML = '<div class="empty">Loading exam papers...</div>';
+        try {
+          examPapers = await apiFetch("/api/edutrack/exam-papers");
+          renderExamPapers();
+        } catch (error) {
+          if (list)
+            list.innerHTML =
+              '<div class="empty">Could not load exam papers: ' +
+              escapeHtml(error.message) +
+              "</div>";
+        }
+      };
+
+      window.submitExamPaper = async function () {
+        const errorBox = document.getElementById("exam-form-error");
+        if (errorBox) errorBox.textContent = "";
+        if (isExamPaperAdmin()) {
+          if (errorBox) errorBox.textContent = "Admin review mode is read-only.";
+          return;
+        }
+
+        const fileInput = document.getElementById("exam-pdf");
+        const file = fileInput?.files?.[0];
+        const payload = new FormData();
+        const fields = {
+          title: document.getElementById("exam-title")?.value.trim(),
+          exam_date: document.getElementById("exam-date")?.value,
+          grade: document.getElementById("exam-grade")?.value.trim(),
+          section: document.getElementById("exam-section")?.value.trim(),
+          subject_name: document.getElementById("exam-subject")?.value.trim(),
+          paper_type: document.getElementById("exam-type")?.value.trim(),
+          note: document.getElementById("exam-note")?.value.trim(),
+        };
+
+        if (examPapers.length >= 3) {
+          if (errorBox) {
+            errorBox.textContent =
+              "Upload limit reached. Ask a master admin to remove one paper before uploading again.";
+          }
+          return;
+        }
+
+        if (
+          !fields.title ||
+          !fields.exam_date ||
+          !fields.grade ||
+          !fields.section ||
+          !fields.subject_name
+        ) {
+          if (errorBox) {
+            errorBox.textContent =
+              "Title, date, grade, section and subject are required.";
+          }
+          return;
+        }
+        if (!file) {
+          if (errorBox) errorBox.textContent = "Select a PDF file first.";
+          return;
+        }
+
+        Object.entries(fields).forEach(([key, value]) => payload.append(key, value || ""));
+        payload.append("pdf", file);
+
+        try {
+          await reliefFetch("/api/edutrack/exam-papers", {
+            method: "POST",
+            body: payload,
+          });
+          ["exam-title", "exam-date", "exam-grade", "exam-section", "exam-subject", "exam-note"].forEach(
+            (id) => {
+              const el = document.getElementById(id);
+              if (el) el.value = "";
+            },
+          );
+          const typeSelect = document.getElementById("exam-type");
+          if (typeSelect) typeSelect.value = "Exam Paper";
+          if (fileInput) fileInput.value = "";
+          showToast("Exam paper uploaded", "success");
+          await loadExamPapers();
+        } catch (error) {
+          if (errorBox) errorBox.textContent = error.message;
+          showToast(error.message, "err");
+        }
+      };
+
+      window.downloadExamPaperFile = async function (id) {
+        return officialDownloadExamPaper(id);
+      };
+
+      window.officialDownloadExamPaper = async function (id) {
+        if (!isExamPaperAdmin()) return;
+        const paper = examPapers.find((item) => Number(item.id) === Number(id));
+        if (!paper) return;
+        if (paper.isLocked) {
+          showToast(
+            isExamPaperMaster()
+              ? "Locked. Use Unlock Download to allow one more download."
+              : "Locked. A master admin must unlock another download.",
+            "err",
+          );
+          return;
+        }
+        let reason = "";
+        if (Number(paper.download_count || 0) > 0) {
+          reason = prompt("Reason for this extra download", paper.last_unlock_reason || "");
+          if (!reason || !reason.trim()) {
+            showToast("Reason is required for an extra download.", "err");
+            return;
+          }
+        }
+        try {
+          const res = await reliefBlobFetch(`/api/edutrack/exam-papers/${id}/official-download`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason: reason.trim() }),
+          });
+          const blob = await res.blob();
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = paper.original_file_name || "exam-paper.pdf";
+          document.body.appendChild(link);
+          link.click();
+          link.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 1000);
+          showToast("Official download recorded and locked.", "success");
+          await loadExamPapers();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.unlockExamPaper = async function (id) {
+        if (!isExamPaperMaster()) {
+          showToast("Master admin access required for unlock.", "err");
+          return;
+        }
+        const reason = prompt("Unlock reason for one extra download", "");
+        if (reason === null) return;
+        if (!reason.trim()) {
+          showToast("Unlock reason is required.", "err");
+          return;
+        }
+        try {
+          await reliefFetch(`/api/edutrack/exam-papers/${id}/unlock-one-download`, {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() }),
+          });
+          showToast("Exam paper unlocked for one extra download", "success");
+          await loadExamPapers();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.deleteExamPaper = async function (id) {
+        if (!isExamPaperMaster()) {
+          showToast("Master admin access required for delete.", "err");
+          return;
+        }
+        const ok = confirm("Delete this exam paper permanently?");
+        if (!ok) return;
+        try {
+          await reliefFetch(`/api/edutrack/exam-papers/${id}`, { method: "DELETE" });
+          showToast("Exam paper deleted", "success");
+          await loadExamPapers();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
       window.submitReliefAssignment = async function () {
         const errorBox = document.getElementById("relief-form-error");
         if (errorBox) errorBox.textContent = "";
@@ -17807,6 +18380,10 @@
         const reliefDateInput = document.getElementById("relief-date");
         if (reliefDateInput && !reliefDateInput.value) {
           reliefDateInput.value = new Date().toISOString().slice(0, 10);
+        }
+        const examDateInput = document.getElementById("exam-date");
+        if (examDateInput && !examDateInput.value) {
+          examDateInput.value = new Date().toISOString().slice(0, 10);
         }
       });
 
