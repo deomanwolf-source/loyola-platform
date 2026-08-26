@@ -6176,7 +6176,8 @@
                 "
               >
                 Admin review mode: use the paper list below to download the official copy and
-                track which papers are locked.
+                track which papers are locked. Master admins can also reset upload quotas for one
+                teacher or for everyone.
               </div>
               <div id="exam-upload-form">
                 <div class="form-grid-2">
@@ -6233,10 +6234,11 @@
             <div class="card relief-admin-card">
               <div class="section-title">Download Tracker</div>
               <p class="relief-copy">
-                Review how many papers have been uploaded, which ones are locked, and which
-                teachers still have upload space left.
+                Review how many papers still count toward the current upload quota, which ones
+                are locked, and which teachers still have upload space left.
               </p>
               <div id="exam-summary" class="relief-summary"></div>
+              <div id="exam-reset-actions" class="page-stack" style="margin-top: 14px"></div>
               <div id="exam-teacher-breakdown" class="page-stack" style="margin-top: 14px"></div>
             </div>
           </div>
@@ -17490,8 +17492,17 @@
 
       let reliefAssignments = [];
       let reliefSearchQuery = "";
+      const EXAM_PAPER_UPLOAD_LIMIT = 3;
       let examPapers = [];
       let examPaperSearchQuery = "";
+
+      function examPaperCountsTowardQuota(item) {
+        return !!item && item.countsTowardQuota !== false;
+      }
+
+      function examPaperQuotaCount(items = examPapers) {
+        return (Array.isArray(items) ? items : []).filter(examPaperCountsTowardQuota).length;
+      }
 
       function isReliefAdmin() {
         return !!(cud && cud.role === "admin");
@@ -17749,8 +17760,9 @@
           if (adminNote) adminNote.style.display = "";
           if (title) title.textContent = "Paper Review";
           if (copy)
-            copy.textContent =
-              "Admin review mode: download official papers and monitor lock status from this panel.";
+            copy.textContent = isExamPaperMaster()
+              ? "Master review mode: download official papers, reset upload quotas, and monitor lock status from this panel."
+              : "Admin review mode: download official papers and monitor lock status from this panel.";
           return;
         }
 
@@ -17759,7 +17771,9 @@
         if (title) title.textContent = "Upload Exam Paper";
         if (copy)
           copy.textContent =
-            "Upload one paper at a time. Each teacher can keep only 3 active papers before the upload form locks.";
+            "Upload one paper at a time. Each teacher can keep only " +
+            EXAM_PAPER_UPLOAD_LIMIT +
+            " active papers before the upload form locks.";
       }
 
       function updateExamPaperUploadControls(locked, remaining) {
@@ -17776,7 +17790,7 @@
             message.textContent = "";
           } else if (locked) {
             message.textContent =
-              "Upload limit reached. Ask a master admin to remove one paper before uploading again.";
+              "Upload limit reached. Ask a master admin to reset your quota before uploading again.";
           } else {
             message.textContent = `${remaining} upload${remaining === 1 ? "" : "s"} left.`;
           }
@@ -17791,12 +17805,14 @@
         if (!box) return;
 
         const total = examPapers.length;
+        const quotaUsed = examPaperQuotaCount();
         const downloaded = examPapers.filter((item) => Number(item.download_count || 0) > 0).length;
         const locked = examPapers.filter((item) => item.isLocked).length;
 
         const tiles = isExamPaperAdmin()
           ? [
-              ["Total Papers", total],
+              ["Stored Papers", total],
+              ["Quota Used", quotaUsed],
               ["Downloaded", downloaded],
               ["Locked", locked],
               [
@@ -17806,10 +17822,11 @@
               ],
             ]
           : [
-              ["Uploaded", total],
+              ["Stored Papers", total],
+              ["Quota Used", quotaUsed],
               ["Downloaded", downloaded],
               ["Locked", locked],
-              ["Slots Left", Math.max(0, 3 - total)],
+              ["Slots Left", Math.max(0, EXAM_PAPER_UPLOAD_LIMIT - quotaUsed)],
             ];
 
         box.innerHTML = tiles
@@ -17822,6 +17839,24 @@
               "</strong></div>",
           )
           .join("");
+      }
+
+      function renderExamPaperResetActions() {
+        const box = document.getElementById("exam-reset-actions");
+        if (!box) return;
+        if (!isExamPaperMaster()) {
+          box.innerHTML = "";
+          return;
+        }
+
+        box.innerHTML =
+          '<div class="hint" style="margin:0">Resetting a quota keeps the existing papers and starts a fresh ' +
+          EXAM_PAPER_UPLOAD_LIMIT +
+          '-paper cycle for the next uploads.</div>' +
+          '<div class="relief-card-actions" style="justify-content:flex-start">' +
+          '<button class="btn danger sm" onclick="resetAllExamPaperQuotas()">' +
+          '<i data-lucide="rotate-ccw" style="width:13px;height:13px"></i> Reset All Upload Quotas' +
+          "</button></div>";
       }
 
       function renderExamPaperBreakdown() {
@@ -17844,31 +17879,61 @@
                 paper.uploaded_by_name ||
                 key ||
                 "Unknown",
-              count: 0,
-              locked: 0,
+              quotaCount: 0,
+              totalCount: 0,
+              lockedCount: 0,
+              archivedCount: 0,
             });
           }
           const entry = grouped.get(key);
-          entry.count += 1;
-          if (paper.isLocked) entry.locked += 1;
+          entry.totalCount += 1;
+          if (examPaperCountsTowardQuota(paper)) {
+            entry.quotaCount += 1;
+          } else {
+            entry.archivedCount += 1;
+          }
+          if (paper.isLocked) entry.lockedCount += 1;
         });
 
         const rows = [...grouped.values()].sort(
-          (a, b) => b.count - a.count || a.name.localeCompare(b.name),
+          (a, b) =>
+            b.quotaCount - a.quotaCount ||
+            b.totalCount - a.totalCount ||
+            a.name.localeCompare(b.name),
         );
         box.innerHTML = rows.length
           ? rows
               .map(
-                (row) =>
+                (row) => {
+                  const canReset = isExamPaperMaster() && row.quotaCount > 0;
+                  const resetButton = canReset
+                    ? '<button class="btn danger sm" onclick=\'resetExamPaperTeacherQuota(' +
+                      JSON.stringify(row.key) +
+                      ", " +
+                      JSON.stringify(row.name) +
+                      ")\'><i data-lucide=\"rotate-ccw\" style=\"width:13px;height:13px\"></i> Reset Quota</button>"
+                    : "";
+                  return (
                   '<div class="relief-summary-tile"><small>' +
                   escapeHtml(row.name) +
                   '</small><strong>' +
-                  row.count +
-                  '</strong><div style="margin-top:6px;font-size:11px;color:var(--muted);">Locked: ' +
-                  row.locked +
+                  row.quotaCount +
+                  " / " +
+                  EXAM_PAPER_UPLOAD_LIMIT +
+                  '</strong><div style="margin-top:6px;font-size:11px;color:var(--muted);">Stored: ' +
+                  row.totalCount +
+                  " | Locked: " +
+                  row.lockedCount +
                   " | Remaining slots: " +
-                  Math.max(0, 3 - row.count) +
-                  "</div></div>",
+                  Math.max(0, EXAM_PAPER_UPLOAD_LIMIT - row.quotaCount) +
+                  (row.archivedCount
+                    ? " | Archived: " + row.archivedCount
+                    : "") +
+                  '</div>' +
+                  (resetButton ? '<div style="margin-top:10px">' + resetButton + "</div>" : "") +
+                  "</div>"
+                  );
+                },
               )
               .join("")
           : '<div class="empty">No teachers have uploaded exam papers yet.</div>';
@@ -17901,10 +17966,15 @@
           : examPapers;
 
         renderExamPaperSummary();
+        renderExamPaperResetActions();
         renderExamPaperBreakdown();
 
-        const uploadLocked = !isExamPaperAdmin() && examPapers.length >= 3;
-        updateExamPaperUploadControls(uploadLocked, Math.max(0, 3 - examPapers.length));
+        const quotaUsed = examPaperQuotaCount();
+        const uploadLocked = !isExamPaperAdmin() && quotaUsed >= EXAM_PAPER_UPLOAD_LIMIT;
+        updateExamPaperUploadControls(
+          uploadLocked,
+          Math.max(0, EXAM_PAPER_UPLOAD_LIMIT - quotaUsed),
+        );
 
         if (!visiblePapers.length) {
           list.innerHTML = '<div class="empty">No exam papers uploaded yet.</div>';
@@ -17914,6 +17984,7 @@
         list.innerHTML = visiblePapers
           .map((item) => {
             const locked = item.isDownloadLocked || item.isLocked;
+            const quotaActive = examPaperCountsTowardQuota(item);
             const downloadCount = Number(item.download_count || 0);
             const allowedDownloads = 1 + Number(item.allowed_extra_downloads || 0);
             const statusLabel =
@@ -17974,6 +18045,9 @@
               (item.last_unlock_reason
                 ? "<br>Last unlock reason: " + escapeHtml(item.last_unlock_reason)
                 : "") +
+              (quotaActive
+                ? ""
+                : "<br><span style=\"color:var(--muted)\">Archived from the upload quota before the latest reset.</span>") +
               (item.note ? "<br>Note: " + escapeHtml(item.note) : "") +
               "</div></div><div class=\"relief-card-actions\">" +
               adminActions +
@@ -18028,10 +18102,11 @@
           note: document.getElementById("exam-note")?.value.trim(),
         };
 
-        if (examPapers.length >= 3) {
+        const quotaUsed = examPaperQuotaCount();
+        if (quotaUsed >= EXAM_PAPER_UPLOAD_LIMIT) {
           if (errorBox) {
             errorBox.textContent =
-              "Upload limit reached. Ask a master admin to remove one paper before uploading again.";
+              "Upload limit reached. Ask a master admin to reset your quota before uploading again.";
           }
           return;
         }
@@ -18075,6 +18150,75 @@
           await loadExamPapers();
         } catch (error) {
           if (errorBox) errorBox.textContent = error.message;
+          showToast(error.message, "err");
+        }
+      };
+
+      window.resetExamPaperTeacherQuota = async function (teacherId, teacherName) {
+        if (!isExamPaperMaster()) {
+          showToast("Master admin access required for quota reset.", "err");
+          return;
+        }
+        const teacherKey = String(teacherId || "").trim();
+        if (!teacherKey) {
+          showToast("Teacher id is required.", "err");
+          return;
+        }
+        const label = teacherName ? String(teacherName) : teacherKey;
+        const reason = prompt("Reason for resetting " + label + " upload quota", "");
+        if (reason === null) return;
+        if (!reason.trim()) {
+          showToast("Reset reason is required.", "err");
+          return;
+        }
+        const ok = confirm(
+          "Reset the upload quota for " +
+            label +
+            "? Existing papers stay on the system and the teacher gets a fresh " +
+            EXAM_PAPER_UPLOAD_LIMIT +
+            "-paper cycle.",
+        );
+        if (!ok) return;
+        try {
+          await reliefFetch(
+            `/api/edutrack/exam-papers/teachers/${encodeURIComponent(teacherKey)}/reset-quota`,
+            {
+              method: "POST",
+              body: JSON.stringify({ reason: reason.trim() }),
+            },
+          );
+          showToast("Teacher quota reset", "success");
+          await loadExamPapers();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.resetAllExamPaperQuotas = async function () {
+        if (!isExamPaperMaster()) {
+          showToast("Master admin access required for quota reset.", "err");
+          return;
+        }
+        const reason = prompt("Reason for resetting all upload quotas", "");
+        if (reason === null) return;
+        if (!reason.trim()) {
+          showToast("Reset reason is required.", "err");
+          return;
+        }
+        const ok = confirm(
+          "Reset the upload quota for every teacher? Existing papers stay on the system and all teachers get a fresh " +
+            EXAM_PAPER_UPLOAD_LIMIT +
+            "-paper cycle.",
+        );
+        if (!ok) return;
+        try {
+          await reliefFetch("/api/edutrack/exam-papers/reset-all-quotas", {
+            method: "POST",
+            body: JSON.stringify({ reason: reason.trim() }),
+          });
+          showToast("All teacher quotas reset", "success");
+          await loadExamPapers();
+        } catch (error) {
           showToast(error.message, "err");
         }
       };

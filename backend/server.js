@@ -2294,6 +2294,25 @@ async function ensureContentTables() {
   `);
 
   await db.query(`
+    CREATE TABLE IF NOT EXISTS edutrack_exam_paper_quota_resets (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      scope VARCHAR(20) NOT NULL,
+      teacher_id VARCHAR(80) NOT NULL DEFAULT '',
+      cutoff_paper_id INT NOT NULL DEFAULT 0,
+      reset_by_user_id VARCHAR(64),
+      reset_by_name VARCHAR(190),
+      reset_by_email VARCHAR(190),
+      reason TEXT,
+      reset_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_exam_paper_quota_resets_scope_teacher (scope, teacher_id),
+      KEY idx_exam_paper_quota_resets_scope (scope),
+      KEY idx_exam_paper_quota_resets_teacher (teacher_id),
+      KEY idx_exam_paper_quota_resets_reset_at (reset_at)
+    )
+  `);
+
+  await db.query(`
     CREATE TABLE IF NOT EXISTS edutrack_teacher_subject_assignments (
       id INT AUTO_INCREMENT PRIMARY KEY,
       teacher_user_id VARCHAR(64) NULL,
@@ -9960,6 +9979,8 @@ function resolveReliefPdfPath(row) {
 }
 
 const MAX_EXAM_PAPERS_PER_TEACHER = 3;
+const EXAM_PAPER_QUOTA_SCOPE_ALL = "all";
+const EXAM_PAPER_QUOTA_SCOPE_TEACHER = "teacher";
 
 async function insertExamPaperAudit(conn, req, paper, action, details = {}, actor = null) {
   const resolvedActor = actor || (await reliefActorInfo(req));
@@ -9988,16 +10009,116 @@ async function insertExamPaperAudit(conn, req, paper, action, details = {}, acto
   );
 }
 
-function normalizeExamPaper(row) {
+function normalizeExamPaper(row, quota = {}) {
   const downloadCount = Number(row.download_count ?? 0);
   const allowedDownloads = 1 + Number(row.allowed_extra_downloads ?? 0);
+  const countsTowardQuota = quota.countsTowardQuota ?? row.countsTowardQuota;
   return {
     ...row,
     download_count: downloadCount,
     allowed_extra_downloads: Number(row.allowed_extra_downloads ?? 0),
     isLocked: downloadCount >= allowedDownloads,
     isDownloadLocked: downloadCount >= allowedDownloads,
+    countsTowardQuota: countsTowardQuota === undefined ? true : !!countsTowardQuota,
+    quotaCutoffPaperId: Number(quota.quotaCutoffPaperId ?? row.quotaCutoffPaperId ?? 0),
+    quotaResetAt: quota.quotaResetAt ?? row.quotaResetAt ?? null,
   };
+}
+
+function normalizeExamPaperTeacherId(teacherId) {
+  return String(teacherId || "").trim();
+}
+
+async function loadExamPaperQuotaState(runner = db) {
+  const [rows] = await runner.query(
+    `
+      SELECT scope, teacher_id, cutoff_paper_id, reset_at, reset_by_user_id,
+        reset_by_name, reset_by_email, reason
+      FROM edutrack_exam_paper_quota_resets
+      WHERE scope IN (?, ?)
+    `,
+    [EXAM_PAPER_QUOTA_SCOPE_ALL, EXAM_PAPER_QUOTA_SCOPE_TEACHER],
+  );
+
+  const state = {
+    global: null,
+    teachers: new Map(),
+  };
+
+  rows.forEach((row) => {
+    const entry = {
+      scope: String(row.scope || EXAM_PAPER_QUOTA_SCOPE_TEACHER),
+      teacher_id: normalizeExamPaperTeacherId(row.teacher_id),
+      cutoff_paper_id: Number(row.cutoff_paper_id || 0),
+      reset_at: row.reset_at || null,
+      reset_by_user_id: String(row.reset_by_user_id || ""),
+      reset_by_name: String(row.reset_by_name || ""),
+      reset_by_email: String(row.reset_by_email || ""),
+      reason: String(row.reason || ""),
+    };
+
+    if (entry.scope === EXAM_PAPER_QUOTA_SCOPE_ALL) {
+      state.global = entry;
+      return;
+    }
+
+    if (entry.teacher_id) {
+      state.teachers.set(entry.teacher_id, entry);
+    }
+  });
+
+  return state;
+}
+
+function getExamPaperQuotaCutoff(teacherId, quotaState) {
+  const key = normalizeExamPaperTeacherId(teacherId);
+  const teacherCutoff = Number(quotaState?.teachers?.get(key)?.cutoff_paper_id || 0);
+  const globalCutoff = Number(quotaState?.global?.cutoff_paper_id || 0);
+  return Math.max(teacherCutoff, globalCutoff);
+}
+
+function decorateExamPaperQuota(row, quotaState) {
+  const teacherKey = normalizeExamPaperTeacherId(
+    row?.uploaded_teacher_id || row?.teacher_id || row?.uploaded_by_user_id || "",
+  );
+  const cutoffPaperId = getExamPaperQuotaCutoff(teacherKey, quotaState);
+  return normalizeExamPaper(row, {
+    countsTowardQuota: Number(row?.id || 0) > cutoffPaperId,
+    quotaCutoffPaperId: cutoffPaperId,
+    quotaResetAt:
+      quotaState?.teachers?.get(teacherKey)?.reset_at || quotaState?.global?.reset_at || null,
+  });
+}
+
+async function saveExamPaperQuotaReset(conn, scope, teacherId, cutoffPaperId, actor, reason) {
+  const safeScope = scope === EXAM_PAPER_QUOTA_SCOPE_ALL ? EXAM_PAPER_QUOTA_SCOPE_ALL : EXAM_PAPER_QUOTA_SCOPE_TEACHER;
+  const safeTeacherId = safeScope === EXAM_PAPER_QUOTA_SCOPE_ALL ? "" : normalizeExamPaperTeacherId(teacherId);
+  const safeReason = String(reason || "").trim();
+  const resolvedActor = actor || { id: "", name: "", email: "" };
+  await conn.query(
+    `
+      INSERT INTO edutrack_exam_paper_quota_resets
+        (scope, teacher_id, cutoff_paper_id, reset_by_user_id, reset_by_name, reset_by_email, reason)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        cutoff_paper_id = VALUES(cutoff_paper_id),
+        reset_by_user_id = VALUES(reset_by_user_id),
+        reset_by_name = VALUES(reset_by_name),
+        reset_by_email = VALUES(reset_by_email),
+        reason = VALUES(reason),
+        reset_at = CURRENT_TIMESTAMP,
+        updated_at = CURRENT_TIMESTAMP
+    `,
+    [
+      safeScope,
+      safeTeacherId,
+      Number(cutoffPaperId || 0),
+      resolvedActor.id || "",
+      resolvedActor.name || "",
+      resolvedActor.email || "",
+      safeReason,
+    ],
+  );
 }
 
 function resolveExamPaperPdfPath(row) {
@@ -10023,15 +10144,17 @@ function resolveExamPaperPdfPath(row) {
 }
 
 async function countTeacherExamPapers(teacherId, runner = db) {
-  const key = String(teacherId || "").trim();
+  const key = normalizeExamPaperTeacherId(teacherId);
   if (!key) return 0;
+  const quotaState = await loadExamPaperQuotaState(runner);
+  const cutoffPaperId = getExamPaperQuotaCutoff(key, quotaState);
   const [rows] = await runner.query(
     `
       SELECT COUNT(*) AS total
       FROM edutrack_exam_papers
-      WHERE status <> 'deleted' AND uploaded_teacher_id = ?
+      WHERE status <> 'deleted' AND uploaded_teacher_id = ? AND id > ?
     `,
-    [key],
+    [key, cutoffPaperId],
   );
   return Number(rows[0]?.total || 0);
 }
@@ -10500,6 +10623,7 @@ app.get("/api/edutrack/exam-papers", teacherOrAdmin, async (req, res) => {
     const actor = await reliefActorInfo(req);
     const canSeeAll = isEduTrackAdminUser(req);
     const teacherKey = String(actor.teacherId || actor.id || "").trim();
+    const quotaState = await loadExamPaperQuotaState(db);
     const [rows] = canSeeAll
       ? await db.query(
           "SELECT * FROM edutrack_exam_papers WHERE status <> 'deleted' ORDER BY created_at DESC",
@@ -10513,7 +10637,7 @@ app.get("/api/edutrack/exam-papers", teacherOrAdmin, async (req, res) => {
           `,
           [teacherKey],
         );
-    res.json(rows.map(normalizeExamPaper));
+    res.json(rows.map((row) => decorateExamPaperQuota(row, quotaState)));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -10656,6 +10780,7 @@ app.get("/api/edutrack/exam-papers/:id", teacherOrAdmin, async (req, res) => {
     await ensureContentTables();
     const actor = await reliefActorInfo(req);
     const teacherKey = String(actor.teacherId || actor.id || "").trim();
+    const quotaState = await loadExamPaperQuotaState(db);
     const [rows] = await db.query(
       "SELECT * FROM edutrack_exam_papers WHERE id = ? AND status <> 'deleted' LIMIT 1",
       [Number(req.params.id)],
@@ -10664,7 +10789,7 @@ app.get("/api/edutrack/exam-papers/:id", teacherOrAdmin, async (req, res) => {
     if (!paper) return res.status(404).json({ error: "Exam paper not found" });
     const canRead = isEduTrackAdminUser(req) || paper.uploaded_teacher_id === teacherKey;
     if (!canRead) return res.status(403).json({ error: "Access denied" });
-    res.json(normalizeExamPaper(paper));
+    res.json(decorateExamPaperQuota(paper, quotaState));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -10755,6 +10880,154 @@ app.post("/api/edutrack/exam-papers/:id/official-download", eduzyncAdminOnly, as
   } catch (error) {
     if (!committed) await conn.rollback();
     res.status(error.status || 400).json({ error: error.message });
+  } finally {
+    conn.release();
+  }
+});
+
+app.post("/api/edutrack/exam-papers/teachers/:teacherId/reset-quota", edutrackMasterOnly, async (req, res) => {
+  const conn = await db.getConnection();
+  let committed = false;
+  let lockName = "";
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const teacherKey = normalizeExamPaperTeacherId(req.params.teacherId);
+    const reason = String(req.body?.reason || "").trim();
+    if (!teacherKey) return res.status(400).json({ error: "Teacher id is required" });
+    if (!reason) return res.status(400).json({ error: "Reset reason required" });
+
+    lockName = `edutrack_exam_paper_upload:${teacherKey}`;
+    const [lockRows] = await conn.query("SELECT GET_LOCK(?, 10) AS lock_result", [lockName]);
+    if (Number(lockRows[0]?.lock_result) !== 1) {
+      return res.status(503).json({ error: "Could not lock this teacher's upload quota. Please try again." });
+    }
+
+    await conn.beginTransaction();
+    const [paperRows] = await conn.query(
+      `
+        SELECT id, uploaded_teacher_name, teacher_name, uploaded_by_name
+        FROM edutrack_exam_papers
+        WHERE uploaded_teacher_id = ?
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+      [teacherKey],
+    );
+    const latestPaper = paperRows[0] || null;
+    const cutoffPaperId = Number(latestPaper?.id || 0);
+    const teacherName =
+      latestPaper?.uploaded_teacher_name ||
+      latestPaper?.teacher_name ||
+      latestPaper?.uploaded_by_name ||
+      teacherKey;
+
+    await saveExamPaperQuotaReset(
+      conn,
+      EXAM_PAPER_QUOTA_SCOPE_TEACHER,
+      teacherKey,
+      cutoffPaperId,
+      actor,
+      reason,
+    );
+    await insertExamPaperAudit(
+      conn,
+      req,
+      {
+        id: 0,
+        uploaded_teacher_id: teacherKey,
+        uploaded_teacher_name: teacherName,
+      },
+      "quota_reset_teacher",
+      {
+        message: `Upload quota reset for ${teacherName}`,
+        scope: "teacher",
+        cutoff_paper_id: cutoffPaperId,
+        reason,
+      },
+      actor,
+    );
+
+    await conn.commit();
+    committed = true;
+    res.json({
+      success: true,
+      teacherId: teacherKey,
+      teacherName,
+      cutoffPaperId,
+      uploadLimit: MAX_EXAM_PAPERS_PER_TEACHER,
+    });
+  } catch (error) {
+    if (!committed) await conn.rollback();
+    res.status(error.status || 500).json({ error: error.message });
+  } finally {
+    if (lockName) {
+      try {
+        await conn.query("SELECT RELEASE_LOCK(?)", [lockName]);
+      } catch {
+        // Ignore lock release failures.
+      }
+    }
+    conn.release();
+  }
+});
+
+app.post("/api/edutrack/exam-papers/reset-all-quotas", edutrackMasterOnly, async (req, res) => {
+  const conn = await db.getConnection();
+  let committed = false;
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const reason = String(req.body?.reason || "").trim();
+    if (!reason) return res.status(400).json({ error: "Reset reason required" });
+
+    await conn.beginTransaction();
+    const [paperRows] = await conn.query(
+      `
+        SELECT id
+        FROM edutrack_exam_papers
+        ORDER BY id DESC
+        LIMIT 1
+      `,
+    );
+    const cutoffPaperId = Number(paperRows[0]?.id || 0);
+
+    await saveExamPaperQuotaReset(
+      conn,
+      EXAM_PAPER_QUOTA_SCOPE_ALL,
+      "",
+      cutoffPaperId,
+      actor,
+      reason,
+    );
+    await insertExamPaperAudit(
+      conn,
+      req,
+      {
+        id: 0,
+        uploaded_teacher_id: "",
+        uploaded_teacher_name: "All Teachers",
+      },
+      "quota_reset_all",
+      {
+        message: "Upload quotas reset for all teachers",
+        scope: "all",
+        cutoff_paper_id: cutoffPaperId,
+        reason,
+      },
+      actor,
+    );
+
+    await conn.commit();
+    committed = true;
+    res.json({
+      success: true,
+      cutoffPaperId,
+      uploadLimit: MAX_EXAM_PAPERS_PER_TEACHER,
+    });
+  } catch (error) {
+    if (!committed) await conn.rollback();
+    res.status(error.status || 500).json({ error: error.message });
   } finally {
     conn.release();
   }
