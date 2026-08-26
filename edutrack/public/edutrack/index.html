@@ -18169,12 +18169,6 @@
           return;
         }
         const label = teacherName ? String(teacherName) : teacherKey;
-        const reason = prompt("Reason for resetting " + label + " upload quota", "");
-        if (reason === null) return;
-        if (!reason.trim()) {
-          showToast("Reset reason is required.", "err");
-          return;
-        }
         const ok = confirm(
           "Reset the upload quota for " +
             label +
@@ -18188,7 +18182,6 @@
             `/api/edutrack/exam-papers/teachers/${encodeURIComponent(teacherKey)}/reset-quota`,
             {
               method: "POST",
-              body: JSON.stringify({ reason: reason.trim() }),
             },
           );
           showToast("Teacher quota reset", "success");
@@ -18203,12 +18196,6 @@
           showToast("Master admin access required for quota reset.", "err");
           return;
         }
-        const reason = prompt("Reason for resetting all upload quotas", "");
-        if (reason === null) return;
-        if (!reason.trim()) {
-          showToast("Reset reason is required.", "err");
-          return;
-        }
         const ok = confirm(
           "Reset the upload quota for every teacher? Existing papers stay on the system and all teachers get a fresh " +
             EXAM_PAPER_UPLOAD_LIMIT +
@@ -18218,7 +18205,6 @@
         try {
           await reliefFetch("/api/edutrack/exam-papers/reset-all-quotas", {
             method: "POST",
-            body: JSON.stringify({ reason: reason.trim() }),
           });
           showToast("All teacher quotas reset", "success");
           await loadExamPapers();

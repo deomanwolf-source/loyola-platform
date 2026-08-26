@@ -10895,9 +10895,7 @@ app.post("/api/edutrack/exam-papers/teachers/:teacherId/reset-quota", edutrackMa
     await ensureContentTables();
     const actor = await reliefActorInfo(req);
     const teacherKey = normalizeExamPaperTeacherId(req.params.teacherId);
-    const reason = String(req.body?.reason || "").trim();
     if (!teacherKey) return res.status(400).json({ error: "Teacher id is required" });
-    if (!reason) return res.status(400).json({ error: "Reset reason required" });
 
     lockName = `edutrack_exam_paper_upload:${teacherKey}`;
     const [lockRows] = await conn.query("SELECT GET_LOCK(?, 10) AS lock_result", [lockName]);
@@ -10930,7 +10928,7 @@ app.post("/api/edutrack/exam-papers/teachers/:teacherId/reset-quota", edutrackMa
       teacherKey,
       cutoffPaperId,
       actor,
-      reason,
+      "",
     );
     await insertExamPaperAudit(
       conn,
@@ -10945,7 +10943,6 @@ app.post("/api/edutrack/exam-papers/teachers/:teacherId/reset-quota", edutrackMa
         message: `Upload quota reset for ${teacherName}`,
         scope: "teacher",
         cutoff_paper_id: cutoffPaperId,
-        reason,
       },
       actor,
     );
@@ -10980,8 +10977,6 @@ app.post("/api/edutrack/exam-papers/reset-all-quotas", edutrackMasterOnly, async
   try {
     await ensureContentTables();
     const actor = await reliefActorInfo(req);
-    const reason = String(req.body?.reason || "").trim();
-    if (!reason) return res.status(400).json({ error: "Reset reason required" });
 
     await conn.beginTransaction();
     const [paperRows] = await conn.query(
@@ -11000,7 +10995,7 @@ app.post("/api/edutrack/exam-papers/reset-all-quotas", edutrackMasterOnly, async
       "",
       cutoffPaperId,
       actor,
-      reason,
+      "",
     );
     await insertExamPaperAudit(
       conn,
@@ -11015,7 +11010,6 @@ app.post("/api/edutrack/exam-papers/reset-all-quotas", edutrackMasterOnly, async
         message: "Upload quotas reset for all teachers",
         scope: "all",
         cutoff_paper_id: cutoffPaperId,
-        reason,
       },
       actor,
     );
