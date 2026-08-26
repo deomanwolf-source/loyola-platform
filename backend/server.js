@@ -9994,7 +9994,9 @@ async function insertExamPaperAudit(conn, req, paper, action, details = {}, acto
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
-      Number(paper?.id || paper || 0),
+      Number.isFinite(Number(paper?.id ?? paper ?? 0))
+        ? Number(paper?.id ?? paper ?? 0)
+        : 0,
       action,
       resolvedActor.id,
       resolvedActor.name,
