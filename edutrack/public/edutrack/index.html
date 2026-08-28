@@ -6256,8 +6256,9 @@
               <div id="exam-teacher-breakdown" class="page-stack" style="margin-top: 14px"></div>
             </div>
           </div>
-          <div class="card" style="margin-top: 18px">
-            <div class="section-title" style="margin-bottom: 12px">Exam Papers</div>
+          <div id="exam-paper-list-anchor"></div>
+          <div id="exam-paper-list-card" class="card" style="margin-top: 18px">
+            <div class="section-title" style="margin-bottom: 12px">Uploaded Papers</div>
             <div id="exam-admin-filters" class="form-grid-2" style="margin-bottom: 12px; display: none">
               <div class="field">
                 <label>Subject</label>
@@ -17829,18 +17830,19 @@
         const adminNote = document.getElementById("exam-admin-note");
         const title = document.getElementById("exam-role-card-title");
         const copy = document.getElementById("exam-role-card-copy");
+        const uploadCard = document.getElementById("exam-upload-card");
+        const listCard = document.getElementById("exam-paper-list-card");
+        const listAnchor = document.getElementById("exam-paper-list-anchor");
+        const grid = uploadCard?.parentElement;
 
         if (isExamPaperAdmin()) {
-          if (form) form.style.display = "none";
-          if (adminNote) adminNote.style.display = "";
-          if (title) title.textContent = "Paper Review";
-          if (copy)
-            copy.textContent = isExamPaperMaster()
-              ? "Master review mode: download official papers, reset upload quotas, and monitor lock status from this panel."
-              : "Admin review mode: download official papers and monitor lock status from this panel.";
+          if (uploadCard) uploadCard.style.display = "none";
+          if (listCard && grid && listCard.parentElement !== grid) grid.appendChild(listCard);
+          if (listCard) listCard.style.gridColumn = "1 / -1";
           return;
         }
 
+        if (uploadCard) uploadCard.style.display = "";
         if (form) form.style.display = "";
         if (adminNote) adminNote.style.display = "none";
         if (title) title.textContent = "Upload Exam Paper";
@@ -17849,6 +17851,10 @@
             "Upload one paper at a time. Each teacher can keep only " +
             EXAM_PAPER_UPLOAD_LIMIT +
             " active papers before the upload form locks.";
+        if (listCard && listAnchor && listCard.parentElement !== listAnchor.parentElement) {
+          listAnchor.after(listCard);
+        }
+        if (listCard) listCard.style.gridColumn = "";
       }
 
       function examPaperOwnedByCurrentTeacher(item) {
