@@ -2249,10 +2249,18 @@ async function ensureContentTables() {
       section VARCHAR(50),
       subject_name VARCHAR(150),
       paper_type VARCHAR(80),
+      term VARCHAR(80),
+      academic_year VARCHAR(20),
       note TEXT,
       pdf_file_path TEXT,
       original_file_name VARCHAR(255),
+      file_size_bytes BIGINT UNSIGNED DEFAULT 0,
       status VARCHAR(50) DEFAULT 'pending_download',
+      approval_status VARCHAR(30) DEFAULT 'pending',
+      approved_by_user_id VARCHAR(64),
+      approved_by_name VARCHAR(190),
+      approved_at TIMESTAMP NULL,
+      rejection_reason TEXT,
       uploaded_by_user_id VARCHAR(64),
       uploaded_by_name VARCHAR(190),
       uploaded_by_email VARCHAR(190),
@@ -2542,6 +2550,14 @@ async function ensureContentTables() {
   await addColumnIfMissing("edutrack_exam_papers", "teacher_name", "VARCHAR(190)");
   await addColumnIfMissing("edutrack_exam_papers", "exam_date", "DATE");
   await addColumnIfMissing("edutrack_exam_papers", "paper_type", "VARCHAR(80)");
+  await addColumnIfMissing("edutrack_exam_papers", "term", "VARCHAR(80)");
+  await addColumnIfMissing("edutrack_exam_papers", "academic_year", "VARCHAR(20)");
+  await addColumnIfMissing("edutrack_exam_papers", "file_size_bytes", "BIGINT UNSIGNED DEFAULT 0");
+  await addColumnIfMissing("edutrack_exam_papers", "approval_status", "VARCHAR(30) DEFAULT 'pending'");
+  await addColumnIfMissing("edutrack_exam_papers", "approved_by_user_id", "VARCHAR(64)");
+  await addColumnIfMissing("edutrack_exam_papers", "approved_by_name", "VARCHAR(190)");
+  await addColumnIfMissing("edutrack_exam_papers", "approved_at", "TIMESTAMP NULL");
+  await addColumnIfMissing("edutrack_exam_papers", "rejection_reason", "TEXT");
   await addColumnIfMissing("edutrack_exam_papers", "download_count", "INT DEFAULT 0");
   await addColumnIfMissing("edutrack_exam_papers", "allowed_extra_downloads", "INT DEFAULT 0");
   await addColumnIfMissing("edutrack_exam_papers", "locked_at", "TIMESTAMP NULL");
@@ -2602,6 +2618,14 @@ async function ensureContentTables() {
     {
       name: "idx_exam_papers_subject",
       sql: "CREATE INDEX idx_exam_papers_subject ON edutrack_exam_papers (subject_name)",
+    },
+    {
+      name: "idx_exam_papers_term_year",
+      sql: "CREATE INDEX idx_exam_papers_term_year ON edutrack_exam_papers (term, academic_year)",
+    },
+    {
+      name: "idx_exam_papers_approval",
+      sql: "CREATE INDEX idx_exam_papers_approval ON edutrack_exam_papers (approval_status)",
     },
   ]);
   await ensureTableIndexes("edutrack_year_plans", [
@@ -10161,6 +10185,73 @@ async function countTeacherExamPapers(teacherId, runner = db) {
   return Number(rows[0]?.total || 0);
 }
 
+function examPaperFilterValue(value, maxLength = 120) {
+  return String(value || "").trim().slice(0, maxLength);
+}
+
+function buildExamPaperFilters(query = {}) {
+  const clauses = ["status <> 'deleted'"];
+  const values = [];
+  const filters = {
+    subject: examPaperFilterValue(query.subject),
+    grade: examPaperFilterValue(query.grade),
+    teacher: examPaperFilterValue(query.teacher),
+    term: examPaperFilterValue(query.term),
+    year: examPaperFilterValue(query.year, 20),
+    exam_type: examPaperFilterValue(query.exam_type),
+    approval_status: examPaperFilterValue(query.approval_status, 30),
+  };
+
+  if (filters.subject) {
+    clauses.push("subject_name LIKE ?");
+    values.push(`%${filters.subject}%`);
+  }
+  if (filters.grade) {
+    clauses.push("grade LIKE ?");
+    values.push(`%${filters.grade}%`);
+  }
+  if (filters.teacher) {
+    clauses.push("(uploaded_teacher_name LIKE ? OR uploaded_teacher_id LIKE ? OR uploaded_by_name LIKE ?)");
+    values.push(`%${filters.teacher}%`, `%${filters.teacher}%`, `%${filters.teacher}%`);
+  }
+  if (filters.term) {
+    clauses.push("term LIKE ?");
+    values.push(`%${filters.term}%`);
+  }
+  if (filters.year) {
+    clauses.push("academic_year LIKE ?");
+    values.push(`%${filters.year}%`);
+  }
+  if (filters.exam_type) {
+    clauses.push("paper_type LIKE ?");
+    values.push(`%${filters.exam_type}%`);
+  }
+  if (filters.approval_status) {
+    clauses.push("COALESCE(approval_status, 'pending') = ?");
+    values.push(filters.approval_status);
+  }
+  return { where: clauses.join(" AND "), values, filters };
+}
+
+async function examPaperStorageBytes(rows) {
+  let total = 0;
+  for (const row of rows) {
+    const storedSize = Number(row.file_size_bytes || 0);
+    if (Number.isFinite(storedSize) && storedSize > 0) {
+      total += storedSize;
+      continue;
+    }
+    const filePath = resolveExamPaperPdfPath(row);
+    if (!filePath) continue;
+    try {
+      total += Number(fs.statSync(filePath).size || 0);
+    } catch {
+      // Missing files are reported as zero without changing the stored record.
+    }
+  }
+  return total;
+}
+
 app.get("/api/edutrack/relief-assignments", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
@@ -10626,20 +10717,42 @@ app.get("/api/edutrack/exam-papers", teacherOrAdmin, async (req, res) => {
     const canSeeAll = isEduTrackAdminUser(req);
     const teacherKey = String(actor.teacherId || actor.id || "").trim();
     const quotaState = await loadExamPaperQuotaState(db);
-    const [rows] = canSeeAll
-      ? await db.query(
-          "SELECT * FROM edutrack_exam_papers WHERE status <> 'deleted' ORDER BY created_at DESC",
-        )
-      : await db.query(
-          `
-            SELECT *
-            FROM edutrack_exam_papers
-            WHERE status <> 'deleted' AND uploaded_teacher_id = ?
-            ORDER BY created_at DESC
-          `,
-          [teacherKey],
-        );
+    const filter = buildExamPaperFilters(req.query);
+    const teacherClause = canSeeAll ? "" : " AND uploaded_teacher_id = ?";
+    const values = canSeeAll ? filter.values : [teacherKey, ...filter.values];
+    const [rows] = await db.query(
+      `SELECT * FROM edutrack_exam_papers WHERE ${filter.where}${teacherClause} ORDER BY created_at DESC`,
+      values,
+    );
     res.json(rows.map((row) => decorateExamPaperQuota(row, quotaState)));
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/edutrack/exam-papers/stats", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const filter = buildExamPaperFilters(req.query);
+    const [rows] = await db.query(
+      `SELECT * FROM edutrack_exam_papers WHERE ${filter.where} ORDER BY created_at DESC`,
+      filter.values,
+    );
+    const byTeacher = new Map();
+    rows.forEach((row) => {
+      const teacherId = String(row.uploaded_teacher_id || row.teacher_id || row.uploaded_by_user_id || "").trim();
+      const teacherName = row.uploaded_teacher_name || row.teacher_name || row.uploaded_by_name || teacherId || "Unknown";
+      const entry = byTeacher.get(teacherId) || { teacherId, teacherName, papers: 0, downloads: 0 };
+      entry.papers += 1;
+      entry.downloads += Number(row.download_count || 0);
+      byTeacher.set(teacherId, entry);
+    });
+    res.json({
+      totalPapers: rows.length,
+      totalDownloads: rows.reduce((sum, row) => sum + Number(row.download_count || 0), 0),
+      storageBytes: await examPaperStorageBytes(rows),
+      uploadsByTeacher: [...byTeacher.values()].sort((a, b) => b.papers - a.papers || a.teacherName.localeCompare(b.teacherName)),
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -10663,12 +10776,14 @@ app.post("/api/edutrack/exam-papers", teacherOrAdmin, handleExamPaperUpload, asy
       section = "",
       subject_name = "",
       paper_type = "Exam Paper",
+      term = "",
+      academic_year = "",
       note = "",
     } = req.body || {};
 
-    if (!title || !exam_date || !grade || !section || !subject_name) {
+    if (!title || !exam_date || !grade || !section || !subject_name || !term || !academic_year) {
       throw Object.assign(
-        new Error("title, exam_date, grade, section and subject_name are required"),
+        new Error("title, exam_date, grade, section, subject_name, term and academic_year are required"),
         { status: 400 },
       );
     }
@@ -10699,10 +10814,11 @@ app.post("/api/edutrack/exam-papers", teacherOrAdmin, handleExamPaperUpload, asy
       `
         INSERT INTO edutrack_exam_papers
           (teacher_id, teacher_name, title, exam_date, grade, section, subject_name,
-           paper_type, note, pdf_file_path, original_file_name, uploaded_by_user_id,
+           paper_type, term, academic_year, note, pdf_file_path, original_file_name, file_size_bytes,
+           uploaded_by_user_id,
            uploaded_by_name, uploaded_by_email, uploaded_teacher_id, uploaded_teacher_name,
-           status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           status, approval_status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         teacherKey,
@@ -10713,15 +10829,19 @@ app.post("/api/edutrack/exam-papers", teacherOrAdmin, handleExamPaperUpload, asy
         String(section).trim(),
         String(subject_name).trim(),
         String(paper_type || "Exam Paper").trim() || "Exam Paper",
+        String(term).trim(),
+        String(academic_year).trim(),
         String(note || "").trim(),
         req.file.path,
         req.file.originalname,
+        Number(req.file.size || 0),
         actor.id,
         actor.name,
         actor.email,
         teacherKey,
         actor.teacherName || actor.name,
         "pending_download",
+        "pending",
       ],
     );
 
@@ -10794,6 +10914,125 @@ app.get("/api/edutrack/exam-papers/:id", teacherOrAdmin, async (req, res) => {
     res.json(decorateExamPaperQuota(paper, quotaState));
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+function examPaperOwnerMatches(paper, actor) {
+  const actorId = String(actor?.id || "");
+  const teacherId = String(actor?.teacherId || actorId || "");
+  return (
+    String(paper?.uploaded_by_user_id || "") === actorId ||
+    String(paper?.uploaded_teacher_id || "") === teacherId
+  );
+}
+
+app.put("/api/edutrack/exam-papers/:id", teacherOrAdmin, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const paperId = Number(req.params.id);
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_exam_papers WHERE id = ? AND status <> 'deleted' LIMIT 1",
+      [paperId],
+    );
+    const paper = rows[0];
+    if (!paper) return res.status(404).json({ error: "Exam paper not found" });
+    if (!isEduTrackAdminUser(req) && !examPaperOwnerMatches(paper, actor)) {
+      return res.status(403).json({ error: "You can only edit your own exam papers" });
+    }
+
+    const {
+      title = "",
+      exam_date = null,
+      grade = "",
+      section = "",
+      subject_name = "",
+      paper_type = "Exam Paper",
+      term = "",
+      academic_year = "",
+      note = "",
+    } = req.body || {};
+    if (!title || !exam_date || !grade || !section || !subject_name || !term || !academic_year) {
+      return res.status(400).json({
+        error: "title, exam_date, grade, section, subject_name, term and academic_year are required",
+      });
+    }
+
+    await db.query(
+      `
+        UPDATE edutrack_exam_papers
+        SET title = ?, exam_date = ?, grade = ?, section = ?, subject_name = ?, paper_type = ?,
+          term = ?, academic_year = ?, note = ?, approval_status = 'pending',
+          approved_by_user_id = NULL, approved_by_name = NULL, approved_at = NULL,
+          rejection_reason = NULL, updated_at = NOW()
+        WHERE id = ? AND status <> 'deleted'
+      `,
+      [
+        String(title).trim(),
+        exam_date || null,
+        String(grade).trim(),
+        String(section).trim(),
+        String(subject_name).trim(),
+        String(paper_type || "Exam Paper").trim() || "Exam Paper",
+        String(term).trim(),
+        String(academic_year).trim(),
+        String(note || "").trim(),
+        paperId,
+      ],
+    );
+    await insertExamPaperAudit(
+      db,
+      req,
+      paper,
+      "updated",
+      { message: "Exam paper metadata updated" },
+      actor,
+    );
+    res.json({ success: true });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
+  }
+});
+
+app.patch("/api/edutrack/exam-papers/:id/approval", eduzyncAdminOnly, async (req, res) => {
+  try {
+    await ensureContentTables();
+    const actor = await reliefActorInfo(req);
+    const paperId = Number(req.params.id);
+    const approvalStatus = String(req.body?.approval_status || req.body?.status || "")
+      .trim()
+      .toLowerCase();
+    if (!["approved", "rejected", "pending"].includes(approvalStatus)) {
+      return res.status(400).json({ error: "approval_status must be approved, rejected, or pending" });
+    }
+    const rejectionReason = String(req.body?.rejection_reason || "").trim();
+    const [rows] = await db.query(
+      "SELECT * FROM edutrack_exam_papers WHERE id = ? AND status <> 'deleted' LIMIT 1",
+      [paperId],
+    );
+    const paper = rows[0];
+    if (!paper) return res.status(404).json({ error: "Exam paper not found" });
+    await db.query(
+      `
+        UPDATE edutrack_exam_papers
+        SET approval_status = ?, approved_by_user_id = ?, approved_by_name = ?,
+          approved_at = CASE WHEN ? = 'pending' THEN NULL ELSE NOW() END,
+          rejection_reason = ?, updated_at = NOW()
+        WHERE id = ?
+      `,
+      [approvalStatus, actor.id, actor.name, approvalStatus, approvalStatus === "rejected" ? rejectionReason : "", paperId],
+    );
+    await insertExamPaperAudit(
+      db,
+      req,
+      paper,
+      `approval_${approvalStatus}`,
+      { message: `Paper marked ${approvalStatus}`, rejection_reason: rejectionReason },
+      actor,
+    );
+    res.json({ success: true, approvalStatus });
+  } catch (error) {
+    res.status(error.status || 500).json({ error: error.message });
   }
 });
 
@@ -11102,7 +11341,7 @@ app.get("/api/edutrack/exam-papers/:id/audit", eduzyncAdminOnly, async (req, res
   }
 });
 
-app.delete("/api/edutrack/exam-papers/:id", edutrackMasterOnly, async (req, res) => {
+app.delete("/api/edutrack/exam-papers/:id", teacherOrAdmin, async (req, res) => {
   try {
     await ensureContentTables();
     const actor = await reliefActorInfo(req);
@@ -11113,14 +11352,11 @@ app.delete("/api/edutrack/exam-papers/:id", edutrackMasterOnly, async (req, res)
     );
     const paper = rows[0];
     if (!paper) return res.status(404).json({ error: "Exam paper not found" });
-    const filePath = resolveExamPaperPdfPath(paper);
-    let fileDeleted = false;
-    if (filePath && fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
-      fileDeleted = true;
+    if (!isEduTrackAdminUser(req) && !examPaperOwnerMatches(paper, actor)) {
+      return res.status(403).json({ error: "You can only delete your own exam papers" });
     }
     await db.query(
-      "UPDATE edutrack_exam_papers SET status = 'deleted', pdf_file_path = NULL, updated_at = NOW() WHERE id = ?",
+      "UPDATE edutrack_exam_papers SET status = 'deleted', updated_at = NOW() WHERE id = ?",
       [paperId],
     );
     await insertExamPaperAudit(
@@ -11129,22 +11365,14 @@ app.delete("/api/edutrack/exam-papers/:id", edutrackMasterOnly, async (req, res)
       paper,
       "delete_approved",
       {
-        message: "Master direct delete marked the paper as deleted",
-        file_deleted: fileDeleted,
+        message: isEduTrackAdminUser(req)
+          ? "Admin marked the paper as deleted"
+          : "Teacher marked their paper as deleted",
+        file_deleted: false,
       },
       actor,
     );
-    if (fileDeleted) {
-      await insertExamPaperAudit(
-        db,
-        req,
-        paper,
-        "file_deleted",
-        { message: "PDF file deleted from protected storage" },
-        actor,
-      );
-    }
-    res.json({ success: true, fileDeleted });
+    res.json({ success: true, fileDeleted: false, preserved: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

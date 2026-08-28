@@ -6202,6 +6202,20 @@
                     <input id="exam-subject" placeholder="Mathematics" />
                   </div>
                   <div class="field">
+                    <label>Term</label>
+                    <select id="exam-term">
+                      <option value="">Select term</option>
+                      <option>Term 1</option>
+                      <option>Term 2</option>
+                      <option>Term 3</option>
+                      <option>Annual</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>Academic Year</label>
+                    <input id="exam-year" inputmode="numeric" placeholder="2026" />
+                  </div>
+                  <div class="field">
                     <label>Paper Type</label>
                     <select id="exam-type">
                       <option>Exam Paper</option>
@@ -6244,11 +6258,58 @@
           </div>
           <div class="card" style="margin-top: 18px">
             <div class="section-title" style="margin-bottom: 12px">Exam Papers</div>
+            <div id="exam-admin-filters" class="form-grid-2" style="margin-bottom: 12px; display: none">
+              <div class="field">
+                <label>Subject</label>
+                <select id="exam-filter-subject" onchange="setExamPaperFilter('subject', this.value)">
+                  <option value="">All subjects</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Class / Grade</label>
+                <select id="exam-filter-grade" onchange="setExamPaperFilter('grade', this.value)">
+                  <option value="">All grades</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Teacher</label>
+                <select id="exam-filter-teacher" onchange="setExamPaperFilter('teacher', this.value)">
+                  <option value="">All teachers</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Term</label>
+                <select id="exam-filter-term" onchange="setExamPaperFilter('term', this.value)">
+                  <option value="">All terms</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Year</label>
+                <select id="exam-filter-year" onchange="setExamPaperFilter('year', this.value)">
+                  <option value="">All years</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Exam Type</label>
+                <select id="exam-filter-type" onchange="setExamPaperFilter('exam_type', this.value)">
+                  <option value="">All types</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>Approval</label>
+                <select id="exam-filter-approval" onchange="setExamPaperFilter('approval_status', this.value)">
+                  <option value="">All statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="approved">Approved</option>
+                  <option value="rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
             <input
               id="exam-search"
               class="quick-input"
               style="margin-bottom: 12px"
-              placeholder="Search by title, teacher, subject, grade, section, type, or date"
+              placeholder="Search by title, teacher, subject, grade, term, year, type, or date"
               oninput="setExamPaperSearch(this.value)"
             />
             <div id="exam-list" class="page-stack"></div>
@@ -17495,6 +17556,16 @@
       const EXAM_PAPER_UPLOAD_LIMIT = 3;
       let examPapers = [];
       let examPaperSearchQuery = "";
+      let examPaperStats = null;
+      let examPaperFilters = {
+        subject: "",
+        grade: "",
+        teacher: "",
+        term: "",
+        year: "",
+        exam_type: "",
+        approval_status: "",
+      };
 
       function examPaperCountsTowardQuota(item) {
         return !!item && item.countsTowardQuota !== false;
@@ -17780,6 +17851,66 @@
             " active papers before the upload form locks.";
       }
 
+      function examPaperOwnedByCurrentTeacher(item) {
+        if (!cud || cud.role !== "teacher") return false;
+        const actorIds = [cud.id, cud.teacherId].filter(Boolean).map(String);
+        return actorIds.includes(String(item.uploaded_by_user_id || "")) ||
+          actorIds.includes(String(item.uploaded_teacher_id || item.teacher_id || ""));
+      }
+
+      function examPaperDisplayBytes(bytes) {
+        const value = Number(bytes || 0);
+        if (!Number.isFinite(value) || value <= 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB"];
+        const power = Math.min(Math.floor(Math.log(value) / Math.log(1024)), units.length - 1);
+        return `${(value / 1024 ** power).toFixed(power ? 1 : 0)} ${units[power]}`;
+      }
+
+      function examPaperUniqueValues(field) {
+        return [...new Set(examPapers.map((item) => String(item[field] || "").trim()).filter(Boolean))]
+          .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      }
+
+      function renderExamPaperAdminFilters() {
+        const box = document.getElementById("exam-admin-filters");
+        if (!box) return;
+        box.style.display = isExamPaperAdmin() ? "" : "none";
+        if (!isExamPaperAdmin()) return;
+        const definitions = [
+          ["exam-filter-subject", "subject_name", "All subjects"],
+          ["exam-filter-grade", "grade", "All grades"],
+          ["exam-filter-teacher", "uploaded_teacher_name", "All teachers"],
+          ["exam-filter-term", "term", "All terms"],
+          ["exam-filter-year", "academic_year", "All years"],
+          ["exam-filter-type", "paper_type", "All types"],
+        ];
+        definitions.forEach(([id, field, placeholder]) => {
+          const select = document.getElementById(id);
+          if (!select) return;
+          const current = examPaperFilters[field === "subject_name" ? "subject" : field === "uploaded_teacher_name" ? "teacher" : field === "academic_year" ? "year" : field === "paper_type" ? "exam_type" : field];
+          select.innerHTML = `<option value="">${placeholder}</option>` + examPaperUniqueValues(field)
+            .map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join("");
+          select.value = current || "";
+        });
+        const approval = document.getElementById("exam-filter-approval");
+        if (approval) approval.value = examPaperFilters.approval_status || "";
+      }
+
+      function examPaperMatchesFilters(item) {
+        const values = {
+          subject: item.subject_name,
+          grade: item.grade,
+          teacher: item.uploaded_teacher_name || item.teacher_name || item.uploaded_by_name,
+          term: item.term,
+          year: item.academic_year,
+          exam_type: item.paper_type,
+          approval_status: item.approval_status || "pending",
+        };
+        return Object.entries(examPaperFilters).every(([key, filter]) =>
+          !filter || String(values[key] || "").toLowerCase().includes(String(filter).toLowerCase()),
+        );
+      }
+
       function updateExamPaperUploadControls(locked, remaining) {
         const form = document.getElementById("exam-upload-form");
         const message = document.getElementById("exam-upload-message");
@@ -17818,7 +17949,9 @@
               ["Stored Papers", total],
               ["Quota Used", quotaUsed],
               ["Downloaded", downloaded],
+              ["Download Events", examPaperStats?.totalDownloads || 0],
               ["Locked", locked],
+              ["Storage Used", examPaperDisplayBytes(examPaperStats?.storageBytes)],
               [
                 "Teachers",
                 new Set(examPapers.map((item) => examPaperTeacherKey(item)).filter(Boolean))
@@ -17961,14 +18094,17 @@
                 item.grade,
                 item.section,
                 item.paper_type,
+                item.term,
+                item.academic_year,
                 item.exam_date,
               ]
                 .join(" ")
                 .toLowerCase()
-                .includes(examPaperSearchQuery),
+                .includes(examPaperSearchQuery) && examPaperMatchesFilters(item),
             )
-          : examPapers;
+          : examPapers.filter(examPaperMatchesFilters);
 
+        renderExamPaperAdminFilters();
         renderExamPaperSummary();
         renderExamPaperResetActions();
         renderExamPaperBreakdown();
@@ -17999,6 +18135,18 @@
                   : downloadCount > 0
                     ? "DOWNLOADED"
                     : "PENDING DOWNLOAD";
+            const approvalActions = isExamPaperAdmin()
+              ? (item.approval_status === "approved"
+                  ? '<button class="btn secondary sm" onclick="setExamPaperApproval(' + item.id + ',\'pending\')">Unapprove</button>'
+                  : '<button class="btn sm" onclick="setExamPaperApproval(' + item.id + ',\'approved\')">Approve</button>') +
+                (item.approval_status === "rejected"
+                  ? '<button class="btn secondary sm" onclick="setExamPaperApproval(' + item.id + ',\'pending\')">Review Again</button>'
+                  : '<button class="btn secondary sm" onclick="setExamPaperApproval(' + item.id + ',\'rejected\')">Reject</button>')
+              : "";
+            const ownerActions = examPaperOwnedByCurrentTeacher(item)
+              ? '<button class="btn secondary sm" onclick="editExamPaper(' + item.id + ')"><i data-lucide="pencil" style="width:13px;height:13px"></i> Edit</button>' +
+                '<button class="btn secondary sm" onclick="deleteExamPaper(' + item.id + ')"><i data-lucide="trash-2" style="width:13px;height:13px"></i> Delete</button>'
+              : "";
             const adminActions = isExamPaperAdmin()
               ? (locked
                   ? '<button class="btn secondary sm" disabled><i data-lucide="lock" style="width:13px;height:13px"></i> Locked</button>'
@@ -18015,7 +18163,8 @@
                     item.id +
                     ')"><i data-lucide="trash-2" style="width:13px;height:13px"></i> Delete</button>'
                   : "")
-              : "";
+              : ownerActions;
+            const allActions = approvalActions + adminActions;
 
             return (
               '<div class="relief-card-row"><div><div class="relief-card-row-title">' +
@@ -18032,8 +18181,14 @@
               escapeHtml(item.section || "-") +
               " | Subject: " +
               escapeHtml(item.subject_name || "-") +
+              " | Term: " +
+              escapeHtml(item.term || "-") +
+              " | Year: " +
+              escapeHtml(item.academic_year || "-") +
               " | Type: " +
               escapeHtml(item.paper_type || "Exam Paper") +
+              " | Approval: " +
+              escapeHtml(item.approval_status || "pending") +
               "<br>Uploaded by " +
               escapeHtml(item.uploaded_teacher_name || item.teacher_name || item.uploaded_by_name || "-") +
               (item.uploaded_teacher_id ? " (" + escapeHtml(item.uploaded_teacher_id) + ")" : "") +
@@ -18044,7 +18199,10 @@
               " / " +
               allowedDownloads +
               (item.downloaded_at
-                ? " | Downloaded: " + escapeHtml(reliefDate(item.downloaded_at))
+                ? " | Downloaded by: " +
+                  escapeHtml(item.downloaded_by_name || item.downloaded_by_email || "Admin") +
+                  " on " +
+                  escapeHtml(reliefDate(item.downloaded_at))
                 : "") +
               (item.last_unlock_reason
                 ? "<br>Last unlock reason: " + escapeHtml(item.last_unlock_reason)
@@ -18054,7 +18212,7 @@
                 : "<br><span style=\"color:var(--muted)\">Archived from the upload quota before the latest reset.</span>") +
               (item.note ? "<br>Note: " + escapeHtml(item.note) : "") +
               "</div></div><div class=\"relief-card-actions\">" +
-              adminActions +
+              allActions +
               "</div></div>"
             );
           })
@@ -18070,11 +18228,20 @@
         renderExamPapers();
       };
 
+      window.setExamPaperFilter = function (field, value) {
+        if (!(field in examPaperFilters)) return;
+        examPaperFilters[field] = String(value || "").trim();
+        renderExamPapers();
+      };
+
       window.loadExamPapers = async function () {
         const list = document.getElementById("exam-list");
         if (list) list.innerHTML = '<div class="empty">Loading exam papers...</div>';
         try {
           examPapers = await apiFetch("/api/edutrack/exam-papers");
+          examPaperStats = isExamPaperAdmin()
+            ? await apiFetch("/api/edutrack/exam-papers/stats").catch(() => null)
+            : null;
           renderExamPapers();
         } catch (error) {
           if (list)
@@ -18102,6 +18269,8 @@
           grade: document.getElementById("exam-grade")?.value.trim(),
           section: document.getElementById("exam-section")?.value.trim(),
           subject_name: document.getElementById("exam-subject")?.value.trim(),
+          term: document.getElementById("exam-term")?.value.trim(),
+          academic_year: document.getElementById("exam-year")?.value.trim(),
           paper_type: document.getElementById("exam-type")?.value.trim(),
           note: document.getElementById("exam-note")?.value.trim(),
         };
@@ -18120,11 +18289,13 @@
           !fields.exam_date ||
           !fields.grade ||
           !fields.section ||
-          !fields.subject_name
+          !fields.subject_name ||
+          !fields.term ||
+          !fields.academic_year
         ) {
           if (errorBox) {
             errorBox.textContent =
-              "Title, date, grade, section and subject are required.";
+              "Title, date, grade, section, subject, term and academic year are required.";
           }
           return;
         }
@@ -18141,7 +18312,7 @@
             method: "POST",
             body: payload,
           });
-          ["exam-title", "exam-date", "exam-grade", "exam-section", "exam-subject", "exam-note"].forEach(
+          ["exam-title", "exam-date", "exam-grade", "exam-section", "exam-subject", "exam-year", "exam-note"].forEach(
             (id) => {
               const el = document.getElementById(id);
               if (el) el.value = "";
@@ -18149,11 +18320,54 @@
           );
           const typeSelect = document.getElementById("exam-type");
           if (typeSelect) typeSelect.value = "Exam Paper";
+          const termSelect = document.getElementById("exam-term");
+          if (termSelect) termSelect.value = "";
           if (fileInput) fileInput.value = "";
           showToast("Exam paper uploaded", "success");
           await loadExamPapers();
         } catch (error) {
           if (errorBox) errorBox.textContent = error.message;
+          showToast(error.message, "err");
+        }
+      };
+
+      window.editExamPaper = async function (id) {
+        const paper = examPapers.find((item) => Number(item.id) === Number(id));
+        if (!paper || !examPaperOwnedByCurrentTeacher(paper)) return;
+        const values = {
+          title: prompt("Paper title", paper.title || ""),
+          exam_date: prompt("Exam date (YYYY-MM-DD)", String(paper.exam_date || "").slice(0, 10)),
+          grade: prompt("Class / grade", paper.grade || ""),
+          section: prompt("Section", paper.section || ""),
+          subject_name: prompt("Subject", paper.subject_name || ""),
+          term: prompt("Term", paper.term || ""),
+          academic_year: prompt("Academic year", paper.academic_year || ""),
+          paper_type: prompt("Exam type", paper.paper_type || "Exam Paper"),
+          note: prompt("Notes", paper.note || ""),
+        };
+        if (Object.values(values).some((value) => value === null)) return;
+        try {
+          await apiFetch("/api/edutrack/exam-papers/" + id, {
+            method: "PUT",
+            body: JSON.stringify(values),
+          });
+          showToast("Exam paper updated", "success");
+          await loadExamPapers();
+        } catch (error) {
+          showToast(error.message, "err");
+        }
+      };
+
+      window.setExamPaperApproval = async function (id, approvalStatus) {
+        if (!isExamPaperAdmin()) return;
+        try {
+          await apiFetch("/api/edutrack/exam-papers/" + id + "/approval", {
+            method: "PATCH",
+            body: JSON.stringify({ approval_status: approvalStatus }),
+          });
+          showToast("Paper marked " + approvalStatus, "success");
+          await loadExamPapers();
+        } catch (error) {
           showToast(error.message, "err");
         }
       };
@@ -18284,11 +18498,10 @@
       };
 
       window.deleteExamPaper = async function (id) {
-        if (!isExamPaperMaster()) {
-          showToast("Master admin access required for delete.", "err");
-          return;
-        }
-        const ok = confirm("Delete this exam paper permanently?");
+        const paper = examPapers.find((item) => Number(item.id) === Number(id));
+        const canDelete = isExamPaperMaster() || examPaperOwnedByCurrentTeacher(paper);
+        if (!canDelete) return;
+        const ok = confirm("Remove this exam paper from the list? The stored record and PDF will be preserved.");
         if (!ok) return;
         try {
           await reliefFetch(`/api/edutrack/exam-papers/${id}`, { method: "DELETE" });
