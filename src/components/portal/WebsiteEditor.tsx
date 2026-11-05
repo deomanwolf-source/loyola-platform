@@ -403,47 +403,14 @@ function normalizeKennedyTitle(value: string) {
     .replace(/\bRev\.\s*Fr\.\s*Kennedy Perera\b/gi, "Rev. Dr. Kennedy Perera");
 }
 
-function leadershipCardKey(name: string) {
-  return normalizeKennedyTitle(name)
-    .toLowerCase()
-    .replace(/[^a-z]+/g, " ")
-    .replace(/\b(his|eminence|very|rev|fr|dr|mr|mrs|ms)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
-function mergedHomeLeadershipCards(cards: HomeLeadershipCard[] = []) {
-  const normalizedCards = cards.map((card) => ({
-    ...card,
-    name: normalizeKennedyTitle(card.name),
-  }));
-  const existingByKey = new Map(
-    normalizedCards.map((card) => [leadershipCardKey(card.name), card] as const),
-  );
-  const requiredKeys = new Set(
-    REQUIRED_HOME_LEADERSHIP_CARDS.map((card) => leadershipCardKey(card.name)),
-  );
-
-  const requiredCards = REQUIRED_HOME_LEADERSHIP_CARDS.map((required) => {
-    const existing = existingByKey.get(leadershipCardKey(required.name));
-    if (!existing) return required;
-    return {
-      ...required,
-      ...existing,
-      name: normalizeKennedyTitle(existing.name || required.name),
-      title: existing.title || required.title,
-      description: existing.description || required.description,
-      image: existing.image || required.image,
-      order: required.order,
-      visible: true,
-    };
-  });
-
-  const extraCards = normalizedCards.filter(
-    (card) => card.visible !== false && !requiredKeys.has(leadershipCardKey(card.name)),
-  );
-
-  return [...requiredCards, ...extraCards].sort((a, b) => (a.order || 0) - (b.order || 0));
+function mergedHomeLeadershipCards(cards?: HomeLeadershipCard[]) {
+  return (cards ?? REQUIRED_HOME_LEADERSHIP_CARDS)
+    .map((card) => ({
+      ...card,
+      name: normalizeKennedyTitle(card.name),
+    }))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 const EMPTY_VISUAL_CSS = "/* No page-specific visual CSS overrides. */";
 const COLLEGE_DEPARTMENT_PAGE_IDS = [
@@ -1055,6 +1022,7 @@ function homeVisualStarter(db: DB) {
     </div>
     <div class="leadership-grid" style="margin-top:32px;">
       ${leadershipCards
+        .filter((card) => card.visible !== false)
         .sort((a, b) => (a.order || 0) - (b.order || 0))
         .slice(0, 4)
         .map(

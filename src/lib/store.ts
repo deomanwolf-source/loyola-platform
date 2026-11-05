@@ -2009,10 +2009,9 @@ function ensureRequiredHomeSections(db: DB): DB {
       Array.isArray(db.homeSections?.stats) && db.homeSections.stats.length > 0
         ? db.homeSections.stats
         : seed.homeSections.stats,
-    leadershipCards:
-      Array.isArray(db.homeSections?.leadershipCards) && db.homeSections.leadershipCards.length > 0
-        ? db.homeSections.leadershipCards
-        : seed.homeSections.leadershipCards,
+    leadershipCards: Array.isArray(db.homeSections?.leadershipCards)
+      ? db.homeSections.leadershipCards
+      : seed.homeSections.leadershipCards,
     // Seed the editable Home card collections when a database predates them.
     // Once the key exists (even as an empty array from an intentional edit) we
     // preserve it, so admin changes are never overwritten on reload.
