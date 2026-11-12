@@ -369,15 +369,6 @@ const REQUIRED_HOME_LEADERSHIP_CARDS: HomeLeadershipCard[] = [
     visible: true,
   },
   {
-    id: "LC-LEAD-2",
-    name: "Very Rev. Fr. Gemunu Dias",
-    title: "General Manager of Catholic Private Schools",
-    description: "Administration and school network leadership.",
-    image: "",
-    order: 2,
-    visible: true,
-  },
-  {
     id: "LC-LEAD-3",
     name: "Rev. Dr. D.M.J. Kennedy Perera",
     title: "Rector / Principal",
@@ -406,6 +397,7 @@ function normalizeKennedyTitle(value: string) {
 
 function mergedHomeLeadershipCards(cards?: HomeLeadershipCard[]) {
   return (cards ?? REQUIRED_HOME_LEADERSHIP_CARDS)
+    .filter((card) => card.name.trim().toLocaleLowerCase() !== "very rev. fr. gemunu dias")
     .map((card) => ({
       ...card,
       name: normalizeKennedyTitle(card.name),

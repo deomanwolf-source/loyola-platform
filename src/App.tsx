@@ -158,15 +158,6 @@ const REQUIRED_HOME_LEADERSHIP_CARDS: HomeLeadershipCard[] = [
     visible: true,
   },
   {
-    id: "LC-LEAD-2",
-    name: "Very Rev. Fr. Gemunu Dias",
-    title: "General Manager of Catholic Private Schools",
-    description: "Administration and school network leadership.",
-    image: "",
-    order: 2,
-    visible: true,
-  },
-  {
     id: "LC-LEAD-3",
     name: "Rev. Dr. D.M.J. Kennedy Perera",
     title: "Rector / Principal",
@@ -195,51 +186,20 @@ function normalizeKennedyTitle(value: string) {
     .replace(/\bRev\.\s*Fr\.\s*Kennedy Perera\b/gi, "Rev. Dr. Kennedy Perera");
 }
 
-function leadershipCardKey(name: string) {
-  return normalizeKennedyTitle(name)
-    .toLowerCase()
-    .replace(/[^a-z]+/g, " ")
-    .replace(/\b(his|eminence|very|rev|fr|dr|mr|mrs|ms)\b/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function normalizeLeadershipCard(card: HomeLeadershipCard): HomeLeadershipCard {
-  return {
-    ...card,
-    name: normalizeKennedyTitle(card.name),
-  };
-}
-
-function mergedHomeLeadershipCards(cards: HomeLeadershipCard[] = []) {
-  const normalizedCards = cards.map(normalizeLeadershipCard);
-  const existingByKey = new Map(
-    normalizedCards.map((card) => [leadershipCardKey(card.name), card] as const),
-  );
-  const requiredKeys = new Set(
-    REQUIRED_HOME_LEADERSHIP_CARDS.map((card) => leadershipCardKey(card.name)),
-  );
-
-  const requiredCards = REQUIRED_HOME_LEADERSHIP_CARDS.map((required) => {
-    const existing = existingByKey.get(leadershipCardKey(required.name));
-    if (!existing) return required;
-    return {
-      ...required,
-      ...existing,
-      name: normalizeKennedyTitle(existing.name || required.name),
-      title: existing.title || required.title,
-      description: existing.description || required.description,
-      image: existing.image || required.image,
-      order: required.order,
-      visible: true,
-    };
-  });
-
-  const extraCards = normalizedCards.filter(
-    (card) => card.visible !== false && !requiredKeys.has(leadershipCardKey(card.name)),
-  );
-
-  return [...requiredCards, ...extraCards].sort((a, b) => (a.order || 0) - (b.order || 0));
+function mergedHomeLeadershipCards(cards?: HomeLeadershipCard[]) {
+  // An explicit empty list or removed card is a valid admin edit. Only use the
+  // starter cards when the field is absent, never to recreate removed records.
+  return (cards ?? REQUIRED_HOME_LEADERSHIP_CARDS)
+    .filter(
+      (card) =>
+        card.name.trim().toLocaleLowerCase() !== "very rev. fr. gemunu dias" &&
+        card.visible !== false,
+    )
+    .map((card) => ({
+      ...card,
+      name: normalizeKennedyTitle(card.name),
+    }))
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
 function escapeHtmlAttribute(value: string) {
@@ -2157,7 +2117,7 @@ function HomeMetricCard({
 function HomeRequiredSections() {
   const db = useDb();
   const home = db.homeSections;
-  const leadershipCards = mergedHomeLeadershipCards(home.leadershipCards || []);
+  const leadershipCards = mergedHomeLeadershipCards(home.leadershipCards);
   const sortByOrder = (a: { order?: number }, b: { order?: number }) =>
     (a.order ?? 0) - (b.order ?? 0);
   const visibleHomeCards = (cards: HomeContentCard[] = []) =>

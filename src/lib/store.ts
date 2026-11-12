@@ -988,15 +988,6 @@ export const seed: DB = {
         visible: true,
       },
       {
-        id: "LC-LEAD-2",
-        name: "Very Rev. Fr. Gemunu Dias",
-        title: "General Manager of Catholic Private Schools",
-        description: "Administration and school network leadership.",
-        image: "",
-        order: 2,
-        visible: true,
-      },
-      {
         id: "LC-LEAD-3",
         name: "Rev. Dr. D.M.J. Kennedy Perera",
         title: "Rector / Principal",
@@ -2002,6 +1993,11 @@ function repairRequiredPages(db: DB): DB {
 }
 
 function ensureRequiredHomeSections(db: DB): DB {
+  const leadershipCards = Array.isArray(db.homeSections?.leadershipCards)
+    ? db.homeSections.leadershipCards.filter(
+        (card) => card.name.trim().toLocaleLowerCase() !== "very rev. fr. gemunu dias",
+      )
+    : seed.homeSections.leadershipCards;
   const homeSections = {
     ...seed.homeSections,
     ...(db.homeSections || {}),
@@ -2009,9 +2005,7 @@ function ensureRequiredHomeSections(db: DB): DB {
       Array.isArray(db.homeSections?.stats) && db.homeSections.stats.length > 0
         ? db.homeSections.stats
         : seed.homeSections.stats,
-    leadershipCards: Array.isArray(db.homeSections?.leadershipCards)
-      ? db.homeSections.leadershipCards
-      : seed.homeSections.leadershipCards,
+    leadershipCards,
     // Seed the editable Home card collections when a database predates them.
     // Once the key exists (even as an empty array from an intentional edit) we
     // preserve it, so admin changes are never overwritten on reload.
