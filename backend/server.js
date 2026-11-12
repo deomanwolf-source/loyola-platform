@@ -3714,10 +3714,10 @@ function protectPageSnapshot(siteDb, existingDb) {
 function shouldPreserveExistingArray(incoming, existing) {
   if (!Array.isArray(existing) || existing.length === 0) return false;
   if (!Array.isArray(incoming)) return true;
-  // Only restore when the array is completely empty — likely a missing/corrupted payload,
-  // not an intentional deletion. Removing the "less than half" threshold prevents
-  // legitimate bulk deletions from being silently reverted.
-  return incoming.length === 0;
+  // An empty array is an intentional edit: the administrator may have removed every
+  // record in this collection. Only restore an existing collection when the payload
+  // omitted its array altogether.
+  return false;
 }
 
 function mergeMediaSnapshot(incoming = {}, existing = {}) {
